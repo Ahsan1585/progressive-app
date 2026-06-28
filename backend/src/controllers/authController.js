@@ -24,7 +24,7 @@ const provisionPractitioner = async (req, res) => {
   } = req.body;
 
   try {
-    if (!payRate || isNaN(payRate)) {
+    if (role === 'practitioner' && (!payRate || isNaN(payRate))) {
       return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
     }
 
@@ -58,7 +58,7 @@ const provisionPractitioner = async (req, res) => {
           email,
           password_hash: temporaryHash,
           requires_password_change: true,
-          pay_rate: parseFloat(payRate),
+          pay_rate: payRate ? parseFloat(payRate) : null,
           position_title: position_title,
           address: address,
           phone_number: phone_number,

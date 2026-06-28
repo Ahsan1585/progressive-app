@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const formatPhone = (val) => {
+  const d = val.replace(/\D/g, '').slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0,3)}-${d.slice(3)}`;
+  return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`;
+};
+
 const ROLE_LABELS = {
   ceo:            'CEO',
   staff_director: 'Staff Director',
@@ -250,7 +257,7 @@ export const RegisterPractitionerForm = () => {
               value={regForm.positionTitle}
               onChange={(e) => setRegForm({...regForm, positionTitle: e.target.value})}
               className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
+              required={regForm.role === 'practitioner'}
             >
               <option value="" disabled>Select a discipline...</option>
               <option value="Developmental Interventionist">Developmental Interventionist</option>
@@ -298,7 +305,7 @@ export const RegisterPractitionerForm = () => {
               <Input
                 type="tel"
                 value={regForm.phoneNumber}
-                onChange={(e) => setRegForm({...regForm, phoneNumber: e.target.value})}
+                onChange={(e) => setRegForm({...regForm, phoneNumber: formatPhone(e.target.value)})}
                 placeholder="(555) 123-4567"
                 required
               />
@@ -310,7 +317,7 @@ export const RegisterPractitionerForm = () => {
                 value={regForm.ssn}
                 onChange={(e) => setRegForm({...regForm, ssn: e.target.value})}
                 placeholder="XXX-XX-XXXX"
-                required
+                required={regForm.role === 'practitioner'}
               />
             </div>
           </div>
@@ -332,7 +339,7 @@ export const RegisterPractitionerForm = () => {
                 type="number"
                 step="0.01"
                 min="0"
-                required
+                required={regForm.role === 'practitioner'}
                 placeholder="e.g. 75.00"
                 value={regForm.payRate}
                 onChange={(e) => setRegForm({...regForm, payRate: e.target.value})}
