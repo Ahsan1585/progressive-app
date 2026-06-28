@@ -28,6 +28,9 @@ const Dashboard = () => {
 
   // Signature dropdown
   const [sigDropdownOpen, setSigDropdownOpen] = useState(false);
+
+  // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const navigate = useNavigate();
 
@@ -184,9 +187,14 @@ const Dashboard = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900 font-sans">
-      
+
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* LEFT SIDEBAR: Patient Drawer */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col min-h-0 z-10 shadow-sm">
+      <div className={`fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 flex flex-col min-h-0 shadow-sm transform transition-transform duration-200 md:relative md:translate-x-0 md:z-10 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-5 border-b border-slate-100 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">My Patients</h2>
@@ -217,7 +225,7 @@ const Dashboard = () => {
                       ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                   }`}
-                  onClick={() => setSelectedPatient(p)}
+                  onClick={() => { setSelectedPatient(p); setSidebarOpen(false); }}
                 >
                   <div className="font-semibold text-[15px] capitalize pr-6">{p.first_name}{p.middle_name ? ` ${p.middle_name}` : ''} {p.last_name}</div>
                   <div className={`text-xs mt-1 font-medium tracking-wide ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
@@ -243,9 +251,18 @@ const Dashboard = () => {
       </div>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 shadow-sm z-20">
+        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-4 md:px-8 shadow-sm z-20">
           <div className="flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <button
+              className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              onClick={() => setSidebarOpen(o => !o)}
+              aria-label="Toggle patients"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse hidden md:block"></span>
             <h1 className="text-base font-semibold text-slate-800 tracking-tight">Clinical Workspace</h1>
           </div>
           <div className="flex items-center gap-3">
@@ -338,7 +355,7 @@ const Dashboard = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
 
           {/* Action Required Banner */}
           {rejectedLogs.length > 0 && (

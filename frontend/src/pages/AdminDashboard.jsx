@@ -28,6 +28,7 @@ const AdminDashboard = () => {
   });
 
   const [adminProfile, setAdminProfile] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     api.get('/api/practitioner/profile')
@@ -63,8 +64,13 @@ const AdminDashboard = () => {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
 
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm z-10">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm transform transition-transform duration-200 md:relative md:translate-x-0 md:z-10 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <span className="h-3 w-3 rounded-full bg-blue-600 animate-pulse"></span>
@@ -79,7 +85,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('practitioners') && (
             <button
-              onClick={() => setActiveTab('practitioners')}
+              onClick={() => { setActiveTab('practitioners'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'practitioners'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -95,7 +101,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('reports') && (
             <button
-              onClick={() => setActiveTab('reports')}
+              onClick={() => { setActiveTab('reports'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'reports'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -111,7 +117,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('billing') && (
             <button
-              onClick={() => setActiveTab('billing')}
+              onClick={() => { setActiveTab('billing'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'billing'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -134,9 +140,18 @@ const AdminDashboard = () => {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm shrink-0 z-10">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm shrink-0 z-10">
           <div className="flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
+            <button
+              className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              onClick={() => setSidebarOpen(o => !o)}
+              aria-label="Toggle menu"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse hidden md:block"></span>
             <h2 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
               {activeTab === 'practitioners' ? 'Staff Directory' : activeTab === 'reports' ? 'Master Reports' : 'Billing & Invoices'}
             </h2>
@@ -170,7 +185,7 @@ const AdminDashboard = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
           {renderContent()}
         </div>
       </main>
