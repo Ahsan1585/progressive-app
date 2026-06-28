@@ -207,8 +207,8 @@ const updateStaffRole = async (req, res) => {
 const deleteStaffMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const requesterId = req.user.id;
-    if (id === requesterId) {
+    const requesterId = req.practitioner.practitionerId;
+    if (String(id) === String(requesterId)) {
       return res.status(400).json({ error: 'You cannot delete your own account.' });
     }
     const { error } = await supabase.from('practitioners').delete().eq('id', id);
