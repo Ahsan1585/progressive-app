@@ -48,24 +48,23 @@ const provisionPractitioner = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const temporaryHash = await bcrypt.hash(tempPassword, salt);
 
-    // 3. Insert using the exact column names from your database schema
+    const insertData = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      password_hash: temporaryHash,
+      requires_password_change: true,
+      role,
+      ...(address      && { address }),
+      ...(phone_number && { phone_number }),
+      ...(payRate      && { pay_rate: parseFloat(payRate) }),
+      ...(position_title && { position_title }),
+      ...(ssn          && { ssn }),
+    };
+
     const { data: newPractitioner, error: insertError } = await supabase
       .from('practitioners')
-      .insert([
-        {
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          password_hash: temporaryHash,
-          requires_password_change: true,
-          pay_rate: payRate ? parseFloat(payRate) : null,
-          position_title: position_title,
-          address: address,
-          phone_number: phone_number,
-          ssn: ssn,
-          role: role
-        }
-      ])
+      .insert([insertData])
       .select('id, first_name, last_name, email, requires_password_change, created_at')
       .single();
 
