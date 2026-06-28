@@ -470,5 +470,22 @@ app.get('/api/interventions/:patientId', protect, async (req, res) => {
 });
 
 app.get('/', (req, res) => { res.send('NJEIS Encounter App Backend is Secure and Active'); });
+app.get('/health', (req, res) => { res.json({ status: 'ok', timestamp: new Date().toISOString() }); });
 
-app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+
+  // Keep-alive: ping self every 10 min to prevent Render free tier from sleeping
+  const pingUrl = process.env.RENDER_EXTERNAL_URL;
+  if (pingUrl) {
+    const https = require('https');
+    setInterval(() => {
+      https.get(`${pingUrl}/health`, (res) => {
+        console.log(`[keep-alive] ping → ${res.statusCode}`);
+      }).on('error', (err) => {
+        console.warn(`[keep-alive] ping failed: ${err.message}`);
+      });
+    }, 10 * 60 * 1000);
+    console.log(`[keep-alive] pinging ${pingUrl}/health every 10 min`);
+  }
+});
