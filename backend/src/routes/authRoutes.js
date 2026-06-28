@@ -8,7 +8,8 @@ const {
   loginPractitioner,
   changeTemporaryPassword,
   getAllStaff,
-  updateStaffRole
+  updateStaffRole,
+  deleteStaffMember
 } = require('../controllers/authController');
 
 // ==========================================
@@ -23,6 +24,9 @@ router.get('/staff', protect, requireRole(['ceo', 'staff_director']), getAllStaf
 
 // Change a staff member's role (CEO only)
 router.patch('/staff/:id/role', protect, requireRole(['ceo']), updateStaffRole);
+
+// Delete a staff member (CEO only)
+router.delete('/staff/:id', protect, requireRole(['ceo']), deleteStaffMember);
 
 
 // ==========================================

@@ -204,10 +204,27 @@ const updateStaffRole = async (req, res) => {
   }
 };
 
+const deleteStaffMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.user.id;
+    if (id === requesterId) {
+      return res.status(400).json({ error: 'You cannot delete your own account.' });
+    }
+    const { error } = await supabase.from('practitioners').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete staff error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
   provisionPractitioner,
   loginPractitioner,
   changeTemporaryPassword,
   getAllStaff,
-  updateStaffRole
+  updateStaffRole,
+  deleteStaffMember
 };

@@ -25,6 +25,8 @@ export const RegisterPractitionerForm = () => {
   const [staffList, setStaffList] = useState([]);
   const [loadingStaff, setLoadingStaff] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
 
   // --- Registration Form State ---
   const [regForm, setRegForm] = useState({
@@ -47,6 +49,20 @@ export const RegisterPractitionerForm = () => {
       .catch(() => {})
       .finally(() => setLoadingStaff(false));
   }, []);
+
+  const handleDeleteConfirmed = async () => {
+    if (!confirmDelete) return;
+    setDeletingId(confirmDelete.id);
+    try {
+      await api.delete(`/api/auth/staff/${confirmDelete.id}`);
+      setStaffList(prev => prev.filter(s => s.id !== confirmDelete.id));
+      setConfirmDelete(null);
+    } catch {
+      alert('Failed to delete user. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleRoleChange = async (id, newRole) => {
     setUpdatingId(id);
@@ -123,6 +139,9 @@ export const RegisterPractitionerForm = () => {
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
+                  {currentUserRole === 'ceo' && (
+                    <th className="px-4 py-3"></th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -159,6 +178,20 @@ export const RegisterPractitionerForm = () => {
                         </span>
                       )}
                     </td>
+                    {currentUserRole === 'ceo' && (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setConfirmDelete(member)}
+                          disabled={deletingId === member.id}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
+                          title="Delete user"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -318,6 +351,45 @@ export const RegisterPractitionerForm = () => {
           </div>
         </form>
       </div>
+
+      {/* ── DELETE CONFIRM DIALOG ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Delete User Account</h3>
+                <p className="text-xs text-slate-500 mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600">
+              Are you sure you want to permanently delete{' '}
+              <span className="font-semibold text-slate-800">{confirmDelete.first_name} {confirmDelete.last_name}</span>?
+              Their account and all associated data will be removed.
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                disabled={deletingId === confirmDelete.id}
+                className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-60"
+              >
+                {deletingId === confirmDelete.id ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
