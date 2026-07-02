@@ -267,9 +267,9 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-3">
 
-            {/* Logged-in practitioner name */}
+            {/* Logged-in practitioner name — hidden on mobile */}
             {practitionerProfile && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
                 <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-xs font-bold">
                     {practitionerProfile.first_name?.[0]}{practitionerProfile.last_name?.[0]}
@@ -285,14 +285,14 @@ const Dashboard = () => {
             <div className="relative">
               <button
                 onClick={() => { setSigDropdownOpen(o => !o); setIsUpdatingSignature(false); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all"
+                className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all min-h-[44px]"
               >
-                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                <span className="text-sm font-medium text-slate-600">My Signature</span>
+                <span className="hidden md:inline text-sm font-medium text-slate-600">My Signature</span>
                 {savedSignature && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title="Signature saved" />}
-                <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${sigDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`hidden md:block w-3.5 h-3.5 text-slate-400 transition-transform ${sigDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -301,7 +301,7 @@ const Dashboard = () => {
                 <>
                   {/* Backdrop to close on outside click */}
                   <div className="fixed inset-0 z-10" onClick={() => setSigDropdownOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-20 p-5 space-y-4">
+                  <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] md:w-80 max-w-sm bg-white rounded-2xl border border-slate-200 shadow-xl z-20 p-5 space-y-4">
                     <div>
                       <h3 className="text-sm font-bold text-slate-800">My Digital Signature</h3>
                       <p className="text-xs text-slate-400 mt-0.5">Applied to encounters with a single click</p>
@@ -348,9 +348,13 @@ const Dashboard = () => {
 
             <button
               onClick={() => { localStorage.removeItem('token'); navigate('/'); }}
-              className="text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-lg transition-all"
+              className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
+              title="Sign Out"
             >
-              Sign Out
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className="hidden md:inline">Sign Out</span>
             </button>
           </div>
         </header>
@@ -431,25 +435,26 @@ const Dashboard = () => {
           )}
 
           {!selectedPatient ? (
-            <div className="h-full flex flex-col items-center justify-center text-center">
+            <div className="h-full flex flex-col items-center justify-center text-center px-6">
               <div className="p-5 bg-white rounded-full border border-slate-200 shadow-sm mb-4">
                 <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
               <h2 className="text-xl font-bold text-slate-800">Select a Patient</h2>
+              <p className="text-sm text-slate-400 mt-1 md:hidden">Tap the menu icon to open your patient list</p>
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-6">
               
               {/* Detailed Patient Info Card */}
-              <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-start">
+              <div className="bg-white p-4 md:p-7 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                 <div className="space-y-4">
-                  <h2 className="text-3xl font-bold text-slate-900 tracking-tight capitalize">
+                  <h2 className="text-xl md:text-3xl font-bold text-slate-900 tracking-tight capitalize">
                     {selectedPatient.first_name}{selectedPatient.middle_name ? ` ${selectedPatient.middle_name}` : ''} {selectedPatient.last_name}
                   </h2>
-                  
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-4">
+
+                  <div className="grid grid-cols-2 gap-x-6 md:gap-x-8 gap-y-3 mt-4">
                     <div className="flex flex-col">
                       <span className="text-xs text-slate-500 uppercase font-semibold tracking-wider">Child ID</span>
                       <span className="text-sm font-medium text-slate-900">{selectedPatient.child_id}</span>
@@ -479,11 +484,14 @@ const Dashboard = () => {
                   </div>
                 </div>
                 
-                <div className="flex flex-col gap-3">
-                  <Button 
+                <div className="flex flex-col gap-3 md:flex-shrink-0">
+                  <Button
                     onClick={() => setIsInterventionModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md px-5 py-6 rounded-xl transition-all flex items-center gap-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md px-5 py-6 rounded-xl transition-all flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer"
                   >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
                     Log Intervention
                   </Button>
 
@@ -498,7 +506,7 @@ const Dashboard = () => {
 
               {/* Dynamic Intervention History Section */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-7 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="px-4 md:px-7 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <h3 className="text-lg font-bold text-slate-800">Recent Interventions</h3>
                   <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                     {interventions.length} Sessions
@@ -514,7 +522,7 @@ const Dashboard = () => {
 
                       const billingBadge = billingStatusConfig[item.billing_status];
                       return (
-                        <div key={item.id} className="px-7 py-4 hover:bg-slate-50 transition-colors">
+                        <div key={item.id} className="px-4 md:px-7 py-4 hover:bg-slate-50 transition-colors">
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
