@@ -12,9 +12,9 @@ const TAB_ACCESS = {
 };
 
 const ROLE_LABELS = {
-  ceo:            'CEO',
-  staff_director: 'Staff Director',
-  billing:        'Billing',
+  ceo:            'Admin',
+  staff_director: 'Office Manager',
+  billing:        'Billing Specialist',
 };
 
 const AdminDashboard = () => {

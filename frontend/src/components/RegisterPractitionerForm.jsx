@@ -12,9 +12,9 @@ const formatPhone = (val) => {
 };
 
 const ROLE_LABELS = {
-  ceo:            'CEO',
-  staff_director: 'Staff Director',
-  billing:        'Billing',
+  ceo:            'Admin',
+  staff_director: 'Office Manager',
+  billing:        'Billing Specialist',
   practitioner:   'Practitioner',
 };
 
@@ -210,9 +210,9 @@ export const RegisterPractitionerForm = () => {
                           className={`text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'} ${updatingId === member.id ? 'opacity-50 cursor-wait' : ''}`}
                         >
                           <option value="practitioner">Practitioner</option>
-                          <option value="staff_director">Staff Director</option>
-                          <option value="billing">Billing</option>
-                          <option value="ceo">CEO</option>
+                          <option value="staff_director">Office Manager</option>
+                          <option value="billing">Billing Specialist</option>
+                          <option value="ceo">Admin</option>
                         </select>
                       ) : (
                         <span className={`inline-block text-xs font-semibold border rounded-md px-2 py-1 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
@@ -318,9 +318,9 @@ export const RegisterPractitionerForm = () => {
                 required
               >
                 <option value="practitioner">Practitioner</option>
-                <option value="staff_director">Staff Director</option>
-                <option value="billing">Billing</option>
-                <option value="ceo">CEO</option>
+                <option value="staff_director">Office Manager</option>
+                <option value="billing">Billing Specialist</option>
+                <option value="ceo">Admin</option>
               </select>
             </div>
           )}
