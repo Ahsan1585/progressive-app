@@ -732,9 +732,24 @@ export const BillingManager = () => {
                                                     <SelectValue placeholder="Select action" />
                                                   </SelectTrigger>
                                                   <SelectContent>
-                                                    <SelectItem value="accept"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />Accept</SelectItem>
-                                                    <SelectItem value="reject"><X className="size-3.5 text-red-600" aria-hidden="true" />Reject</SelectItem>
-                                                    <SelectItem value="return"><Undo2 className="size-3.5 text-blue-600" aria-hidden="true" />Return</SelectItem>
+                                                    <SelectItem value="accept">
+                                                      <span className="inline-flex items-center gap-1.5">
+                                                        <Check className="size-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+                                                        Accept
+                                                      </span>
+                                                    </SelectItem>
+                                                    <SelectItem value="reject">
+                                                      <span className="inline-flex items-center gap-1.5">
+                                                        <X className="size-3.5 text-red-600 shrink-0" aria-hidden="true" />
+                                                        Reject
+                                                      </span>
+                                                    </SelectItem>
+                                                    <SelectItem value="return">
+                                                      <span className="inline-flex items-center gap-1.5">
+                                                        <Undo2 className="size-3.5 text-blue-600 shrink-0" aria-hidden="true" />
+                                                        Return
+                                                      </span>
+                                                    </SelectItem>
                                                   </SelectContent>
                                                 </Select>
                                               )}
