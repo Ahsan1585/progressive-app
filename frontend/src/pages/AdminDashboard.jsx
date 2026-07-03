@@ -28,8 +28,8 @@ const AdminDashboard = () => {
   });
 
   const [adminProfile, setAdminProfile] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop-only collapse to free up table width
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile hamburger toggle
+  const [desktopNavOpen, setDesktopNavOpen] = useState(false); // desktop hover-triggered flyout nav
 
   useEffect(() => {
     api.get('/api/practitioner/profile')
@@ -70,23 +70,24 @@ const AdminDashboard = () => {
         <div className="print:hidden fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Floating expand tab — appears once the desktop sidebar is collapsed */}
-      {sidebarCollapsed && (
-        <button
-          onClick={() => setSidebarCollapsed(false)}
-          className="print:hidden hidden md:flex fixed left-0 top-1/2 -translate-y-1/2 z-30 items-center justify-center w-6 h-16 bg-white border border-l-0 border-slate-200 rounded-r-lg shadow-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-          aria-label="Expand sidebar"
-          title="Expand sidebar"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
-        </button>
-      )}
+      {/* Desktop hover strip — move the cursor to the left edge to reveal the nav; also tappable/focusable */}
+      <button
+        type="button"
+        onMouseEnter={() => setDesktopNavOpen(true)}
+        onClick={() => setDesktopNavOpen(true)}
+        className="print:hidden hidden md:block fixed inset-y-0 left-0 w-2 z-40 bg-slate-200/60 hover:bg-blue-300/60 transition-colors cursor-pointer"
+        aria-label="Show navigation"
+        title="Show navigation"
+      />
 
-      {/* SIDEBAR */}
-      <aside className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm transition-[transform,margin-left] duration-200 md:translate-x-0 md:z-10 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarCollapsed ? 'md:relative md:-ml-64' : 'md:relative'}`}>
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+      {/* SIDEBAR — fixed overlay on all breakpoints; desktop reveals via hover, mobile via hamburger */}
+      <aside
+        className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg transition-transform duration-200 ${
+          sidebarOpen || desktopNavOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        onMouseLeave={() => setDesktopNavOpen(false)}
+      >
+        <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
             <span className="h-3 w-3 rounded-full bg-blue-600 animate-pulse flex-shrink-0"></span>
             <h1 className="text-lg font-bold text-slate-800 tracking-tight leading-tight truncate">
@@ -94,23 +95,13 @@ const AdminDashboard = () => {
               <span className="text-sm font-medium text-slate-500">Admin Portal</span>
             </h1>
           </div>
-          <button
-            onClick={() => setSidebarCollapsed(true)}
-            className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer flex-shrink-0"
-            aria-label="Collapse sidebar"
-            title="Collapse sidebar"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-            </svg>
-          </button>
         </div>
 
         <nav className="flex-1 overflow-y-auto p-4 space-y-2">
 
           {visibleTabs.includes('practitioners') && (
             <button
-              onClick={() => { setActiveTab('practitioners'); setSidebarOpen(false); }}
+              onClick={() => { setActiveTab('practitioners'); setSidebarOpen(false); setDesktopNavOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'practitioners'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -126,7 +117,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('reports') && (
             <button
-              onClick={() => { setActiveTab('reports'); setSidebarOpen(false); }}
+              onClick={() => { setActiveTab('reports'); setSidebarOpen(false); setDesktopNavOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'reports'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -142,7 +133,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('billing') && (
             <button
-              onClick={() => { setActiveTab('billing'); setSidebarOpen(false); }}
+              onClick={() => { setActiveTab('billing'); setSidebarOpen(false); setDesktopNavOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'billing'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
