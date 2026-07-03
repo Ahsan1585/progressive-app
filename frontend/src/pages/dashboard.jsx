@@ -117,6 +117,12 @@ const Dashboard = () => {
     }
   };
 
+  const handleBackToDashboard = () => {
+    setSelectedPatient(null);
+    fetchStats();
+    fetchRejectedLogs();
+  };
+
   const handleOpenResubmit = (log) => {
     setResubmitModal(log);
     setResubmitForm({
@@ -284,7 +290,24 @@ const Dashboard = () => {
               </svg>
             </button>
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse hidden md:block"></span>
-            <h1 className="text-base font-semibold text-slate-800 tracking-tight">Clinical Workspace</h1>
+            {selectedPatient && (
+              <button
+                onClick={handleBackToDashboard}
+                className="p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                aria-label="Back to dashboard"
+                title="Back to dashboard"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              </button>
+            )}
+            <h1
+              className={`text-base font-semibold text-slate-800 tracking-tight ${selectedPatient ? 'cursor-pointer hover:text-blue-600 transition-colors' : ''}`}
+              onClick={() => selectedPatient && handleBackToDashboard()}
+            >
+              Clinical Workspace
+            </h1>
           </div>
           <div className="flex items-center gap-3">
 
