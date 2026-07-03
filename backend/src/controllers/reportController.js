@@ -1,8 +1,7 @@
 const { supabase } = require('../config/db');
 const { generateNjeisPDF } = require('../utils/njeisGenerator');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
-const { PDFDocument } = require('pdf-lib');
-const puppeteer = require('puppeteer');
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
 // 1. Logic to generate the Master Report
 const generateMasterReport = async (req, res) => {
@@ -352,83 +351,158 @@ const generateAuditReportPDF = async (req, res) => {
   const uniquePractitioners = new Set(logs.map(l => l.practitioner_id)).size;
 
   const statusLabel = { pending: 'Pending', njeis_review: 'In Review', invoiced: 'Invoiced', declined: 'Rejected', rejected: 'Returned' };
+  const statusColor = {
+    invoiced: rgb(0.02, 0.4, 0.35), pending: rgb(0.65, 0.32, 0.02),
+    njeis_review: rgb(0.05, 0.29, 0.63), declined: rgb(0.6, 0.06, 0.06), rejected: rgb(0.31, 0.18, 0.53),
+  };
   const filterLine = [
-    filters?.startDate && `Date: ${filters.startDate} → ${filters.endDate || 'present'}`,
+    filters?.startDate && `Date: ${filters.startDate} -> ${filters.endDate || 'present'}`,
     filters?.practitionerSearch && `Practitioner: ${filters.practitionerSearch}`,
     filters?.patientSearch && `Patient: ${filters.patientSearch}`,
     filters?.billingStatus && filters.billingStatus !== 'all' && `Status: ${filters.billingStatus}`
-  ].filter(Boolean).join('  |  ');
+  ].filter(Boolean).join('   |   ');
 
-  const rowsHtml = logs.map(l => {
+  const rows = logs.map(l => {
     const [y, m, d] = (l.service_date || '').split('-');
     const dateStr = y ? `${parseInt(m)}/${parseInt(d)}/${y.slice(-2)}` : '-';
-    const hours = l.total_time ? `${(l.total_time / 60).toFixed(2)}h` : '-';
-    return `<tr>
-      <td>${l.patient_first_name || ''} ${l.patient_last_name || ''}</td>
-      <td>${l.practitioners?.first_name || ''} ${l.practitioners?.last_name || ''}</td>
-      <td>${dateStr}</td>
-      <td>${l.type || '-'}</td>
-      <td>${l.location || '-'}</td>
-      <td>${l.start_time || '-'}</td>
-      <td>${l.end_time || '-'}</td>
-      <td>${hours}</td>
-      <td class="s-${l.billing_status}">${statusLabel[l.billing_status] || l.billing_status || '-'}</td>
-    </tr>`;
-  }).join('');
+    return {
+      cells: [
+        `${l.patient_first_name || ''} ${l.patient_last_name || ''}`.trim() || '-',
+        `${l.practitioners?.first_name || ''} ${l.practitioners?.last_name || ''}`.trim() || '-',
+        dateStr,
+        l.type || '-',
+        l.location || '-',
+        l.start_time || '-',
+        l.end_time || '-',
+        l.total_time ? `${(l.total_time / 60).toFixed(2)}h` : '-',
+        statusLabel[l.billing_status] || l.billing_status || '-',
+      ],
+      statusKey: l.billing_status,
+    };
+  });
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:sans-serif;font-size:10px;padding:20px;color:#1e293b}
-    .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1e293b;padding-bottom:10px;margin-bottom:12px}
-    .hdr h1{font-size:15px;font-weight:700}
-    .hdr .sub{font-size:9px;color:#64748b;margin-top:3px}
-    .filters{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-bottom:12px;font-size:9px;color:#475569}
-    .stats{display:flex;gap:12px;margin-bottom:12px}
-    .stat{background:#f1f5f9;border-radius:6px;padding:6px 12px;flex:1;text-align:center}
-    .stat .val{font-size:18px;font-weight:700;color:#1e293b}
-    .stat .lbl{font-size:8px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
-    table{width:100%;border-collapse:collapse;font-size:9px}
-    th{background:#1e293b;color:#fff;padding:5px 6px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
-    td{padding:4px 6px;border-bottom:1px solid #e2e8f0;white-space:nowrap}
-    tr:nth-child(even) td{background:#f8fafc}
-    .s-invoiced{color:#059669;font-weight:700}
-    .s-pending{color:#d97706;font-weight:700}
-    .s-njeis_review{color:#2563eb;font-weight:700}
-    .s-declined{color:#dc2626;font-weight:700}
-    .s-rejected{color:#7c3aed;font-weight:700}
-    .footer{margin-top:14px;font-size:8px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:8px}
-    @page{size:A4 landscape;margin:12mm}
-  </style></head><body>
-    <div class="hdr">
-      <div><h1>Progressive Steps NJ — Audit Report</h1><div class="sub">System Audit & Reports</div></div>
-      <div style="font-size:9px;color:#64748b;text-align:right">Generated: ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}<br/>${logs.length} records</div>
-    </div>
-    ${filterLine ? `<div class="filters"><strong>Filters applied:</strong> ${filterLine}</div>` : ''}
-    <div class="stats">
-      <div class="stat"><div class="val">${logs.length}</div><div class="lbl">Total Logs</div></div>
-      <div class="stat"><div class="val">${totalHours}h</div><div class="lbl">Total Hours</div></div>
-      <div class="stat"><div class="val">${uniqueChildren}</div><div class="lbl">Unique Patients</div></div>
-      <div class="stat"><div class="val">${uniquePractitioners}</div><div class="lbl">Practitioners</div></div>
-    </div>
-    <table>
-      <thead><tr>
-        <th>Patient Name</th><th>Practitioner</th><th>Service Date</th>
-        <th>Type</th><th>Location</th><th>Start</th><th>End</th><th>Time</th><th>Status</th>
-      </tr></thead>
-      <tbody>${rowsHtml}</tbody>
-    </table>
-    <div class="footer">Progressive Steps NJ · Audit Report · Confidential</div>
-  </body></html>`;
+  const pageSize = { width: 842, height: 595 }; // A4 landscape (points)
+  const margin = 34;
+  const contentWidth = pageSize.width - margin * 2;
 
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdfBuffer = await page.pdf({ format: 'A4', landscape: true, printBackground: true, margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' } });
-  await browser.close();
+  const cols = [
+    { label: 'Patient Name',  w: 130 },
+    { label: 'Practitioner',  w: 120 },
+    { label: 'Service Date',  w: 78  },
+    { label: 'Type',          w: 90  },
+    { label: 'Location',      w: 90  },
+    { label: 'Start',         w: 62  },
+    { label: 'End',           w: 62  },
+    { label: 'Time',          w: 62  },
+    { label: 'Status',        w: 80  },
+  ];
+
+  const pdfDoc = await PDFDocument.create();
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const rowH = 16;
+  const headerH = 18;
+  const black = rgb(0.12, 0.16, 0.22);
+  const gray  = rgb(0.4, 0.46, 0.55);
+  const lightGray = rgb(0.97, 0.98, 0.99);
+
+  const drawTableHeader = (page, y) => {
+    page.drawRectangle({ x: margin, y: y - headerH, width: contentWidth, height: headerH, color: black });
+    let cx = margin;
+    cols.forEach(col => {
+      page.drawText(col.label.toUpperCase(), { x: cx + 4, y: y - headerH + 6, font: bold, size: 7, color: rgb(1,1,1) });
+      cx += col.w;
+    });
+    return y - headerH;
+  };
+
+  let page = pdfDoc.addPage([pageSize.width, pageSize.height]);
+  let y = pageSize.height - margin;
+
+  // ── Header ──
+  page.drawText('Progressive Steps NJ - Audit Report', { x: margin, y, font: bold, size: 15, color: black });
+  const genLabel = `Generated: ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
+  const genW = regular.widthOfTextAtSize(genLabel, 9);
+  page.drawText(genLabel, { x: pageSize.width - margin - genW, y: y + 2, font: regular, size: 9, color: gray });
+  y -= 14;
+  page.drawText('System Audit & Reports', { x: margin, y, font: regular, size: 9, color: gray });
+  const recLabel = `${logs.length} records`;
+  const recW = regular.widthOfTextAtSize(recLabel, 9);
+  page.drawText(recLabel, { x: pageSize.width - margin - recW, y, font: regular, size: 9, color: gray });
+  y -= 10;
+  page.drawLine({ start: { x: margin, y }, end: { x: pageSize.width - margin, y }, thickness: 1.5, color: black });
+  y -= 16;
+
+  // ── Filter line ──
+  if (filterLine) {
+    const filterBoxH = 18;
+    page.drawRectangle({ x: margin, y: y - filterBoxH, width: contentWidth, height: filterBoxH, color: lightGray, borderColor: rgb(0.89,0.91,0.94), borderWidth: 0.5 });
+    page.drawText('Filters applied: ', { x: margin + 6, y: y - filterBoxH + 6, font: bold, size: 8, color: rgb(0.28,0.34,0.42) });
+    const labelW = bold.widthOfTextAtSize('Filters applied: ', 8);
+    page.drawText(filterLine, { x: margin + 6 + labelW, y: y - filterBoxH + 6, font: regular, size: 8, color: rgb(0.28,0.34,0.42) });
+    y -= filterBoxH + 12;
+  }
+
+  // ── Stat boxes ──
+  const stats = [
+    { label: 'Total Logs',      value: `${logs.length}` },
+    { label: 'Total Hours',     value: `${totalHours}h` },
+    { label: 'Unique Patients', value: `${uniqueChildren}` },
+    { label: 'Practitioners',   value: `${uniquePractitioners}` },
+  ];
+  const statBoxH = 36;
+  const statGap = 10;
+  const statW = (contentWidth - statGap * (stats.length - 1)) / stats.length;
+  let sx = margin;
+  stats.forEach(s => {
+    page.drawRectangle({ x: sx, y: y - statBoxH, width: statW, height: statBoxH, color: rgb(0.945,0.96,0.97) });
+    const valW = bold.widthOfTextAtSize(s.value, 15);
+    page.drawText(s.value, { x: sx + (statW - valW) / 2, y: y - 18, font: bold, size: 15, color: black });
+    const lblW = regular.widthOfTextAtSize(s.label.toUpperCase(), 7);
+    page.drawText(s.label.toUpperCase(), { x: sx + (statW - lblW) / 2, y: y - statBoxH + 8, font: regular, size: 7, color: gray });
+    sx += statW + statGap;
+  });
+  y -= statBoxH + 14;
+
+  // ── Table ──
+  y = drawTableHeader(page, y);
+
+  rows.forEach((row, i) => {
+    if (y - rowH < margin + 20) {
+      page = pdfDoc.addPage([pageSize.width, pageSize.height]);
+      y = pageSize.height - margin;
+      page.drawText('Progressive Steps NJ - Audit Report (continued)', { x: margin, y, font: bold, size: 11, color: black });
+      y -= 18;
+      y = drawTableHeader(page, y);
+    }
+
+    if (i % 2 === 1) {
+      page.drawRectangle({ x: margin, y: y - rowH, width: contentWidth, height: rowH, color: lightGray });
+    }
+
+    let cx = margin;
+    row.cells.forEach((val, ci) => {
+      const isStatus = ci === row.cells.length - 1;
+      const color = isStatus ? (statusColor[row.statusKey] || gray) : rgb(0.2,0.24,0.3);
+      const font = isStatus ? bold : regular;
+      page.drawText(String(val), { x: cx + 4, y: y - rowH + 5, font, size: 8, color });
+      cx += cols[ci].w;
+    });
+    y -= rowH;
+  });
+
+  // ── Footer on last page ──
+  page.drawLine({ start: { x: margin, y: margin + 12 }, end: { x: pageSize.width - margin, y: margin + 12 }, thickness: 0.5, color: rgb(0.89,0.91,0.94) });
+  const footerText = 'Progressive Steps NJ - Audit Report - Confidential';
+  const footerW = regular.widthOfTextAtSize(footerText, 8);
+  page.drawText(footerText, { x: (pageSize.width - footerW) / 2, y: margin, font: regular, size: 8, color: rgb(0.58,0.64,0.72) });
+
+  const pdfBytes = await pdfDoc.save();
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="audit-report-${ts()}.pdf"`);
-  res.send(pdfBuffer);
+  res.send(Buffer.from(pdfBytes));
 };
 
 const ts = () => new Date().toISOString().replace(/[-:T.]/g,'').slice(0,14);

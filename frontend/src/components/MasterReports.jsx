@@ -235,14 +235,6 @@ export const MasterReports = () => {
   return (
     <div className="flex flex-col space-y-6 max-w-7xl mx-auto pb-12">
 
-      {/* Print stylesheet — hides everything except the results table */}
-      <style>{`
-        @media print {
-          body > * { display: none !important; }
-          #audit-print-area { display: block !important; position: static !important; }
-        }
-      `}</style>
-
       {/* HEADER */}
       <div className="print:hidden">
         <h1 className="text-2xl font-bold text-slate-800">System Audit & Reports</h1>

@@ -66,11 +66,11 @@ const AdminDashboard = () => {
 
       {/* Mobile backdrop */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="print:hidden fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm transform transition-transform duration-200 md:relative md:translate-x-0 md:z-10 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm transform transition-transform duration-200 md:relative md:translate-x-0 md:z-10 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <span className="h-3 w-3 rounded-full bg-blue-600 animate-pulse"></span>
@@ -140,7 +140,7 @@ const AdminDashboard = () => {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm shrink-0 z-10">
+        <header className="print:hidden h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm shrink-0 z-10">
           <div className="flex items-center gap-3">
             <button
               className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
