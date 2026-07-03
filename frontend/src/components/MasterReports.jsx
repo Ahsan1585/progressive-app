@@ -517,6 +517,7 @@ export const MasterReports = () => {
                       <th className="py-3.5 px-4">End</th>
                       <th className="py-3.5 px-4">Total Time</th>
                       <th className="py-3.5 px-4">Billing Status</th>
+                      <th className="py-3.5 px-4">Comments</th>
                       {activeModule === 'compliance' && <th className="py-3.5 px-4">Days Old</th>}
                     </tr>
                   </thead>
@@ -573,6 +574,13 @@ export const MasterReports = () => {
                               )}
                             </div>
                           </td>
+                          <td className="py-3 px-4 max-w-[240px]">
+                            {log.practitioner_response ? (
+                              <span className="text-xs text-slate-600 italic">{log.practitioner_response}</span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
                           {activeModule === 'compliance' && (
                             <td className="py-3 px-4">
                               <span className={`font-bold text-xs ${daysOld > 45 ? 'text-red-600' : 'text-amber-600'}`}>
@@ -586,7 +594,7 @@ export const MasterReports = () => {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-slate-300 bg-slate-50">
-                      <td colSpan={activeModule === 'compliance' ? 11 : 10} className="py-3 px-4 text-xs text-slate-500 font-medium">
+                      <td colSpan={activeModule === 'compliance' ? 12 : 11} className="py-3 px-4 text-xs text-slate-500 font-medium">
                         {logs.length} records · {stats?.totalHours.toFixed(1)} total hrs · {stats?.uniqueChildren} patient{stats?.uniqueChildren !== 1 ? 's' : ''} · {stats?.uniquePractitioners} practitioner{stats?.uniquePractitioners !== 1 ? 's' : ''}
                       </td>
                     </tr>

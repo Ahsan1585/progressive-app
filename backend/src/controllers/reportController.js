@@ -179,7 +179,7 @@ const getAuditLogs = async (req, res) => {
       .select(`
         id, service_date, status, type, location, start_time, end_time, total_time,
         billing_status, billing_review, patient_first_name, patient_last_name, patient_id,
-        practitioner_id, acknowledged_at,
+        practitioner_id, acknowledged_at, practitioner_response, responded_at,
         practitioners(first_name, last_name, position_title)
       `)
       .order('service_date', { ascending: false })
