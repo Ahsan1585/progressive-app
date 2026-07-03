@@ -29,6 +29,7 @@ const AdminDashboard = () => {
 
   const [adminProfile, setAdminProfile] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop-only collapse to free up table width
 
   useEffect(() => {
     api.get('/api/practitioner/profile')
@@ -69,16 +70,40 @@ const AdminDashboard = () => {
         <div className="print:hidden fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
+      {/* Floating expand tab — appears once the desktop sidebar is collapsed */}
+      {sidebarCollapsed && (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          className="print:hidden hidden md:flex fixed left-0 top-1/2 -translate-y-1/2 z-30 items-center justify-center w-6 h-16 bg-white border border-l-0 border-slate-200 rounded-r-lg shadow-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+          aria-label="Expand sidebar"
+          title="Expand sidebar"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+
       {/* SIDEBAR */}
-      <aside className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm transform transition-transform duration-200 md:relative md:translate-x-0 md:z-10 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        <div className="p-6 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <span className="h-3 w-3 rounded-full bg-blue-600 animate-pulse"></span>
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
+      <aside className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm transition-[transform,margin-left] duration-200 md:translate-x-0 md:z-10 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarCollapsed ? 'md:relative md:-ml-64' : 'md:relative'}`}>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="h-3 w-3 rounded-full bg-blue-600 animate-pulse flex-shrink-0"></span>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight leading-tight truncate">
               Progressive Steps<br/>
               <span className="text-sm font-medium text-slate-500">Admin Portal</span>
             </h1>
           </div>
+          <button
+            onClick={() => setSidebarCollapsed(true)}
+            className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer flex-shrink-0"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </button>
         </div>
 
         <nav className="flex-1 overflow-y-auto p-4 space-y-2">

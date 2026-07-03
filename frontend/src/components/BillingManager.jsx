@@ -535,7 +535,7 @@ export const BillingManager = () => {
                     return (
                       <React.Fragment key={log.practitioner_id}>
                         <tr className="hover:bg-slate-50 transition-colors">
-                          <td className="py-4 px-4">
+                          <td className="py-4 px-4 align-top">
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleToggleExpand(log.practitioner_id)}
@@ -551,32 +551,32 @@ export const BillingManager = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 px-4 text-center">
+                          <td className="py-4 px-4 text-center align-top">
                             <div className="font-bold text-slate-700">{log.total_interventions}</div>
                             <div className="text-xs text-slate-500 mt-0.5">{log.total_hours.toFixed(1)} hrs</div>
                             {declinedCount > 0 && (
                               <div className="text-xs text-red-500 font-semibold mt-0.5">({declinedCount} rejected)</div>
                             )}
                           </td>
-                          <td className="py-4 px-4 text-center font-medium text-slate-600">
+                          <td className="py-4 px-4 text-center align-top font-medium text-slate-600">
                             {log.unique_children_count}
                           </td>
-                          <td className="py-4 px-4 text-center">
+                          <td className="py-4 px-4 text-center align-top">
                             {log.workflow_status === 'pending' && <Badge variant="warning">Awaiting Forms</Badge>}
                             {log.workflow_status === 'njeis_review' && <Badge variant="info">In Review</Badge>}
                             {log.workflow_status === 'complete' && <Badge variant="success">Complete</Badge>}
                           </td>
-                          <td className="py-4 px-4 text-center">
+                          <td className="py-4 px-4 text-center align-top">
                             {log.njeis_url ? (
                               <DownloadLink href={log.njeis_url} label="SEVF" tone="blue" />
                             ) : <span className="text-slate-300">-</span>}
                           </td>
-                          <td className="py-4 px-4 text-center">
+                          <td className="py-4 px-4 text-center align-top">
                             {log.invoice_url ? (
                               <DownloadLink href={log.invoice_url} label="Invoice" tone="emerald" />
                             ) : <span className="text-slate-300">-</span>}
                           </td>
-                          <td className="py-4 px-4 text-right">
+                          <td className="py-4 px-4 text-right align-top">
                             {(log.workflow_status === 'pending' || log.workflow_status === 'njeis_review') && (
                               <div className="flex flex-col items-end gap-1">
                                 <Button
