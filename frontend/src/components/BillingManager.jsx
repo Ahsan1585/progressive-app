@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
-  Search, ChevronRight, Download, Check, X, Undo2,
+  Search, ChevronRight, ChevronDown, Download, Check, X, Undo2,
   Ban, Clock, Lock, CheckCircle2, CircleAlert,
 } from 'lucide-react';
 
@@ -58,6 +58,24 @@ function DownloadLink({ href, onClick, label, tone = 'blue', fixedWidth = false 
   );
 }
 
+// --- Click-to-sort table header (used by the Completed Bills vault table) ---
+function SortableHeader({ label, field, sort, onSort, className = '' }) {
+  const isActive = sort.field === field;
+  return (
+    <th scope="col" className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors"
+        aria-sort={isActive ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
+        {label}
+        <ChevronDown className={`size-3 transition-transform ${isActive ? 'text-slate-600' : 'opacity-30'} ${isActive && sort.dir === 'asc' ? 'rotate-180' : ''}`} />
+      </button>
+    </th>
+  );
+}
+
 export const BillingManager = () => {
   // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history'
@@ -89,6 +107,7 @@ export const BillingManager = () => {
   const [historySearch, setHistorySearch] = useState('');
   const [historyDate, setHistoryDate] = useState({ start: '', end: '' });
   const [batchMap, setBatchMap] = useState({}); // njeis_path → batch_id
+  const [vaultSort, setVaultSort] = useState({ field: 'month', dir: 'desc' }); // matches prior fixed default
   const [isBackfilling, setIsBackfilling] = useState(false);
 
   // --- VAULT EXPAND STATE ---
@@ -238,24 +257,48 @@ export const BillingManager = () => {
     }
   };
 
+  const formatMonthLabel = (monthKey) => {
+    const [y, m] = monthKey.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
+
+  // Returns YYYY-MM-DD bounds for a "YYYY-MM" key without any Date/ISO timezone conversion
+  const getMonthBounds = (monthKey) => {
+    const [y, m] = monthKey.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return { start: `${monthKey}-01`, end: `${monthKey}-${String(lastDay).padStart(2, '0')}` };
+  };
+
   const handleGenerateAndIssue = async (practitionerId) => {
     setProcessingId(practitionerId);
     try {
-      // Step 1: Generate NJEIS
-      const njeisRes = await api.post('/api/billing/generate-njeis', { practitionerId, startDate: dateRange.start, endDate: dateRange.end });
-      if (!njeisRes.data.success) throw new Error('SEVF generation failed');
-      setPractitionerLogs(prev => prev.map(log =>
-        log.practitioner_id === practitionerId
-          ? { ...log, workflow_status: 'njeis_review', njeis_url: njeisRes.data.downloadUrl }
-          : log
-      ));
+      // Generation is always scoped to a single calendar month per call, so a practitioner
+      // with a multi-month backlog gets one correctly-scoped SEVF + Invoice PER month
+      // instead of one merged document spanning all of them.
+      const logsForPractitioner = expandedLogs[practitionerId] || [];
+      const months = Array.from(new Set(
+        logsForPractitioner.map(l => l.service_date?.slice(0, 7)).filter(Boolean)
+      )).sort();
+      if (months.length === 0) throw new Error('No reviewed logs available to generate.');
 
-      // Step 2: Generate Invoice
-      const invoiceRes = await api.post('/api/billing/generate-invoice', { practitionerId, startDate: dateRange.start, endDate: dateRange.end });
-      if (!invoiceRes.data.success) throw new Error('Invoice generation failed');
+      const sevfDocuments = [];
+      const invoiceDocuments = [];
+
+      for (const month of months) {
+        const { start, end } = getMonthBounds(month);
+
+        const njeisRes = await api.post('/api/billing/generate-njeis', { practitionerId, startDate: start, endDate: end });
+        if (!njeisRes.data.success) throw new Error(`SEVF generation failed for ${formatMonthLabel(month)}`);
+        sevfDocuments.push({ month, url: njeisRes.data.downloadUrl });
+
+        const invoiceRes = await api.post('/api/billing/generate-invoice', { practitionerId, startDate: start, endDate: end });
+        if (!invoiceRes.data.success) throw new Error(`Invoice generation failed for ${formatMonthLabel(month)}`);
+        invoiceDocuments.push({ month, url: invoiceRes.data.downloadUrl });
+      }
+
       setPractitionerLogs(prev => prev.map(log =>
         log.practitioner_id === practitionerId
-          ? { ...log, workflow_status: 'complete', invoice_url: invoiceRes.data.downloadUrl }
+          ? { ...log, workflow_status: 'complete', sevf_documents: sevfDocuments, invoice_documents: invoiceDocuments }
           : log
       ));
     } catch (error) {
@@ -404,9 +447,17 @@ export const BillingManager = () => {
     }
   });
 
-  const groupedHistory = vaultRows.sort((a, b) => {
-    const d = b.serviceMaxDate.localeCompare(a.serviceMaxDate);
-    return d !== 0 ? d : b.sortTs.localeCompare(a.sortTs);
+  const toggleVaultSort = (field) => {
+    setVaultSort(prev => prev.field === field ? { field, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { field, dir: 'desc' });
+  };
+
+  const groupedHistory = [...vaultRows].sort((a, b) => {
+    let cmp = vaultSort.field === 'practitioner'
+      ? a.practitionerName.localeCompare(b.practitionerName)
+      : a.serviceMaxDate.localeCompare(b.serviceMaxDate);
+    if (vaultSort.dir === 'desc') cmp = -cmp;
+    if (cmp !== 0) return cmp;
+    return vaultSort.dir === 'desc' ? b.sortTs.localeCompare(a.sortTs) : a.sortTs.localeCompare(b.sortTs);
   });
 
   const handleDownloadHistory = async (fileName) => {
@@ -567,13 +618,21 @@ export const BillingManager = () => {
                             {log.workflow_status === 'complete' && <Badge variant="success">Complete</Badge>}
                           </td>
                           <td className="py-4 px-4 text-center align-top">
-                            {log.njeis_url ? (
-                              <DownloadLink href={log.njeis_url} label="SEVF" tone="blue" />
+                            {log.sevf_documents?.length > 0 ? (
+                              <div className="flex flex-col gap-1.5 items-center">
+                                {log.sevf_documents.map(doc => (
+                                  <DownloadLink key={doc.month} href={doc.url} label={formatMonthLabel(doc.month)} tone="blue" />
+                                ))}
+                              </div>
                             ) : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-4 px-4 text-center align-top">
-                            {log.invoice_url ? (
-                              <DownloadLink href={log.invoice_url} label="Invoice" tone="emerald" />
+                            {log.invoice_documents?.length > 0 ? (
+                              <div className="flex flex-col gap-1.5 items-center">
+                                {log.invoice_documents.map(doc => (
+                                  <DownloadLink key={doc.month} href={doc.url} label={formatMonthLabel(doc.month)} tone="emerald" />
+                                ))}
+                              </div>
                             ) : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-4 px-4 text-right align-top">
@@ -889,8 +948,8 @@ export const BillingManager = () => {
               <caption className="sr-only">Completed billing documents</caption>
               <thead>
                 <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  <th scope="col" className="py-4 px-6">Period / Date</th>
-                  <th scope="col" className="py-4 px-6">Practitioner</th>
+                  <SortableHeader label="Period / Date" field="month" sort={vaultSort} onSort={toggleVaultSort} className="py-4 px-6" />
+                  <SortableHeader label="Practitioner" field="practitioner" sort={vaultSort} onSort={toggleVaultSort} className="py-4 px-6" />
                   <th scope="col" className="py-4 px-6 text-center">SEVF Form</th>
                   <th scope="col" className="py-4 px-6 text-center">Invoice</th>
                 </tr>
