@@ -75,10 +75,16 @@ const AdminDashboard = () => {
         type="button"
         onMouseEnter={() => setDesktopNavOpen(true)}
         onClick={() => setDesktopNavOpen(true)}
-        className="print:hidden hidden md:block fixed inset-y-0 left-0 w-2 z-40 bg-slate-200/60 hover:bg-blue-300/60 transition-colors cursor-pointer"
+        className="group print:hidden hidden md:flex fixed inset-y-0 left-0 w-3 z-40 items-center justify-center bg-transparent hover:bg-blue-50/50 transition-colors cursor-pointer"
         aria-label="Show navigation"
         title="Show navigation"
-      />
+      >
+        <span className="flex items-center justify-center w-4 h-14 rounded-r-md bg-slate-100 border border-l-0 border-slate-200 shadow-sm group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
+          <svg className="w-3 h-3 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </button>
 
       {/* SIDEBAR — fixed overlay on all breakpoints; desktop reveals via hover, mobile via hamburger */}
       <aside
