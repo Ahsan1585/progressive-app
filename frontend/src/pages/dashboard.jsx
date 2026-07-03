@@ -308,7 +308,7 @@ const Dashboard = () => {
                 <>
                   {/* Backdrop to close on outside click */}
                   <div className="fixed inset-0 z-10" onClick={() => setSigDropdownOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] md:w-80 max-w-sm bg-white rounded-2xl border border-slate-200 shadow-xl z-20 p-5 space-y-4">
+                  <div className="fixed inset-x-4 top-[4.5rem] md:absolute md:inset-x-auto md:top-full md:right-0 md:mt-2 md:w-80 max-w-sm bg-white rounded-2xl border border-slate-200 shadow-xl z-20 p-5 space-y-4">
                     <div>
                       <h3 className="text-sm font-bold text-slate-800">My Digital Signature</h3>
                       <p className="text-xs text-slate-400 mt-0.5">Applied to encounters with a single click</p>
