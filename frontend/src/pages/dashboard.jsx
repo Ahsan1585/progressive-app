@@ -396,7 +396,7 @@ const Dashboard = () => {
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 mt-1">
+                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-x-4 gap-y-2 mt-1">
                         <div>
                           <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Date</span>
                           <span className="text-sm text-slate-700 font-medium">
