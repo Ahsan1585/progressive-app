@@ -560,7 +560,7 @@ const Dashboard = () => {
                       <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Logs This Month</div>
                     </div>
                     <div className="bg-white border border-slate-200 rounded-xl p-3">
-                      <div className={`text-xl font-bold ${rejectedLogs.length > 0 ? 'text-red-600' : 'text-slate-800'}`}>{rejectedLogs.length}</div>
+                      <div className="text-xl font-bold text-slate-800">{practitionerStats?.pendingReviewCount ?? '–'}</div>
                       <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Pending Review</div>
                     </div>
                   </div>

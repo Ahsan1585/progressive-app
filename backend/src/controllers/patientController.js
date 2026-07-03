@@ -212,7 +212,16 @@ const getPractitionerStats = async (req, res) => {
     if (error) throw error;
     const logsThisMonth = data.length;
     const hoursThisMonth = data.reduce((sum, r) => sum + (r.total_time || 0), 0) / 60;
-    res.json({ success: true, logsThisMonth, hoursThisMonth });
+
+    // Logs still moving through the billing pipeline (submitted or SEVF-generated, not yet invoiced/returned/declined)
+    const { count: pendingReviewCount, error: pendingError } = await supabase
+      .from('assessments')
+      .select('id', { count: 'exact', head: true })
+      .eq('practitioner_id', practitionerId)
+      .in('billing_status', ['pending', 'njeis_review']);
+    if (pendingError) throw pendingError;
+
+    res.json({ success: true, logsThisMonth, hoursThisMonth, pendingReviewCount: pendingReviewCount || 0 });
   } catch (error) {
     console.error('Error fetching practitioner stats:', error);
     res.status(500).json({ error: 'Failed to fetch stats' });
