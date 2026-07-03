@@ -3,6 +3,60 @@ import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Search, ChevronRight, Download, Check, X, Undo2,
+  Ban, Clock, Lock, CheckCircle2, CircleAlert,
+} from 'lucide-react';
+
+// --- Review-badge resolution (kept separate: pending-queue and vault-history are genuinely different decision trees) ---
+function getPendingReviewBadge(session, isLocked, isReturned, logActions) {
+  if (isLocked && session.billing_status === 'njeis_review') return { variant: 'success', label: 'In SEVF' };
+  if (isLocked && session.billing_status === 'declined') return { variant: 'danger', label: 'Rejected' };
+  if (isReturned) return { variant: 'info', label: 'Returned' };
+  if (session.billing_status === 'pending' && session.rejection_count > 0 && !logActions[session.id]) return { variant: 'override', label: 'Resubmitted' };
+  const action = logActions[session.id] || session.billing_review || (session.billing_status === 'declined' ? 'reject' : null);
+  if (action === 'accept') return { variant: 'success', label: 'Approved' };
+  if (action === 'reject') return { variant: 'danger', label: 'Rejected' };
+  if (action === 'return') return { variant: 'info', label: 'Returned' };
+  return { variant: 'neutral', label: 'Pending' };
+}
+
+function getVaultReviewBadge(session, isDeclined, isReturned, isOverride) {
+  const review = session.billing_review || (isDeclined ? 'reject' : isReturned ? 'return' : null);
+  if (isOverride && review === 'accept') return { variant: 'override', label: 'Admin Override' };
+  if (review === 'accept') return { variant: 'success', label: 'Approved' };
+  if (review === 'reject') return { variant: 'danger', label: 'Rejected' };
+  if (review === 'return') return { variant: 'info', label: 'Returned' };
+  return { variant: 'neutral', label: '-' };
+}
+
+// --- Shared document-download control (used by both tabs so SEVF/Invoice links look identical everywhere) ---
+function DownloadLink({ href, onClick, label, tone = 'blue', fixedWidth = false }) {
+  const toneClasses = tone === 'emerald'
+    ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+    : 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100';
+  const className = `inline-flex items-center justify-center gap-1.5 ${fixedWidth ? 'w-28' : ''} px-3 py-1.5 text-sm font-semibold rounded-md border transition-colors cursor-pointer ${toneClasses}`;
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        <Download className="size-4" />
+        {label}
+      </a>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      <Download className="size-4" />
+      {label}
+    </button>
+  );
+}
 
 export const BillingManager = () => {
   // --- UI STATE ---
@@ -41,6 +95,15 @@ export const BillingManager = () => {
   const [vaultExpandedRows, setVaultExpandedRows] = useState(new Set());
   const [vaultRowLogs, setVaultRowLogs] = useState({});
   const [loadingVaultRow, setLoadingVaultRow] = useState(new Set());
+
+  // --- TOAST STATE (replaces alert()) ---
+  const [toasts, setToasts] = useState([]); // [{ id, type: 'success'|'error', message }]
+  const pushToast = (type, message) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  };
+  const dismissToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
   // ==========================================
   // PENDING QUEUE LOGIC
@@ -131,6 +194,12 @@ export const BillingManager = () => {
     }
   };
 
+  const closeActionModal = () => {
+    if (actionModal) setLogActions(prev => ({ ...prev, [actionModal.session.id]: '' }));
+    setActionModal(null);
+    setActionNote('');
+  };
+
   const handleActionSubmit = async () => {
     if (!actionModal || !actionNote.trim()) return;
     setIsSubmitting(true);
@@ -190,7 +259,7 @@ export const BillingManager = () => {
           : log
       ));
     } catch (error) {
-      alert('Generation failed: ' + error.message);
+      pushToast('error', 'Generation failed: ' + error.message);
     } finally {
       setProcessingId(null);
     }
@@ -234,11 +303,11 @@ export const BillingManager = () => {
       const res = await api.post('/api/billing/backfill-batches');
       if (res.data.success) {
         await fetchHistory();
-        alert(res.data.message);
+        pushToast('success', res.data.message);
       }
     } catch (err) {
       console.error('Backfill failed', err);
-      alert('Backfill failed: ' + (err.response?.data?.error || err.message));
+      pushToast('error', 'Backfill failed: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsBackfilling(false);
     }
@@ -344,7 +413,9 @@ export const BillingManager = () => {
     try {
       const response = await api.get(`/api/billing/download?fileName=${fileName}`);
       if (response.data.success) window.open(response.data.signedUrl, '_blank');
-    } catch (error) { alert("Failed to download file."); }
+    } catch (error) {
+      pushToast('error', 'Failed to download file.');
+    }
   };
 
   const handleVaultToggleExpand = async (groupId, practitionerFolder, serviceMinDate, serviceMaxDate, isOverride, batchId) => {
@@ -383,14 +454,14 @@ export const BillingManager = () => {
   // ==========================================
   return (
     <div className="flex flex-col space-y-6">
-      
-      {/* 🌟 TAB NAVIGATION 🌟 */}
+
+      {/* TAB NAVIGATION */}
       <div className="flex p-1 bg-slate-200/60 rounded-xl w-fit border border-slate-200 shadow-sm">
         <button
           onClick={() => setActiveTab('pending')}
           className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
-            activeTab === 'pending' 
-              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200' 
+            activeTab === 'pending'
+              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
           }`}
         >
@@ -399,8 +470,8 @@ export const BillingManager = () => {
         <button
           onClick={() => setActiveTab('history')}
           className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
-            activeTab === 'history' 
-              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200' 
+            activeTab === 'history'
+              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
           }`}
         >
@@ -408,16 +479,14 @@ export const BillingManager = () => {
         </button>
       </div>
 
-      {/* 🌟 TAB 1: PENDING WORKFLOW 🌟 */}
+      {/* TAB 1: PENDING BILLS */}
       {activeTab === 'pending' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Search Practitioners</Label>
               <div className="relative">
-                <svg className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <Search className="size-4 absolute left-3 top-2.5 text-slate-400" />
                 <Input type="text" placeholder="Search by name or ID..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
@@ -430,21 +499,22 @@ export const BillingManager = () => {
                 <Label className="text-sm font-semibold text-slate-700">End Date</Label>
                 <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} />
               </div>
-              <Button onClick={fetchLogs} variant="outline" className="h-10 cursor-pointer text-slate-600">Refresh</Button>
+              <Button onClick={fetchLogs} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh</Button>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse tabular-nums">
+              <caption className="sr-only">Pending practitioner billing queue</caption>
               <thead>
                 <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  <th className="py-4 px-4">Practitioner</th>
-                  <th className="py-4 px-4 text-center">Logs</th>
-                  <th className="py-4 px-4 text-center">Children</th>
-                  <th className="py-4 px-4 text-center">Status</th>
-                  <th className="py-4 px-4 text-center">SEVF Form</th>
-                  <th className="py-4 px-4 text-center">Invoice</th>
-                  <th className="py-4 px-4 text-right">Action</th>
+                  <th scope="col" className="py-4 px-4">Practitioner</th>
+                  <th scope="col" className="py-4 px-4 text-center">Logs</th>
+                  <th scope="col" className="py-4 px-4 text-center">Children</th>
+                  <th scope="col" className="py-4 px-4 text-center">Status</th>
+                  <th scope="col" className="py-4 px-4 text-center">SEVF Form</th>
+                  <th scope="col" className="py-4 px-4 text-center">Invoice</th>
+                  <th scope="col" className="py-4 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -470,10 +540,10 @@ export const BillingManager = () => {
                               <button
                                 onClick={() => handleToggleExpand(log.practitioner_id)}
                                 className="p-1 rounded hover:bg-slate-200 transition-colors text-slate-400 flex-shrink-0 cursor-pointer"
+                                aria-label={isExpanded ? 'Collapse logs' : 'Expand logs'}
+                                aria-expanded={isExpanded}
                               >
-                                <svg className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
+                                <ChevronRight className={`size-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                               </button>
                               <div>
                                 <div className="font-bold text-slate-800 capitalize">{log.first_name} {log.last_name}</div>
@@ -492,34 +562,18 @@ export const BillingManager = () => {
                             {log.unique_children_count}
                           </td>
                           <td className="py-4 px-4 text-center">
-                            {log.workflow_status === 'pending' && <span className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold">Awaiting Forms</span>}
-                            {log.workflow_status === 'njeis_review' && <span className="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold">In Review</span>}
-                            {log.workflow_status === 'complete' && <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">Complete</span>}
+                            {log.workflow_status === 'pending' && <Badge variant="warning">Awaiting Forms</Badge>}
+                            {log.workflow_status === 'njeis_review' && <Badge variant="info">In Review</Badge>}
+                            {log.workflow_status === 'complete' && <Badge variant="success">Complete</Badge>}
                           </td>
                           <td className="py-4 px-4 text-center">
                             {log.njeis_url ? (
-                              <a
-                                href={log.njeis_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                SEVF
-                              </a>
+                              <DownloadLink href={log.njeis_url} label="SEVF" tone="blue" />
                             ) : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-4 px-4 text-center">
                             {log.invoice_url ? (
-                              <a
-                                href={log.invoice_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-100 transition-colors"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                Invoice
-                              </a>
+                              <DownloadLink href={log.invoice_url} label="Invoice" tone="emerald" />
                             ) : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-4 px-4 text-right">
@@ -546,7 +600,7 @@ export const BillingManager = () => {
                             )}
                             {log.workflow_status === 'complete' && (
                               <Button disabled className="bg-emerald-100 text-emerald-700 border border-emerald-200 ml-auto w-44 opacity-100 cursor-default">
-                                <svg className="w-4 h-4 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                <CheckCircle2 className="size-4 mr-1" />
                                 Issued & Complete
                               </Button>
                             )}
@@ -561,19 +615,20 @@ export const BillingManager = () => {
                                 ) : logsForRow.length === 0 ? (
                                   <div className="text-center py-4 text-slate-500 text-sm">No individual logs found.</div>
                                 ) : (
-                                  <table className="w-full text-left border-collapse text-sm">
+                                  <table className="w-full text-left border-collapse text-sm tabular-nums">
+                                    <caption className="sr-only">Individual session logs for {log.first_name} {log.last_name}</caption>
                                     <thead>
                                       <tr className="text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-300">
-                                        <th className="py-2.5 px-3">Patient Name</th>
-                                        <th className="py-2.5 px-3">Service Date</th>
-                                        <th className="py-2.5 px-3">Service Status</th>
-                                        <th className="py-2.5 px-3">Service Type</th>
-                                        <th className="py-2.5 px-3">Service Location</th>
-                                        <th className="py-2.5 px-3">Start Time</th>
-                                        <th className="py-2.5 px-3">End Time</th>
-                                        <th className="py-2.5 px-3">Total Time</th>
-                                        <th className="py-2.5 px-3 text-center">Review</th>
-                                        <th className="py-2.5 px-3 text-right">Billing Action</th>
+                                        <th scope="col" className="py-2.5 px-3">Patient Name</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Date</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Status</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Type</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Location</th>
+                                        <th scope="col" className="py-2.5 px-3">Start Time</th>
+                                        <th scope="col" className="py-2.5 px-3">End Time</th>
+                                        <th scope="col" className="py-2.5 px-3">Total Time</th>
+                                        <th scope="col" className="py-2.5 px-3 text-center">Review</th>
+                                        <th scope="col" className="py-2.5 px-3 text-right">Billing Action</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
@@ -586,6 +641,7 @@ export const BillingManager = () => {
                                           (log.workflow_status === 'njeis_review' && session.billing_status !== 'pending') ||
                                           isReturned ||
                                           isDeclined;
+                                        const reviewBadge = getPendingReviewBadge(session, isLocked, isReturned, logActions);
 
                                         return (
                                           <tr key={session.id} className={`transition-colors ${
@@ -621,67 +677,47 @@ export const BillingManager = () => {
 
                                             {/* Review status badge */}
                                             <td className="py-3 px-3 text-center">
-                                              {(() => {
-                                                // Locked njeis_review sessions are implicitly included in the NJEIS batch
-                                                if (isLocked && session.billing_status === 'njeis_review') return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">In SEVF</span>
-                                                );
-                                                if (isLocked && session.billing_status === 'declined') return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">Rejected</span>
-                                                );
-                                                if (isReturned) return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">Returned</span>
-                                                );
-                                                if (session.billing_status === 'pending' && session.rejection_count > 0 && !logActions[session.id]) return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700 border border-violet-200 whitespace-nowrap">Resubmitted</span>
-                                                );
-                                                // Use in-session logActions first, then fall back to persisted DB value
-                                                const action = logActions[session.id] || session.billing_review || (session.billing_status === 'declined' ? 'reject' : null);
-                                                if (action === 'accept') return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">Approved</span>
-                                                );
-                                                if (action === 'reject') return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">Rejected</span>
-                                                );
-                                                if (action === 'return') return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">Returned</span>
-                                                );
-                                                return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">Pending</span>
-                                                );
-                                              })()}
+                                              <Badge variant={reviewBadge.variant}>{reviewBadge.label}</Badge>
                                             </td>
 
-                                            {/* Action — locked or dropdown */}
+                                            {/* Action — locked (with tooltip) or Select dropdown */}
                                             <td className="py-2.5 px-3 text-right">
                                               {isProcessing ? (
                                                 <span className="text-xs text-slate-400">Processing...</span>
                                               ) : isDeclined ? (
-                                                <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none" title="Permanently rejected — not included in the generated report">
-                                                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                                  </svg>
-                                                  Excluded
-                                                </div>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none">
+                                                      <Ban className="size-3.5 flex-shrink-0" />
+                                                      Excluded
+                                                    </div>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>Permanently rejected — not included in the generated report</TooltipContent>
+                                                </Tooltip>
                                               ) : isReturned ? (
-                                                <div className="inline-flex items-center gap-1.5 text-amber-500 text-xs font-medium select-none" title="Returned to practitioner for revision — awaiting resubmission">
-                                                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                  </svg>
-                                                  Awaiting Revision
-                                                </div>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <div className="inline-flex items-center gap-1.5 text-amber-500 text-xs font-medium select-none">
+                                                      <Clock className="size-3.5 flex-shrink-0" />
+                                                      Awaiting Revision
+                                                    </div>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>Returned to practitioner for revision — awaiting resubmission</TooltipContent>
+                                                </Tooltip>
                                               ) : isLocked ? (
-                                                <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none" title="SEVF has been issued. This log is locked until it returns to pending.">
-                                                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                  </svg>
-                                                  Locked
-                                                </div>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none">
+                                                      <Lock className="size-3.5 flex-shrink-0" />
+                                                      Locked
+                                                    </div>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>SEVF has been issued. This log is locked until it returns to pending.</TooltipContent>
+                                                </Tooltip>
                                               ) : (
-                                                <select
-                                                  value={logActions[session.id] || session.billing_review || ''}
-                                                  onChange={(e) => {
-                                                    const action = e.target.value;
+                                                <Select
+                                                  value={logActions[session.id] || session.billing_review || undefined}
+                                                  onValueChange={(action) => {
                                                     if (!action) return;
                                                     setLogActions(prev => ({ ...prev, [session.id]: action }));
                                                     if (action === 'accept') {
@@ -691,13 +727,16 @@ export const BillingManager = () => {
                                                       setActionNote('');
                                                     }
                                                   }}
-                                                  className="text-xs font-semibold border rounded-md px-2 py-1.5 bg-white text-slate-700 border-slate-300 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer"
                                                 >
-                                                  <option value="" disabled>Select Action</option>
-                                                  <option value="accept">✓ Accept</option>
-                                                  <option value="reject">✕ Reject</option>
-                                                  <option value="return">↩ Return</option>
-                                                </select>
+                                                  <SelectTrigger size="sm" className="ml-auto w-[132px]">
+                                                    <SelectValue placeholder="Select action" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="accept"><Check className="size-3.5 text-emerald-600" aria-hidden="true" />Accept</SelectItem>
+                                                    <SelectItem value="reject"><X className="size-3.5 text-red-600" aria-hidden="true" />Reject</SelectItem>
+                                                    <SelectItem value="return"><Undo2 className="size-3.5 text-blue-600" aria-hidden="true" />Return</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
                                               )}
                                             </td>
                                           </tr>
@@ -721,105 +760,85 @@ export const BillingManager = () => {
       )}
 
       {/* ACTION MODAL (Reject / Return) */}
-      {actionModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
-            <div>
-              {actionModal.type === 'return' ? (
-                <>
-                  <h3 className="text-lg font-bold text-slate-900">Return Log to Practitioner</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    This log will be sent back to the practitioner for revision. They must correct and resubmit it before it can be billed.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-lg font-bold text-slate-900">Reject Log</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    This log will be permanently rejected from billing. The practitioner will be notified — no further action is required from them.
-                  </p>
-                </>
-              )}
-            </div>
+      <Dialog open={!!actionModal} onOpenChange={(open) => { if (!open) closeActionModal(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{actionModal?.type === 'return' ? 'Return Log to Practitioner' : 'Reject Log'}</DialogTitle>
+            <DialogDescription>
+              {actionModal?.type === 'return'
+                ? 'This log will be sent back to the practitioner for revision. They must correct and resubmit it before it can be billed.'
+                : 'This log will be permanently rejected from billing. The practitioner will be notified — no further action is required from them.'}
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm space-y-1">
-              <div className="font-semibold text-slate-800">
-                {actionModal.session.patient_first_name} {actionModal.session.patient_last_name}
+          {actionModal && (
+            <>
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm space-y-1">
+                <div className="font-semibold text-slate-800">
+                  {actionModal.session.patient_first_name} {actionModal.session.patient_last_name}
+                </div>
+                <div className="text-slate-500 tabular-nums">
+                  {actionModal.session.service_date
+                    ? new Date(actionModal.session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    : '-'}
+                  {' · '}{actionModal.session.type || '-'}
+                </div>
               </div>
-              <div className="text-slate-500">
-                {actionModal.session.service_date
-                  ? new Date(actionModal.session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                  : '-'}
-                {' · '}{actionModal.session.type || '-'}
+
+              <div className="space-y-2">
+                <Label>
+                  {actionModal.type === 'return' ? 'Return Note' : 'Rejection Reason'}
+                  <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Textarea
+                  className={
+                    actionModal.type === 'return'
+                      ? 'focus-visible:ring-blue-500/30 focus-visible:border-blue-400'
+                      : 'focus-visible:ring-red-500/30 focus-visible:border-red-400'
+                  }
+                  rows={4}
+                  placeholder={
+                    actionModal.type === 'return'
+                      ? 'Describe what needs to be corrected (e.g., incorrect service type, wrong start time)...'
+                      : 'Explain the reason for rejection (e.g., duplicate entry, service not covered)...'
+                  }
+                  value={actionNote}
+                  onChange={(e) => setActionNote(e.target.value)}
+                  autoFocus
+                />
               </div>
-            </div>
+            </>
+          )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">
-                {actionModal.type === 'return' ? 'Return Note' : 'Rejection Reason'}
-                <span className="text-red-500 ml-1">*</span>
-              </label>
-              <textarea
-                className={`w-full border rounded-xl p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 resize-none ${
-                  actionModal.type === 'return'
-                    ? 'border-slate-200 focus:ring-blue-500/20 focus:border-blue-400'
-                    : 'border-slate-200 focus:ring-red-500/20 focus:border-red-400'
-                }`}
-                rows={4}
-                placeholder={
-                  actionModal.type === 'return'
-                    ? 'Describe what needs to be corrected (e.g., incorrect service type, wrong start time)...'
-                    : 'Explain the reason for rejection (e.g., duplicate entry, service not covered)...'
-                }
-                value={actionNote}
-                onChange={(e) => setActionNote(e.target.value)}
-                autoFocus
-              />
-            </div>
+          <DialogFooter>
+            <Button variant="outline" className="cursor-pointer" onClick={closeActionModal} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button
+              className={`text-white cursor-pointer disabled:opacity-50 ${
+                actionModal?.type === 'return' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'
+              }`}
+              onClick={handleActionSubmit}
+              disabled={!actionNote.trim() || isSubmitting}
+            >
+              {isSubmitting
+                ? 'Sending...'
+                : actionModal?.type === 'return'
+                  ? 'Return to Practitioner'
+                  : 'Confirm Rejection'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <div className="flex gap-3 pt-1">
-              <Button
-                variant="outline"
-                className="flex-1 cursor-pointer"
-                onClick={() => {
-                  setLogActions(prev => ({ ...prev, [actionModal.session.id]: '' }));
-                  setActionModal(null);
-                  setActionNote('');
-                }}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                className={`flex-1 text-white cursor-pointer disabled:opacity-50 ${
-                  actionModal.type === 'return'
-                    ? 'bg-blue-600 hover:bg-blue-700'
-                    : 'bg-red-600 hover:bg-red-700'
-                }`}
-                onClick={handleActionSubmit}
-                disabled={!actionNote.trim() || isSubmitting}
-              >
-                {isSubmitting
-                  ? 'Sending...'
-                  : actionModal.type === 'return'
-                    ? 'Return to Practitioner'
-                    : 'Confirm Rejection'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 🌟 TAB 2: HISTORICAL VAULT 🌟 */}
+      {/* TAB 2: COMPLETED BILLS */}
       {activeTab === 'history' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Search Documents</Label>
               <div className="relative">
-                <svg className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <Search className="size-4 absolute left-3 top-2.5 text-slate-400" />
                 <Input type="text" placeholder="Search by practitioner name..." className="pl-10" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} />
               </div>
             </div>
@@ -832,27 +851,33 @@ export const BillingManager = () => {
                 <Label className="text-sm font-semibold text-slate-700">Service Date To</Label>
                 <Input type="date" value={historyDate.end} onChange={(e) => setHistoryDate({...historyDate, end: e.target.value})} />
               </div>
-              <Button onClick={fetchHistory} variant="outline" className="h-10 cursor-pointer text-slate-600">Refresh Bills</Button>
-              <Button
-                onClick={handleBackfill}
-                disabled={isBackfilling}
-                variant="outline"
-                className="h-10 cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50 disabled:opacity-50"
-                title="Link existing storage files to their billing batches — fixes duplicate logs in older bill entries"
-              >
-                {isBackfilling ? 'Fixing…' : 'Fix Bills'}
-              </Button>
+              <Button onClick={fetchHistory} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh Bills</Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleBackfill}
+                    disabled={isBackfilling}
+                    variant="outline"
+                    size="lg"
+                    className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50 disabled:opacity-50"
+                  >
+                    {isBackfilling ? 'Fixing…' : 'Fix Bills'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Link existing storage files to their billing batches — fixes duplicate logs in older bill entries</TooltipContent>
+              </Tooltip>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse tabular-nums">
+              <caption className="sr-only">Completed billing documents</caption>
               <thead>
                 <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  <th className="py-4 px-6">Period / Date</th>
-                  <th className="py-4 px-6">Practitioner</th>
-                  <th className="py-4 px-6 text-center">SEVF Form</th>
-                  <th className="py-4 px-6 text-center">Invoice</th>
+                  <th scope="col" className="py-4 px-6">Period / Date</th>
+                  <th scope="col" className="py-4 px-6">Practitioner</th>
+                  <th scope="col" className="py-4 px-6 text-center">SEVF Form</th>
+                  <th scope="col" className="py-4 px-6 text-center">Invoice</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -883,29 +908,21 @@ export const BillingManager = () => {
                               <button
                                 onClick={() => handleVaultToggleExpand(group.id, group.practitionerFolder, group.serviceMinDate, group.serviceMaxDate, group.isOverride, group.batchId)}
                                 className="p-1 rounded hover:bg-slate-200 transition-colors text-slate-400 flex-shrink-0 cursor-pointer"
+                                aria-label={isVaultExpanded ? 'Collapse logs' : 'Expand logs'}
+                                aria-expanded={isVaultExpanded}
                               >
-                                <svg className={`w-4 h-4 transition-transform duration-200 ${isVaultExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
+                                <ChevronRight className={`size-4 transition-transform duration-200 ${isVaultExpanded ? 'rotate-90' : ''}`} />
                               </button>
                               <span className="font-bold text-slate-800 capitalize">{group.practitionerName}</span>
                             </div>
                           </td>
 
-                          {/* NJEIS FORM COLUMN */}
+                          {/* SEVF FORM COLUMN */}
                           <td className="py-4 px-6 text-center">
                             {group.njeisFile ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDownloadHistory(group.njeisFile.name)}
-                                className="cursor-pointer text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 flex items-center justify-center gap-2 mx-auto w-28"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                SEVF
-                              </Button>
+                              <DownloadLink onClick={() => handleDownloadHistory(group.njeisFile.name)} label="SEVF" tone="blue" fixedWidth />
                             ) : group.isOverride ? (
-                              <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-violet-50 text-violet-700 border border-violet-200">Override</span>
+                              <Badge variant="override">Override</Badge>
                             ) : (
                               <span className="text-slate-300">-</span>
                             )}
@@ -914,15 +931,7 @@ export const BillingManager = () => {
                           {/* INVOICE COLUMN */}
                           <td className="py-4 px-6 text-center">
                             {group.invoiceFile ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDownloadHistory(group.invoiceFile.name)}
-                                className="cursor-pointer text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-center gap-2 mx-auto w-28"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                Invoice
-                              </Button>
+                              <DownloadLink onClick={() => handleDownloadHistory(group.invoiceFile.name)} label="Invoice" tone="emerald" fixedWidth />
                             ) : (
                               <span className="text-slate-300">-</span>
                             )}
@@ -939,69 +948,67 @@ export const BillingManager = () => {
                                 ) : vaultLogs.length === 0 ? (
                                   <div className="text-center py-4 text-slate-500 text-sm">No logs found for this period.</div>
                                 ) : (
-                                  <table className="w-full text-left border-collapse text-sm">
+                                  <table className="w-full text-left border-collapse text-sm tabular-nums">
+                                    <caption className="sr-only">Individual session logs for {group.practitionerName}, {group.dateRange}</caption>
                                     <thead>
                                       <tr className="text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-300">
-                                        <th className="py-2.5 px-3">Patient Name</th>
-                                        <th className="py-2.5 px-3">Service Date</th>
-                                        <th className="py-2.5 px-3">Service Status</th>
-                                        <th className="py-2.5 px-3">Service Type</th>
-                                        <th className="py-2.5 px-3">Service Location</th>
-                                        <th className="py-2.5 px-3">Start Time</th>
-                                        <th className="py-2.5 px-3">End Time</th>
-                                        <th className="py-2.5 px-3">Total Time</th>
-                                        <th className="py-2.5 px-3 text-center">Review</th>
-                                        <th className="py-2.5 px-3 text-center">Billing Status</th>
+                                        <th scope="col" className="py-2.5 px-3">Patient Name</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Date</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Status</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Type</th>
+                                        <th scope="col" className="py-2.5 px-3">Service Location</th>
+                                        <th scope="col" className="py-2.5 px-3">Start Time</th>
+                                        <th scope="col" className="py-2.5 px-3">End Time</th>
+                                        <th scope="col" className="py-2.5 px-3">Total Time</th>
+                                        <th scope="col" className="py-2.5 px-3 text-center">Review</th>
+                                        <th scope="col" className="py-2.5 px-3 text-center">Billing Status</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
                                       {vaultLogs.map((session) => {
                                         const isDeclined = session.billing_status === 'declined';
                                         const isReturned = session.billing_status === 'rejected';
+                                        // Only genuinely inactive (excluded/awaiting-revision) rows are muted —
+                                        // successfully invoiced/approved rows read at full contrast.
+                                        const isInactive = isDeclined || isReturned;
+                                        const reviewBadge = getVaultReviewBadge(session, isDeclined, isReturned, group.isOverride);
                                         return (
-                                          <tr key={session.id} className={`${
+                                          <tr key={session.id} className={
                                             isReturned ? 'bg-blue-50/40' :
                                             isDeclined ? 'bg-red-50/40' :
-                                            'bg-slate-50'
-                                          }`}>
-                                            <td className="py-3 px-3 font-semibold text-slate-500">
+                                            ''
+                                          }>
+                                            <td className={`py-3 px-3 font-semibold ${isInactive ? 'text-slate-400' : 'text-slate-800'}`}>
                                               {session.patient_first_name} {session.patient_last_name}
                                             </td>
-                                            <td className="py-3 px-3 text-slate-500">
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.service_date ? new Date(session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
                                             </td>
-                                            <td className="py-3 px-3 capitalize font-medium text-slate-500">
+                                            <td className={`py-3 px-3 capitalize font-medium ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.status || '-'}
                                             </td>
-                                            <td className="py-3 px-3 text-slate-500">
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.type || '-'}
                                             </td>
-                                            <td className="py-3 px-3 capitalize text-slate-500">
+                                            <td className={`py-3 px-3 capitalize ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.location || '-'}
                                             </td>
-                                            <td className="py-3 px-3 text-slate-500">
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.start_time || '-'}
                                             </td>
-                                            <td className="py-3 px-3 text-slate-500">
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.end_time || '-'}
                                             </td>
-                                            <td className="py-3 px-3 text-slate-500">
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {formatTime(session.total_time)}
                                             </td>
                                             <td className="py-3 px-3 text-center">
-                                              {(() => {
-                                                const review = session.billing_review || (isDeclined ? 'reject' : isReturned ? 'return' : null);
-                                                if (group.isOverride && review === 'accept') return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700 border border-violet-200 whitespace-nowrap">Admin Override</span>;
-                                                if (review === 'accept') return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">Approved</span>;
-                                                if (review === 'reject') return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">Rejected</span>;
-                                                if (review === 'return') return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">Returned</span>;
-                                                return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">-</span>;
-                                              })()}
+                                              <Badge variant={reviewBadge.variant}>{reviewBadge.label}</Badge>
                                             </td>
                                             <td className="py-3 px-3 text-center">
-                                              {session.billing_status === 'invoiced' && <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">Invoiced</span>}
-                                              {session.billing_status === 'declined' && <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">Rejected</span>}
-                                              {session.billing_status === 'rejected' && <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 whitespace-nowrap">Returned</span>}
+                                              {session.billing_status === 'invoiced' && <Badge variant="success">Invoiced</Badge>}
+                                              {session.billing_status === 'declined' && <Badge variant="danger">Rejected</Badge>}
+                                              {session.billing_status === 'rejected' && <Badge variant="info">Returned</Badge>}
                                             </td>
                                           </tr>
                                         );
@@ -1022,6 +1029,32 @@ export const BillingManager = () => {
           </div>
         </div>
       )}
+
+      {/* TOASTS (replaces alert()) */}
+      <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
+        {toasts.map(t => (
+          <div
+            key={t.id}
+            role="status"
+            aria-live="polite"
+            className={`pointer-events-auto flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm shadow-lg ${
+              t.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            }`}
+          >
+            {t.type === 'error' ? (
+              <CircleAlert className="size-4 mt-0.5 shrink-0" />
+            ) : (
+              <CheckCircle2 className="size-4 mt-0.5 shrink-0" />
+            )}
+            <span className="flex-1">{t.message}</span>
+            <button onClick={() => dismissToast(t.id)} className="text-current/60 hover:text-current cursor-pointer" aria-label="Dismiss">
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
