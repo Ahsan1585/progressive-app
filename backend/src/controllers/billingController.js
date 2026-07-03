@@ -162,7 +162,7 @@ const generateNJEISForms = async (req, res) => {
         } catch (e) {
           setUniformText('County', countyValue); // fallback if it is a plain text field
         }
-        setUniformText('Child ID', pData.patient_id?.toString()); 
+        setUniformText('Child ID', pData.patients?.child_id || pData.patient_id?.toString());
         
         chunk.forEach((session, index) => {
           const rowNum = index + 1; 
@@ -288,7 +288,7 @@ const generateFinancialInvoice = async (req, res) => {
 
   try {
     let query = supabase.from('assessments')
-      .select('*, practitioners(*)')
+      .select('*, practitioners(*), patients(*)')
       .eq('practitioner_id', practitionerId)
       .in('billing_status', ['pending', 'njeis_review'])
       .order('service_date', { ascending: true });
@@ -312,8 +312,8 @@ const generateFinancialInvoice = async (req, res) => {
         ...line,
         date: line.service_date || "",                 
         total_hours: hours > 0 ? hours.toFixed(2) : "", 
-        child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim() || "",               
-        child_id: line.patient_id || "",               
+        child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim() || "",
+        child_id: line.patients?.child_id || "",
         county: line.patient_county || "",             
         rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : "0.00",                      
         line_total: (rawPayRate && hours > 0) ? (hours * rawPayRate).toFixed(2) : "0.00"                       

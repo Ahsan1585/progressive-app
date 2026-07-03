@@ -16,7 +16,7 @@ const formSchema = z.object({
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   dob: z.string().min(1, "Date of Birth is required"),
   county: z.string().min(2, "County is required"),
-  childId: z.string().min(3, "Child ID must be at least 3 characters"),
+  childId: z.string().regex(/^\d{9}$/, "Child ID must be exactly 9 digits"),
 });
 
 export function AddPatientModal({
@@ -93,7 +93,19 @@ export function AddPatientModal({
               <FormItem><FormLabel>County</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="childId" render={({ field }) => (
-              <FormItem><FormLabel>Child ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Child ID</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    inputMode="numeric"
+                    maxLength={9}
+                    onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                  />
+                </FormControl>
+                <p className="text-xs text-slate-400">Please enter the 9 digit child id provided.</p>
+                <FormMessage />
+              </FormItem>
             )} />
 
             <div className="flex justify-end gap-2 pt-4">

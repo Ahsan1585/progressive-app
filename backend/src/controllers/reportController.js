@@ -517,7 +517,7 @@ const issueInvoiceOverride = async (req, res) => {
     // Fetch full assessment + practitioner data
     const { data: assessments, error: fetchError } = await supabase
       .from('assessments')
-      .select('*, practitioners(*)')
+      .select('*, practitioners(*), patients(*)')
       .in('id', assessmentIds)
       .in('billing_status', ['declined', 'rejected']);
     if (fetchError) throw fetchError;
@@ -560,7 +560,7 @@ const issueInvoiceOverride = async (req, res) => {
           date: line.service_date || '',
           total_hours: hours > 0 ? hours.toFixed(2) : '',
           child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim(),
-          child_id: line.patient_id || '',
+          child_id: line.patients?.child_id || '',
           county: line.patient_county || '',
           rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : '0.00',
           line_total: rawPayRate && hours > 0 ? (hours * rawPayRate).toFixed(2) : '0.00',
