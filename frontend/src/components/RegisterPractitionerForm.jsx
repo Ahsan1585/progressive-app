@@ -35,6 +35,9 @@ export const RegisterPractitionerForm = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
 
+  // --- Tab State: 'roster' | 'register' ---
+  const [activeTab, setActiveTab] = useState('roster');
+
   // --- Registration Form State ---
   const [regForm, setRegForm] = useState({
     firstName: '',
@@ -110,8 +113,9 @@ export const RegisterPractitionerForm = () => {
           payRate: '', positionTitle: '', address: '', phoneNumber: '', ssn: '',
           role: 'practitioner'
         });
-        // Refresh roster
+        // Refresh roster and switch to it so the new member is visible
         api.get('/api/auth/staff').then(res => setStaffList(res.data.staff || []));
+        setActiveTab('roster');
       }
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create account.');
@@ -121,9 +125,40 @@ export const RegisterPractitionerForm = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+
+      {/* ── TAB SWITCHER ── */}
+      <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200">
+        <button
+          onClick={() => setActiveTab('roster')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+            activeTab === 'roster'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Staff Roster
+        </button>
+        <button
+          onClick={() => setActiveTab('register')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+            activeTab === 'register'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+          Register New Account
+        </button>
+      </div>
 
       {/* ── SECTION 1: STAFF ROSTER ── */}
+      {activeTab === 'roster' && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -206,8 +241,10 @@ export const RegisterPractitionerForm = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* ── SECTION 2: REGISTER NEW ACCOUNT ── */}
+      {activeTab === 'register' && (
       <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
           <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -358,6 +395,7 @@ export const RegisterPractitionerForm = () => {
           </div>
         </form>
       </div>
+      )}
 
       {/* ── DELETE CONFIRM DIALOG ── */}
       {confirmDelete && (
