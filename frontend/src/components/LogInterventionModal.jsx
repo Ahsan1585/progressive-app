@@ -224,7 +224,7 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
       >
         <DialogHeader className="border-b border-neutral-100 pb-4 mb-4">
           <DialogTitle className="text-xl font-bold text-neutral-900">
-            NJEIS Service Encounter Verification
+            SEVF Service Encounter Verification
           </DialogTitle>
           <p className="text-sm text-neutral-500">
             Recording session for <span className="font-semibold text-neutral-700">{patient.first_name}{patient.middle_name ? ` ${patient.middle_name}` : ''} {patient.last_name}</span> (ID: {patient.child_id})

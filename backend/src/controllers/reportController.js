@@ -337,7 +337,7 @@ const generateAuditNJEIS = async (req, res) => {
     res.json({ success: true, downloadUrl: signedUrl, pageCount: mergedDoc.getPageCount() });
   } catch (error) {
     console.error('generateAuditNJEIS error:', error);
-    res.status(500).json({ error: 'Failed to generate audit NJEIS forms' });
+    res.status(500).json({ error: 'Failed to generate audit SEVF forms' });
   }
 };
 

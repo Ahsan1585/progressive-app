@@ -278,7 +278,7 @@ const generateNJEISForms = async (req, res) => {
       await supabase.from('assessments').update({ billing_status: 'njeis_review' }).in('id', idsToAdvance);
     }
 
-    res.json({ success: true, downloadUrl: urlData.signedUrl, batchId: batchRow?.id || null, message: 'NJEIS Forms generated successfully!' });
+    res.json({ success: true, downloadUrl: urlData.signedUrl, batchId: batchRow?.id || null, message: 'SEVF Forms generated successfully!' });
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 };
 

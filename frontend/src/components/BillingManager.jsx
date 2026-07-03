@@ -174,7 +174,7 @@ export const BillingManager = () => {
     try {
       // Step 1: Generate NJEIS
       const njeisRes = await api.post('/api/billing/generate-njeis', { practitionerId, startDate: dateRange.start, endDate: dateRange.end });
-      if (!njeisRes.data.success) throw new Error('NJEIS generation failed');
+      if (!njeisRes.data.success) throw new Error('SEVF generation failed');
       setPractitionerLogs(prev => prev.map(log =>
         log.practitioner_id === practitionerId
           ? { ...log, workflow_status: 'njeis_review', njeis_url: njeisRes.data.downloadUrl }
@@ -394,7 +394,7 @@ export const BillingManager = () => {
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
           }`}
         >
-          Pending Workflow
+          Pending Bills
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -404,7 +404,7 @@ export const BillingManager = () => {
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
           }`}
         >
-          Completed Vault
+          Completed Bills
         </button>
       </div>
 
@@ -442,7 +442,7 @@ export const BillingManager = () => {
                   <th className="py-4 px-4 text-center">Logs</th>
                   <th className="py-4 px-4 text-center">Children</th>
                   <th className="py-4 px-4 text-center">Status</th>
-                  <th className="py-4 px-4 text-center">NJEIS Form</th>
+                  <th className="py-4 px-4 text-center">SEVF Form</th>
                   <th className="py-4 px-4 text-center">Invoice</th>
                   <th className="py-4 px-4 text-right">Action</th>
                 </tr>
@@ -505,7 +505,7 @@ export const BillingManager = () => {
                                 className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                NJEIS
+                                SEVF
                               </a>
                             ) : <span className="text-slate-300">-</span>}
                           </td>
@@ -624,7 +624,7 @@ export const BillingManager = () => {
                                               {(() => {
                                                 // Locked njeis_review sessions are implicitly included in the NJEIS batch
                                                 if (isLocked && session.billing_status === 'njeis_review') return (
-                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">In NJEIS</span>
+                                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">In SEVF</span>
                                                 );
                                                 if (isLocked && session.billing_status === 'declined') return (
                                                   <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">Rejected</span>
@@ -671,7 +671,7 @@ export const BillingManager = () => {
                                                   Awaiting Revision
                                                 </div>
                                               ) : isLocked ? (
-                                                <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none" title="NJEIS has been issued. This log is locked until it returns to pending.">
+                                                <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none" title="SEVF has been issued. This log is locked until it returns to pending.">
                                                   <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                   </svg>
@@ -832,15 +832,15 @@ export const BillingManager = () => {
                 <Label className="text-sm font-semibold text-slate-700">Service Date To</Label>
                 <Input type="date" value={historyDate.end} onChange={(e) => setHistoryDate({...historyDate, end: e.target.value})} />
               </div>
-              <Button onClick={fetchHistory} variant="outline" className="h-10 cursor-pointer text-slate-600">Refresh Vault</Button>
+              <Button onClick={fetchHistory} variant="outline" className="h-10 cursor-pointer text-slate-600">Refresh Bills</Button>
               <Button
                 onClick={handleBackfill}
                 disabled={isBackfilling}
                 variant="outline"
                 className="h-10 cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50 disabled:opacity-50"
-                title="Link existing storage files to their billing batches — fixes duplicate logs in older vault entries"
+                title="Link existing storage files to their billing batches — fixes duplicate logs in older bill entries"
               >
-                {isBackfilling ? 'Fixing…' : 'Fix Vault'}
+                {isBackfilling ? 'Fixing…' : 'Fix Bills'}
               </Button>
             </div>
           </div>
@@ -851,15 +851,15 @@ export const BillingManager = () => {
                 <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
                   <th className="py-4 px-6">Period / Date</th>
                   <th className="py-4 px-6">Practitioner</th>
-                  <th className="py-4 px-6 text-center">NJEIS Form</th>
+                  <th className="py-4 px-6 text-center">SEVF Form</th>
                   <th className="py-4 px-6 text-center">Invoice</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isHistoryLoading ? (
-                  <tr><td colSpan="4" className="py-12 text-center text-slate-500">Accessing secure vault...</td></tr>
+                  <tr><td colSpan="4" className="py-12 text-center text-slate-500">Accessing secure records...</td></tr>
                 ) : groupedHistory.length === 0 ? (
-                  <tr><td colSpan="4" className="py-12 text-center text-slate-500">No matching documents found in the vault.</td></tr>
+                  <tr><td colSpan="4" className="py-12 text-center text-slate-500">No matching documents found.</td></tr>
                 ) : (
                   groupedHistory.map((group) => {
                     const isVaultExpanded = vaultExpandedRows.has(group.id);
@@ -902,7 +902,7 @@ export const BillingManager = () => {
                                 className="cursor-pointer text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 flex items-center justify-center gap-2 mx-auto w-28"
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                NJEIS
+                                SEVF
                               </Button>
                             ) : group.isOverride ? (
                               <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-violet-50 text-violet-700 border border-violet-200">Override</span>

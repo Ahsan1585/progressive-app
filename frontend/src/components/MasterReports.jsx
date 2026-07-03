@@ -129,7 +129,7 @@ export const MasterReports = () => {
       }
     } catch (error) {
       console.error('Failed to generate audit NJEIS', error);
-      alert('NJEIS generation failed: ' + (error.response?.data?.error || error.message));
+      alert('SEVF generation failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsGeneratingNJEIS(false);
     }
@@ -323,7 +323,7 @@ export const MasterReports = () => {
                 >
                   <option value="invoiced">Invoiced</option>
                   <option value="pending">Pending</option>
-                  <option value="njeis_review">In NJEIS Review</option>
+                  <option value="njeis_review">In SEVF Review</option>
                   <option value="declined">Rejected</option>
                   <option value="all">All Statuses</option>
                 </select>
@@ -421,7 +421,7 @@ export const MasterReports = () => {
                   <a href={njeisUrl} target="_blank" rel="noopener noreferrer">
                     <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer gap-1.5">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                      Re-Download NJEIS
+                      Re-Download SEVF
                     </Button>
                   </a>
                 )}
@@ -439,7 +439,7 @@ export const MasterReports = () => {
                   ) : (
                     <>
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      Generate NJEIS Forms
+                      Generate SEVF Forms
                     </>
                   )}
                 </Button>
@@ -601,7 +601,7 @@ export const MasterReports = () => {
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3.5 flex items-center gap-3 print:hidden">
               <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-emerald-800">NJEIS forms generated successfully.</p>
+                <p className="text-sm font-semibold text-emerald-800">SEVF forms generated successfully.</p>
                 <p className="text-xs text-emerald-600 mt-0.5">One form per (practitioner × child) pair · 10 sessions per page · overflow pages carry same header.</p>
               </div>
               <a href={njeisUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-emerald-700 underline underline-offset-2 hover:text-emerald-900 whitespace-nowrap">
