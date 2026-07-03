@@ -119,7 +119,7 @@ const getRejectedLogs = async (req, res) => {
 
 const acknowledgeLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
-  const { assessmentId } = req.body;
+  const { assessmentId, response } = req.body;
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
   try {
@@ -133,9 +133,15 @@ const acknowledgeLog = async (req, res) => {
     if (!['declined', 'rejected'].includes(existing.billing_status))
       return res.status(400).json({ error: 'Log is not in a rejected state' });
 
+    const updateData = { acknowledged_at: new Date().toISOString() };
+    if (response && response.trim()) {
+      updateData.practitioner_response = response.trim();
+      updateData.responded_at = new Date().toISOString();
+    }
+
     const { error } = await supabase
       .from('assessments')
-      .update({ acknowledged_at: new Date().toISOString() })
+      .update(updateData)
       .eq('id', assessmentId);
     if (error) throw error;
     res.json({ success: true });

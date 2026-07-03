@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [resubmitForm, setResubmitForm] = useState({});
   const [isResubmitting, setIsResubmitting] = useState(false);
   const [isAcknowledging, setIsAcknowledging] = useState(null);
+  const [responseDrafts, setResponseDrafts] = useState({});
 
   const [deletingPatientId, setDeletingPatientId] = useState(null);
 
@@ -147,8 +148,14 @@ const Dashboard = () => {
   const handleAcknowledge = async (logId) => {
     setIsAcknowledging(logId);
     try {
-      await api.post('/api/patients/acknowledge-log', { assessmentId: logId });
+      const response = responseDrafts[logId]?.trim() || undefined;
+      await api.post('/api/patients/acknowledge-log', { assessmentId: logId, response });
       setRejectedLogs(prev => prev.filter(l => l.id !== logId));
+      setResponseDrafts(prev => {
+        const next = { ...prev };
+        delete next[logId];
+        return next;
+      });
     } catch (err) {
       console.error('Failed to acknowledge log', err);
       alert('Failed to acknowledge. Please try again.');
@@ -428,8 +435,20 @@ const Dashboard = () => {
                           <p className="text-sm text-red-800 font-medium">{log.rejection_note}</p>
                         </div>
                       )}
+                      {log.billing_status === 'declined' && (
+                        <div className="mt-2 space-y-1">
+                          <label className="text-xs font-semibold text-slate-500">Your response (optional)</label>
+                          <textarea
+                            value={responseDrafts[log.id] || ''}
+                            onChange={(e) => setResponseDrafts(prev => ({ ...prev, [log.id]: e.target.value }))}
+                            placeholder="Add a note for the admin before acknowledging…"
+                            rows={2}
+                            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 resize-none"
+                          />
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 flex-shrink-0 sm:self-start sm:pt-1">
                       {log.billing_status === 'declined' ? (
                         <button
                           onClick={() => handleAcknowledge(log.id)}
