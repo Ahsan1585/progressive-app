@@ -490,18 +490,23 @@ const Dashboard = () => {
             <div className="h-full flex flex-col items-center justify-center text-center px-6 py-8 overflow-y-auto">
               <button
                 onClick={() => patients.length === 0 ? setRegisterModalOpen(true) : setSidebarOpen(true)}
-                className="p-5 bg-white rounded-full border border-slate-200 shadow-sm mb-4 hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="relative p-5 bg-blue-50 rounded-full border-2 border-blue-200 shadow-md mb-4 hover:border-blue-300 hover:shadow-lg active:scale-95 transition-all cursor-pointer"
                 aria-label={patients.length === 0 ? 'Register a patient' : 'Open patient list'}
               >
                 {patients.length === 0 ? (
-                  <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
                 ) : (
-                  <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 )}
+                <span className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center shadow-sm">
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
               </button>
               <h2 className="text-xl font-bold text-slate-800">
                 {patients.length === 0 ? 'Register a Patient' : 'Select a Patient'}
