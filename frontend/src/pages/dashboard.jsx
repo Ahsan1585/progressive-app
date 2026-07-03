@@ -396,10 +396,29 @@ const Dashboard = () => {
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-slate-500">
-                        {log.service_date ? new Date(log.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '-'}
-                        {' · '}{log.type || '-'}
-                        {' · '}{log.start_time} – {log.end_time}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 mt-1">
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Date</span>
+                          <span className="text-sm text-slate-700 font-medium">
+                            {log.service_date ? new Date(log.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Time</span>
+                          <span className="text-sm text-slate-700 font-medium">{log.start_time || '-'} – {log.end_time || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Service Type</span>
+                          <span className="text-sm text-slate-700 font-medium">{serviceTypeMap[log.type] || log.type || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Service Status</span>
+                          <span className="text-sm text-slate-700 font-medium">{statusCodeMap[log.status] || log.status || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Service Location</span>
+                          <span className="text-sm text-slate-700 font-medium">{locationCodeMap[log.location] || log.location || '-'}</span>
+                        </div>
                       </div>
                       {log.rejection_note && (
                         <div className="flex items-start gap-2 mt-2 bg-red-50 border border-red-100 rounded-lg p-2.5">
