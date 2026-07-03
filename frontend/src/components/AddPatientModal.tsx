@@ -19,8 +19,20 @@ const formSchema = z.object({
   childId: z.string().min(3, "Child ID must be at least 3 characters"),
 });
 
-export function AddPatientModal({ onPatientAdded }: { onPatientAdded: () => void }) {
-  const [open, setOpen] = useState(false);
+export function AddPatientModal({
+  onPatientAdded,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: {
+  onPatientAdded: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,9 +58,11 @@ export function AddPatientModal({ onPatientAdded }: { onPatientAdded: () => void
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default">+ Add New Patient</Button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="default">+ Add New Patient</Button>
+        </DialogTrigger>
+      )}
       <DialogContent
         className="sm:max-w-[425px]"
         onInteractOutside={(e) => e.preventDefault()}

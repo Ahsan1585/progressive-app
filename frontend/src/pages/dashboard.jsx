@@ -32,7 +32,11 @@ const Dashboard = () => {
 
   // Mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
+  // Empty-state: registration modal + quick stats
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [practitionerStats, setPractitionerStats] = useState(null); // { logsThisMonth, hoursThisMonth }
+
   const navigate = useNavigate();
 
   // Standard NJEIS Code Mappings 
@@ -101,6 +105,15 @@ const Dashboard = () => {
       if (response.data.success) setRejectedLogs(response.data.logs);
     } catch (error) {
       console.error('Failed to fetch rejected logs', error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/api/patients/practitioner-stats');
+      if (response.data.success) setPractitionerStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch practitioner stats', error);
     }
   };
 
@@ -186,6 +199,7 @@ const Dashboard = () => {
     fetchPatients();
     fetchProfile();
     fetchRejectedLogs();
+    fetchStats();
   }, [navigate]);
 
   useEffect(() => {
@@ -473,14 +487,101 @@ const Dashboard = () => {
           )}
 
           {!selectedPatient ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-6">
-              <div className="p-5 bg-white rounded-full border border-slate-200 shadow-sm mb-4">
-                <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-bold text-slate-800">Select a Patient</h2>
-              <p className="text-sm text-slate-400 mt-1 md:hidden">Tap the menu icon to open your patient list</p>
+            <div className="h-full flex flex-col items-center justify-center text-center px-6 py-8 overflow-y-auto">
+              <button
+                onClick={() => patients.length === 0 ? setRegisterModalOpen(true) : setSidebarOpen(true)}
+                className="p-5 bg-white rounded-full border border-slate-200 shadow-sm mb-4 hover:border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer"
+                aria-label={patients.length === 0 ? 'Register a patient' : 'Open patient list'}
+              >
+                {patients.length === 0 ? (
+                  <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                ) : (
+                  <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                )}
+              </button>
+              <h2 className="text-xl font-bold text-slate-800">
+                {patients.length === 0 ? 'Register a Patient' : 'Select a Patient'}
+              </h2>
+              <p className={`text-sm text-slate-400 mt-1 ${patients.length === 0 ? '' : 'md:hidden'}`}>
+                {patients.length === 0 ? 'Tap to add your first patient' : 'Tap to open your patient list'}
+              </p>
+
+              {patients.length > 0 && (
+                <>
+                  {/* Quick stats */}
+                  <div className="grid grid-cols-3 gap-3 w-full max-w-sm mt-8">
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <div className="text-xl font-bold text-slate-800">{patients.length}</div>
+                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Patients</div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <div className="text-xl font-bold text-slate-800">{practitionerStats?.logsThisMonth ?? '–'}</div>
+                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Logs This Month</div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <div className={`text-xl font-bold ${rejectedLogs.length > 0 ? 'text-red-600' : 'text-slate-800'}`}>{rejectedLogs.length}</div>
+                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Pending Review</div>
+                    </div>
+                  </div>
+
+                  {/* Jump back in */}
+                  <div className="w-full max-w-lg mt-6 text-left">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 px-1">Jump back in</p>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {patients.slice(0, 5).map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedPatient(p)}
+                          className="flex-shrink-0 px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer capitalize whitespace-nowrap"
+                        >
+                          {p.first_name} {p.last_name?.[0]}.
+                        </button>
+                      ))}
+                      {patients.length > 5 && (
+                        <button
+                          onClick={() => setSidebarOpen(true)}
+                          className="flex-shrink-0 px-4 py-2 bg-slate-100 border border-slate-200 rounded-full text-sm font-semibold text-slate-500 hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+                        >
+                          +{patients.length - 5} more
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {patients.length === 0 && (
+                <div className="w-full max-w-sm mt-8 text-left bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Getting Started</p>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center ${savedSignature ? 'bg-emerald-500' : 'border-2 border-slate-300'}`}>
+                      {savedSignature && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={`text-sm ${savedSignature ? 'text-slate-500 line-through' : 'text-slate-700 font-medium'}`}>Set up your digital signature</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                      <span className="text-sm text-slate-700 font-medium">Register your first patient</span>
+                    </div>
+                    <Button size="sm" onClick={() => setRegisterModalOpen(true)} className="cursor-pointer flex-shrink-0">
+                      Register
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                    <span className="text-sm text-slate-400">Log your first intervention</span>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-6">
@@ -602,6 +703,15 @@ const Dashboard = () => {
 
         </main>
       </div>
+
+      {/* Registration modal triggered from the empty-state icon/checklist (sidebar has its own instance) */}
+      <AddPatientModal
+        onPatientAdded={fetchPatients}
+        open={registerModalOpen}
+        onOpenChange={setRegisterModalOpen}
+        showTrigger={false}
+      />
+
       {/* Resubmit Modal */}
       {resubmitModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

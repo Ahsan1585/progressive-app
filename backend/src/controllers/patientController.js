@@ -199,4 +199,24 @@ const deletePatient = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient };
+const getPractitionerStats = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const { data, error } = await supabase
+      .from('assessments')
+      .select('total_time')
+      .eq('practitioner_id', practitionerId)
+      .gte('service_date', monthStart);
+    if (error) throw error;
+    const logsThisMonth = data.length;
+    const hoursThisMonth = data.reduce((sum, r) => sum + (r.total_time || 0), 0) / 60;
+    res.json({ success: true, logsThisMonth, hoursThisMonth });
+  } catch (error) {
+    console.error('Error fetching practitioner stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+};
+
+module.exports = { registerPatient, getPatients, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats };
