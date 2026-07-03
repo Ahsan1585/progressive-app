@@ -194,6 +194,15 @@ const Dashboard = () => {
     }
   };
 
+  const calculateTotalMinutes = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    const start = new Date(`1970-01-01T${startTime}`);
+    const end = new Date(`1970-01-01T${endTime}`);
+    const diffMs = end - start;
+    const diffMins = Math.round(diffMs / 60000);
+    return diffMins < 0 ? diffMins + (24 * 60) : diffMins;
+  };
+
   // 🌟 HELPER FUNCTION: Prevents Timezone Shifting 🌟
   const formatSafeDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -784,7 +793,7 @@ const Dashboard = () => {
                   type="time"
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   value={resubmitForm.start_time}
-                  onChange={e => setResubmitForm(f => ({ ...f, start_time: e.target.value }))}
+                  onChange={e => setResubmitForm(f => ({ ...f, start_time: e.target.value, total_time: calculateTotalMinutes(e.target.value, f.end_time) }))}
                 />
               </div>
               <div className="space-y-1">
@@ -793,17 +802,18 @@ const Dashboard = () => {
                   type="time"
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                   value={resubmitForm.end_time}
-                  onChange={e => setResubmitForm(f => ({ ...f, end_time: e.target.value }))}
+                  onChange={e => setResubmitForm(f => ({ ...f, end_time: e.target.value, total_time: calculateTotalMinutes(f.start_time, e.target.value) }))}
                 />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Time (minutes)</label>
                 <input
                   type="number"
-                  min="0"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  disabled
+                  readOnly
+                  title="Automatically calculated from Start Time and End Time"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-500 bg-slate-50 cursor-not-allowed"
                   value={resubmitForm.total_time}
-                  onChange={e => setResubmitForm(f => ({ ...f, total_time: parseInt(e.target.value) || 0 }))}
                 />
               </div>
               <div className="space-y-1">
