@@ -1,7 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 
 const { protect, requireRole } = require('../middleware/authMiddleware');
+
+// Throttle login attempts to slow brute-force / credential-stuffing (HIPAA §164.308(a)(5))
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                  // 10 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' },
+});
 
 const {
   provisionPractitioner,
@@ -33,7 +43,7 @@ router.delete('/staff/:id', protect, requireRole(['ceo']), deleteStaffMember);
 // --- PRACTITIONER ROUTES ---
 // ==========================================
 
-router.post('/login', loginPractitioner);
+router.post('/login', loginLimiter, loginPractitioner);
 
 router.post('/change-password', protect, changeTemporaryPassword);
 

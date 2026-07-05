@@ -30,15 +30,17 @@ router.delete('/:id', protect, deletePatient);
 router.get('/:id/assessments', protect, getPatientAssessments);
 
 // Route to generate the PDF report
-router.get('/generate-pdf/:assessmentId', async (req, res) => {
+router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {
   try {
     const { assessmentId } = req.params;
+    const practitionerId = req.practitioner.practitionerId;
 
-    // 1. Fetch data from Supabase
+    // 1. Fetch data from Supabase — scoped to the requesting practitioner (no cross-account access)
     const { data: assessment, error } = await supabase
       .from('assessments')
       .select('*')
       .eq('id', assessmentId)
+      .eq('practitioner_id', practitionerId)
       .single();
 
     if (error || !assessment) return res.status(404).send('Assessment record not found');

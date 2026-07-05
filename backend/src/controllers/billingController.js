@@ -71,7 +71,7 @@ const getPendingLogs = async (req, res) => {
         if (latestNjeis) {
           const { data } = await supabase.storage
             .from('billing-Invoices')
-            .createSignedUrl(`${folderPath}/${latestNjeis.name}`, 604800);
+            .createSignedUrl(`${folderPath}/${latestNjeis.name}`, 3600);
           njeis_url = data?.signedUrl;
         }
       }
@@ -252,7 +252,7 @@ const generateNJEISForms = async (req, res) => {
 
     await supabase.storage.from('billing-Invoices').upload(filePath, njeisPdfBuffer, { contentType: 'application/pdf', upsert: false });
 
-    const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 604800);
+    const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 3600);
 
     // Create a billing_batches record so the vault can scope this batch's logs precisely
     const { data: batchRow, error: batchInsertError } = await supabase
@@ -333,7 +333,7 @@ const generateFinancialInvoice = async (req, res) => {
 
     await supabase.storage.from('billing-Invoices').upload(filePath, invoicePdfBuffer, { contentType: 'application/pdf', upsert: false });
 
-    const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 604800);
+    const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 3600);
 
     // Update the billing_batches record with the invoice path (batch ID comes from the assessments)
     const batchId = assessments[0]?.billing_batch_id;
@@ -390,13 +390,20 @@ const getInvoiceHistory = async (req, res) => {
 };
 
 // --- 6. Generate secure links for the download buttons ---
+// Only allow well-formed billing document paths: YYYY-MM/Practitioner_Name/<Type>_..._.pdf
+const BILLING_FILE_PATTERN = /^\d{4}-\d{2}\/[A-Za-z0-9_.\- ]+\/(NJEIS|Invoice|Override_Invoice)_\d{8}_\d{8}_\d{6}\.pdf$/;
+
 const getInvoiceDownloadUrl = async (req, res) => {
   const { fileName } = req.query;
   try {
+    // Reject anything that isn't an exact, expected billing-document path (blocks path traversal / arbitrary reads)
+    if (typeof fileName !== 'string' || fileName.includes('..') || !BILLING_FILE_PATTERN.test(fileName)) {
+      return res.status(400).json({ success: false, error: 'Invalid file reference' });
+    }
     const { data, error } = await supabase.storage
       .from('billing-Invoices')
-      .createSignedUrl(fileName, 3600); 
-      
+      .createSignedUrl(fileName, 300); // short-lived (5 min) — these are single-click downloads
+
     if (error) throw error;
     res.json({ success: true, signedUrl: data.signedUrl });
   } catch (error) {

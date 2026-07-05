@@ -3,10 +3,11 @@ const { generateNjeisPDF } = require('../utils/njeisGenerator');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
+// Strip PostgREST filter metacharacters so a search term can't break out of an .or()/.ilike() filter
+const sanitizeSearchTerm = (raw) => String(raw || '').replace(/[,().*%\\"]/g, '').trim();
+
 // 1. Logic to generate the Master Report
 const generateMasterReport = async (req, res) => {
-    console.log("!!! REQUEST RECEIVED IN BACKEND !!!");
-    console.log("Request Body:", req.body);
   const { practitionerId, targetMonth, targetYear } = req.body;
 
   try {
@@ -19,16 +20,12 @@ const generateMasterReport = async (req, res) => {
     if (pracError) throw pracError;
 
     const parsedPractitionerId = parseInt(practitionerId, 10);
-    console.log(`Searching DB for Practitioner ID: ${parsedPractitionerId} with status 'pending'`);
 
     const { data: pendingEncounters, error: fetchError } = await supabase
       .from('assessments')
       .select('*')
       .eq('practitioner_id', parsedPractitionerId)
       .eq('billing_status', 'pending');
-
-    console.log("Supabase Error:", fetchError);
-    console.log("Encounters Found:", pendingEncounters ? pendingEncounters.length : 0);
 
     if (fetchError) throw fetchError;
 
@@ -140,11 +137,6 @@ const getPendingReports = async (req, res) => {
       .select('*, practitioners(first_name, last_name)') 
       .eq('status', 'pending_approval');
 
-    // --- DIAGNOSTIC LOGS (X-RAY) ---
-    console.log("FETCH ERROR:", error);
-    console.log("FETCHED DATA:", data ? JSON.stringify(data, null, 2) : 'No data');
-    // -------------------------------
-
     if (error) throw error;
     res.json({ success: true, pendingReports: data });
   } catch (error) {
@@ -160,7 +152,7 @@ const getAuditLogs = async (req, res) => {
   try {
     let practitionerIds = null;
     if (practitionerSearch && practitionerSearch.trim()) {
-      const term = practitionerSearch.trim();
+      const term = sanitizeSearchTerm(practitionerSearch);
       const asNum = parseInt(term);
       if (!isNaN(asNum)) {
         practitionerIds = [asNum];
@@ -201,7 +193,7 @@ const getAuditLogs = async (req, res) => {
 
     if (practitionerIds) query = query.in('practitioner_id', practitionerIds);
     if (patientSearch && patientSearch.trim()) {
-      const term = patientSearch.trim();
+      const term = sanitizeSearchTerm(patientSearch);
       query = query.or(`patient_first_name.ilike.%${term}%,patient_last_name.ilike.%${term}%`);
     }
 
@@ -221,7 +213,7 @@ const generateAuditNJEIS = async (req, res) => {
   try {
     let practitionerIds = null;
     if (practitionerSearch && practitionerSearch.trim()) {
-      const term = practitionerSearch.trim();
+      const term = sanitizeSearchTerm(practitionerSearch);
       const asNum = parseInt(term);
       if (!isNaN(asNum)) {
         practitionerIds = [asNum];
@@ -251,7 +243,7 @@ const generateAuditNJEIS = async (req, res) => {
     if (billingStatus && billingStatus !== 'all') query = query.eq('billing_status', billingStatus);
     if (practitionerIds) query = query.in('practitioner_id', practitionerIds);
     if (patientSearch && patientSearch.trim()) {
-      const term = patientSearch.trim();
+      const term = sanitizeSearchTerm(patientSearch);
       query = query.or(`patient_first_name.ilike.%${term}%,patient_last_name.ilike.%${term}%`);
     }
 
@@ -576,7 +568,7 @@ const issueInvoiceOverride = async (req, res) => {
       const filePath = `${yearMonth}/${practName}/Override_Invoice_${minDate}_${maxDate}_${timeStamp}.pdf`;
 
       await supabase.storage.from('billing-Invoices').upload(filePath, invoicePdfBuffer, { contentType: 'application/pdf', upsert: true });
-      const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 604800);
+      const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 3600);
       const signedUrl = urlData?.signedUrl || null;
 
       logs.forEach(a => { downloadUrls[a.id] = signedUrl; });
@@ -585,7 +577,7 @@ const issueInvoiceOverride = async (req, res) => {
     res.json({ success: true, updated: assessmentIds.length, downloadUrls });
   } catch (error) {
     console.error('issueInvoiceOverride error:', error);
-    res.status(500).json({ error: error?.message || 'Failed to issue invoice override' });
+    res.status(500).json({ error: 'Failed to issue invoice override' });
   }
 };
 

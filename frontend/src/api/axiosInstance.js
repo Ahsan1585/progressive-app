@@ -13,4 +13,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Centralized auth-failure handling: on any 401, clear the session and return to login.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      if (window.location.pathname !== '/' && window.location.pathname !== '/admin-login') {
+        window.location.assign('/');
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

@@ -1,12 +1,16 @@
 require('dotenv').config();
-const { protect } = require('./src/middleware/authMiddleware'); 
+const { protect, requireRole } = require('./src/middleware/authMiddleware');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+
+// Fail fast if the JWT secret is not configured — never run auth with an undefined secret
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is not set. Refusing to start.');
+}
 const { PDFDocument } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcrypt');
 
 // --- Supabase Database Initialization ---
 const { createClient } = require('@supabase/supabase-js');
@@ -27,10 +31,23 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Middleware ---
-app.use(helmet()); 
-app.use(cors());   
-app.use(express.json({ limit: '10mb' })); 
-app.use(express.urlencoded({ limit: '10mb', extended: true })); 
+app.use(helmet());
+
+// Restrict CORS to known frontend origin(s). Set CORS_ORIGIN (comma-separated) in the environment.
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow same-origin/non-browser requests (no Origin header) and whitelisted origins
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // --- Modular Routes ---
 app.use('/api/patients', patientRoutes);
@@ -38,57 +55,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/billing', billingRoutes); // 🌟 NEW: Mounted billing routes to fix the 404 error!
 
-// =========================================================================
-// --- ADMIN REGISTRATION ROUTE (MOVED TO TOP!) ---
-// =========================================================================
-
-app.post('/api/auth/register-practitioner', async (req, res) => {
-  // THE TRACKER: If you don't see this in your terminal, the route isn't running!
-  console.log("👉 REGISTRATION ROUTE HIT! Payload:", req.body); 
-
-  try {
-    const { firstName, lastName, email, password } = req.body;
-
-    if (!firstName || !lastName || !email || !password) {
-      return res.status(400).json({ error: "All fields are required." });
-    }
-
-    const { data: existingUser, error: checkError } = await supabase
-      .from('practitioners')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle(); 
-
-    if (existingUser) {
-      return res.status(409).json({ error: "A practitioner with this email already exists." });
-    }
-
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    const { data, error } = await supabase
-      .from('practitioners')
-      .insert([
-        {
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          password_hash: passwordHash
-        }
-      ]);
-
-    if (error) {
-      console.error("Database Insertion Error:", error);
-      throw error;
-    }
-
-    res.status(201).json({ success: true, message: "Practitioner registered successfully." });
-    
-  } catch (error) {
-    console.error("Registration failed:", error);
-    res.status(500).json({ error: "Internal Server Error during registration." });
-  }
-});
+// NOTE: Practitioner registration is handled solely by the authenticated,
+// role-guarded route in src/routes/authRoutes.js (protect + requireRole).
+// The previous inline unauthenticated handler here was removed (security fix).
 
 // =========================================================================
 // --- INTERVENTION ROUTES ---
@@ -127,9 +96,20 @@ app.post('/api/interventions', protect, async (req, res) => {
       practitionerSignatureBase64 
     } = req.body;
 
-    const finalTotalTime = total_time || totalTime || 0; 
+    const finalTotalTime = total_time || totalTime || 0;
 
     const trustedPractitionerId = req.practitioner.practitionerId;
+
+    // Ownership check: the patient must belong to the requesting practitioner
+    const { data: ownedPatient, error: ownerrErr } = await supabase
+      .from('patients')
+      .select('id')
+      .eq('id', patientId)
+      .eq('practitioner_id', trustedPractitionerId)
+      .single();
+    if (ownerrErr || !ownedPatient) {
+      return res.status(403).json({ error: 'Not authorized for this patient' });
+    }
 
     const { data, error } = await supabase
       .from('assessments')
@@ -168,7 +148,7 @@ app.post('/api/interventions', protect, async (req, res) => {
 
     if (error) {
       console.error("Supabase Insertion Error:", error);
-      return res.status(500).json({ error: 'Database error', details: error.message });
+      return res.status(500).json({ error: 'Database error' });
     }
 
     res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data });
@@ -186,20 +166,22 @@ app.post('/api/interventions', protect, async (req, res) => {
 app.get('/api/practitioner/profile', protect, async (req, res) => {
   try {
     const practitionerId = req.practitioner.practitionerId;
+    // Explicit allow-list — never return password_hash, ssn, or pay_rate to the client
     const { data, error } = await supabase
       .from('practitioners')
-      .select('*') 
+      .select('id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature')
       .eq('id', practitionerId)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    
+
     // Map the signature so the frontend can read it easily
-    if (data) data.signature = data.saved_signature; 
-    
+    if (data) data.signature = data.saved_signature;
+
     res.json(data || {});
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -217,7 +199,8 @@ app.post('/api/practitioner/signature', protect, async (req, res) => {
     if (error) throw error;
     res.json({ success: true, message: 'Default signature securely saved.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Signature save error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -334,7 +317,7 @@ app.get('/api/reports/practitioner/njeis-form', protect, async (req, res) => {
     res.end(Buffer.from(pdfBytes));
   } catch (error) {
     console.error('PDF Generation failed:', error);
-    res.status(500).send('Error generating official NJEIS PDF: ' + error.message);
+    res.status(500).send('Error generating official NJEIS PDF.');
   }
 });
 
@@ -342,7 +325,7 @@ app.get('/api/reports/practitioner/njeis-form', protect, async (req, res) => {
 // --- ADMIN PDF ROUTE ---
 // =========================================================================
 
-app.get('/api/admin/reports/njeis-form', protect, async (req, res) => {
+app.get('/api/admin/reports/njeis-form', protect, requireRole(['ceo', 'staff_director']), async (req, res) => {
   try {
     const { type, value } = req.query;
 
@@ -350,10 +333,16 @@ app.get('/api/admin/reports/njeis-form', protect, async (req, res) => {
       return res.status(400).json({ error: "Missing search parameters" });
     }
 
+    // Whitelist the searchable column so a client cannot filter on arbitrary fields
+    const ALLOWED_SEARCH_COLUMNS = ['patient_id', 'practitioner_id'];
+    if (!ALLOWED_SEARCH_COLUMNS.includes(type)) {
+      return res.status(400).json({ error: "Invalid search field" });
+    }
+
     const { data: assessments, error } = await supabase
       .from('assessments')
       .select('*')
-      .eq(type, value) 
+      .eq(type, value)
       .order('service_date', { ascending: true });
 
     if (error) throw error;
@@ -454,7 +443,7 @@ app.get('/api/admin/reports/njeis-form', protect, async (req, res) => {
     res.end(Buffer.from(pdfBytes));
   } catch (error) {
     console.error('Admin PDF Generation failed:', error);
-    res.status(500).send('Error generating official NJEIS PDF: ' + error.message);
+    res.status(500).send('Error generating official NJEIS PDF.');
   }
 });
 
@@ -464,9 +453,28 @@ app.get('/api/admin/reports/njeis-form', protect, async (req, res) => {
 
 app.get('/api/interventions/:patientId', protect, async (req, res) => {
   const { patientId } = req.params;
-  const { data, error } = await supabase.from('assessments').select('*').eq('patient_id', patientId).order('service_date', { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    // Ownership check: only return assessments for a patient owned by the requester
+    const { data: ownedPatient } = await supabase
+      .from('patients')
+      .select('id')
+      .eq('id', patientId)
+      .eq('practitioner_id', practitionerId)
+      .single();
+    if (!ownedPatient) return res.status(403).json({ error: 'Not authorized for this patient' });
+
+    const { data, error } = await supabase
+      .from('assessments')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('service_date', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error('Fetch interventions error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 app.get('/', (req, res) => { res.send('NJEIS Encounter App Backend is Secure and Active'); });

@@ -33,6 +33,10 @@ const provisionPractitioner = async (req, res) => {
       return res.status(400).json({ error: 'A valid role is required.' });
     }
 
+    if (!isPasswordStrong(tempPassword)) {
+      return res.status(400).json({ error: 'Temporary password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.' });
+    }
+
     if (req.practitioner.role === 'staff_director' && role !== 'practitioner') {
       return res.status(403).json({ error: 'Staff Directors can only register Practitioner accounts.' });
     }
@@ -78,32 +82,23 @@ const provisionPractitioner = async (req, res) => {
 };
 
 // --- Function 2: Practitioner Logs In ---
+// Dummy bcrypt hash used to equalize timing when the email does not exist (prevents user enumeration via response time)
+const DUMMY_HASH = '$2b$10$kfbIqw/2Dj.rlDic572uhuWxN01VGzbkxLbzZFws5lTYPCa6/Cp7S';
+
 const loginPractitioner = async (req, res) => {
   const { email, password } = req.body;
-  
-  console.log("\n--- NEW LOGIN ATTEMPT ---");
-  console.log("1. Email requested:", email);
-  
+
   try {
-    const { data: user, error } = await supabase
+    const { data: user } = await supabase
       .from('practitioners')
       .select('*')
       .eq('email', email)
       .single();
 
-    console.log("2. Supabase Error:", error);
-    console.log("3. User Found in DB:", user ? "YES" : "NO");
+    // Always run a bcrypt compare (against a dummy hash if no user) so timing does not reveal account existence
+    const isMatch = await bcrypt.compare(password || '', user ? user.password_hash : DUMMY_HASH);
 
-    if (error || !user) {
-      console.log("❌ FAILED: Database rejected the email or Row Level Security blocked it.");
-      return res.status(400).json({ error: 'Invalid credentials' });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    console.log("4. Password Hash Match:", isMatch ? "YES" : "NO");
-
-    if (!isMatch) {
-      console.log("❌ FAILED: Passwords do not match.");
+    if (!user || !isMatch) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
@@ -113,9 +108,7 @@ const loginPractitioner = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-    
-    console.log("✅ SUCCESS: User authenticated. Sending token and redirect instructions.");
-    
+
     // SEND BOTH THE TOKEN AND THE FLAG TO THE FRONTEND
     res.json({
       success: true,

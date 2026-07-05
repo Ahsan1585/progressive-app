@@ -8,27 +8,35 @@ const ChangePassword = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Mirror the backend policy for immediate feedback (backend remains the enforcement boundary)
+  const isPasswordStrong = (pw) =>
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pw);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
 
+    if (!isPasswordStrong(newPassword)) {
+      alert("Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&).");
+      return;
+    }
+
     setIsUpdating(true);
     try {
-      // The token is already in localStorage from the login step, 
+      // The token is already in localStorage from the login step,
       // so your api instance should send it automatically.
       const response = await api.post('/api/auth/change-password', { newPassword });
-      
+
       if (response.data.success) {
         alert("Password successfully changed! Welcome to the portal.");
         navigate('/dashboard');
       }
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || "Failed to update password.");
+    } catch {
+      alert("Failed to update password. Please try again.");
     } finally {
       setIsUpdating(false);
     }

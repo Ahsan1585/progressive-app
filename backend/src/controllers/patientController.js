@@ -78,13 +78,24 @@ const getPatients = async (req, res) => {
 const getPatientAssessments = async (req, res) => {
   try {
     const patientId = req.params.id;
+    const practitionerId = req.practitioner.practitionerId;
 
-    // Fetch from the 'assessments' table where the patient_id matches
+    // Ownership check: the patient must belong to the requesting practitioner
+    const { data: ownedPatient } = await supabase
+      .from('patients')
+      .select('id')
+      .eq('id', patientId)
+      .eq('practitioner_id', practitionerId)
+      .single();
+    if (!ownedPatient) return res.status(403).json({ error: 'Not authorized for this patient' });
+
+    // Fetch this patient's assessments, additionally scoped to the practitioner
     const { data: assessments, error } = await supabase
       .from('assessments')
       .select('*')
-      .eq('patient_id', patientId) // Ensure 'patient_id' matches your exact Supabase column name
-      .order('service_date', { ascending: false }); // Orders them newest to oldest
+      .eq('patient_id', patientId)
+      .eq('practitioner_id', practitionerId)
+      .order('service_date', { ascending: false });
 
     if (error) {
       console.error("Supabase Fetch Error:", error);

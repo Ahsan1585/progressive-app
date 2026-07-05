@@ -1,32 +1,25 @@
 const jwt = require('jsonwebtoken');
 
 const protect = (req, res, next) => {
-  let token;
+  const authHeader = req.headers.authorization;
 
-  // 1. Check if the request header contains a Bearer token
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      // 2. Extract the token from the "Bearer <token>" string
-      token = req.headers.authorization.split(' ')[1];
+  // 1. Require a Bearer token with an actual value after it
+  const token = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7).trim()
+    : null;
 
-      // 3. Verify the token using your secret key
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // 4. Attach the decoded practitioner data (id, email) to the request object
-      // This allows your controllers to know exactly WHO is making the request
-      req.practitioner = decoded;
-
-      // 5. Token is valid, move on to the actual route controller
-      next();
-    } catch (error) {
-      console.error('Token verification failed:', error);
-      res.status(401).json({ error: 'Not authorized, invalid token' });
-    }
+  if (!token) {
+    return res.status(401).json({ error: 'Not authorized, no token provided' });
   }
 
-  // 6. If no token was provided at all
-  if (!token) {
-    res.status(401).json({ error: 'Not authorized, no token provided' });
+  // 2. Verify the token
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.practitioner = decoded;
+    return next();
+  } catch {
+    // Do not log token contents or verification error details
+    return res.status(401).json({ error: 'Not authorized, invalid token' });
   }
 };
 
