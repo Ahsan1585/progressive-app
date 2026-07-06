@@ -276,11 +276,12 @@ export const BillingManager = () => {
       // Generation is always scoped to a single calendar month per call, so a practitioner
       // with a multi-month backlog gets one correctly-scoped SEVF + Invoice PER month
       // instead of one merged document spanning all of them.
-      const logsForPractitioner = expandedLogs[practitionerId] || [];
+      const logsForPractitioner = (expandedLogs[practitionerId] || [])
+        .filter(l => !['rejected', 'declined'].includes(l.billing_status));
       const months = Array.from(new Set(
         logsForPractitioner.map(l => l.service_date?.slice(0, 7)).filter(Boolean)
       )).sort();
-      if (months.length === 0) throw new Error('No reviewed logs available to generate.');
+      if (months.length === 0) throw new Error('No billable logs remain — all logs were rejected or returned.');
 
       const sevfDocuments = [];
       const invoiceDocuments = [];
@@ -580,8 +581,11 @@ export const BillingManager = () => {
                     const logsForRow = expandedLogs[log.practitioner_id] || [];
                     const declinedCount = logsForRow.filter(l => l.billing_status === 'declined').length;
                     const isLoadingThisRow = loadingExpand.has(log.practitioner_id);
-                    // Gate: every individual log must have a billing review decision before generating
-                    const allLogsReviewed = isExpanded && logsForRow.length > 0 &&
+                    const hasBillableLog = logsForRow.some(s => !['rejected', 'declined'].includes(s.billing_status));
+                    // Gate: every individual log must have a billing review decision before generating,
+                    // and at least one log must still be billable (not rejected/declined) — otherwise
+                    // there's nothing left to issue a SEVF/invoice for.
+                    const allLogsReviewed = isExpanded && logsForRow.length > 0 && hasBillableLog &&
                       logsForRow.every(s => logActions[s.id] || s.billing_review);
 
                     return (
