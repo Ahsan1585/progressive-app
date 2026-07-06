@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '@/api/axiosInstance';
+import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -549,8 +550,8 @@ export const MasterReports = () => {
                           </td>
                           <td className="py-3 px-4 text-slate-600">{log.type || '-'}</td>
                           <td className="py-3 px-4 capitalize text-slate-600">{log.location || '-'}</td>
-                          <td className="py-3 px-4 text-slate-600 text-xs">{log.start_time || '-'}</td>
-                          <td className="py-3 px-4 text-slate-600 text-xs">{log.end_time || '-'}</td>
+                          <td className="py-3 px-4 text-slate-600 text-xs">{log.start_time ? formatTime12h(log.start_time) : '-'}</td>
+                          <td className="py-3 px-4 text-slate-600 text-xs">{log.end_time ? formatTime12h(log.end_time) : '-'}</td>
                           <td className="py-3 px-4 text-slate-600 font-mono text-xs">{formatTime(log.total_time)}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2 flex-wrap">

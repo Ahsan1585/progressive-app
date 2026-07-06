@@ -1,5 +1,13 @@
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
+// Converts a "YYYY-MM-DD" service_date into "MM-DD-YYYY" for display on the invoice.
+const formatServiceDate = (dateStr) => {
+  if (!dateStr) return '';
+  const [y, m, d] = String(dateStr).split('-');
+  if (!y || !m || !d) return dateStr;
+  return `${m.padStart(2, '0')}-${d.padStart(2, '0')}-${y}`;
+};
+
 const generateInvoicePDF = async (practitioner, encounters) => {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([612, 792]); // Letter size
@@ -73,7 +81,7 @@ const generateInvoicePDF = async (practitioner, encounters) => {
       String(enc.child_id   || ''),
       String(enc.county     || ''),
       String(enc.child_name || ''),
-      String(enc.date       || ''),
+      formatServiceDate(enc.date),
       String(enc.total_hours || ''),
       String(enc.rate_of_pay || ''),
       'Y',

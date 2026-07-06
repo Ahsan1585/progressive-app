@@ -5,6 +5,7 @@ import { AddPatientModal } from '@/components/AddPatientModal';
 import { LogInterventionModal } from '@/components/LogInterventionModal';
 import { Button } from '@/components/ui/button';
 import SignaturePad from '@/components/SignaturePad';
+import { formatTime12h } from '@/utils/formatTime';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState([]);
@@ -478,7 +479,7 @@ const Dashboard = () => {
                         </div>
                         <div>
                           <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Time</span>
-                          <span className="text-sm text-slate-700 font-medium">{log.start_time || '-'} – {log.end_time || '-'}</span>
+                          <span className="text-sm text-slate-700 font-medium">{log.start_time ? formatTime12h(log.start_time) : '-'} – {log.end_time ? formatTime12h(log.end_time) : '-'}</span>
                         </div>
                         <div>
                           <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Service Type</span>
@@ -738,7 +739,7 @@ const Dashboard = () => {
                                 {item.total_time ? (item.total_time / 60).toFixed(2) : "0.00"} hrs
                               </p>
                               <p className="text-xs text-slate-500">
-                                {item.start_time} - {item.end_time}
+                                {formatTime12h(item.start_time)} - {formatTime12h(item.end_time)}
                               </p>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
                                 {displayStatus}

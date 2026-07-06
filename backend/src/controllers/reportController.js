@@ -6,6 +6,17 @@ const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 // Strip PostgREST filter metacharacters so a search term can't break out of an .or()/.ilike() filter
 const sanitizeSearchTerm = (raw) => String(raw || '').replace(/[,().*%\\"]/g, '').trim();
 
+// Converts a 24-hour "HH:MM" string into 12-hour AM/PM format for report display.
+const formatTime12h = (timeStr) => {
+  if (!timeStr) return '';
+  const [hourStr, minuteStr] = String(timeStr).split(':');
+  const hour = parseInt(hourStr, 10);
+  if (isNaN(hour)) return timeStr;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${(minuteStr || '00').padStart(2, '0')} ${period}`;
+};
+
 // 1. Logic to generate the Master Report
 const generateMasterReport = async (req, res) => {
   const { practitionerId, targetMonth, targetYear } = req.body;
@@ -364,8 +375,8 @@ const generateAuditReportPDF = async (req, res) => {
         dateStr,
         l.type || '-',
         l.location || '-',
-        l.start_time || '-',
-        l.end_time || '-',
+        l.start_time ? formatTime12h(l.start_time) : '-',
+        l.end_time ? formatTime12h(l.end_time) : '-',
         l.total_time ? `${(l.total_time / 60).toFixed(2)}h` : '-',
         statusLabel[l.billing_status] || l.billing_status || '-',
       ],

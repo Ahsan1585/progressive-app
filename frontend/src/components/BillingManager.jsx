@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '@/api/axiosInstance';
+import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -725,10 +726,10 @@ export const BillingManager = () => {
                                               {session.location || '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isLocked ? 'text-slate-400' : 'text-slate-700'}`}>
-                                              {session.start_time || '-'}
+                                              {session.start_time ? formatTime12h(session.start_time) : '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isLocked ? 'text-slate-400' : 'text-slate-700'}`}>
-                                              {session.end_time || '-'}
+                                              {session.end_time ? formatTime12h(session.end_time) : '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isLocked ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {formatTime(session.total_time)}
@@ -1068,10 +1069,10 @@ export const BillingManager = () => {
                                               {session.location || '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
-                                              {session.start_time || '-'}
+                                              {session.start_time ? formatTime12h(session.start_time) : '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
-                                              {session.end_time || '-'}
+                                              {session.end_time ? formatTime12h(session.end_time) : '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {formatTime(session.total_time)}
