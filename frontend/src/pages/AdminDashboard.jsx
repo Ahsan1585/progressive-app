@@ -31,6 +31,11 @@ const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile hamburger toggle
   const [desktopNavOpen, setDesktopNavOpen] = useState(false); // desktop hover-triggered flyout nav
 
+  const toggleSidebar = () => {
+    setSidebarOpen(o => !o);
+    setDesktopNavOpen(o => !o);
+  };
+
   useEffect(() => {
     api.get('/api/practitioner/profile')
       .then(res => { if (res.data) setAdminProfile(res.data); })
@@ -67,7 +72,7 @@ const AdminDashboard = () => {
 
       {/* Mobile backdrop */}
       {sidebarOpen && (
-        <div className="print:hidden fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="print:hidden fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => { setSidebarOpen(false); setDesktopNavOpen(false); }} />
       )}
 
       {/* Desktop hover strip — move the cursor to the left edge to reveal the nav; also tappable/focusable */}
@@ -75,12 +80,12 @@ const AdminDashboard = () => {
         type="button"
         onMouseEnter={() => setDesktopNavOpen(true)}
         onClick={() => setDesktopNavOpen(true)}
-        className="group print:hidden hidden md:flex fixed inset-y-0 left-0 w-3 z-40 items-center justify-center bg-transparent hover:bg-blue-50/50 transition-colors cursor-pointer"
+        className="group print:hidden hidden md:flex fixed inset-y-0 left-0 w-5 z-40 items-center justify-center bg-transparent hover:bg-blue-50/50 transition-colors cursor-pointer"
         aria-label="Show navigation"
         title="Show navigation"
       >
-        <span className="flex items-center justify-center w-4 h-14 rounded-r-md bg-slate-100 border border-l-0 border-slate-200 shadow-sm group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
-          <svg className="w-3 h-3 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <span className="flex items-center justify-center w-6 h-20 rounded-r-md bg-slate-100 border border-l-0 border-slate-200 shadow-sm group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
+          <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </span>
@@ -91,7 +96,7 @@ const AdminDashboard = () => {
         className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg transition-transform duration-200 ${
           sidebarOpen || desktopNavOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
-        onMouseLeave={() => setDesktopNavOpen(false)}
+        onMouseLeave={() => { setDesktopNavOpen(false); setSidebarOpen(false); }}
       >
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
@@ -165,9 +170,10 @@ const AdminDashboard = () => {
         <header className="print:hidden h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm shrink-0 z-10">
           <div className="flex items-center gap-3">
             <button
-              className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-              onClick={() => setSidebarOpen(o => !o)}
+              className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              onClick={toggleSidebar}
               aria-label="Toggle menu"
+              title="Toggle menu"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
