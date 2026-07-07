@@ -721,6 +721,54 @@ const backfillBillingBatches = async (req, res) => {
   }
 };
 
+// --- 13. Revert a Completed Batch back to Pending ---
+// Deletes the batch's SEVF + Invoice PDFs from storage, un-stamps every linked
+// assessment back to billing_status='pending', and removes the billing_batches row.
+// Order matters for partial-failure safety: assessments are freed first (the part
+// with real product consequence), then storage files, then the batch row last —
+// each step's failure still leaves enough state for a retry to finish cleanly.
+const revertBillingBatch = async (req, res) => {
+  const { batchId } = req.body;
+  if (!batchId) return res.status(400).json({ success: false, error: 'batchId is required' });
+
+  try {
+    const { data: batch, error: fetchError } = await supabase
+      .from('billing_batches')
+      .select('id, njeis_path, invoice_path')
+      .eq('id', batchId)
+      .single();
+
+    if (fetchError || !batch) {
+      return res.status(404).json({ success: false, error: 'Batch not found (it may have already been reverted).' });
+    }
+
+    const { data: revertedAssessments, error: assessmentsError } = await supabase
+      .from('assessments')
+      .update({ billing_status: 'pending', billing_batch_id: null })
+      .eq('billing_batch_id', batchId)
+      .select('id');
+    if (assessmentsError) throw assessmentsError;
+
+    const filePaths = [batch.njeis_path, batch.invoice_path].filter(Boolean);
+    if (filePaths.length > 0) {
+      const { error: storageError } = await supabase.storage.from('billing-Invoices').remove(filePaths);
+      if (storageError) console.error('revertBillingBatch: storage delete error (continuing):', storageError);
+    }
+
+    const { error: deleteError } = await supabase.from('billing_batches').delete().eq('id', batchId);
+    if (deleteError) throw deleteError;
+
+    res.json({
+      success: true,
+      message: 'Batch reverted — logs are back in Pending Bills.',
+      assessmentsReverted: revertedAssessments?.length || 0,
+    });
+  } catch (error) {
+    console.error('revertBillingBatch error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = {
   getPendingLogs,
   generateNJEISForms,
@@ -732,5 +780,6 @@ module.exports = {
   rejectLog,
   getVaultLogs,
   getBillingBatches,
-  backfillBillingBatches
+  backfillBillingBatches,
+  revertBillingBatch
 };

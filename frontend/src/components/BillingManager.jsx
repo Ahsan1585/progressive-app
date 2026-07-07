@@ -99,6 +99,10 @@ export const BillingManager = () => {
   const [actionNote, setActionNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // --- REVERT BATCH MODAL STATE (Completed Bills → Send Back to Pending) ---
+  const [revertModal, setRevertModal] = useState(null); // { group } or null
+  const [isReverting, setIsReverting] = useState(false);
+
   // --- PER-LOG ACTION STATE (controls dropdown value + Review badge) ---
   const [logActions, setLogActions] = useState({}); // { [sessionId]: 'accept'|'reject'|'return' }
 
@@ -355,6 +359,29 @@ export const BillingManager = () => {
       pushToast('error', 'Backfill failed: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsBackfilling(false);
+    }
+  };
+
+  const handleRevertBatch = async () => {
+    if (!revertModal?.group?.batchId) return;
+    setIsReverting(true);
+    try {
+      const res = await api.post('/api/billing/revert-batch', { batchId: revertModal.group.batchId });
+      if (res.data.success) {
+        pushToast('success', res.data.message || 'Batch sent back to Pending Bills.');
+        setRevertModal(null);
+        await fetchHistory();
+      }
+    } catch (err) {
+      if (err.response?.status === 404) {
+        pushToast('error', 'This batch was already reverted.');
+        setRevertModal(null);
+        await fetchHistory();
+      } else {
+        pushToast('error', 'Failed to send batch back: ' + (err.response?.data?.error || err.message));
+      }
+    } finally {
+      setIsReverting(false);
     }
   };
 
@@ -910,6 +937,42 @@ export const BillingManager = () => {
         </DialogContent>
       </Dialog>
 
+      {/* REVERT BATCH MODAL (Completed Bills → Send Back to Pending) */}
+      <Dialog open={!!revertModal} onOpenChange={(open) => { if (!open && !isReverting) setRevertModal(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Batch Back to Pending</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the SEVF form and Invoice PDF for this batch, and move every log in it back to Pending Bills. This cannot be undone — the batch will need to be regenerated from scratch.
+            </DialogDescription>
+          </DialogHeader>
+
+          {revertModal && (
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm space-y-1">
+              <div className="font-semibold text-slate-800 capitalize">
+                {revertModal.group.practitionerName}
+              </div>
+              <div className="text-slate-500 tabular-nums">
+                {revertModal.group.dateRange || '-'}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" className="cursor-pointer" onClick={() => setRevertModal(null)} disabled={isReverting}>
+              Cancel
+            </Button>
+            <Button
+              className="text-white cursor-pointer disabled:opacity-50 bg-amber-600 hover:bg-amber-700"
+              onClick={handleRevertBatch}
+              disabled={isReverting}
+            >
+              {isReverting ? 'Sending Back...' : 'Send Back to Pending'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* TAB 2: COMPLETED BILLS */}
       {activeTab === 'history' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
@@ -957,13 +1020,14 @@ export const BillingManager = () => {
                   <SortableHeader label="Practitioner" field="practitioner" sort={vaultSort} onSort={toggleVaultSort} className="py-4 px-6" />
                   <th scope="col" className="py-4 px-6 text-center">SEVF Form</th>
                   <th scope="col" className="py-4 px-6 text-center">Invoice</th>
+                  <th scope="col" className="py-4 px-6 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isHistoryLoading ? (
-                  <tr><td colSpan="4" className="py-12 text-center text-slate-500">Accessing secure records...</td></tr>
+                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">Accessing secure records...</td></tr>
                 ) : groupedHistory.length === 0 ? (
-                  <tr><td colSpan="4" className="py-12 text-center text-slate-500">No matching documents found.</td></tr>
+                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">No matching documents found.</td></tr>
                 ) : (
                   groupedHistory.map((group) => {
                     const isVaultExpanded = vaultExpandedRows.has(group.id);
@@ -1015,12 +1079,29 @@ export const BillingManager = () => {
                               <span className="text-slate-300">-</span>
                             )}
                           </td>
+
+                          {/* ACTIONS COLUMN */}
+                          <td className="py-4 px-6 text-center">
+                            {group.batchId && group.invoiceFile ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
+                                onClick={() => setRevertModal({ group })}
+                              >
+                                <Undo2 className="size-3.5 mr-1.5" />
+                                Send Back to Pending
+                              </Button>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
                         </tr>
 
                         {/* EXPANDED SUB-TABLE */}
                         {isVaultExpanded && (
                           <tr>
-                            <td colSpan="4" className="bg-white px-0 py-0 border-b border-slate-200">
+                            <td colSpan="5" className="bg-white px-0 py-0 border-b border-slate-200">
                               <div className="px-8 py-4 border-t border-slate-100">
                                 {isLoadingVault ? (
                                   <div className="text-center py-4 text-slate-500 text-sm">Loading logs...</div>
