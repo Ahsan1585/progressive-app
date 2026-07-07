@@ -113,7 +113,6 @@ export const BillingManager = () => {
   const [historyDate, setHistoryDate] = useState({ start: '', end: '' });
   const [batchMap, setBatchMap] = useState({}); // njeis_path → batch_id
   const [vaultSort, setVaultSort] = useState({ field: 'month', dir: 'desc' }); // matches prior fixed default
-  const [isBackfilling, setIsBackfilling] = useState(false);
 
   // --- VAULT EXPAND STATE ---
   const [vaultExpandedRows, setVaultExpandedRows] = useState(new Set());
@@ -343,22 +342,6 @@ export const BillingManager = () => {
       console.error("Failed to fetch vault history", error);
     } finally {
       setIsHistoryLoading(false);
-    }
-  };
-
-  const handleBackfill = async () => {
-    setIsBackfilling(true);
-    try {
-      const res = await api.post('/api/billing/backfill-batches');
-      if (res.data.success) {
-        await fetchHistory();
-        pushToast('success', res.data.message);
-      }
-    } catch (err) {
-      console.error('Backfill failed', err);
-      pushToast('error', 'Backfill failed: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setIsBackfilling(false);
     }
   };
 
@@ -994,20 +977,6 @@ export const BillingManager = () => {
                 <Input type="date" value={historyDate.end} onChange={(e) => setHistoryDate({...historyDate, end: e.target.value})} />
               </div>
               <Button onClick={fetchHistory} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh Bills</Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={handleBackfill}
-                    disabled={isBackfilling}
-                    variant="outline"
-                    size="lg"
-                    className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50 disabled:opacity-50"
-                  >
-                    {isBackfilling ? 'Fixing…' : 'Fix Bills'}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Link existing storage files to their billing batches — fixes duplicate logs in older bill entries</TooltipContent>
-              </Tooltip>
             </div>
           </div>
 

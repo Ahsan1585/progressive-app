@@ -14,7 +14,6 @@ const {
   rejectLog,
   getVaultLogs,
   getBillingBatches,
-  backfillBillingBatches,
   revertBillingBatch
 } = require('../controllers/billingController');
 
@@ -30,7 +29,6 @@ router.get('/history',           ...billingGuard, getInvoiceHistory);
 router.get('/download',          ...billingGuard, getInvoiceDownloadUrl);
 router.get('/vault-logs',        ...billingGuard, getVaultLogs);
 router.get('/batches',           ...billingGuard, getBillingBatches);
-router.post('/backfill-batches', ...billingGuard, backfillBillingBatches);
 router.post('/revert-batch',     ...billingGuard, revertBillingBatch);
 
 module.exports = router;
