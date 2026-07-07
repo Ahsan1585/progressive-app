@@ -33,7 +33,9 @@ export const RegisterPractitionerForm = () => {
   const [loadingStaff, setLoadingStaff] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [reactivatingId, setReactivatingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
+  const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'deactivated' | 'all'
 
   // --- Tab State: 'roster' | 'register' ---
   const [activeTab, setActiveTab] = useState('roster');
@@ -65,12 +67,24 @@ export const RegisterPractitionerForm = () => {
     setDeletingId(confirmDelete.id);
     try {
       await api.delete(`/api/auth/staff/${confirmDelete.id}`);
-      setStaffList(prev => prev.filter(s => s.id !== confirmDelete.id));
+      setStaffList(prev => prev.map(s => s.id === confirmDelete.id ? { ...s, is_active: false } : s));
       setConfirmDelete(null);
     } catch {
       alert('Failed to deactivate user. Please try again.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleReactivate = async (id) => {
+    setReactivatingId(id);
+    try {
+      await api.patch(`/api/auth/staff/${id}/reactivate`);
+      setStaffList(prev => prev.map(s => s.id === id ? { ...s, is_active: true } : s));
+    } catch {
+      alert('Failed to reactivate user. Please try again.');
+    } finally {
+      setReactivatingId(null);
     }
   };
 
@@ -124,6 +138,10 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
+  const visibleStaff = staffList.filter(s =>
+    statusFilter === 'all' ? true : statusFilter === 'active' ? s.is_active !== false : s.is_active === false
+  );
+
   return (
     <div className="space-y-6">
 
@@ -160,18 +178,40 @@ export const RegisterPractitionerForm = () => {
       {/* ── SECTION 1: STAFF ROSTER ── */}
       {activeTab === 'roster' && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 flex-wrap">
           <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
-          <span className="ml-auto text-xs text-slate-400 font-medium">{staffList.length} member{staffList.length !== 1 ? 's' : ''}</span>
+
+          <div className="ml-auto flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+            {[
+              { key: 'active', label: 'Active' },
+              { key: 'deactivated', label: 'Deactivated' },
+              { key: 'all', label: 'All' },
+            ].map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setStatusFilter(opt.key)}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                  statusFilter === opt.key
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-slate-400 font-medium">{visibleStaff.length} member{visibleStaff.length !== 1 ? 's' : ''}</span>
         </div>
 
         {loadingStaff ? (
           <div className="p-8 text-center text-sm text-slate-400">Loading staff...</div>
-        ) : staffList.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-400">No staff registered yet.</div>
+        ) : visibleStaff.length === 0 ? (
+          <div className="p-8 text-center text-sm text-slate-400">
+            {statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.'}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -187,8 +227,10 @@ export const RegisterPractitionerForm = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {staffList.map(member => (
-                  <tr key={member.id} className="hover:bg-slate-50 transition-colors">
+                {visibleStaff.map(member => {
+                  const isDeactivated = member.is_active === false;
+                  return (
+                  <tr key={member.id} className={`hover:bg-slate-50 transition-colors ${isDeactivated ? 'opacity-60' : ''}`}>
                     <td className="px-6 py-3 font-medium text-slate-800">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
@@ -197,6 +239,11 @@ export const RegisterPractitionerForm = () => {
                           </span>
                         </div>
                         {member.first_name} {member.last_name}
+                        {isDeactivated && (
+                          <span className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
+                            Deactivated
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-500">{member.email}</td>
@@ -222,21 +269,35 @@ export const RegisterPractitionerForm = () => {
                     </td>
                     {currentUserRole === 'ceo' && (
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setConfirmDelete(member)}
-                          disabled={deletingId === member.id}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
-                          title="Deactivate user"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <circle cx="12" cy="12" r="9" strokeWidth={2} />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.6 5.6l12.8 12.8" />
-                          </svg>
-                        </button>
+                        {isDeactivated ? (
+                          <button
+                            onClick={() => handleReactivate(member.id)}
+                            disabled={reactivatingId === member.id}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40 cursor-pointer"
+                            title="Reactivate user"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 12a7.5 7.5 0 0113-5.1M19.5 12a7.5 7.5 0 01-13 5.1M4.5 5v3h3M19.5 19v-3h-3" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDelete(member)}
+                            disabled={deletingId === member.id}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
+                            title="Deactivate user"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.6 5.6l12.8 12.8" />
+                            </svg>
+                          </button>
+                        )}
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

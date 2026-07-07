@@ -30,7 +30,8 @@ const {
   resetPassword,
   getAllStaff,
   updateStaffRole,
-  deleteStaffMember
+  deleteStaffMember,
+  reactivateStaffMember
 } = require('../controllers/authController');
 
 // ==========================================
@@ -48,6 +49,9 @@ router.patch('/staff/:id/role', protect, requireRole(['ceo']), updateStaffRole);
 
 // Delete a staff member (CEO only)
 router.delete('/staff/:id', protect, requireRole(['ceo']), deleteStaffMember);
+
+// Reactivate a deactivated staff member (CEO only)
+router.patch('/staff/:id/reactivate', protect, requireRole(['ceo']), reactivateStaffMember);
 
 
 // ==========================================

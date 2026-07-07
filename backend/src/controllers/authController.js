@@ -267,8 +267,7 @@ const getAllStaff = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('practitioners')
-      .select('id, first_name, last_name, email, role, position_title, created_at')
-      .eq('is_active', true)
+      .select('id, first_name, last_name, email, role, position_title, created_at, is_active')
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json({ staff: data });
@@ -312,6 +311,19 @@ const deleteStaffMember = async (req, res) => {
   }
 };
 
+// --- Function 6: Reactivate a Deactivated Staff Member (CEO only) ---
+const reactivateStaffMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('practitioners').update({ is_active: true }).eq('id', id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reactivate staff error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
   provisionPractitioner,
   loginPractitioner,
@@ -320,5 +332,6 @@ module.exports = {
   resetPassword,
   getAllStaff,
   updateStaffRole,
-  deleteStaffMember
+  deleteStaffMember,
+  reactivateStaffMember
 };
