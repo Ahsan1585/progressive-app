@@ -104,6 +104,10 @@ const loginPractitioner = async (req, res) => {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
+    }
+
     // CREATE THE TOKEN REGARDLESS OF PASSWORD STATUS
     const token = jwt.sign(
       { practitionerId: user.id, email: user.email, role: user.role },
@@ -264,6 +268,7 @@ const getAllStaff = async (req, res) => {
     const { data, error } = await supabase
       .from('practitioners')
       .select('id, first_name, last_name, email, role, position_title, created_at')
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json({ staff: data });
@@ -298,7 +303,7 @@ const deleteStaffMember = async (req, res) => {
     if (String(id) === String(requesterId)) {
       return res.status(400).json({ error: 'You cannot delete your own account.' });
     }
-    const { error } = await supabase.from('practitioners').delete().eq('id', id);
+    const { error } = await supabase.from('practitioners').update({ is_active: false }).eq('id', id);
     if (error) throw error;
     res.json({ success: true });
   } catch (error) {

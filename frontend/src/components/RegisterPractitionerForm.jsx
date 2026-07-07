@@ -68,7 +68,7 @@ export const RegisterPractitionerForm = () => {
       setStaffList(prev => prev.filter(s => s.id !== confirmDelete.id));
       setConfirmDelete(null);
     } catch {
-      alert('Failed to delete user. Please try again.');
+      alert('Failed to deactivate user. Please try again.');
     } finally {
       setDeletingId(null);
     }
@@ -226,10 +226,11 @@ export const RegisterPractitionerForm = () => {
                           onClick={() => setConfirmDelete(member)}
                           disabled={deletingId === member.id}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
-                          title="Delete user"
+                          title="Deactivate user"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.6 5.6l12.8 12.8" />
                           </svg>
                         </button>
                       </td>
@@ -397,7 +398,7 @@ export const RegisterPractitionerForm = () => {
       </div>
       )}
 
-      {/* ── DELETE CONFIRM DIALOG ── */}
+      {/* ── DEACTIVATE CONFIRM DIALOG ── */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-full max-w-sm mx-4 space-y-4">
@@ -408,14 +409,14 @@ export const RegisterPractitionerForm = () => {
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800">Delete User Account</h3>
+                <h3 className="text-base font-bold text-slate-800">Deactivate User Account</h3>
                 <p className="text-xs text-slate-500 mt-0.5">This action cannot be undone.</p>
               </div>
             </div>
             <p className="text-sm text-slate-600">
-              Are you sure you want to permanently delete{' '}
+              Are you sure you want to deactivate{' '}
               <span className="font-semibold text-slate-800">{confirmDelete.first_name} {confirmDelete.last_name}</span>?
-              Their account and all associated data will be removed.
+              They will no longer be able to log in. All of their historical logs, billing records, and invoices will remain fully intact.
             </p>
             <div className="flex gap-3 pt-2">
               <button
@@ -429,7 +430,7 @@ export const RegisterPractitionerForm = () => {
                 disabled={deletingId === confirmDelete.id}
                 className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-60"
               >
-                {deletingId === confirmDelete.id ? 'Deleting...' : 'Yes, Delete'}
+                {deletingId === confirmDelete.id ? 'Deactivating...' : 'Yes, Deactivate'}
               </button>
             </div>
           </div>
