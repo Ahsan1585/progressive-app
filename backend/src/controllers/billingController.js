@@ -508,44 +508,50 @@ const getVaultLogs = async (req, res) => {
     return res.status(400).json({ error: 'practitionerFolder and either batchId or startDate+endDate are required' });
   }
   try {
-    const parts = practitionerFolder.split('_');
-    const firstName = parts[0];
-    const lastName = parts.slice(1).join(' ');
-
-    const { data: practitioner, error: practError } = await supabase
-      .from('practitioners')
-      .select('id')
-      .ilike('first_name', firstName)
-      .ilike('last_name', lastName)
-      .single();
-
-    if (practError || !practitioner) {
-      return res.status(404).json({ error: 'Practitioner not found' });
-    }
-
     let query = supabase
       .from('assessments')
       .select('id, billing_status, billing_review, service_date, status, type, location, start_time, end_time, total_time, patient_first_name, patient_last_name')
-      .eq('practitioner_id', practitioner.id)
       .in('billing_status', ['invoiced', 'declined', 'rejected']);
 
     if (batchId) {
-      // New batch: exact scoping by batch ID — no date range needed
+      // New batch: exact scoping by batch ID alone. Deliberately skips the practitioner
+      // name lookup below — billing_batch_id is already unambiguous, and resolving the
+      // practitioner from the folder name here would break (.single() throws) whenever
+      // two practitioners share the same first+last name.
       query = query.eq('billing_batch_id', batchId);
-    } else if (isOverride === 'true') {
-      // Override row: logs explicitly marked as override-invoiced
-      query = query
-        .gte('service_date', startDate)
-        .lte('service_date', endDate)
-        .eq('is_override', true);
     } else {
-      // Old-batch fallback: date range scoped to logs with no batch ID
-      // Prevents new-batch logs (billing_batch_id IS NOT NULL) from bleeding into old-batch expands
-      query = query
-        .gte('service_date', startDate)
-        .lte('service_date', endDate)
-        .is('billing_batch_id', null)
-        .eq('is_override', false);
+      const parts = practitionerFolder.split('_');
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(' ');
+
+      const { data: practitioner, error: practError } = await supabase
+        .from('practitioners')
+        .select('id')
+        .ilike('first_name', firstName)
+        .ilike('last_name', lastName)
+        .single();
+
+      if (practError || !practitioner) {
+        return res.status(404).json({ error: 'Practitioner not found' });
+      }
+
+      query = query.eq('practitioner_id', practitioner.id);
+
+      if (isOverride === 'true') {
+        // Override row: logs explicitly marked as override-invoiced
+        query = query
+          .gte('service_date', startDate)
+          .lte('service_date', endDate)
+          .eq('is_override', true);
+      } else {
+        // Old-batch fallback: date range scoped to logs with no batch ID
+        // Prevents new-batch logs (billing_batch_id IS NOT NULL) from bleeding into old-batch expands
+        query = query
+          .gte('service_date', startDate)
+          .lte('service_date', endDate)
+          .is('billing_batch_id', null)
+          .eq('is_override', false);
+      }
     }
 
     const { data: logs, error } = await query.order('service_date', { ascending: true });
