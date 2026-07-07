@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // <-- Kept useNavigate to prevent crashes!
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // <-- Kept useNavigate to prevent crashes!
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const resetSuccess = location.state?.resetSuccess;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -54,6 +56,13 @@ const Login = () => {
             <p className="text-neutral-500 font-medium">Practitioner Portal</p>
           </div>
 
+          {/* Reset Success Message */}
+          {resetSuccess && (
+            <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-6 rounded-r-md text-sm text-emerald-700 font-medium">
+              Your password has been reset. You can now sign in.
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-md text-sm text-red-700 font-medium">
@@ -79,9 +88,9 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-neutral-700">Password</Label>
-                <a href="#" className="text-sm font-medium text-neutral-500 hover:text-neutral-950 transition-colors">
+                <Link to="/forgot-password" className="text-sm font-medium text-neutral-500 hover:text-neutral-950 transition-colors">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <Input
                 id="password"

@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -59,6 +61,8 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/dashboard"
           element={<ProtectedRoute element={<Dashboard />} allowedRoles={['practitioner']} />}

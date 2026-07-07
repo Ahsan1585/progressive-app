@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { supabase } = require('../config/db');
+const { sendPasswordResetEmail } = require('../utils/emailClient');
 
 // --- Helper: Enforce Password Strength ---
 const isPasswordStrong = (password) => {
@@ -163,6 +165,99 @@ const changeTemporaryPassword = async (req, res) => {
   }
 };
 
+// --- Function 3b: Request a Password Reset Link ---
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  // Always respond generically, whether or not the email exists, to prevent user enumeration.
+  const genericResponse = { success: true, message: 'If an account exists with that email, a password reset link has been sent.' };
+
+  if (!email) return res.json(genericResponse);
+
+  try {
+    const { data: user } = await supabase
+      .from('practitioners')
+      .select('id, email')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (user) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = hashResetToken(rawToken);
+      const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
+
+      const { error: tokenUpdateError } = await supabase
+        .from('practitioners')
+        .update({ reset_token_hash: tokenHash, reset_token_expires: expiresAt })
+        .eq('id', user.id);
+
+      if (tokenUpdateError) {
+        console.error('Failed to store reset token:', tokenUpdateError);
+      } else {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+
+        try {
+          await sendPasswordResetEmail(user.email, resetUrl);
+        } catch (emailError) {
+          console.error('Failed to send password reset email:', emailError);
+        }
+      }
+    }
+
+    res.json(genericResponse);
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.json(genericResponse);
+  }
+};
+
+// --- Function 3c: Complete a Password Reset ---
+const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'A reset token and new password are required.' });
+  }
+  if (!isPasswordStrong(newPassword)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.' });
+  }
+
+  try {
+    const tokenHash = hashResetToken(token);
+    const { data: user } = await supabase
+      .from('practitioners')
+      .select('id, reset_token_expires')
+      .eq('reset_token_hash', tokenHash)
+      .maybeSingle();
+
+    if (!user || !user.reset_token_expires || new Date(user.reset_token_expires) < new Date()) {
+      return res.status(400).json({ error: 'This reset link is invalid or has expired.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    const { error: updateError } = await supabase
+      .from('practitioners')
+      .update({
+        password_hash: newPasswordHash,
+        requires_password_change: false,
+        reset_token_hash: null,
+        reset_token_expires: null,
+      })
+      .eq('id', user.id);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true, message: 'Password updated successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // --- Function 4: Get All Staff (CEO + Staff Director) ---
 const getAllStaff = async (req, res) => {
   try {
@@ -216,6 +311,8 @@ module.exports = {
   provisionPractitioner,
   loginPractitioner,
   changeTemporaryPassword,
+  forgotPassword,
+  resetPassword,
   getAllStaff,
   updateStaffRole,
   deleteStaffMember

@@ -13,10 +13,21 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts. Please try again later.' },
 });
 
+// Throttle reset-request emails so an attacker can't mail-bomb a practitioner's inbox
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests. Please try again later.' },
+});
+
 const {
   provisionPractitioner,
   loginPractitioner,
   changeTemporaryPassword,
+  forgotPassword,
+  resetPassword,
   getAllStaff,
   updateStaffRole,
   deleteStaffMember
@@ -44,6 +55,9 @@ router.delete('/staff/:id', protect, requireRole(['ceo']), deleteStaffMember);
 // ==========================================
 
 router.post('/login', loginLimiter, loginPractitioner);
+
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
+router.post('/reset-password', resetPassword);
 
 router.post('/change-password', protect, changeTemporaryPassword);
 
