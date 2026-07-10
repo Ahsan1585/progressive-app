@@ -4,7 +4,6 @@ import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import InstallAppBanner from '@/components/InstallAppBanner';
 
 // Import the logo from your assets folder
 import logo from '@/assets/logo.png';
@@ -44,9 +43,8 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-950 p-4">
-      <div className="max-w-md w-full">
-        <div className="w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-neutral-200">
-          <div className="p-8">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-neutral-200">
+        <div className="p-8">
 
           {/* Header with Logo */}
           <div className="flex flex-col items-center justify-center mb-8 text-center">
@@ -129,9 +127,6 @@ const Login = () => {
             Powered by <a href="https://izayaedge.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-neutral-950 hover:underline">Izaya Edge</a>, Izaya Consulting LLC.
           </p>
         </div>
-      </div>
-
-        <InstallAppBanner />
       </div>
     </div>
   );
