@@ -1,0 +1,330 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================================
+   Clinical Trust Blue — design tokens
+   Source: design/practitioner-mobile-app-art-direction.md (sections 3, 4, 5)
+   ========================================================================= */
+
+:root {
+  /* Surfaces */
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-sunken: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Ink */
+  --ink: #0f172a;
+  --ink-body: #334155;
+  --ink-muted: #64748b;
+  --ink-faint: #94a3b8;
+
+  /* Accent — locked, single blue */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-tint: #eff6ff;
+  --primary-tint-2: #dbeafe;
+  --primary-fg: #ffffff;
+  --ring: #2563eb;
+
+  /* Status semantics */
+  --success: #047857;
+  --success-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+
+  --warning: #b45309;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+
+  --info: #1d4ed8;
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+
+  --override: #6d28d9;
+  --override-bg: #f5f3ff;
+  --override-border: #ddd6fe;
+
+  --signature-ink: #0a0a0a;
+
+  /* Shape */
+  --radius-control: 10px;
+  --radius-card: 18px;
+  --radius-sheet: 16px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 120ms;
+  --dur-pop: 180ms;
+  --dur-sheet: 320ms;
+  --dur-push: 280ms;
+
+  /* Elevation — blue-tinted, never paired with a border on the same element */
+  --elev-rest: 0 1px 2px 0 rgb(37 99 235 / 0.06), 0 1px 3px 0 rgb(37 99 235 / 0.04);
+  --elev-raised: 0 2px 6px 0 rgb(37 99 235 / 0.08), 0 4px 10px -2px rgb(37 99 235 / 0.06);
+  --elev-overlay: 0 8px 24px -4px rgb(37 99 235 / 0.14), 0 4px 8px -2px rgb(37 99 235 / 0.08);
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0b1120;
+  --surface: #111827;
+  --surface-sunken: #1e293b;
+  --border: #243044;
+  --border-strong: #334155;
+
+  --ink: #f1f5f9;
+  --ink-body: #cbd5e1;
+  --ink-muted: #94a3b8;
+  --ink-faint: #64748b;
+
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-tint: #152238;
+  --primary-tint-2: #1c2d4a;
+  --primary-fg: #0b1120;
+  --ring: #3b82f6;
+
+  --success: #34d399;
+  --success-bg: #062419;
+  --success-border: #065f46;
+
+  --warning: #fbbf24;
+  --warning-bg: #271c04;
+  --warning-border: #92400e;
+
+  --danger: #f87171;
+  --danger-bg: #2a0e0e;
+  --danger-border: #991b1b;
+
+  --info: #60a5fa;
+  --info-bg: #0e1e33;
+  --info-border: #1d4ed8;
+
+  --override: #a78bfa;
+  --override-bg: #1e1830;
+  --override-border: #5b21b6;
+
+  /* Signature canvas stays a white "paper" surface in both modes */
+  --signature-ink: #0a0a0a;
+
+  --elev-rest: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --elev-raised: 0 2px 8px 0 rgb(0 0 0 / 0.4);
+  --elev-overlay: 0 12px 28px -4px rgb(0 0 0 / 0.55);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-body: var(--ink-body);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-tint: var(--primary-tint);
+  --color-primary-tint-2: var(--primary-tint-2);
+  --color-primary-fg: var(--primary-fg);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-override: var(--override);
+  --color-override-bg: var(--override-bg);
+  --color-override-border: var(--override-border);
+
+  --color-signature-ink: var(--signature-ink);
+
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+  --radius-sheet: var(--radius-sheet);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    font-size: 16px;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-tap-highlight-color: transparent;
+    margin: 0;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+  }
+  #root {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* Numbers that sit in a column, tick, or must align */
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .press-scale {
+    transition: transform var(--dur-press) var(--ease-out);
+  }
+  .press-scale:active {
+    transform: scale(0.97);
+  }
+  /* Rare, first-time-visible affordance (e.g. the install-app CTA) — a
+     one-time delight per art-direction §6, not a high-frequency element. */
+  .pop-in {
+    animation: pop-in 220ms var(--ease-out) both;
+  }
+}
+
+/* =========================================================================
+   Overlay motion — Radix data-state driven, exact art-direction curves/durations.
+   ========================================================================= */
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes modal-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+}
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sheet-out {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+@keyframes push-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes push-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -100%); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, -100%); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.85); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@layer components {
+  .signature-captured-badge {
+    animation: pop-in 220ms var(--ease-out) both;
+  }
+
+  .overlay-scrim {
+    animation: overlay-out var(--dur-pop) var(--ease-out) forwards;
+  }
+  .overlay-scrim[data-state="open"] {
+    animation: overlay-in var(--dur-pop) var(--ease-out) forwards;
+  }
+
+  .modal-panel {
+    animation: modal-out var(--dur-pop) var(--ease-out) forwards;
+  }
+  .modal-panel[data-state="open"] {
+    animation: modal-in var(--dur-pop) var(--ease-out) forwards;
+  }
+
+  .sheet-panel {
+    animation: sheet-out var(--dur-sheet) var(--ease-drawer) forwards;
+  }
+  .sheet-panel[data-state="open"] {
+    animation: sheet-in var(--dur-sheet) var(--ease-drawer) forwards;
+  }
+
+  .push-panel {
+    animation: push-in var(--dur-push) var(--ease-drawer) forwards;
+  }
+  .push-panel[data-pushing-out="true"] {
+    animation: push-out var(--dur-push) var(--ease-drawer) forwards;
+  }
+
+  .toast-panel {
+    animation: toast-out 200ms var(--ease-out) forwards;
+  }
+  .toast-panel[data-state="open"] {
+    animation: toast-in var(--dur-pop) var(--ease-out) forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

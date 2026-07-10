@@ -1,0 +1,114 @@
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { useSystemColorScheme } from "@/hooks/useSystemColorScheme";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AppDataProvider } from "@/contexts/AppDataContext";
+import { ToastProvider } from "@/components/ui/toast";
+import { RequireAuth, RequireForcedChange, RequireGuest } from "@/routes/guards";
+import { IdleGate } from "@/components/shell/IdleGate";
+import { ShellLayout } from "@/components/shell/ShellLayout";
+
+import Login from "@/pages/Login";
+import UnsupportedRole from "@/pages/UnsupportedRole";
+import ForcedPasswordChange from "@/pages/ForcedPasswordChange";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+
+import Home from "@/pages/shell/Home";
+import Roster from "@/pages/shell/Roster";
+import Inbox from "@/pages/shell/Inbox";
+import Profile from "@/pages/shell/Profile";
+
+import AddPatient from "@/pages/AddPatient";
+import PatientDetail from "@/pages/PatientDetail";
+import LogIntervention from "@/pages/LogIntervention";
+import ResubmitLog from "@/pages/ResubmitLog";
+import ChangePasswordVoluntary from "@/pages/ChangePasswordVoluntary";
+import ManageSignature from "@/pages/ManageSignature";
+
+// Single shared instance of the auth/data/idle providers for every
+// authenticated route (shell tabs and pushed views alike) — mounted once at
+// the layout-route level so navigating between them never re-fetches
+// patients/profile/stats or resets the idle timer's session start.
+function AuthenticatedTree() {
+  return (
+    <RequireAuth>
+      <AppDataProvider>
+        <IdleGate>
+          <Outlet />
+        </IdleGate>
+      </AppDataProvider>
+    </RequireAuth>
+  );
+}
+
+function App() {
+  useSystemColorScheme();
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
+          <Routes>
+            {/* Pre-auth stack — no tab bar */}
+            <Route
+              path="/login"
+              element={
+                <RequireGuest>
+                  <Login />
+                </RequireGuest>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <RequireGuest>
+                  <ForgotPassword />
+                </RequireGuest>
+              }
+            />
+            <Route
+              path="/reset-password"
+              element={
+                <RequireGuest>
+                  <ResetPassword />
+                </RequireGuest>
+              }
+            />
+            <Route path="/unsupported-role" element={<UnsupportedRole />} />
+            <Route
+              path="/change-password"
+              element={
+                <RequireForcedChange>
+                  <ForcedPasswordChange />
+                </RequireForcedChange>
+              }
+            />
+
+            {/* Authenticated tree: one shared provider stack for the tab shell and every pushed view. */}
+            <Route element={<AuthenticatedTree />}>
+              {/* Bottom tab bar shell */}
+              <Route element={<ShellLayout />}>
+                <Route path="/home" element={<Home />} />
+                <Route path="/roster" element={<Roster />} />
+                <Route path="/inbox" element={<Inbox />} />
+                <Route path="/profile" element={<Profile />} />
+              </Route>
+
+              {/* Pushed full-screen views — no tab bar */}
+              <Route path="/patients/new" element={<AddPatient />} />
+              <Route path="/patients/:id" element={<PatientDetail />} />
+              <Route path="/patients/:id/log" element={<LogIntervention />} />
+              <Route path="/inbox/:id/resubmit" element={<ResubmitLog />} />
+              <Route path="/profile/change-password" element={<ChangePasswordVoluntary />} />
+              <Route path="/profile/signature" element={<ManageSignature />} />
+            </Route>
+
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;
