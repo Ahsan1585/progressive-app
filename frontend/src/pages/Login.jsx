@@ -126,7 +126,7 @@ const Login = () => {
         {/* Footer */}
         <div className="px-8 py-5 bg-neutral-50 border-t border-neutral-100 text-center">
           <p className="text-sm text-neutral-600">
-            Need an account? <a href="#" className="font-semibold text-neutral-950 hover:underline">Contact Administrator</a>
+            Powered by <a href="https://izayaedge.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-neutral-950 hover:underline">Izaya Edge</a>, Izaya Consulting LLC.
           </p>
         </div>
       </div>
