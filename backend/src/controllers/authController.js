@@ -43,11 +43,13 @@ const provisionPractitioner = async (req, res) => {
       return res.status(403).json({ error: 'Staff Directors can only register Practitioner accounts.' });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     const { data: existingUser } = await supabase
       .from('practitioners')
       .select('id')
-      .eq('email', email)
-      .maybeSingle(); 
+      .eq('email', normalizedEmail)
+      .maybeSingle();
 
     if (existingUser) return res.status(400).json({ error: 'This email is already registered.' });
 
@@ -57,7 +59,7 @@ const provisionPractitioner = async (req, res) => {
     const insertData = {
       first_name: firstName,
       last_name: lastName,
-      email,
+      email: normalizedEmail,
       password_hash: temporaryHash,
       requires_password_change: true,
       role,
@@ -94,7 +96,7 @@ const loginPractitioner = async (req, res) => {
     const { data: user } = await supabase
       .from('practitioners')
       .select('*')
-      .eq('email', email)
+      .eq('email', String(email || '').trim().toLowerCase())
       .single();
 
     // Always run a bcrypt compare (against a dummy hash if no user) so timing does not reveal account existence
@@ -184,7 +186,7 @@ const forgotPassword = async (req, res) => {
     const { data: user } = await supabase
       .from('practitioners')
       .select('id, email')
-      .eq('email', email)
+      .eq('email', String(email).trim().toLowerCase())
       .maybeSingle();
 
     if (user) {
