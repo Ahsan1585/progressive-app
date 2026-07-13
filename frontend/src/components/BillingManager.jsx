@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import api from '@/api/axiosInstance';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
@@ -79,7 +81,7 @@ function SortableHeader({ label, field, sort, onSort, className = '' }) {
 
 export const BillingManager = () => {
   // --- UI STATE ---
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history'
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history' | 'status'
 
   // --- PENDING QUEUE STATE ---
   const [practitionerLogs, setPractitionerLogs] = useState([]);
@@ -118,6 +120,15 @@ export const BillingManager = () => {
   const [vaultExpandedRows, setVaultExpandedRows] = useState(new Set());
   const [vaultRowLogs, setVaultRowLogs] = useState({});
   const [loadingVaultRow, setLoadingVaultRow] = useState(new Set());
+
+  // --- INVOICE STATUS TAB STATE ---
+  const [batches, setBatches] = useState([]);
+  const [isStatusLoading, setIsStatusLoading] = useState(false);
+  const [statusSearch, setStatusSearch] = useState('');
+  const [statusDateRange, setStatusDateRange] = useState({ start: '', end: '' });
+  const [paidFilter, setPaidFilter] = useState('all'); // 'all' | 'paid' | 'unpaid'
+  const [printingBatchId, setPrintingBatchId] = useState(null);
+  const [updatingPaidId, setUpdatingPaidId] = useState(null);
 
   // --- TOAST STATE (replaces alert()) ---
   const [toasts, setToasts] = useState([]); // [{ id, type: 'success'|'error', message }]
@@ -370,7 +381,138 @@ export const BillingManager = () => {
 
   useEffect(() => {
     if (activeTab === 'history') fetchHistory();
+    if (activeTab === 'status') fetchBatches();
   }, [activeTab]);
+
+  // ==========================================
+  // INVOICE STATUS TAB LOGIC
+  // ==========================================
+  const fetchBatches = async () => {
+    setIsStatusLoading(true);
+    try {
+      const res = await api.get('/api/billing/batches');
+      if (res.data.success) setBatches(res.data.batches);
+    } catch (error) {
+      console.error('Failed to fetch billing batches', error);
+      pushToast('error', 'Failed to load invoice status list.');
+    } finally {
+      setIsStatusLoading(false);
+    }
+  };
+
+  const filteredBatches = batches.filter(b => {
+    const practName = `${b.practitioners?.first_name || ''} ${b.practitioners?.last_name || ''}`.trim();
+    const term = statusSearch.toLowerCase();
+    if (term && !practName.toLowerCase().includes(term)) return false;
+    if (statusDateRange.start && (!b.end_date || b.end_date < statusDateRange.start)) return false;
+    if (statusDateRange.end && (!b.start_date || b.start_date > statusDateRange.end)) return false;
+    if (paidFilter === 'paid' && !b.paid_at) return false;
+    if (paidFilter === 'unpaid' && b.paid_at) return false;
+    return true;
+  });
+
+  const handleTogglePaid = async (batch) => {
+    const nextPaid = !batch.paid_at;
+    setUpdatingPaidId(batch.id);
+    try {
+      const res = await api.patch(`/api/billing/batch/${batch.id}/paid`, { paid: nextPaid });
+      setBatches(prev => prev.map(b => b.id === batch.id
+        ? { ...b, paid_at: nextPaid ? (res.data.paid_at || new Date().toISOString()) : null, stamped_invoice_path: nextPaid ? res.data.stamped_invoice_path : null }
+        : b
+      ));
+      pushToast('success', nextPaid ? 'Invoice marked as paid.' : 'Invoice marked as unpaid.');
+    } catch (error) {
+      pushToast('error', 'Failed to update paid status: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setUpdatingPaidId(null);
+    }
+  };
+
+  const handleUndoPrinted = async (batch) => {
+    try {
+      await api.patch(`/api/billing/batch/${batch.id}/printed`, { printed: false });
+      setBatches(prev => prev.map(b => b.id === batch.id ? { ...b, printed_at: null } : b));
+      pushToast('success', 'Printed status cleared.');
+    } catch (error) {
+      pushToast('error', 'Failed to clear printed status: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  // Opens the browser's real print dialog for the invoice and marks the batch printed when that
+  // dialog closes. `afterprint` fires whether the user actually printed or hit Cancel — there is
+  // no browser API that distinguishes the two, so this is the practical ceiling of "auto-detect
+  // printed."
+  //
+  // We render the PDF's pages onto <canvas> elements in our own DOM (via pdfjs-dist) rather than
+  // embedding the PDF in an <iframe> and calling print() on it — Chrome renders iframe'd PDFs with
+  // its native PDF-viewer plugin (a separate guest view), and print() on that iframe's
+  // contentWindow does not reliably scope printing to just the iframe; it can silently print the
+  // parent page instead (blank, since most of this app's chrome is marked print:hidden). Canvases
+  // are genuine same-document content, so window.print()/afterprint behave correctly.
+  const handlePrintInvoice = async (batch) => {
+    const path = batch.stamped_invoice_path || batch.invoice_path;
+    if (!path) return;
+    setPrintingBatchId(batch.id);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'invoice-print-overlay';
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        body > *:not(#invoice-print-overlay) { display: none !important; }
+        #invoice-print-overlay { display: block !important; }
+        #invoice-print-overlay canvas { width: 100%; display: block; page-break-after: always; }
+      }
+    `;
+
+    const cleanup = () => {
+      window.removeEventListener('afterprint', onAfterPrint);
+      overlay.remove();
+      style.remove();
+      setPrintingBatchId(null);
+    };
+
+    const onAfterPrint = async () => {
+      try {
+        await api.patch(`/api/billing/batch/${batch.id}/printed`, { printed: true });
+        setBatches(prev => prev.map(b => b.id === batch.id ? { ...b, printed_at: new Date().toISOString() } : b));
+        pushToast('success', 'Invoice marked as printed.');
+      } catch (error) {
+        pushToast('error', 'Print dialog closed, but failed to record printed status.');
+      } finally {
+        cleanup();
+      }
+    };
+
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+
+      const signedRes = await api.get('/api/billing/download', { params: { fileName: path } });
+      if (!signedRes.data.success) throw new Error('Could not get download link');
+      const pdfRes = await fetch(signedRes.data.signedUrl);
+      if (!pdfRes.ok) throw new Error('Could not fetch PDF');
+      const arrayBuffer = await pdfRes.arrayBuffer();
+
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        overlay.appendChild(canvas);
+      }
+
+      document.head.appendChild(style);
+      document.body.appendChild(overlay);
+      window.addEventListener('afterprint', onAfterPrint, { once: true });
+      window.print();
+    } catch (error) {
+      pushToast('error', 'Failed to open invoice for printing: ' + (error.response?.data?.error || error.message));
+      cleanup();
+    }
+  };
 
   // Parse each file into structured metadata
   const parsedHistoryFiles = historyFiles.map(file => {
@@ -539,6 +681,16 @@ export const BillingManager = () => {
           }`}
         >
           Completed Bills
+        </button>
+        <button
+          onClick={() => setActiveTab('status')}
+          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
+            activeTab === 'status'
+              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+          }`}
+        >
+          Invoice Status
         </button>
       </div>
 
@@ -1150,6 +1302,119 @@ export const BillingManager = () => {
                           </tr>
                         )}
                       </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: INVOICE STATUS */}
+      {activeTab === 'status' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
+            <div className="flex-1 min-w-[250px] max-w-md space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Search Practitioner</Label>
+              <div className="relative">
+                <Search className="size-4 absolute left-3 top-2.5 text-slate-400" />
+                <Input type="text" placeholder="Search by practitioner name..." className="pl-10" value={statusSearch} onChange={(e) => setStatusSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex gap-4 items-end">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Service Date From</Label>
+                <Input type="date" value={statusDateRange.start} onChange={(e) => setStatusDateRange({ ...statusDateRange, start: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Service Date To</Label>
+                <Input type="date" value={statusDateRange.end} onChange={(e) => setStatusDateRange({ ...statusDateRange, end: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Payment Status</Label>
+                <Select value={paidFilter} onValueChange={setPaidFilter}>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={fetchBatches} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh</Button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse tabular-nums">
+              <caption className="sr-only">Invoice printed and paid status</caption>
+              <thead>
+                <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                  <th scope="col" className="py-4 px-6">Period</th>
+                  <th scope="col" className="py-4 px-6">Practitioner</th>
+                  <th scope="col" className="py-4 px-6 text-center">Invoice</th>
+                  <th scope="col" className="py-4 px-6 text-center">Printed</th>
+                  <th scope="col" className="py-4 px-6 text-center">Paid</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isStatusLoading ? (
+                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">Loading invoices...</td></tr>
+                ) : filteredBatches.length === 0 ? (
+                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">No matching invoices found.</td></tr>
+                ) : (
+                  filteredBatches.map((batch) => {
+                    const practName = `${batch.practitioners?.first_name || ''} ${batch.practitioners?.last_name || ''}`.trim() || 'Unknown';
+                    const dateRange = batch.start_date && batch.end_date
+                      ? `${new Date(batch.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })} – ${new Date(batch.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })}`
+                      : '-';
+                    const isPrinting = printingBatchId === batch.id;
+                    const isUpdatingPaid = updatingPaidId === batch.id;
+                    return (
+                      <tr key={batch.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-4 px-6 text-sm font-medium text-slate-800">{dateRange}</td>
+                        <td className="py-4 px-6 font-bold text-slate-800 capitalize">{practName}</td>
+                        <td className="py-4 px-6 text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-blue-700 border-blue-200 hover:bg-blue-50 disabled:opacity-50"
+                            onClick={() => handlePrintInvoice(batch)}
+                            disabled={isPrinting || !batch.invoice_path}
+                          >
+                            {isPrinting ? 'Opening…' : 'Print Invoice'}
+                          </Button>
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          {batch.printed_at ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" onClick={() => handleUndoPrinted(batch)} className="cursor-pointer">
+                                  <Badge variant="success">Printed</Badge>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Printed {new Date(batch.printed_at).toLocaleString()} — click to undo
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Badge variant="neutral">Not Printed</Badge>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePaid(batch)}
+                            disabled={isUpdatingPaid}
+                            className="cursor-pointer disabled:opacity-50"
+                          >
+                            <Badge variant={batch.paid_at ? 'success' : 'warning'}>
+                              {isUpdatingPaid ? 'Updating…' : batch.paid_at ? `Paid ${new Date(batch.paid_at).toLocaleDateString()}` : 'Unpaid'}
+                            </Badge>
+                          </button>
+                        </td>
+                      </tr>
                     );
                   })
                 )}

@@ -1,5 +1,6 @@
 const { supabase } = require('../config/db');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
+const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
@@ -391,7 +392,7 @@ const getInvoiceHistory = async (req, res) => {
 
 // --- 6. Generate secure links for the download buttons ---
 // Only allow well-formed billing document paths: YYYY-MM/Practitioner_Name/<Type>_..._.pdf
-const BILLING_FILE_PATTERN = /^\d{4}-\d{2}\/[A-Za-z0-9_.\- ]+\/(NJEIS|Invoice|Override_Invoice)_\d{8}_\d{8}_\d{6}\.pdf$/;
+const BILLING_FILE_PATTERN = /^\d{4}-\d{2}\/[A-Za-z0-9_.\- ]+\/(NJEIS|Invoice|Override_Invoice)_\d{8}_\d{8}_\d{6}(_PAID)?\.pdf$/;
 
 const getInvoiceDownloadUrl = async (req, res) => {
   const { fileName } = req.query;
@@ -569,13 +570,89 @@ const getBillingBatches = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('billing_batches')
-      .select('id, njeis_path, invoice_path, start_date, end_date, practitioner_id')
+      .select('id, njeis_path, invoice_path, start_date, end_date, practitioner_id, printed_at, paid_at, stamped_invoice_path, practitioners(first_name, last_name)')
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json({ success: true, batches: data || [] });
   } catch (error) {
     console.error('getBillingBatches error:', error);
     res.status(500).json({ error: 'Failed to fetch billing batches' });
+  }
+};
+
+// --- 13. Mark/unmark a batch's invoice as printed ---
+const markBatchPrinted = async (req, res) => {
+  const { id } = req.params;
+  const { printed } = req.body;
+  if (typeof printed !== 'boolean') return res.status(400).json({ success: false, error: 'printed (boolean) is required' });
+
+  try {
+    const { error } = await supabase
+      .from('billing_batches')
+      .update({ printed_at: printed ? new Date().toISOString() : null })
+      .eq('id', id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) {
+    console.error('markBatchPrinted error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update printed status' });
+  }
+};
+
+// --- 14. Mark/unmark a batch's invoice as paid — stamps (or un-stamps) the PDF accordingly ---
+const markBatchPaid = async (req, res) => {
+  const { id } = req.params;
+  const { paid } = req.body;
+  if (typeof paid !== 'boolean') return res.status(400).json({ success: false, error: 'paid (boolean) is required' });
+
+  try {
+    const { data: batch, error: fetchError } = await supabase
+      .from('billing_batches')
+      .select('id, invoice_path, paid_at, stamped_invoice_path')
+      .eq('id', id)
+      .single();
+    if (fetchError || !batch) return res.status(404).json({ success: false, error: 'Batch not found' });
+
+    if (paid) {
+      if (batch.paid_at) return res.json({ success: true, paid_at: batch.paid_at, stamped_invoice_path: batch.stamped_invoice_path }); // idempotent no-op
+      if (!batch.invoice_path) return res.status(400).json({ success: false, error: 'This batch has no invoice PDF to stamp' });
+
+      const { data: fileData, error: downloadError } = await supabase.storage.from('billing-Invoices').download(batch.invoice_path);
+      if (downloadError) throw downloadError;
+      const pdfBytes = Buffer.from(await fileData.arrayBuffer());
+
+      const paidAt = new Date().toISOString();
+      const stampedBytes = await stampInvoicePaid(pdfBytes, paidAt);
+      const stampedPath = batch.invoice_path.replace(/\.pdf$/, '_PAID.pdf');
+
+      const { error: uploadError } = await supabase.storage
+        .from('billing-Invoices')
+        .upload(stampedPath, stampedBytes, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { error: updateError } = await supabase
+        .from('billing_batches')
+        .update({ paid_at: paidAt, stamped_invoice_path: stampedPath })
+        .eq('id', id);
+      if (updateError) throw updateError;
+
+      res.json({ success: true, paid_at: paidAt, stamped_invoice_path: stampedPath });
+    } else {
+      if (batch.stamped_invoice_path) {
+        const { error: removeError } = await supabase.storage.from('billing-Invoices').remove([batch.stamped_invoice_path]);
+        if (removeError) console.error('markBatchPaid: stamped file delete error (continuing):', removeError);
+      }
+      const { error: updateError } = await supabase
+        .from('billing_batches')
+        .update({ paid_at: null, stamped_invoice_path: null })
+        .eq('id', id);
+      if (updateError) throw updateError;
+
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('markBatchPaid error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update paid status' });
   }
 };
 
@@ -638,5 +715,7 @@ module.exports = {
   rejectLog,
   getVaultLogs,
   getBillingBatches,
-  revertBillingBatch
+  revertBillingBatch,
+  markBatchPrinted,
+  markBatchPaid
 };

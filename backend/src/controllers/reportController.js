@@ -690,6 +690,31 @@ const issueInvoiceOverride = async (req, res) => {
       const signedUrl = urlData?.signedUrl || null;
 
       logs.forEach(a => { downloadUrls[a.id] = signedUrl; });
+
+      // Create a billing_batches row so this override invoice can be tracked in Invoice Status
+      // (printed/paid) the same way normal batches are — mirrors generateNJEISForms' insert→stamp order
+      // so a failed insert/stamp here never leaves assessments pointing at a batch with no invoice.
+      const { data: batchRow, error: batchInsertError } = await supabase
+        .from('billing_batches')
+        .insert({
+          practitioner_id: practitioner.id,
+          start_date: serviceDates[0] || null,
+          end_date: serviceDates[serviceDates.length - 1] || null,
+          njeis_path: null,
+          invoice_path: filePath,
+        })
+        .select('id')
+        .single();
+
+      if (batchInsertError) {
+        console.warn('issueInvoiceOverride: billing_batches insert failed (non-fatal):', batchInsertError.message);
+      } else if (batchRow) {
+        const { error: stampError } = await supabase
+          .from('assessments')
+          .update({ billing_batch_id: batchRow.id })
+          .in('id', logs.map(l => l.id));
+        if (stampError) console.warn('issueInvoiceOverride: billing_batch_id stamp failed (non-fatal):', stampError.message);
+      }
     }
 
     res.json({ success: true, updated: assessmentIds.length, downloadUrls });
