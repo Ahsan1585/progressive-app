@@ -2,6 +2,7 @@ const { supabase } = require('../config/db');
 const { generateNjeisPDF } = require('../utils/njeisGenerator');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const ExcelJS = require('exceljs');
 
 // Strip PostgREST filter metacharacters so a search term can't break out of an .or()/.ilike() filter
 const sanitizeSearchTerm = (raw) => String(raw || '').replace(/[,().*%\\"]/g, '').trim();
@@ -510,6 +511,112 @@ const generateAuditReportPDF = async (req, res) => {
 
 const ts = () => new Date().toISOString().replace(/[-:T.]/g,'').slice(0,14);
 
+// 6. Generate an Excel (.xlsx) summary report from the same audit query results (logs passed from frontend)
+const generateAuditReportExcel = async (req, res) => {
+  const { logs, filters } = req.body;
+  if (!logs || !Array.isArray(logs)) return res.status(400).json({ error: 'logs array required' });
+
+  try {
+    const statusLabel = { pending: 'Pending', njeis_review: 'In Review', invoiced: 'Invoiced', declined: 'Rejected', rejected: 'Returned' };
+
+    const filterLine = [
+      filters?.startDate && `Date: ${filters.startDate} -> ${filters.endDate || 'present'}`,
+      filters?.practitionerSearch && `Practitioner: ${filters.practitionerSearch}`,
+      filters?.patientSearch && `Patient: ${filters.patientSearch}`,
+      filters?.billingStatus && filters.billingStatus !== 'all' && `Status: ${filters.billingStatus}`
+    ].filter(Boolean).join('   |   ');
+
+    const showDaysOld = !!filters?.compliance;
+
+    const columns = [
+      { header: 'Patient Name',    key: 'patientName', width: 24 },
+      { header: 'Practitioner',    key: 'practitioner', width: 22 },
+      { header: 'Service Date',    key: 'serviceDate',  width: 14 },
+      { header: 'Service Type',    key: 'type',          width: 16 },
+      { header: 'Location',        key: 'location',      width: 16 },
+      { header: 'Start',           key: 'start',         width: 12 },
+      { header: 'End',             key: 'end',           width: 12 },
+      { header: 'Total Time',      key: 'totalTime',     width: 12 },
+      { header: 'Billing Status',  key: 'billingStatus', width: 16 },
+      { header: 'Comments',        key: 'comments',      width: 32 },
+    ];
+    if (showDaysOld) columns.push({ header: 'Days Old', key: 'daysOld', width: 10 });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Progressive Steps NJ';
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet('Audit Report');
+
+    let rowCursor = 1;
+    sheet.mergeCells(rowCursor, 1, rowCursor, columns.length);
+    const titleCell = sheet.getCell(rowCursor, 1);
+    titleCell.value = 'Progressive Steps NJ - Audit Report';
+    titleCell.font = { bold: true, size: 14 };
+    rowCursor++;
+
+    sheet.mergeCells(rowCursor, 1, rowCursor, columns.length);
+    const metaCell = sheet.getCell(rowCursor, 1);
+    metaCell.value = `Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}   |   ${logs.length} records`;
+    metaCell.font = { size: 9, color: { argb: 'FF6B7280' } };
+    rowCursor++;
+
+    if (filterLine) {
+      sheet.mergeCells(rowCursor, 1, rowCursor, columns.length);
+      const filterCell = sheet.getCell(rowCursor, 1);
+      filterCell.value = `Filters applied: ${filterLine}`;
+      filterCell.font = { size: 9, italic: true, color: { argb: 'FF475569' } };
+      rowCursor++;
+    }
+
+    rowCursor++; // blank spacer row
+
+    // Set widths only (not `key`/`header`) so this doesn't auto-write a header into row 1 and clobber the title above
+    columns.forEach((col, i) => { sheet.getColumn(i + 1).width = col.width; });
+    const headerRow = sheet.getRow(rowCursor);
+    columns.forEach((col, i) => { headerRow.getCell(i + 1).value = col.header; });
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell((cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+      cell.alignment = { vertical: 'middle' };
+    });
+    const headerRowNumber = rowCursor;
+    rowCursor++;
+
+    logs.forEach((l) => {
+      const [y, m, d] = (l.service_date || '').split('-');
+      const dateStr = y ? `${parseInt(m)}/${parseInt(d)}/${y.slice(-2)}` : '-';
+      const row = sheet.getRow(rowCursor);
+      row.getCell(1).value = `${l.patient_first_name || ''} ${l.patient_last_name || ''}`.trim() || '-';
+      row.getCell(2).value = `${l.practitioners?.first_name || ''} ${l.practitioners?.last_name || ''}`.trim() || '-';
+      row.getCell(3).value = dateStr;
+      row.getCell(4).value = l.type || '-';
+      row.getCell(5).value = l.location || '-';
+      row.getCell(6).value = l.start_time ? formatTime12h(l.start_time) : '-';
+      row.getCell(7).value = l.end_time ? formatTime12h(l.end_time) : '-';
+      row.getCell(8).value = l.total_time ? `${(l.total_time / 60).toFixed(2)}h` : '-';
+      row.getCell(9).value = statusLabel[l.billing_status] || l.billing_status || '-';
+      row.getCell(10).value = l.practitioner_response || '-';
+      if (showDaysOld) {
+        const daysOld = l.service_date
+          ? Math.floor((Date.now() - new Date(l.service_date + 'T00:00:00').getTime()) / 86400000)
+          : null;
+        row.getCell(11).value = daysOld !== null ? `${daysOld}d` : '-';
+      }
+      rowCursor++;
+    });
+
+    sheet.views = [{ state: 'frozen', ySplit: headerRowNumber }];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="audit-report-${ts()}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('generateAuditReportExcel error:', error);
+    res.status(500).json({ error: 'Failed to generate Excel report' });
+  }
+};
+
 // Issue invoice override for selected declined/returned logs — generates an invoice PDF per practitioner
 const issueInvoiceOverride = async (req, res) => {
   const { assessmentIds } = req.body;
@@ -599,5 +706,6 @@ module.exports = {
   getAuditLogs,
   generateAuditNJEIS,
   generateAuditReportPDF,
+  generateAuditReportExcel,
   issueInvoiceOverride
 };

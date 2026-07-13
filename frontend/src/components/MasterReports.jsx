@@ -4,6 +4,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 const MODULES = [
   { id: 'practitioner', title: 'Practitioner Logs',  desc: 'Audit hours & submissions'    },
@@ -51,6 +52,7 @@ export const MasterReports = () => {
   // Actions
   const [isGeneratingNJEIS, setIsGeneratingNJEIS]   = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF]       = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel]   = useState(false);
   const [njeisUrl, setNjeisUrl]                     = useState(null);
 
   // Invoice override selection
@@ -161,6 +163,35 @@ export const MasterReports = () => {
       alert('PDF generation failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleGenerateReportExcel = async () => {
+    if (!logs || logs.length === 0) return;
+    setIsGeneratingExcel(true);
+    try {
+      const filters = {
+        practitionerSearch: practitionerSearch || null,
+        patientSearch:      patientSearch || null,
+        startDate:          dateRange.start || null,
+        endDate:            dateRange.end || null,
+        billingStatus:      billingStatus !== 'all' ? billingStatus : null,
+        compliance:         activeModule === 'compliance',
+      };
+      const response = await api.post('/api/reports/audit-report-excel', { logs, filters }, { responseType: 'blob' });
+      const url  = window.URL.createObjectURL(new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `audit-report-${new Date().toISOString().slice(0,10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to generate report Excel', error);
+      alert('Excel generation failed: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setIsGeneratingExcel(false);
     }
   };
 
@@ -444,25 +475,39 @@ export const MasterReports = () => {
                     </>
                   )}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleGenerateReportPDF}
-                  disabled={isGeneratingPDF || logs.length === 0}
-                  className="text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer gap-1.5 disabled:opacity-50"
-                >
-                  {isGeneratingPDF ? (
-                    <span className="flex items-center gap-1.5">
-                      <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                      Exporting…
-                    </span>
-                  ) : (
-                    <>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      Export PDF Report
-                    </>
-                  )}
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isGeneratingPDF || isGeneratingExcel || logs.length === 0}
+                      className="text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer gap-1.5 disabled:opacity-50"
+                    >
+                      {isGeneratingPDF || isGeneratingExcel ? (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                          Exporting…
+                        </span>
+                      ) : (
+                        <>
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          Export
+                          <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onSelect={handleGenerateReportPDF}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      Export as PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={handleGenerateReportExcel}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v18M4 8h16M4 16h16M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" /></svg>
+                      Export as Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   size="sm"
                   variant="outline"
