@@ -164,7 +164,12 @@ const generateNJEISForms = async (req, res) => {
           setUniformText('County', countyValue); // fallback if it is a plain text field
         }
         setUniformText('Child ID', pData.patients?.child_id || pData.patient_id?.toString());
-        
+        setUniformText('DisciplinePosition Title', practitioner.position_title || '');
+        if (pData.service_date) {
+          const [my, mm] = pData.service_date.split('-');
+          setUniformText('MonthYear', `${mm}/${my}`);
+        }
+
         chunk.forEach((session, index) => {
           const rowNum = index + 1; 
           const [sy, sm, sd] = (session.service_date || '').split('-');
