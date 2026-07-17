@@ -111,6 +111,19 @@ app.post('/api/interventions', protect, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized for this patient' });
     }
 
+    // Service type check: the submitted type must be one the practitioner was registered to provide
+    const { data: submittingPractitioner, error: practitionerErr } = await supabase
+      .from('practitioners')
+      .select('service_types')
+      .eq('id', trustedPractitionerId)
+      .single();
+    if (practitionerErr) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+    if (submittingPractitioner.service_types?.length > 0 && !submittingPractitioner.service_types.includes(type)) {
+      return res.status(403).json({ error: 'You are not registered to provide this service type' });
+    }
+
     const { data, error } = await supabase
       .from('assessments')
       .insert([
@@ -169,7 +182,7 @@ app.get('/api/practitioner/profile', protect, async (req, res) => {
     // Explicit allow-list — never return password_hash, ssn, or pay_rate to the client
     const { data, error } = await supabase
       .from('practitioners')
-      .select('id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature')
+      .select('id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature, service_types')
       .eq('id', practitionerId)
       .single();
 

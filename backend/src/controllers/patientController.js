@@ -177,6 +177,16 @@ const resubmitLog = async (req, res) => {
     if (fetchError || !existing) return res.status(404).json({ error: 'Log not found' });
     if (existing.billing_status !== 'rejected') return res.status(400).json({ error: 'Log is not in rejected state' });
 
+    const { data: submittingPractitioner, error: practitionerErr } = await supabase
+      .from('practitioners')
+      .select('service_types')
+      .eq('id', practitionerId)
+      .single();
+    if (practitionerErr) return res.status(500).json({ error: 'Server error' });
+    if (submittingPractitioner.service_types?.length > 0 && !submittingPractitioner.service_types.includes(type)) {
+      return res.status(403).json({ error: 'You are not registered to provide this service type' });
+    }
+
     const { error } = await supabase
       .from('assessments')
       .update({ billing_status: 'pending', billing_review: null, type, location, start_time, end_time, total_time, status, rejection_note: null, rejected_at: null })

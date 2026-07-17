@@ -5,6 +5,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import api from '@/api/axiosInstance';
 
+// Mirrors mobile/src/constants/njeis.ts SERVICE_TYPE_OPTIONS exactly.
+const ALL_SERVICE_TYPES = [
+  { code: 'EV', label: 'EV - Evaluation' },
+  { code: 'AS', label: 'AS - Assessment' },
+  { code: 'IFSP', label: 'IFSP - Meeting' },
+  { code: 'AU', label: 'AU - Audiology' },
+  { code: 'DI', label: 'DI - Developmental Intervention' },
+  { code: 'FT', label: 'FT - Family Training' },
+  { code: 'HS', label: 'HS - Health Service' },
+  { code: 'MS', label: 'MS - Medical Service' },
+  { code: 'NU', label: 'NU - Nursing' },
+  { code: 'NT', label: 'NT - Nutrition' },
+  { code: 'OT', label: 'OT - Occupational Therapy' },
+  { code: 'PT', label: 'PT - Physical Therapy' },
+  { code: 'PSY', label: 'PSY - Psychological' },
+  { code: 'SLP', label: 'SLP - Speech Language Therapy' },
+  { code: 'SW', label: 'SW - Social Work' },
+  { code: 'VI', label: 'VI - Vision' },
+  { code: 'CC', label: 'CC - Childcare/Respite' },
+  { code: 'I/T', label: 'I/T - Interpreter/Translator' },
+  { code: 'ES', label: 'ES - Escort/Security' },
+  { code: 'TPC', label: 'TPC - Transition Planning Conference' },
+];
+
 // --- Custom Signature Pad Sub-Component ---
 const SignaturePad = ({ label, subtext, onUpdate, onSave }) => {
   const canvasRef = useRef(null);
@@ -135,7 +159,11 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
   const [parentSig, setParentSig] = useState(null);
   const [practitionerSig, setPractitionerSig] = useState(null);
   const [masterSignature, setMasterSignature] = useState(null);
-  const [practitionerProfile, setPractitionerProfile] = useState(null); 
+  const [practitionerProfile, setPractitionerProfile] = useState(null);
+
+  const allowedServiceTypes = (practitionerProfile?.service_types?.length > 0)
+    ? ALL_SERVICE_TYPES.filter(opt => practitionerProfile.service_types.includes(opt.code))
+    : ALL_SERVICE_TYPES;
 
   // Fetch Master Signature & Profile when modal opens
   useEffect(() => {
@@ -146,6 +174,12 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             setPractitionerProfile(res.data);
             if (res.data.signature) {
               setMasterSignature(res.data.signature);
+            }
+            if (res.data.service_types?.length > 0) {
+              setFormData(prev => ({
+                ...prev,
+                type: res.data.service_types.includes(prev.type) ? prev.type : res.data.service_types[0]
+              }));
             }
           }
         })
@@ -261,26 +295,9 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             <div className="space-y-2">
               <Label>Service Type</Label>
               <select className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
-                <option value="EV">EV - Evaluation</option>
-                <option value="AS">AS - Assessment</option>
-                <option value="IFSP">IFSP - Meeting</option>
-                <option value="AU">AU - Audiology</option>
-                <option value="DI">DI - Developmental Intervention</option>
-                <option value="FT">FT - Family Training</option>
-                <option value="HS">HS - Health Service</option>
-                <option value="MS">MS - Medical Service</option>
-                <option value="NU">NU - Nursing</option>
-                <option value="NT">NT - Nutrition</option>
-                <option value="OT">OT - Occupational Therapy</option>
-                <option value="PT">PT - Physical Therapy</option>
-                <option value="PSY">PSY - Psychological</option>
-                <option value="SLP">SLP - Speech Language Therapy</option>
-                <option value="SW">SW - Social Work</option>
-                <option value="VI">VI - Vision</option>
-                <option value="CC">CC - Childcare/Respite</option>
-                <option value="I/T">I/T - Interpreter/Translator</option>
-                <option value="ES">ES - Escort/Security</option>
-                <option value="TPC">TPC - Transition Planning Conference</option>
+                {allowedServiceTypes.map(opt => (
+                  <option key={opt.code} value={opt.code}>{opt.label}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">

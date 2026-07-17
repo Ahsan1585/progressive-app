@@ -94,6 +94,7 @@ export interface PractitionerProfile {
   position_title?: string | null;
   address?: string | null;
   phone_number?: string | null;
+  service_types?: string[] | null;
   saved_signature?: string | null;
   // Mapped by the backend from saved_signature for convenience.
   signature?: string | null;

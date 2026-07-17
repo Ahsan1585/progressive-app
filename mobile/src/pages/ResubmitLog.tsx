@@ -19,10 +19,16 @@ import type { ApiErrorBody } from "@/types";
 export default function ResubmitLog() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rejectedLogs, fetchRejectedLogs } = useAppData();
+  const { rejectedLogs, fetchRejectedLogs, profile } = useAppData();
   const { showToast } = useToast();
 
   const log = rejectedLogs.find((l) => l.id === id);
+
+  const allowedServiceTypeOptions = React.useMemo(() => {
+    const allowed = profile?.service_types;
+    if (!allowed || allowed.length === 0) return SERVICE_TYPE_OPTIONS;
+    return SERVICE_TYPE_OPTIONS.filter((opt) => allowed.includes(opt.code));
+  }, [profile]);
 
   const [form, setForm] = React.useState({
     type: log?.type ?? "",
@@ -89,7 +95,7 @@ export default function ResubmitLog() {
           id="type"
           label="Service type"
           value={form.type}
-          options={SERVICE_TYPE_OPTIONS}
+          options={allowedServiceTypeOptions}
           onChange={(v) => setForm((f) => ({ ...f, type: v }))}
         />
         <Picker

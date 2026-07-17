@@ -44,6 +44,12 @@ export default function LogIntervention() {
 
   const patient = patients.find((p) => p.id === patientId);
 
+  const allowedServiceTypeOptions = React.useMemo(() => {
+    const allowed = profile?.service_types;
+    if (!allowed || allowed.length === 0) return SERVICE_TYPE_OPTIONS;
+    return SERVICE_TYPE_OPTIONS.filter((opt) => allowed.includes(opt.code));
+  }, [profile]);
+
   const [form, setForm] = React.useState<FormState>({
     date: todayIso(),
     startTime: "",
@@ -219,7 +225,7 @@ export default function LogIntervention() {
             id="type"
             label="Service type"
             value={form.type}
-            options={SERVICE_TYPE_OPTIONS}
+            options={allowedServiceTypeOptions}
             onChange={(v) => setField("type", v)}
             error={attemptedSubmit && !form.type ? "Service type is required." : null}
           />
