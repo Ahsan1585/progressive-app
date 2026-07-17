@@ -1,6 +1,7 @@
 const { PDFDocument } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
+const { getDisciplineCode } = require('./disciplineCodes');
 
 // Helper function to convert Image
 const fetchImageBuffer = async (imageSource) => {
@@ -129,7 +130,7 @@ const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear
   fillField('Practitioner Last Name', practitioner.last_name);
   
   // 🌟 FIXED: Dynamic Position Title 🌟
-  fillField('DisciplinePosition Title', practitioner.position_title || 'Practitioner');
+  fillField('DisciplinePosition Title', getDisciplineCode(practitioner.position_title) || 'Practitioner');
   
   fillField('Childs First Name', child.first_name);
   fillField('Childs Last Name', child.last_name);

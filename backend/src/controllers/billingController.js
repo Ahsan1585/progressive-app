@@ -1,6 +1,7 @@
 const { supabase } = require('../config/db');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { stampInvoicePaid } = require('../utils/invoiceStamper');
+const { getDisciplineCode } = require('../utils/disciplineCodes');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
@@ -164,7 +165,7 @@ const generateNJEISForms = async (req, res) => {
           setUniformText('County', countyValue); // fallback if it is a plain text field
         }
         setUniformText('Child ID', pData.patients?.child_id || pData.patient_id?.toString());
-        setUniformText('DisciplinePosition Title', practitioner.position_title || '');
+        setUniformText('DisciplinePosition Title', getDisciplineCode(practitioner.position_title));
         if (pData.service_date) {
           const [my, mm] = pData.service_date.split('-');
           setUniformText('MonthYear', `${mm}/${my}`);
