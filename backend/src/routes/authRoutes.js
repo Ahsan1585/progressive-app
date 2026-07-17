@@ -29,6 +29,7 @@ const {
   forgotPassword,
   resetPassword,
   getAllStaff,
+  updateStaffProfile,
   updateStaffRole,
   deleteStaffMember,
   reactivateStaffMember
@@ -43,6 +44,9 @@ router.post('/register-practitioner', protect, requireRole(['ceo', 'staff_direct
 
 // View all staff (CEO + Staff Director)
 router.get('/staff', protect, requireRole(['ceo', 'staff_director']), getAllStaff);
+
+// Edit a staff member's profile (CEO + Staff Director; controller restricts Staff Director to Practitioner-role targets)
+router.patch('/staff/:id', protect, requireRole(['ceo', 'staff_director']), updateStaffProfile);
 
 // Change a staff member's role (CEO only)
 router.patch('/staff/:id/role', protect, requireRole(['ceo']), updateStaffRole);

@@ -11,6 +11,31 @@ const formatPhone = (val) => {
   return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`;
 };
 
+// Service Type Code legend from the NJEIS-020 form — must match
+// frontend/src/pages/dashboard.jsx's serviceTypeMap and mobile/src/constants/njeis.ts
+const SERVICE_TYPE_OPTIONS = [
+  { code: 'EV', label: 'Evaluation (EV)' },
+  { code: 'AS', label: 'Assessment (AS)' },
+  { code: 'IFSP', label: 'IFSP Meeting' },
+  { code: 'AU', label: 'Audiology (AU)' },
+  { code: 'DI', label: 'Developmental Intervention (DI)' },
+  { code: 'FT', label: 'Family Training (FT)' },
+  { code: 'HS', label: 'Health Service (HS)' },
+  { code: 'MS', label: 'Medical Service (MS)' },
+  { code: 'NU', label: 'Nursing (NU)' },
+  { code: 'NT', label: 'Nutrition (NT)' },
+  { code: 'OT', label: 'Occupational Therapy (OT)' },
+  { code: 'PT', label: 'Physical Therapy (PT)' },
+  { code: 'PSY', label: 'Psychological (PSY)' },
+  { code: 'SLP', label: 'Speech Language Therapy (SLP)' },
+  { code: 'SW', label: 'Social Work (SW)' },
+  { code: 'VI', label: 'Vision (VI)' },
+  { code: 'CC', label: 'Childcare/Respite (CC)' },
+  { code: 'I/T', label: 'Interpreter/Translator (I/T)' },
+  { code: 'ES', label: 'Escort/Security (ES)' },
+  { code: 'TPC', label: 'Transition Planning Conference (TPC)' },
+];
+
 const ROLE_LABELS = {
   ceo:            'Admin',
   staff_director: 'Office Manager',
@@ -37,6 +62,11 @@ export const RegisterPractitionerForm = () => {
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'deactivated' | 'all'
 
+  // --- Edit Profile State ---
+  const [editingMember, setEditingMember] = useState(null); // member object being edited, or null
+  const [editForm, setEditForm] = useState(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
   // --- Tab State: 'roster' | 'register' ---
   const [activeTab, setActiveTab] = useState('roster');
 
@@ -48,6 +78,7 @@ export const RegisterPractitionerForm = () => {
     password: '',
     payRate: '',
     positionTitle: '',
+    serviceTypes: [],
     address: '',
     phoneNumber: '',
     ssn: '',
@@ -61,6 +92,62 @@ export const RegisterPractitionerForm = () => {
       .catch(() => {})
       .finally(() => setLoadingStaff(false));
   }, []);
+
+  const handleOpenEdit = (member) => {
+    setEditingMember(member);
+    setEditForm({
+      firstName: member.first_name || '',
+      lastName: member.last_name || '',
+      email: member.email || '',
+      positionTitle: member.position_title || '',
+      serviceTypes: member.service_types || [],
+      payRate: member.pay_rate != null ? String(member.pay_rate) : '',
+      address: member.address || '',
+      phoneNumber: member.phone_number || ''
+    });
+  };
+
+  const toggleEditServiceType = (code) => {
+    setEditForm(prev => ({
+      ...prev,
+      serviceTypes: prev.serviceTypes.includes(code)
+        ? prev.serviceTypes.filter(c => c !== code)
+        : [...prev.serviceTypes, code]
+    }));
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingMember) return;
+
+    if (editingMember.role === 'practitioner' && editForm.serviceTypes.length === 0) {
+      alert('Select at least one service type.');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const payload = {
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        email: editForm.email.trim(),
+        position_title: editForm.positionTitle,
+        service_types: editForm.serviceTypes,
+        payRate: editForm.payRate,
+        address: editForm.address.trim(),
+        phone_number: editForm.phoneNumber.trim()
+      };
+      const response = await api.patch(`/api/auth/staff/${editingMember.id}`, payload);
+      const updated = response.data.staff;
+      setStaffList(prev => prev.map(s => s.id === editingMember.id ? { ...s, ...updated } : s));
+      setEditingMember(null);
+      setEditForm(null);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update profile.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const handleDeleteConfirmed = async () => {
     if (!confirmDelete) return;
@@ -100,8 +187,24 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
+  const toggleServiceType = (code) => {
+    setRegForm(prev => ({
+      ...prev,
+      serviceTypes: prev.serviceTypes.includes(code)
+        ? prev.serviceTypes.filter(c => c !== code)
+        : [...prev.serviceTypes, code]
+    }));
+  };
+
   const handleRegisterPractitioner = async (e) => {
     e.preventDefault();
+
+    const effectiveRole = currentUserRole === 'ceo' ? regForm.role : 'practitioner';
+    if (effectiveRole === 'practitioner' && regForm.serviceTypes.length === 0) {
+      alert('Select at least one service type.');
+      return;
+    }
+
     setIsRegistering(true);
 
     try {
@@ -112,10 +215,11 @@ export const RegisterPractitionerForm = () => {
         tempPassword: regForm.password,
         payRate: regForm.payRate,
         position_title: regForm.positionTitle,
+        service_types: regForm.serviceTypes,
         address: regForm.address.trim(),
         phone_number: regForm.phoneNumber.trim(),
         ssn: regForm.ssn.trim(),
-        role: currentUserRole === 'ceo' ? regForm.role : 'practitioner'
+        role: effectiveRole
       };
 
       const response = await api.post('/api/auth/register-practitioner', payload);
@@ -124,7 +228,7 @@ export const RegisterPractitionerForm = () => {
         alert('Account successfully created!');
         setRegForm({
           firstName: '', lastName: '', email: '', password: '',
-          payRate: '', positionTitle: '', address: '', phoneNumber: '', ssn: '',
+          payRate: '', positionTitle: '', serviceTypes: [], address: '', phoneNumber: '', ssn: '',
           role: 'practitioner'
         });
         // Refresh roster and switch to it so the new member is visible
@@ -221,7 +325,7 @@ export const RegisterPractitionerForm = () => {
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
-                  {currentUserRole === 'ceo' && (
+                  {(currentUserRole === 'ceo' || currentUserRole === 'staff_director') && (
                     <th className="px-4 py-3"></th>
                   )}
                 </tr>
@@ -267,32 +371,47 @@ export const RegisterPractitionerForm = () => {
                         </span>
                       )}
                     </td>
-                    {currentUserRole === 'ceo' && (
+                    {(currentUserRole === 'ceo' || currentUserRole === 'staff_director') && (
                       <td className="px-4 py-3 text-right">
-                        {isDeactivated ? (
-                          <button
-                            onClick={() => handleReactivate(member.id)}
-                            disabled={reactivatingId === member.id}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40 cursor-pointer"
-                            title="Reactivate user"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 12a7.5 7.5 0 0113-5.1M19.5 12a7.5 7.5 0 01-13 5.1M4.5 5v3h3M19.5 19v-3h-3" />
-                            </svg>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDelete(member)}
-                            disabled={deletingId === member.id}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
-                            title="Deactivate user"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <circle cx="12" cy="12" r="9" strokeWidth={2} />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.6 5.6l12.8 12.8" />
-                            </svg>
-                          </button>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {(currentUserRole === 'ceo' || member.role === 'practitioner') && (
+                            <button
+                              onClick={() => handleOpenEdit(member)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                              title="Edit profile"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          )}
+                          {currentUserRole === 'ceo' && (
+                            isDeactivated ? (
+                              <button
+                                onClick={() => handleReactivate(member.id)}
+                                disabled={reactivatingId === member.id}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40 cursor-pointer"
+                                title="Reactivate user"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 12a7.5 7.5 0 0113-5.1M19.5 12a7.5 7.5 0 01-13 5.1M4.5 5v3h3M19.5 19v-3h-3" />
+                                </svg>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDelete(member)}
+                                disabled={deletingId === member.id}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
+                                title="Deactivate user"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.6 5.6l12.8 12.8" />
+                                </svg>
+                              </button>
+                            )
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -367,6 +486,25 @@ export const RegisterPractitionerForm = () => {
               <option value="Special Educator">Special Educator</option>
               <option value="Family Therapist">Family Therapist</option>
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-slate-700">
+              Service Types {(currentUserRole === 'ceo' ? regForm.role : 'practitioner') === 'practitioner' && '*'}
+            </Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 border border-slate-200 rounded-md bg-slate-50">
+              {SERVICE_TYPE_OPTIONS.map(opt => (
+                <label key={opt.code} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={regForm.serviceTypes.includes(opt.code)}
+                    onChange={() => toggleServiceType(opt.code)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Role selector — CEO only */}
@@ -494,6 +632,139 @@ export const RegisterPractitionerForm = () => {
                 {deletingId === confirmDelete.id ? 'Deactivating...' : 'Yes, Deactivate'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT PROFILE DIALOG ── */}
+      {editingMember && editForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              <h3 className="text-base font-bold text-slate-800">
+                Edit Profile — {editingMember.first_name} {editingMember.last_name}
+              </h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700">First Name</Label>
+                  <Input
+                    type="text"
+                    required
+                    value={editForm.firstName}
+                    onChange={(e) => setEditForm({...editForm, firstName: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700">Last Name</Label>
+                  <Input
+                    type="text"
+                    required
+                    value={editForm.lastName}
+                    onChange={(e) => setEditForm({...editForm, lastName: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Email Address</Label>
+                <Input
+                  type="email"
+                  required
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Discipline / Position Title</Label>
+                <select
+                  value={editForm.positionTitle}
+                  onChange={(e) => setEditForm({...editForm, positionTitle: e.target.value})}
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required={editingMember.role === 'practitioner'}
+                >
+                  <option value="" disabled>Select a discipline...</option>
+                  <option value="Developmental Interventionist">Developmental Interventionist</option>
+                  <option value="Speech Language Pathologist">Speech Language Pathologist</option>
+                  <option value="Occupational Therapist">Occupational Therapist</option>
+                  <option value="Physical Therapist">Physical Therapist</option>
+                  <option value="Social Worker">Social Worker</option>
+                  <option value="Special Educator">Special Educator</option>
+                  <option value="Family Therapist">Family Therapist</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">
+                  Service Types {editingMember.role === 'practitioner' && '*'}
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 border border-slate-200 rounded-md bg-slate-50">
+                  {SERVICE_TYPE_OPTIONS.map(opt => (
+                    <label key={opt.code} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editForm.serviceTypes.includes(opt.code)}
+                        onChange={() => toggleEditServiceType(opt.code)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Full Address</Label>
+                <Input
+                  type="text"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                  placeholder="123 Main St, Apt 4B, City, NJ 08000"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700">Phone Number</Label>
+                  <Input
+                    type="tel"
+                    value={editForm.phoneNumber}
+                    onChange={(e) => setEditForm({...editForm, phoneNumber: formatPhone(e.target.value)})}
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required={editingMember.role === 'practitioner'}
+                    placeholder="e.g. 75.00"
+                    value={editForm.payRate}
+                    onChange={(e) => setEditForm({...editForm, payRate: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setEditingMember(null); setEditForm(null); }}
+                  className="flex-1 px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <Button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

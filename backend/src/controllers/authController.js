@@ -10,6 +10,13 @@ const isPasswordStrong = (password) => {
   return strongPasswordRegex.test(password);
 };
 
+// Service Type Code legend from the NJEIS-020 form — must match
+// frontend/src/pages/dashboard.jsx's serviceTypeMap and mobile/src/constants/njeis.ts
+const VALID_SERVICE_TYPE_CODES = [
+  'EV', 'AS', 'IFSP', 'AU', 'DI', 'FT', 'HS', 'MS', 'NU', 'NT',
+  'OT', 'PT', 'PSY', 'SLP', 'SW', 'VI', 'CC', 'I/T', 'ES', 'TPC'
+];
+
 // --- Function 1: Admin Provisions a Practitioner ---
 const provisionPractitioner = async (req, res) => {
   const {
@@ -22,7 +29,8 @@ const provisionPractitioner = async (req, res) => {
     address,
     phone_number,
     ssn,
-    role
+    role,
+    service_types
   } = req.body;
 
   try {
@@ -33,6 +41,14 @@ const provisionPractitioner = async (req, res) => {
     const VALID_ROLES = ['practitioner', 'staff_director', 'billing', 'ceo'];
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: 'A valid role is required.' });
+    }
+
+    const serviceTypes = Array.isArray(service_types)
+      ? service_types.filter(code => VALID_SERVICE_TYPE_CODES.includes(code))
+      : [];
+
+    if (role === 'practitioner' && serviceTypes.length === 0) {
+      return res.status(400).json({ error: 'At least one service type is required.' });
     }
 
     if (!isPasswordStrong(tempPassword)) {
@@ -68,6 +84,7 @@ const provisionPractitioner = async (req, res) => {
       ...(payRate      && { pay_rate: parseFloat(payRate) }),
       ...(position_title && { position_title }),
       ...(ssn          && { ssn }),
+      ...(serviceTypes.length > 0 && { service_types: serviceTypes }),
     };
 
     const { data: newPractitioner, error: insertError } = await supabase
@@ -269,12 +286,89 @@ const getAllStaff = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('practitioners')
-      .select('id, first_name, last_name, email, role, position_title, created_at, is_active')
+      .select('id, first_name, last_name, email, role, position_title, service_types, pay_rate, address, phone_number, created_at, is_active')
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json({ staff: data });
   } catch (error) {
     console.error('Get staff error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// --- Function 4b: Update a Staff Member's Profile (CEO + Staff Director) ---
+// Staff Directors are restricted to editing Practitioner-role accounts only,
+// mirroring the same restriction already enforced on provisionPractitioner.
+const updateStaffProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      firstName,
+      lastName,
+      email,
+      position_title,
+      service_types,
+      payRate,
+      address,
+      phone_number
+    } = req.body;
+
+    const { data: target, error: fetchError } = await supabase
+      .from('practitioners')
+      .select('id, role')
+      .eq('id', id)
+      .single();
+    if (fetchError || !target) return res.status(404).json({ error: 'Staff member not found.' });
+
+    if (req.practitioner.role === 'staff_director' && target.role !== 'practitioner') {
+      return res.status(403).json({ error: 'Staff Directors can only edit Practitioner accounts.' });
+    }
+
+    const updateData = {};
+    if (firstName !== undefined) updateData.first_name = firstName.trim();
+    if (lastName !== undefined) updateData.last_name = lastName.trim();
+    if (position_title !== undefined) updateData.position_title = position_title;
+    if (address !== undefined) updateData.address = address.trim();
+    if (phone_number !== undefined) updateData.phone_number = phone_number.trim();
+
+    if (payRate !== undefined && payRate !== '') {
+      if (isNaN(payRate)) return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
+      updateData.pay_rate = parseFloat(payRate);
+    }
+
+    if (service_types !== undefined) {
+      const serviceTypes = Array.isArray(service_types)
+        ? service_types.filter(code => VALID_SERVICE_TYPE_CODES.includes(code))
+        : [];
+      if (target.role === 'practitioner' && serviceTypes.length === 0) {
+        return res.status(400).json({ error: 'At least one service type is required.' });
+      }
+      updateData.service_types = serviceTypes;
+    }
+
+    if (email !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const { data: existingUser } = await supabase
+        .from('practitioners')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .neq('id', id)
+        .maybeSingle();
+      if (existingUser) return res.status(400).json({ error: 'This email is already registered.' });
+      updateData.email = normalizedEmail;
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('practitioners')
+      .update(updateData)
+      .eq('id', id)
+      .select('id, first_name, last_name, email, role, position_title, service_types, pay_rate, address, phone_number, created_at, is_active')
+      .single();
+    if (updateError) throw updateError;
+
+    res.json({ success: true, staff: updated });
+  } catch (error) {
+    console.error('Update staff profile error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -333,6 +427,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getAllStaff,
+  updateStaffProfile,
   updateStaffRole,
   deleteStaffMember,
   reactivateStaffMember
