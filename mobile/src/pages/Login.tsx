@@ -16,7 +16,7 @@ export default function Login() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, logoutBanner, clearLogoutBanner } = useAuth();
-  const { canPromptInstall, promptInstall, showIOSInstructions } = useInstallPrompt();
+  const { canPromptInstall, promptInstall, showIOSInstructions, isInstalled } = useInstallPrompt();
 
   // Arrived here specifically to install (e.g. the "Get it on Android/iPhone"
   // links on the web login page) — lead with the install card instead of
@@ -82,10 +82,35 @@ export default function Login() {
     </div>
   ) : null;
 
+  if (arrivedToInstall) {
+    return (
+      <AuthLayout>
+        <h2 className="text-center text-[20px] font-semibold leading-[26px] text-ink">Install the app</h2>
+
+        <div className="mt-5">
+          {installCard ?? (
+            <div className="flex items-start gap-2 rounded-card border border-info-border bg-info-bg p-3.5 text-sm text-info">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <p>
+                {isInstalled
+                  ? "You already have the app installed — open it from your home screen."
+                  : "Open this link on your Android or iPhone to install the app."}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 text-center">
+          <Link to="/login" className="text-sm font-medium text-ink-muted">
+            Already installed? Sign in instead
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout>
-      {arrivedToInstall && installCard && <div className="mb-6">{installCard}</div>}
-
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <h2 className="text-center text-[20px] font-semibold leading-[26px] text-ink">Sign in</h2>
 
@@ -144,7 +169,7 @@ export default function Login() {
         </Button>
       </form>
 
-      {!arrivedToInstall && installCard && <div className="mt-6">{installCard}</div>}
+      {installCard && <div className="mt-6">{installCard}</div>}
     </AuthLayout>
   );
 }
