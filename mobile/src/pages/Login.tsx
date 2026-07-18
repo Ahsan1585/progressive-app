@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams, Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Download, Share } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,8 +14,14 @@ import type { LoginResponse, ApiErrorBody } from "@/types";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login, logoutBanner, clearLogoutBanner } = useAuth();
   const { canPromptInstall, promptInstall, showIOSInstructions } = useInstallPrompt();
+
+  // Arrived here specifically to install (e.g. the "Get it on Android/iPhone"
+  // links on the web login page) — lead with the install card instead of
+  // burying it below the sign-in form.
+  const arrivedToInstall = searchParams.get("install") === "1";
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -49,8 +55,37 @@ export default function Login() {
     }
   };
 
+  const installCard = canPromptInstall ? (
+    <div className="pop-in flex items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary">
+        <Download className="size-5" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-ink">Install this app</p>
+        <p className="text-xs text-ink-muted">Add it to your home screen for faster access in the field.</p>
+      </div>
+      <Button type="button" size="sm" onClick={promptInstall}>
+        Install
+      </Button>
+    </div>
+  ) : showIOSInstructions ? (
+    <div className="pop-in flex items-start gap-3 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary">
+        <Share className="size-5" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-ink">Install this app</p>
+        <p className="text-xs text-ink-muted">
+          Tap the Share icon <Share className="inline size-3 align-text-bottom" aria-hidden="true" />, then "Add to Home Screen" for faster access in the field.
+        </p>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <AuthLayout>
+      {arrivedToInstall && installCard && <div className="mb-6">{installCard}</div>}
+
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <h2 className="text-center text-[20px] font-semibold leading-[26px] text-ink">Sign in</h2>
 
@@ -109,34 +144,7 @@ export default function Login() {
         </Button>
       </form>
 
-      {canPromptInstall && (
-        <div className="pop-in mt-6 flex items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary">
-            <Download className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-medium text-ink">Install this app</p>
-            <p className="text-xs text-ink-muted">Add it to your home screen for faster access in the field.</p>
-          </div>
-          <Button type="button" size="sm" onClick={promptInstall}>
-            Install
-          </Button>
-        </div>
-      )}
-
-      {showIOSInstructions && (
-        <div className="pop-in mt-6 flex items-start gap-3 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary">
-            <Share className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-medium text-ink">Install this app</p>
-            <p className="text-xs text-ink-muted">
-              Tap the Share icon <Share className="inline size-3 align-text-bottom" aria-hidden="true" />, then "Add to Home Screen" for faster access in the field.
-            </p>
-          </div>
-        </div>
-      )}
+      {!arrivedToInstall && installCard && <div className="mt-6">{installCard}</div>}
     </AuthLayout>
   );
 }

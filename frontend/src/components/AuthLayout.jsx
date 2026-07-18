@@ -7,6 +7,9 @@ import izayaLogo from '@/assets/izaya-logo.svg';
 // flow lives there — Android gets a native install prompt, iOS gets "Add to
 // Home Screen" instructions — neither can be triggered from this origin).
 const MOBILE_APP_URL = 'https://mobile-pied-two.vercel.app/login';
+// `install=1` tells the mobile login page to lead with the install
+// card instead of burying it below the sign-in form.
+const MOBILE_APP_INSTALL_URL = `${MOBILE_APP_URL}?install=1`;
 
 // Shared chrome for all public/post-login auth screens (Login, ForgotPassword,
 // ResetPassword, ChangePassword) — keeps the brand header, card, and trust
@@ -46,7 +49,7 @@ export function AuthLayout({ children }) {
 
         <div className="mt-4 flex items-center gap-3">
           <a
-            href={MOBILE_APP_URL}
+            href={MOBILE_APP_INSTALL_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/60 px-3 py-1.5 text-[11px] font-medium text-slate-600 backdrop-blur-sm transition-colors hover:border-cyan-600/40 hover:text-cyan-700"
@@ -55,7 +58,7 @@ export function AuthLayout({ children }) {
             Get it on Android
           </a>
           <a
-            href={MOBILE_APP_URL}
+            href={MOBILE_APP_INSTALL_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/60 px-3 py-1.5 text-[11px] font-medium text-slate-600 backdrop-blur-sm transition-colors hover:border-cyan-600/40 hover:text-cyan-700"
