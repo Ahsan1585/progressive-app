@@ -1165,6 +1165,13 @@ export const BillingManager = () => {
                     const isVaultExpanded = vaultExpandedRows.has(group.id);
                     const isLoadingVault = loadingVaultRow.has(group.id);
                     const vaultLogs = vaultRowLogs[group.id] || [];
+                    const matchedBatch = batches.find(b => b.id === group.batchId);
+                    const isPaid = Boolean(matchedBatch?.paid_at);
+                    // Once paid, the stamped PDF *is* the invoice for this batch — a single
+                    // canonical reference, not a second version tracked alongside the original.
+                    const invoiceFileName = isPaid && matchedBatch?.stamped_invoice_path
+                      ? matchedBatch.stamped_invoice_path
+                      : group.invoiceFile?.name;
                     return (
                       <React.Fragment key={group.id}>
                         <tr className="hover:bg-slate-50 transition-colors">
@@ -1205,8 +1212,8 @@ export const BillingManager = () => {
 
                           {/* INVOICE COLUMN */}
                           <td className="py-4 px-6 text-center">
-                            {group.invoiceFile ? (
-                              <DownloadLink onClick={() => handleDownloadHistory(group.invoiceFile.name)} label="Invoice" tone="emerald" fixedWidth />
+                            {invoiceFileName ? (
+                              <DownloadLink onClick={() => handleDownloadHistory(invoiceFileName)} label="Invoice" tone="emerald" fixedWidth />
                             ) : (
                               <span className="text-slate-300">-</span>
                             )}
@@ -1214,31 +1221,24 @@ export const BillingManager = () => {
 
                           {/* ACTIONS COLUMN */}
                           <td className="py-4 px-6 text-center">
-                            {(() => {
-                              const isPaid = Boolean(batches.find(b => b.id === group.batchId)?.paid_at);
-                              if (group.batchId && group.invoiceFile && isPaid) {
-                                return (
-                                  <span className="inline-flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
-                                    <Lock className="size-3.5 flex-shrink-0" />
-                                    Invoice Paid
-                                  </span>
-                                );
-                              }
-                              if (group.batchId && group.invoiceFile) {
-                                return (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
-                                    onClick={() => setRevertModal({ group })}
-                                  >
-                                    <Undo2 className="size-3.5 mr-1.5" />
-                                    Send Back to Pending
-                                  </Button>
-                                );
-                              }
-                              return <span className="text-slate-300">-</span>;
-                            })()}
+                            {group.batchId && group.invoiceFile && isPaid ? (
+                              <span className="inline-flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
+                                <Lock className="size-3.5 flex-shrink-0" />
+                                Invoice Paid
+                              </span>
+                            ) : group.batchId && group.invoiceFile ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
+                                onClick={() => setRevertModal({ group })}
+                              >
+                                <Undo2 className="size-3.5 mr-1.5" />
+                                Send Back to Pending
+                              </Button>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
                           </td>
                         </tr>
 
