@@ -601,25 +601,44 @@ const markBatchPaid = async (req, res) => {
       if (!batch.invoice_path) return res.status(400).json({ success: false, error: 'This batch has no invoice PDF to stamp' });
 
       const pdfBytes = await downloadFile(BILLING_INVOICES_BUCKET, batch.invoice_path);
+      const backupPath = batch.invoice_path.replace(/\.pdf$/, '_UNSTAMPED_BACKUP.pdf');
+
+      // Keep the pristine bytes only as an internal restore point for un-marking paid —
+      // this filename deliberately doesn't match BILLING_FILE_PATTERN or the Completed
+      // Bills parsing regex, so it never surfaces as a second downloadable/visible invoice.
+      // invoice_path itself is overwritten below with the stamped bytes, so there is
+      // exactly one discoverable invoice file per batch at all times, not two versions.
+      await uploadFile(BILLING_INVOICES_BUCKET, backupPath, pdfBytes, 'application/pdf');
 
       const paidAt = new Date().toISOString();
       const stampedBytes = await stampInvoicePaid(pdfBytes, paidAt);
-      const stampedPath = batch.invoice_path.replace(/\.pdf$/, '_PAID.pdf');
-
-      await uploadFile(BILLING_INVOICES_BUCKET, stampedPath, stampedBytes, 'application/pdf');
+      await uploadFile(BILLING_INVOICES_BUCKET, batch.invoice_path, stampedBytes, 'application/pdf');
 
       await pool.query(
-        'UPDATE billing_batches SET paid_at = $1, stamped_invoice_path = $2 WHERE id = $3',
-        [paidAt, stampedPath, id]
+        'UPDATE billing_batches SET paid_at = $1 WHERE id = $2',
+        [paidAt, id]
       );
 
-      res.json({ success: true, paid_at: paidAt, stamped_invoice_path: stampedPath });
+      res.json({ success: true, paid_at: paidAt });
     } else {
       if (batch.stamped_invoice_path) {
+        // Legacy paid batches (stamped before this change used a separate "_PAID" sibling
+        // file) — invoice_path was never touched for these, so just delete the sibling.
         try {
           await removeFiles(BILLING_INVOICES_BUCKET, [batch.stamped_invoice_path]);
         } catch (removeError) {
-          console.error('markBatchPaid: stamped file delete error (continuing):', removeError);
+          console.error('markBatchPaid: legacy stamped file delete error (continuing):', removeError);
+        }
+      } else if (batch.invoice_path) {
+        // Current behavior: invoice_path was overwritten in place with the stamped bytes —
+        // restore the pristine original from its internal backup copy.
+        const backupPath = batch.invoice_path.replace(/\.pdf$/, '_UNSTAMPED_BACKUP.pdf');
+        try {
+          const originalBytes = await downloadFile(BILLING_INVOICES_BUCKET, backupPath);
+          await uploadFile(BILLING_INVOICES_BUCKET, batch.invoice_path, originalBytes, 'application/pdf');
+          await removeFiles(BILLING_INVOICES_BUCKET, [backupPath]);
+        } catch (restoreError) {
+          console.error('markBatchPaid: unstamped backup restore error (continuing):', restoreError);
         }
       }
       await pool.query(
