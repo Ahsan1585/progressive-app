@@ -386,7 +386,10 @@ export const BillingManager = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'history') fetchHistory();
+    // Completed Bills also needs batches' paid_at (via fetchBatches) so it can hide
+    // "Send Back to Pending" for already-paid invoices instead of letting the click
+    // fail silently against the backend's paid-batch guard.
+    if (activeTab === 'history') { fetchHistory(); fetchBatches(); }
     if (activeTab === 'status') fetchBatches();
   }, [activeTab]);
 
@@ -1211,19 +1214,31 @@ export const BillingManager = () => {
 
                           {/* ACTIONS COLUMN */}
                           <td className="py-4 px-6 text-center">
-                            {group.batchId && group.invoiceFile ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
-                                onClick={() => setRevertModal({ group })}
-                              >
-                                <Undo2 className="size-3.5 mr-1.5" />
-                                Send Back to Pending
-                              </Button>
-                            ) : (
-                              <span className="text-slate-300">-</span>
-                            )}
+                            {(() => {
+                              const isPaid = Boolean(batches.find(b => b.id === group.batchId)?.paid_at);
+                              if (group.batchId && group.invoiceFile && isPaid) {
+                                return (
+                                  <span className="inline-flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
+                                    <Lock className="size-3.5 flex-shrink-0" />
+                                    Invoice Paid
+                                  </span>
+                                );
+                              }
+                              if (group.batchId && group.invoiceFile) {
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
+                                    onClick={() => setRevertModal({ group })}
+                                  >
+                                    <Undo2 className="size-3.5 mr-1.5" />
+                                    Send Back to Pending
+                                  </Button>
+                                );
+                              }
+                              return <span className="text-slate-300">-</span>;
+                            })()}
                           </td>
                         </tr>
 
