@@ -1,7 +1,12 @@
-import { Lock, ShieldCheck } from 'lucide-react';
+import { Lock, ShieldCheck, Smartphone } from 'lucide-react';
 // TODO: swap for the real Izaya logo once it's saved to frontend/src/assets/
 // (this placeholder wordmark approximates it so the build isn't broken in the meantime).
 import izayaLogo from '@/assets/izaya-logo.svg';
+
+// The practitioner mobile app is a separate deployment (its own PWA install
+// flow lives there — Android gets a native install prompt, iOS gets "Add to
+// Home Screen" instructions — neither can be triggered from this origin).
+const MOBILE_APP_URL = 'https://mobile-pied-two.vercel.app/login';
 
 // Shared chrome for all public/post-login auth screens (Login, ForgotPassword,
 // ResetPassword, ChangePassword) — keeps the brand header, card, and trust
@@ -38,6 +43,27 @@ export function AuthLayout({ children }) {
           </span>
         </div>
         <p className="text-[11px] text-slate-600">Izaya Consulting LLC</p>
+
+        <div className="mt-4 flex items-center gap-3">
+          <a
+            href={MOBILE_APP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/60 px-3 py-1.5 text-[11px] font-medium text-slate-600 backdrop-blur-sm transition-colors hover:border-cyan-600/40 hover:text-cyan-700"
+          >
+            <Smartphone className="size-3.5" aria-hidden="true" />
+            Get it on Android
+          </a>
+          <a
+            href={MOBILE_APP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/60 px-3 py-1.5 text-[11px] font-medium text-slate-600 backdrop-blur-sm transition-colors hover:border-cyan-600/40 hover:text-cyan-700"
+          >
+            <Smartphone className="size-3.5" aria-hidden="true" />
+            Get it on iPhone
+          </a>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Download } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Share } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthLayout } from "@/components/shell/AuthLayout";
@@ -15,7 +15,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, logoutBanner, clearLogoutBanner } = useAuth();
-  const { canPromptInstall, promptInstall } = useInstallPrompt();
+  const { canPromptInstall, promptInstall, showIOSInstructions } = useInstallPrompt();
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -121,6 +121,20 @@ export default function Login() {
           <Button type="button" size="sm" onClick={promptInstall}>
             Install
           </Button>
+        </div>
+      )}
+
+      {showIOSInstructions && (
+        <div className="pop-in mt-6 flex items-start gap-3 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary">
+            <Share className="size-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-medium text-ink">Install this app</p>
+            <p className="text-xs text-ink-muted">
+              Tap the Share icon <Share className="inline size-3 align-text-bottom" aria-hidden="true" />, then "Add to Home Screen" for faster access in the field.
+            </p>
+          </div>
         </div>
       )}
     </AuthLayout>

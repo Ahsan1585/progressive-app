@@ -15,6 +15,11 @@ function isRunningStandalone(): boolean {
   );
 }
 
+function isIOSDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window);
+}
+
 /**
  * Captures the browser's native `beforeinstallprompt` event (Chrome/Edge/
  * Android — the standard PWA install-prompt API) so a custom "Install app"
@@ -64,6 +69,10 @@ export function useInstallPrompt() {
 
   return {
     canPromptInstall: Boolean(deferredPrompt) && !isInstalled,
+    // Safari (iOS/iPadOS) never fires beforeinstallprompt, so there's no
+    // programmatic install — surface this instead so the UI can show manual
+    // "Add to Home Screen" instructions.
+    showIOSInstructions: isIOSDevice() && !isInstalled,
     isInstalled,
     promptInstall,
   };
