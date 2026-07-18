@@ -45,17 +45,19 @@ const SERVICE_TYPE_OPTIONS = [
 ];
 
 const ROLE_LABELS = {
-  ceo:            'Admin',
-  staff_director: 'Office Manager',
-  billing:        'Billing Specialist',
-  practitioner:   'Practitioner',
+  ceo:                'Admin',
+  staff_director:     'Office Manager',
+  billing:            'Billing Specialist',
+  account_specialist: 'Account Specialist',
+  practitioner:       'Practitioner',
 };
 
 const ROLE_BADGE_COLORS = {
-  ceo:            'bg-blue-100 text-blue-700 border-blue-200',
-  staff_director: 'bg-purple-100 text-purple-700 border-purple-200',
-  billing:        'bg-green-100 text-green-700 border-green-200',
-  practitioner:   'bg-slate-100 text-slate-600 border-slate-200',
+  ceo:                'bg-blue-100 text-blue-700 border-blue-200',
+  staff_director:     'bg-purple-100 text-purple-700 border-purple-200',
+  billing:            'bg-green-100 text-green-700 border-green-200',
+  account_specialist: 'bg-amber-100 text-amber-700 border-amber-200',
+  practitioner:       'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 export const RegisterPractitionerForm = () => {
@@ -333,7 +335,7 @@ export const RegisterPractitionerForm = () => {
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
-                  {(currentUserRole === 'ceo' || currentUserRole === 'staff_director') && (
+                  {(currentUserRole === 'ceo' || currentUserRole === 'staff_director' || currentUserRole === 'account_specialist') && (
                     <th className="px-4 py-3"></th>
                   )}
                 </tr>
@@ -371,6 +373,7 @@ export const RegisterPractitionerForm = () => {
                           <option value="practitioner">Practitioner</option>
                           <option value="staff_director">Office Manager</option>
                           <option value="billing">Billing Specialist</option>
+                          <option value="account_specialist">Account Specialist</option>
                           <option value="ceo">Admin</option>
                         </select>
                       ) : (
@@ -379,7 +382,7 @@ export const RegisterPractitionerForm = () => {
                         </span>
                       )}
                     </td>
-                    {(currentUserRole === 'ceo' || currentUserRole === 'staff_director') && (
+                    {(currentUserRole === 'ceo' || currentUserRole === 'staff_director' || currentUserRole === 'account_specialist') && (
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {(currentUserRole === 'ceo' || member.role === 'practitioner') && (
@@ -528,6 +531,7 @@ export const RegisterPractitionerForm = () => {
                 <option value="practitioner">Practitioner</option>
                 <option value="staff_director">Office Manager</option>
                 <option value="billing">Billing Specialist</option>
+                <option value="account_specialist">Account Specialist</option>
                 <option value="ceo">Admin</option>
               </select>
             </div>

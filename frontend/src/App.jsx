@@ -7,7 +7,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/AdminDashboard';
 
-const ADMIN_ROLES = ['staff_director', 'billing', 'ceo'];
+const ADMIN_ROLES = ['staff_director', 'billing', 'ceo', 'account_specialist'];
 
 // HIPAA automatic logoff: clear the session and return to login after inactivity.
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes

@@ -39,14 +39,16 @@ const {
 // --- ADMIN ROUTES ---
 // ==========================================
 
-// CEO and Staff Director can register new accounts (backend enforces staff_director → practitioner only)
-router.post('/register-practitioner', protect, requireRole(['ceo', 'staff_director']), provisionPractitioner);
+// CEO, Staff Director, and Account Specialist can register new accounts
+// (backend enforces staff_director/account_specialist → practitioner only)
+router.post('/register-practitioner', protect, requireRole(['ceo', 'staff_director', 'account_specialist']), provisionPractitioner);
 
-// View all staff (CEO + Staff Director)
-router.get('/staff', protect, requireRole(['ceo', 'staff_director']), getAllStaff);
+// View all staff (CEO + Staff Director + Account Specialist)
+router.get('/staff', protect, requireRole(['ceo', 'staff_director', 'account_specialist']), getAllStaff);
 
-// Edit a staff member's profile (CEO + Staff Director; controller restricts Staff Director to Practitioner-role targets)
-router.patch('/staff/:id', protect, requireRole(['ceo', 'staff_director']), updateStaffProfile);
+// Edit a staff member's profile (CEO + Staff Director + Account Specialist; controller restricts
+// Staff Director/Account Specialist to Practitioner-role targets)
+router.patch('/staff/:id', protect, requireRole(['ceo', 'staff_director', 'account_specialist']), updateStaffProfile);
 
 // Change a staff member's role (CEO only)
 router.patch('/staff/:id/role', protect, requireRole(['ceo']), updateStaffRole);

@@ -80,6 +80,12 @@ function SortableHeader({ label, field, sort, onSort, className = '' }) {
 }
 
 export const BillingManager = () => {
+  // Billing Specialists get Pending Bills + Completed Bills only — Invoice Status
+  // (mark printed / mark paid) is restricted to CEO + Account Specialist, mirroring
+  // the backend's invoiceStatusWriteGuard in billingRoutes.js.
+  const currentUserRole = localStorage.getItem('role');
+  const canSeeInvoiceStatus = currentUserRole !== 'billing';
+
   // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history' | 'status'
 
@@ -682,16 +688,18 @@ export const BillingManager = () => {
         >
           Completed Bills
         </button>
-        <button
-          onClick={() => setActiveTab('status')}
-          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
-            activeTab === 'status'
-              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
-          }`}
-        >
-          Invoice Status
-        </button>
+        {canSeeInvoiceStatus && (
+          <button
+            onClick={() => setActiveTab('status')}
+            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
+              activeTab === 'status'
+                ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+            }`}
+          >
+            Invoice Status
+          </button>
+        )}
       </div>
 
       {/* TAB 1: PENDING BILLS */}
@@ -1312,7 +1320,7 @@ export const BillingManager = () => {
       )}
 
       {/* TAB 3: INVOICE STATUS */}
-      {activeTab === 'status' && (
+      {activeTab === 'status' && canSeeInvoiceStatus && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">

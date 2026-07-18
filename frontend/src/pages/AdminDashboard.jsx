@@ -6,15 +6,16 @@ import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
 
 const TAB_ACCESS = {
-  practitioners: ['ceo', 'staff_director'],
+  practitioners: ['ceo', 'staff_director', 'account_specialist'],
   reports:       ['ceo'],
-  billing:       ['ceo', 'billing'],
+  billing:       ['ceo', 'billing', 'account_specialist'],
 };
 
 const ROLE_LABELS = {
-  ceo:            'Admin',
-  staff_director: 'Office Manager',
-  billing:        'Billing Specialist',
+  ceo:                'Admin',
+  staff_director:     'Office Manager',
+  billing:            'Billing Specialist',
+  account_specialist: 'Account Specialist',
 };
 
 const AdminDashboard = () => {

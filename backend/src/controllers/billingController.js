@@ -647,13 +647,17 @@ const revertBillingBatch = async (req, res) => {
 
   try {
     const { rows: batchRows } = await pool.query(
-      'SELECT id, njeis_path, invoice_path FROM billing_batches WHERE id = $1',
+      'SELECT id, njeis_path, invoice_path, paid_at FROM billing_batches WHERE id = $1',
       [batchId]
     );
     const batch = batchRows[0];
 
     if (!batch) {
       return res.status(404).json({ success: false, error: 'Batch not found (it may have already been reverted).' });
+    }
+
+    if (batch.paid_at) {
+      return res.status(400).json({ success: false, error: 'This invoice has been marked as paid and can no longer be sent back to pending.' });
     }
 
     const { rows: revertedAssessments } = await pool.query(

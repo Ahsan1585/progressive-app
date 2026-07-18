@@ -28,7 +28,7 @@ const Login = () => {
         localStorage.setItem('role', response.data.practitioner.role);
 
         const role = response.data.practitioner.role;
-        const ADMIN_ROLES = ['staff_director', 'billing', 'ceo'];
+        const ADMIN_ROLES = ['staff_director', 'billing', 'ceo', 'account_specialist'];
 
         if (response.data.requirePasswordChange) {
           navigate('/change-password');

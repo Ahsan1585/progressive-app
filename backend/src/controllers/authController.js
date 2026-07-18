@@ -38,7 +38,7 @@ const provisionPractitioner = async (req, res) => {
       return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
     }
 
-    const VALID_ROLES = ['practitioner', 'staff_director', 'billing', 'ceo'];
+    const VALID_ROLES = ['practitioner', 'staff_director', 'billing', 'ceo', 'account_specialist'];
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: 'A valid role is required.' });
     }
@@ -55,8 +55,8 @@ const provisionPractitioner = async (req, res) => {
       return res.status(400).json({ error: 'Temporary password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.' });
     }
 
-    if (req.practitioner.role === 'staff_director' && role !== 'practitioner') {
-      return res.status(403).json({ error: 'Staff Directors can only register Practitioner accounts.' });
+    if (['staff_director', 'account_specialist'].includes(req.practitioner.role) && role !== 'practitioner') {
+      return res.status(403).json({ error: 'Office Managers and Account Specialists can only register Practitioner accounts.' });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -284,9 +284,9 @@ const getAllStaff = async (req, res) => {
   }
 };
 
-// --- Function 4b: Update a Staff Member's Profile (CEO + Staff Director) ---
-// Staff Directors are restricted to editing Practitioner-role accounts only,
-// mirroring the same restriction already enforced on provisionPractitioner.
+// --- Function 4b: Update a Staff Member's Profile (CEO + Staff Director + Account Specialist) ---
+// Staff Directors and Account Specialists are restricted to editing Practitioner-role
+// accounts only, mirroring the same restriction already enforced on provisionPractitioner.
 const updateStaffProfile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -305,8 +305,8 @@ const updateStaffProfile = async (req, res) => {
     const target = targetRows[0];
     if (!target) return res.status(404).json({ error: 'Staff member not found.' });
 
-    if (req.practitioner.role === 'staff_director' && target.role !== 'practitioner') {
-      return res.status(403).json({ error: 'Staff Directors can only edit Practitioner accounts.' });
+    if (['staff_director', 'account_specialist'].includes(req.practitioner.role) && target.role !== 'practitioner') {
+      return res.status(403).json({ error: 'Office Managers and Account Specialists can only edit Practitioner accounts.' });
     }
 
     const setClauses = [];
@@ -367,7 +367,7 @@ const updateStaffRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
-    const VALID_ROLES = ['practitioner', 'staff_director', 'billing', 'ceo'];
+    const VALID_ROLES = ['practitioner', 'staff_director', 'billing', 'ceo', 'account_specialist'];
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: 'Invalid role.' });
     }

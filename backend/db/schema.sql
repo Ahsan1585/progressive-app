@@ -51,7 +51,7 @@ CREATE TABLE practitioners (
   service_types text[] DEFAULT '{}'::text[],
   PRIMARY KEY (id),
   CONSTRAINT practitioners_email_key UNIQUE (email),
-  CONSTRAINT practitioners_role_check CHECK (role = ANY (ARRAY['practitioner'::text, 'staff_director'::text, 'billing'::text, 'ceo'::text]))
+  CONSTRAINT practitioners_role_check CHECK (role = ANY (ARRAY['practitioner'::text, 'staff_director'::text, 'billing'::text, 'ceo'::text, 'account_specialist'::text]))
 );
 ALTER SEQUENCE practitioners_id_seq OWNED BY practitioners.id;
 
