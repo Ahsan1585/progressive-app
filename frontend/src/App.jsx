@@ -5,7 +5,6 @@ import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 
 const ADMIN_ROLES = ['staff_director', 'billing', 'ceo'];
@@ -59,7 +58,6 @@ function App() {
       <IdleLogout />
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

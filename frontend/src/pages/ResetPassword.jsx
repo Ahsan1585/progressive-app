@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
-import logo from '@/assets/logo.png';
+import { AuthLayout } from '@/components/AuthLayout';
 
 const isPasswordStrong = (pw) =>
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pw);
@@ -44,73 +44,62 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-950 p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-neutral-200">
-        <div className="p-8">
-          <div className="flex flex-col items-center justify-center mb-8 text-center">
-            <img src={logo} alt="Progressive Steps" className="w-56 h-auto object-contain mb-3" />
-            <p className="text-neutral-500 font-medium">Practitioner Portal</p>
+    <AuthLayout>
+      {!token ? (
+        <div className="text-center space-y-6">
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg text-sm text-red-700 font-medium text-left">
+            This reset link is missing or invalid. Please request a new one.
           </div>
-
-          {!token ? (
-            <div className="text-center space-y-6">
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md text-sm text-red-700 font-medium text-left">
-                This reset link is missing or invalid. Please request a new one.
-              </div>
-              <Link to="/forgot-password" className="inline-block font-semibold text-neutral-950 hover:underline">
-                Request a new link
-              </Link>
-            </div>
-          ) : (
-            <>
-              <h2 className="text-lg font-semibold text-neutral-800 mb-2 text-center">Set a new password</h2>
-
-              {error && (
-                <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-md text-sm text-red-700 font-medium">
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword" className="text-neutral-700">New Password</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-neutral-50 border-neutral-200 focus-visible:ring-neutral-950"
-                    placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special"
-                    autoComplete="new-password"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-neutral-700">Confirm New Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-neutral-50 border-neutral-200 focus-visible:ring-neutral-950"
-                    autoComplete="new-password"
-                    required
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-neutral-950 hover:bg-neutral-800 text-white py-6 text-base font-semibold rounded-lg transition-all"
-                >
-                  {isSubmitting ? 'Updating...' : 'Reset Password'}
-                </Button>
-              </form>
-            </>
-          )}
+          <Link to="/forgot-password" className="inline-block font-semibold text-cyan-700 hover:underline">
+            Request a new link
+          </Link>
         </div>
-      </div>
-    </div>
+      ) : (
+        <>
+          <h2 className="text-lg font-semibold text-slate-800 mb-6 text-center">Set a new password</h2>
+
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-5 rounded-lg text-sm text-red-700 font-medium">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword" className="text-slate-700">New Password</Label>
+              <PasswordInput
+                id="newPassword"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full h-11 rounded-lg bg-slate-50 border-slate-200 focus-visible:border-cyan-600 focus-visible:ring-cyan-600/40"
+                placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-slate-700">Confirm New Password</Label>
+              <PasswordInput
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full h-11 rounded-lg bg-slate-50 border-slate-200 focus-visible:border-cyan-600 focus-visible:ring-cyan-600/40"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-11 mt-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white text-base font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(8,74,90,0.4)] transition-colors"
+            >
+              {isSubmitting ? 'Updating...' : 'Reset Password'}
+            </Button>
+          </form>
+        </>
+      )}
+    </AuthLayout>
   );
 };
 

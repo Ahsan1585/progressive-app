@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { supabase } = require('../config/db');
+const { pool } = require('../config/db');
 const { sendPasswordResetEmail } = require('../utils/emailClient');
 
 // --- Helper: Enforce Password Strength ---
@@ -61,41 +61,38 @@ const provisionPractitioner = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const { data: existingUser } = await supabase
-      .from('practitioners')
-      .select('id')
-      .eq('email', normalizedEmail)
-      .maybeSingle();
-
-    if (existingUser) return res.status(400).json({ error: 'This email is already registered.' });
+    const { rows: existingRows } = await pool.query(
+      'SELECT id FROM practitioners WHERE email = $1',
+      [normalizedEmail]
+    );
+    if (existingRows[0]) return res.status(400).json({ error: 'This email is already registered.' });
 
     const salt = await bcrypt.genSalt(10);
     const temporaryHash = await bcrypt.hash(tempPassword, salt);
 
-    const insertData = {
-      first_name: firstName,
-      last_name: lastName,
-      email: normalizedEmail,
-      password_hash: temporaryHash,
-      requires_password_change: true,
-      role,
-      ...(address      && { address }),
-      ...(phone_number && { phone_number }),
-      ...(payRate      && { pay_rate: parseFloat(payRate) }),
-      ...(position_title && { position_title }),
-      ...(ssn          && { ssn }),
-      ...(serviceTypes.length > 0 && { service_types: serviceTypes }),
-    };
+    // Optional fields are omitted from the INSERT entirely (not passed as NULL)
+    // when absent, so the column's DB default applies — matching the original
+    // Supabase insert, which only included keys that were truthy.
+    const columns = ['first_name', 'last_name', 'email', 'password_hash', 'requires_password_change', 'role'];
+    const values = [firstName, lastName, normalizedEmail, temporaryHash, true, role];
+    const addColumn = (column, value) => { columns.push(column); values.push(value); };
 
-    const { data: newPractitioner, error: insertError } = await supabase
-      .from('practitioners')
-      .insert([insertData])
-      .select('id, first_name, last_name, email, requires_password_change, created_at')
-      .single();
+    if (address) addColumn('address', address);
+    if (phone_number) addColumn('phone_number', phone_number);
+    if (payRate) addColumn('pay_rate', parseFloat(payRate));
+    if (position_title) addColumn('position_title', position_title);
+    if (ssn) addColumn('ssn', ssn);
+    if (serviceTypes.length > 0) addColumn('service_types', serviceTypes);
 
-    if (insertError) throw insertError;
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+    const { rows: insertedRows } = await pool.query(
+      `INSERT INTO practitioners (${columns.join(', ')})
+       VALUES (${placeholders})
+       RETURNING id, first_name, last_name, email, requires_password_change, created_at`,
+      values
+    );
 
-    res.status(201).json({ message: 'Practitioner provisioned successfully', practitioner: newPractitioner });
+    res.status(201).json({ message: 'Practitioner provisioned successfully', practitioner: insertedRows[0] });
   } catch (error) {
     console.error('Provisioning error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -110,11 +107,11 @@ const loginPractitioner = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const { data: user } = await supabase
-      .from('practitioners')
-      .select('*')
-      .eq('email', String(email || '').trim().toLowerCase())
-      .single();
+    const { rows } = await pool.query(
+      'SELECT * FROM practitioners WHERE email = $1',
+      [String(email || '').trim().toLowerCase()]
+    );
+    const user = rows[0];
 
     // Always run a bcrypt compare (against a dummy hash if no user) so timing does not reveal account existence
     const isMatch = await bcrypt.compare(password || '', user ? user.password_hash : DUMMY_HASH);
@@ -148,7 +145,7 @@ const loginPractitioner = async (req, res) => {
       },
       requirePasswordChange: user.requires_password_change
     });
-    
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -161,7 +158,7 @@ const changeTemporaryPassword = async (req, res) => {
     // We grab the ID securely from the token via the protect middleware
     const practitionerId = req.practitioner.practitionerId;
     const { newPassword } = req.body;
-    
+
     if (!isPasswordStrong(newPassword)) {
       return res.status(400).json({ error: 'Password must be at least 8 characters long, contain an uppercase letter, a lowercase letter, a number, and a special character.' });
     }
@@ -171,15 +168,10 @@ const changeTemporaryPassword = async (req, res) => {
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
     // Update the database AND remove the required change flag
-    const { error: updateError } = await supabase
-      .from('practitioners')
-      .update({ 
-        password_hash: newPasswordHash, 
-        requires_password_change: false 
-      })
-      .eq('id', practitionerId);
-
-    if (updateError) throw updateError;
+    await pool.query(
+      'UPDATE practitioners SET password_hash = $1, requires_password_change = false WHERE id = $2',
+      [newPasswordHash, practitionerId]
+    );
 
     res.json({ success: true, message: 'Password updated successfully. Welcome to the portal!' });
   } catch (error) {
@@ -200,25 +192,23 @@ const forgotPassword = async (req, res) => {
   if (!email) return res.json(genericResponse);
 
   try {
-    const { data: user } = await supabase
-      .from('practitioners')
-      .select('id, email')
-      .eq('email', String(email).trim().toLowerCase())
-      .maybeSingle();
+    const { rows } = await pool.query(
+      'SELECT id, email FROM practitioners WHERE email = $1',
+      [String(email).trim().toLowerCase()]
+    );
+    const user = rows[0];
 
     if (user) {
       const rawToken = crypto.randomBytes(32).toString('hex');
       const tokenHash = hashResetToken(rawToken);
       const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
 
-      const { error: tokenUpdateError } = await supabase
-        .from('practitioners')
-        .update({ reset_token_hash: tokenHash, reset_token_expires: expiresAt })
-        .eq('id', user.id);
+      try {
+        await pool.query(
+          'UPDATE practitioners SET reset_token_hash = $1, reset_token_expires = $2 WHERE id = $3',
+          [tokenHash, expiresAt, user.id]
+        );
 
-      if (tokenUpdateError) {
-        console.error('Failed to store reset token:', tokenUpdateError);
-      } else {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
 
@@ -227,6 +217,8 @@ const forgotPassword = async (req, res) => {
         } catch (emailError) {
           console.error('Failed to send password reset email:', emailError);
         }
+      } catch (tokenUpdateError) {
+        console.error('Failed to store reset token:', tokenUpdateError);
       }
     }
 
@@ -249,11 +241,11 @@ const resetPassword = async (req, res) => {
 
   try {
     const tokenHash = hashResetToken(token);
-    const { data: user } = await supabase
-      .from('practitioners')
-      .select('id, reset_token_expires')
-      .eq('reset_token_hash', tokenHash)
-      .maybeSingle();
+    const { rows } = await pool.query(
+      'SELECT id, reset_token_expires FROM practitioners WHERE reset_token_hash = $1',
+      [tokenHash]
+    );
+    const user = rows[0];
 
     if (!user || !user.reset_token_expires || new Date(user.reset_token_expires) < new Date()) {
       return res.status(400).json({ error: 'This reset link is invalid or has expired.' });
@@ -262,17 +254,12 @@ const resetPassword = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
-    const { error: updateError } = await supabase
-      .from('practitioners')
-      .update({
-        password_hash: newPasswordHash,
-        requires_password_change: false,
-        reset_token_hash: null,
-        reset_token_expires: null,
-      })
-      .eq('id', user.id);
-
-    if (updateError) throw updateError;
+    await pool.query(
+      `UPDATE practitioners
+       SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL
+       WHERE id = $2`,
+      [newPasswordHash, user.id]
+    );
 
     res.json({ success: true, message: 'Password updated successfully. You can now log in.' });
   } catch (error) {
@@ -284,12 +271,13 @@ const resetPassword = async (req, res) => {
 // --- Function 4: Get All Staff (CEO + Staff Director) ---
 const getAllStaff = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('practitioners')
-      .select('id, first_name, last_name, email, role, position_title, service_types, pay_rate, address, phone_number, created_at, is_active')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json({ staff: data });
+    const { rows } = await pool.query(
+      `SELECT id, first_name, last_name, email, role, position_title, service_types,
+              pay_rate, address, phone_number, created_at, is_active
+       FROM practitioners
+       ORDER BY created_at DESC`
+    );
+    res.json({ staff: rows });
   } catch (error) {
     console.error('Get staff error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -313,27 +301,30 @@ const updateStaffProfile = async (req, res) => {
       phone_number
     } = req.body;
 
-    const { data: target, error: fetchError } = await supabase
-      .from('practitioners')
-      .select('id, role')
-      .eq('id', id)
-      .single();
-    if (fetchError || !target) return res.status(404).json({ error: 'Staff member not found.' });
+    const { rows: targetRows } = await pool.query('SELECT id, role FROM practitioners WHERE id = $1', [id]);
+    const target = targetRows[0];
+    if (!target) return res.status(404).json({ error: 'Staff member not found.' });
 
     if (req.practitioner.role === 'staff_director' && target.role !== 'practitioner') {
       return res.status(403).json({ error: 'Staff Directors can only edit Practitioner accounts.' });
     }
 
-    const updateData = {};
-    if (firstName !== undefined) updateData.first_name = firstName.trim();
-    if (lastName !== undefined) updateData.last_name = lastName.trim();
-    if (position_title !== undefined) updateData.position_title = position_title;
-    if (address !== undefined) updateData.address = address.trim();
-    if (phone_number !== undefined) updateData.phone_number = phone_number.trim();
+    const setClauses = [];
+    const params = [];
+    const addSet = (column, value) => {
+      params.push(value);
+      setClauses.push(`${column} = $${params.length}`);
+    };
+
+    if (firstName !== undefined) addSet('first_name', firstName.trim());
+    if (lastName !== undefined) addSet('last_name', lastName.trim());
+    if (position_title !== undefined) addSet('position_title', position_title);
+    if (address !== undefined) addSet('address', address.trim());
+    if (phone_number !== undefined) addSet('phone_number', phone_number.trim());
 
     if (payRate !== undefined && payRate !== '') {
       if (isNaN(payRate)) return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
-      updateData.pay_rate = parseFloat(payRate);
+      addSet('pay_rate', parseFloat(payRate));
     }
 
     if (service_types !== undefined) {
@@ -343,30 +334,28 @@ const updateStaffProfile = async (req, res) => {
       if (target.role === 'practitioner' && serviceTypes.length === 0) {
         return res.status(400).json({ error: 'At least one service type is required.' });
       }
-      updateData.service_types = serviceTypes;
+      addSet('service_types', serviceTypes);
     }
 
     if (email !== undefined) {
       const normalizedEmail = email.trim().toLowerCase();
-      const { data: existingUser } = await supabase
-        .from('practitioners')
-        .select('id')
-        .eq('email', normalizedEmail)
-        .neq('id', id)
-        .maybeSingle();
-      if (existingUser) return res.status(400).json({ error: 'This email is already registered.' });
-      updateData.email = normalizedEmail;
+      const { rows: existingRows } = await pool.query(
+        'SELECT id FROM practitioners WHERE email = $1 AND id != $2',
+        [normalizedEmail, id]
+      );
+      if (existingRows[0]) return res.status(400).json({ error: 'This email is already registered.' });
+      addSet('email', normalizedEmail);
     }
 
-    const { data: updated, error: updateError } = await supabase
-      .from('practitioners')
-      .update(updateData)
-      .eq('id', id)
-      .select('id, first_name, last_name, email, role, position_title, service_types, pay_rate, address, phone_number, created_at, is_active')
-      .single();
-    if (updateError) throw updateError;
+    params.push(id);
+    const { rows: updatedRows } = await pool.query(
+      `UPDATE practitioners SET ${setClauses.join(', ')} WHERE id = $${params.length}
+       RETURNING id, first_name, last_name, email, role, position_title, service_types,
+                 pay_rate, address, phone_number, created_at, is_active`,
+      params
+    );
 
-    res.json({ success: true, staff: updated });
+    res.json({ success: true, staff: updatedRows[0] });
   } catch (error) {
     console.error('Update staff profile error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -382,8 +371,7 @@ const updateStaffRole = async (req, res) => {
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: 'Invalid role.' });
     }
-    const { error } = await supabase.from('practitioners').update({ role }).eq('id', id);
-    if (error) throw error;
+    await pool.query('UPDATE practitioners SET role = $1 WHERE id = $2', [role, id]);
     res.json({ success: true });
   } catch (error) {
     console.error('Update role error:', error);
@@ -398,8 +386,7 @@ const deleteStaffMember = async (req, res) => {
     if (String(id) === String(requesterId)) {
       return res.status(400).json({ error: 'You cannot delete your own account.' });
     }
-    const { error } = await supabase.from('practitioners').update({ is_active: false }).eq('id', id);
-    if (error) throw error;
+    await pool.query('UPDATE practitioners SET is_active = false WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
     console.error('Delete staff error:', error);
@@ -411,8 +398,7 @@ const deleteStaffMember = async (req, res) => {
 const reactivateStaffMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { error } = await supabase.from('practitioners').update({ is_active: true }).eq('id', id);
-    if (error) throw error;
+    await pool.query('UPDATE practitioners SET is_active = true WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
     console.error('Reactivate staff error:', error);

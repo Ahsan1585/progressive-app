@@ -1,4 +1,12 @@
-const { supabase } = require('../config/db');
+const { pool } = require('../config/db');
+const {
+  BILLING_INVOICES_BUCKET,
+  uploadFile,
+  downloadFile,
+  getSignedUrl,
+  removeFiles,
+  listFilesDetailed,
+} = require('../config/storage');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { getDisciplineCode } = require('../utils/disciplineCodes');
@@ -20,16 +28,17 @@ const getPendingLogs = async (req, res) => {
   const { search, startDate, endDate } = req.query;
 
   try {
-    let query = supabase
-      .from('assessments')
-      .select('*, practitioners!inner(id, first_name, last_name, pay_rate)') 
-      .in('billing_status', ['pending', 'njeis_review']); 
+    const params = [['pending', 'njeis_review']];
+    let sql = `
+      SELECT a.*, p.first_name AS practitioner_live_first_name, p.last_name AS practitioner_live_last_name
+      FROM assessments a
+      JOIN practitioners p ON p.id = a.practitioner_id
+      WHERE a.billing_status = ANY($1::text[])
+    `;
+    if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
 
-    if (startDate) query = query.gte('service_date', startDate);
-    if (endDate) query = query.lte('service_date', endDate);
-
-    const { data: assessments, error } = await query;
-    if (error) throw error;
+    const { rows: assessments } = await pool.query(sql, params);
 
     const practitionerMap = {};
 
@@ -38,12 +47,12 @@ const getPendingLogs = async (req, res) => {
       if (!practitionerMap[pId]) {
         practitionerMap[pId] = {
           practitioner_id: pId,
-          first_name: record.practitioners?.first_name || 'Unknown',
-          last_name: record.practitioners?.last_name || 'Unknown',
+          first_name: record.practitioner_live_first_name || 'Unknown',
+          last_name: record.practitioner_live_last_name || 'Unknown',
           total_interventions: 0,
           unique_children: new Set(),
           total_hours: 0,
-          workflow_status: 'njeis_review' 
+          workflow_status: 'njeis_review'
         };
       }
 
@@ -53,7 +62,7 @@ const getPendingLogs = async (req, res) => {
 
       practitionerMap[pId].total_interventions += 1;
       practitionerMap[pId].unique_children.add(record.patient_id);
-      
+
       const hours = record.total_time ? (record.total_time / 60) : 0;
       practitionerMap[pId].total_hours += hours;
     });
@@ -66,15 +75,13 @@ const getPendingLogs = async (req, res) => {
         const yearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         const practName = `${log.first_name}_${log.last_name}`.replace(/\s+/g, '_');
         const folderPath = `${yearMonth}/${practName}`;
-        const { data: folderItems } = await supabase.storage
-          .from('billing-Invoices')
-          .list(folderPath, { sortBy: { column: 'created_at', order: 'desc' } });
-        const latestNjeis = folderItems?.find(f => f.name.startsWith('NJEIS'));
+        const folderItems = await listFilesDetailed(BILLING_INVOICES_BUCKET, `${folderPath}/`);
+        const njeisItems = folderItems
+          .filter(f => path.basename(f.name).startsWith('NJEIS'))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const latestNjeis = njeisItems[0];
         if (latestNjeis) {
-          const { data } = await supabase.storage
-            .from('billing-Invoices')
-            .createSignedUrl(`${folderPath}/${latestNjeis.name}`, 3600);
-          njeis_url = data?.signedUrl;
+          njeis_url = await getSignedUrl(BILLING_INVOICES_BUCKET, latestNjeis.name, 3600);
         }
       }
 
@@ -83,9 +90,11 @@ const getPendingLogs = async (req, res) => {
         unique_children_count: log.unique_children.size,
         unique_children: undefined,
         njeis_url,
-        invoice_url: null 
+        invoice_url: null
       };
     }));
+
+    logs.sort((a, b) => a.first_name.localeCompare(b.first_name));
 
     res.json({ success: true, logs });
   } catch (error) {
@@ -99,17 +108,19 @@ const generateNJEISForms = async (req, res) => {
   const { practitionerId, startDate, endDate, excludedIds = [] } = req.body;
 
   try {
-    let query = supabase.from('assessments')
-      .select('*, practitioners(*), patients(*)')
-      .eq('practitioner_id', practitionerId)
-      .in('billing_status', ['pending'])
-      .order('service_date', { ascending: true });
+    const params = [practitionerId, ['pending']];
+    let sql = `
+      SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
+      FROM assessments a
+      JOIN practitioners p ON p.id = a.practitioner_id
+      LEFT JOIN patients pt ON pt.id = a.patient_id
+      WHERE a.practitioner_id = $1 AND a.billing_status = ANY($2::text[])
+    `;
+    if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
+    sql += ' ORDER BY a.service_date ASC';
 
-    if (startDate) query = query.gte('service_date', startDate);
-    if (endDate) query = query.lte('service_date', endDate);
-
-    const { data: assessments, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
+    const { rows: assessments } = await pool.query(sql, params);
     if (!assessments || assessments.length === 0) return res.status(400).json({ success: false, error: "No pending assessments found." });
 
     const practitioner = assessments[0].practitioners;
@@ -125,15 +136,15 @@ const generateNJEISForms = async (req, res) => {
       return acc;
     }, {});
 
-    const templatePath = path.join(__dirname, '..', '..', 'templates', 'NJEIS-020.pdf'); 
+    const templatePath = path.join(__dirname, '..', '..', 'templates', 'NJEIS-020.pdf');
     const templateBytes = fs.readFileSync(templatePath);
     const finalNjeisPdf = await PDFDocument.create();
-    
+
     for (const patientId of Object.keys(groupedByPatient)) {
       const patientRecords = groupedByPatient[patientId];
       for (let i = 0; i < patientRecords.length; i += 10) {
         const chunk = patientRecords.slice(i, i + 10);
-        const pData = chunk[0]; 
+        const pData = chunk[0];
 
         const tempDoc = await PDFDocument.load(templateBytes);
         const form = tempDoc.getForm();
@@ -172,7 +183,7 @@ const generateNJEISForms = async (req, res) => {
         }
 
         chunk.forEach((session, index) => {
-          const rowNum = index + 1; 
+          const rowNum = index + 1;
           const [sy, sm, sd] = (session.service_date || '').split('-');
           setUniformText(`Service date${rowNum}`, session.service_date ? `${parseInt(sm)}/${parseInt(sd)}/${sy.slice(-2)}` : '');
           setUniformText(`Service StatusRow${rowNum}`, session.status?.toString());
@@ -257,35 +268,35 @@ const generateNJEISForms = async (req, res) => {
     const newFileName = `NJEIS_${minDate}_${maxDate}_${timestamp}.pdf`;
     const filePath = `${folderPath}/${newFileName}`;
 
-    await supabase.storage.from('billing-Invoices').upload(filePath, njeisPdfBuffer, { contentType: 'application/pdf', upsert: false });
+    await uploadFile(BILLING_INVOICES_BUCKET, filePath, njeisPdfBuffer, 'application/pdf');
 
-    const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 3600);
+    const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, filePath, 3600);
 
     // Create a billing_batches record so the vault can scope this batch's logs precisely
-    const { data: batchRow, error: batchInsertError } = await supabase
-      .from('billing_batches')
-      .insert({
-        practitioner_id: practitionerId,
-        start_date: serviceDates[0] || null,
-        end_date: serviceDates[serviceDates.length - 1] || null,
-        njeis_path: filePath,
-      })
-      .select('id')
-      .single();
-
-    if (batchInsertError) console.warn('billing_batches insert failed (non-fatal):', batchInsertError.message);
+    let batchRow = null;
+    try {
+      const { rows: batchRows } = await pool.query(
+        `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [practitionerId, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath]
+      );
+      batchRow = batchRows[0];
+    } catch (batchInsertError) {
+      console.warn('billing_batches insert failed (non-fatal):', batchInsertError.message);
+    }
 
     // Stamp all processed assessments with this batch ID
-    if (!batchInsertError && batchRow) {
-      await supabase.from('assessments').update({ billing_batch_id: batchRow.id }).in('id', allAssessmentIds);
+    if (batchRow) {
+      await pool.query('UPDATE assessments SET billing_batch_id = $1 WHERE id = ANY($2::int[])', [batchRow.id, allAssessmentIds]);
     }
 
     const idsToAdvance = filteredAssessments.filter(a => a.billing_status !== 'rejected').map(a => a.id);
     if (idsToAdvance.length > 0) {
-      await supabase.from('assessments').update({ billing_status: 'njeis_review' }).in('id', idsToAdvance);
+      await pool.query("UPDATE assessments SET billing_status = 'njeis_review' WHERE id = ANY($1::int[])", [idsToAdvance]);
     }
 
-    res.json({ success: true, downloadUrl: urlData.signedUrl, batchId: batchRow?.id || null, message: 'SEVF Forms generated successfully!' });
+    res.json({ success: true, downloadUrl: signedUrl, batchId: batchRow?.id || null, message: 'SEVF Forms generated successfully!' });
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 };
 
@@ -294,17 +305,19 @@ const generateFinancialInvoice = async (req, res) => {
   const { practitionerId, startDate, endDate } = req.body;
 
   try {
-    let query = supabase.from('assessments')
-      .select('*, practitioners(*), patients(*)')
-      .eq('practitioner_id', practitionerId)
-      .in('billing_status', ['pending', 'njeis_review'])
-      .order('service_date', { ascending: true });
-      
-    if (startDate) query = query.gte('service_date', startDate);
-    if (endDate) query = query.lte('service_date', endDate);
+    const params = [practitionerId, ['pending', 'njeis_review']];
+    let sql = `
+      SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
+      FROM assessments a
+      JOIN practitioners p ON p.id = a.practitioner_id
+      LEFT JOIN patients pt ON pt.id = a.patient_id
+      WHERE a.practitioner_id = $1 AND a.billing_status = ANY($2::text[])
+    `;
+    if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
+    sql += ' ORDER BY a.service_date ASC';
 
-    const { data: assessments, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
+    const { rows: assessments } = await pool.query(sql, params);
     if (!assessments || assessments.length === 0) return res.status(400).json({ success: false, error: "No reviewed assessments found." });
 
     const practitioner = assessments[0].practitioners;
@@ -313,20 +326,20 @@ const generateFinancialInvoice = async (req, res) => {
     const rawPayRate = (practitioner.pay_rate && parseFloat(practitioner.pay_rate) > 0) ? parseFloat(practitioner.pay_rate) : 0;
 
     const formattedLineItems = assessments.map(line => {
-      const hours = line.total_time ? (line.total_time / 60) : 0; 
+      const hours = line.total_time ? (line.total_time / 60) : 0;
       totalHours += hours;
       return {
         ...line,
-        date: line.service_date || "",                 
-        total_hours: hours > 0 ? hours.toFixed(2) : "", 
+        date: line.service_date || "",
+        total_hours: hours > 0 ? hours.toFixed(2) : "",
         child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim() || "",
         child_id: line.patients?.child_id || "",
-        county: line.patient_county || "",             
-        rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : "0.00",                      
-        line_total: (rawPayRate && hours > 0) ? (hours * rawPayRate).toFixed(2) : "0.00"                       
+        county: line.patient_county || "",
+        rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : "0.00",
+        line_total: (rawPayRate && hours > 0) ? (hours * rawPayRate).toFixed(2) : "0.00"
       };
     });
-    
+
     const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems);
 
     const invNow = new Date();
@@ -338,54 +351,32 @@ const generateFinancialInvoice = async (req, res) => {
     const invTimestamp = `${String(invNow.getHours()).padStart(2,'0')}${String(invNow.getMinutes()).padStart(2,'0')}${String(invNow.getSeconds()).padStart(2,'0')}`;
     const filePath = `${invYearMonth}/${invPractName}/Invoice_${invMinDate}_${invMaxDate}_${invTimestamp}.pdf`;
 
-    await supabase.storage.from('billing-Invoices').upload(filePath, invoicePdfBuffer, { contentType: 'application/pdf', upsert: false });
+    await uploadFile(BILLING_INVOICES_BUCKET, filePath, invoicePdfBuffer, 'application/pdf');
 
-    const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 3600);
+    const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, filePath, 3600);
 
     // Update the billing_batches record with the invoice path (batch ID comes from the assessments)
     const batchId = assessments[0]?.billing_batch_id;
     if (batchId) {
-      await supabase.from('billing_batches').update({ invoice_path: filePath }).eq('id', batchId);
+      await pool.query('UPDATE billing_batches SET invoice_path = $1 WHERE id = $2', [filePath, batchId]);
     }
 
-    await supabase.from('assessments').update({ billing_status: 'invoiced' }).in('id', allAssessmentIds);
+    await pool.query("UPDATE assessments SET billing_status = 'invoiced' WHERE id = ANY($1::int[])", [allAssessmentIds]);
 
-    res.json({ success: true, downloadUrl: urlData.signedUrl, message: 'Invoice issued successfully!' });
+    res.json({ success: true, downloadUrl: signedUrl, message: 'Invoice issued successfully!' });
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 };
 
-// --- 5. Fetch actual files from your Supabase Bucket ---
+// --- 5. Fetch actual files from the invoices bucket ---
 const getInvoiceHistory = async (req, res) => {
   try {
-    // 🌟 FIX: Since Supabase .list() only checks one folder at a time,
-    // we use a recursive function to dive into the folders automatically!
-    const fetchAllFiles = async (folderPath = '') => {
-      const { data, error } = await supabase.storage
-        .from('billing-Invoices')
-        .list(folderPath, { limit: 100 });
-        
-      if (error) throw error;
-      
-      let allFiles = [];
-      for (const item of data) {
-        // In Supabase, if an item has NO id, it is a folder.
-        if (!item.id) { 
-          const subPath = folderPath ? `${folderPath}/${item.name}` : item.name;
-          const subFiles = await fetchAllFiles(subPath);
-          allFiles = allFiles.concat(subFiles);
-        } else if (item.name.endsWith('.pdf')) {
-          // If it is a PDF file, save it and attach the full folder path
-          allFiles.push({ 
-            ...item, 
-            name: folderPath ? `${folderPath}/${item.name}` : item.name 
-          });
-        }
-      }
-      return allFiles;
-    };
+    // GCS list is already flat/recursive (unlike Supabase Storage's one-level-at-a-time
+    // .list()), so no folder-walking helper is needed here anymore.
+    const files = await listFilesDetailed(BILLING_INVOICES_BUCKET, '');
+    const validFiles = files
+      .filter(f => f.name.endsWith('.pdf'))
+      .map(f => ({ name: f.name, created_at: f.createdAt }));
 
-    const validFiles = await fetchAllFiles();
-    
     // Sort files by date descending (newest first)
     validFiles.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -407,12 +398,9 @@ const getInvoiceDownloadUrl = async (req, res) => {
     if (typeof fileName !== 'string' || fileName.includes('..') || !BILLING_FILE_PATTERN.test(fileName)) {
       return res.status(400).json({ success: false, error: 'Invalid file reference' });
     }
-    const { data, error } = await supabase.storage
-      .from('billing-Invoices')
-      .createSignedUrl(fileName, 300); // short-lived (5 min) — these are single-click downloads
+    const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, fileName, 300); // short-lived (5 min) — these are single-click downloads
 
-    if (error) throw error;
-    res.json({ success: true, signedUrl: data.signedUrl });
+    res.json({ success: true, signedUrl });
   } catch (error) {
     console.error("Error generating download link:", error);
     res.status(500).json({ success: false, error: 'Failed to generate download link' });
@@ -427,15 +415,11 @@ const updateLogStatus = async (req, res) => {
   }
 
   try {
-    const updateData = { billing_status: status };
-    if (status === 'pending') updateData.billing_review = 'accept';
-
-    const { error } = await supabase
-      .from('assessments')
-      .update(updateData)
-      .eq('id', assessmentId);
-
-    if (error) throw error;
+    if (status === 'pending') {
+      await pool.query("UPDATE assessments SET billing_status = $1, billing_review = 'accept' WHERE id = $2", [status, assessmentId]);
+    } else {
+      await pool.query('UPDATE assessments SET billing_status = $1 WHERE id = $2', [status, assessmentId]);
+    }
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating log status:', error);
@@ -455,26 +439,20 @@ const rejectLog = async (req, res) => {
     return res.status(400).json({ error: 'type must be return or reject' });
   }
   try {
-    const { data: current, error: fetchError } = await supabase
-      .from('assessments')
-      .select('rejection_count')
-      .eq('id', assessmentId)
-      .single();
-    if (fetchError) throw fetchError;
+    const { rows: currentRows } = await pool.query(
+      'SELECT rejection_count FROM assessments WHERE id = $1',
+      [assessmentId]
+    );
+    const current = currentRows[0];
 
     const newStatus = type === 'reject' ? 'declined' : 'rejected';
 
-    const { error } = await supabase
-      .from('assessments')
-      .update({
-        billing_status: newStatus,
-        billing_review: type,
-        rejection_note: note.trim(),
-        rejected_at: new Date().toISOString(),
-        rejection_count: (current?.rejection_count || 0) + 1
-      })
-      .eq('id', assessmentId);
-    if (error) throw error;
+    await pool.query(
+      `UPDATE assessments
+       SET billing_status = $1, billing_review = $2, rejection_note = $3, rejected_at = $4, rejection_count = $5
+       WHERE id = $6`,
+      [newStatus, type, note.trim(), new Date().toISOString(), (current?.rejection_count || 0) + 1, assessmentId]
+    );
     res.json({ success: true });
   } catch (error) {
     console.error('Error processing log action:', error);
@@ -488,18 +466,18 @@ const getPractitionerLogs = async (req, res) => {
   if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
 
   try {
-    let query = supabase
-      .from('assessments')
-      .select('id, billing_status, billing_review, service_date, status, type, location, start_time, end_time, total_time, patient_first_name, patient_last_name, rejection_count')
-      .eq('practitioner_id', practitionerId)
-      .in('billing_status', ['pending', 'njeis_review'])
-      .order('service_date', { ascending: true });
+    const params = [practitionerId, ['pending', 'njeis_review']];
+    let sql = `
+      SELECT id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
+             total_time, patient_first_name, patient_last_name, rejection_count
+      FROM assessments
+      WHERE practitioner_id = $1 AND billing_status = ANY($2::text[])
+    `;
+    if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND service_date <= $${params.length}`; }
+    sql += ' ORDER BY patient_first_name ASC, service_date ASC';
 
-    if (startDate) query = query.gte('service_date', startDate);
-    if (endDate) query = query.lte('service_date', endDate);
-
-    const { data: logs, error } = await query;
-    if (error) throw error;
+    const { rows: logs } = await pool.query(sql, params);
 
     res.json({ success: true, logs });
   } catch (error) {
@@ -515,55 +493,52 @@ const getVaultLogs = async (req, res) => {
     return res.status(400).json({ error: 'practitionerFolder and either batchId or startDate+endDate are required' });
   }
   try {
-    let query = supabase
-      .from('assessments')
-      .select('id, billing_status, billing_review, service_date, status, type, location, start_time, end_time, total_time, patient_first_name, patient_last_name')
-      .in('billing_status', ['invoiced', 'declined', 'rejected']);
+    const selectCols = `id, billing_status, billing_review, service_date, status, type, location, start_time, end_time, total_time, patient_first_name, patient_last_name`;
+    const params = [['invoiced', 'declined', 'rejected']];
+    let sql = `SELECT ${selectCols} FROM assessments WHERE billing_status = ANY($1::text[])`;
 
     if (batchId) {
       // New batch: exact scoping by batch ID alone. Deliberately skips the practitioner
       // name lookup below — billing_batch_id is already unambiguous, and resolving the
-      // practitioner from the folder name here would break (.single() throws) whenever
+      // practitioner from the folder name here would break (single-row lookup throws) whenever
       // two practitioners share the same first+last name.
-      query = query.eq('billing_batch_id', batchId);
+      params.push(batchId);
+      sql += ` AND billing_batch_id = $${params.length}`;
     } else {
       const parts = practitionerFolder.split('_');
       const firstName = parts[0];
       const lastName = parts.slice(1).join(' ');
 
-      const { data: practitioner, error: practError } = await supabase
-        .from('practitioners')
-        .select('id')
-        .ilike('first_name', firstName)
-        .ilike('last_name', lastName)
-        .single();
+      const { rows: practitionerRows } = await pool.query(
+        'SELECT id FROM practitioners WHERE first_name ILIKE $1 AND last_name ILIKE $2',
+        [firstName, lastName]
+      );
+      const practitioner = practitionerRows[0];
 
-      if (practError || !practitioner) {
+      if (!practitioner) {
         return res.status(404).json({ error: 'Practitioner not found' });
       }
 
-      query = query.eq('practitioner_id', practitioner.id);
+      params.push(practitioner.id);
+      sql += ` AND practitioner_id = $${params.length}`;
 
       if (isOverride === 'true') {
         // Override row: logs explicitly marked as override-invoiced
-        query = query
-          .gte('service_date', startDate)
-          .lte('service_date', endDate)
-          .eq('is_override', true);
+        params.push(startDate); sql += ` AND service_date >= $${params.length}`;
+        params.push(endDate); sql += ` AND service_date <= $${params.length}`;
+        sql += ' AND is_override = true';
       } else {
         // Old-batch fallback: date range scoped to logs with no batch ID
         // Prevents new-batch logs (billing_batch_id IS NOT NULL) from bleeding into old-batch expands
-        query = query
-          .gte('service_date', startDate)
-          .lte('service_date', endDate)
-          .is('billing_batch_id', null)
-          .eq('is_override', false);
+        params.push(startDate); sql += ` AND service_date >= $${params.length}`;
+        params.push(endDate); sql += ` AND service_date <= $${params.length}`;
+        sql += ' AND billing_batch_id IS NULL AND is_override = false';
       }
     }
 
-    const { data: logs, error } = await query.order('service_date', { ascending: true });
+    sql += ' ORDER BY patient_first_name ASC, service_date ASC';
+    const { rows: logs } = await pool.query(sql, params);
 
-    if (error) throw error;
     res.json({ success: true, logs });
   } catch (error) {
     console.error('Error fetching vault logs:', error);
@@ -574,12 +549,15 @@ const getVaultLogs = async (req, res) => {
 // --- 11. Return all billing_batches records (for vault batchId lookup) ---
 const getBillingBatches = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('billing_batches')
-      .select('id, njeis_path, invoice_path, start_date, end_date, practitioner_id, printed_at, paid_at, stamped_invoice_path, practitioners(first_name, last_name)')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json({ success: true, batches: data || [] });
+    const { rows } = await pool.query(`
+      SELECT b.id, b.njeis_path, b.invoice_path, b.start_date, b.end_date, b.practitioner_id,
+             b.printed_at, b.paid_at, b.stamped_invoice_path,
+             jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name) AS practitioners
+      FROM billing_batches b
+      JOIN practitioners p ON p.id = b.practitioner_id
+      ORDER BY b.created_at DESC
+    `);
+    res.json({ success: true, batches: rows || [] });
   } catch (error) {
     console.error('getBillingBatches error:', error);
     res.status(500).json({ error: 'Failed to fetch billing batches' });
@@ -593,11 +571,10 @@ const markBatchPrinted = async (req, res) => {
   if (typeof printed !== 'boolean') return res.status(400).json({ success: false, error: 'printed (boolean) is required' });
 
   try {
-    const { error } = await supabase
-      .from('billing_batches')
-      .update({ printed_at: printed ? new Date().toISOString() : null })
-      .eq('id', id);
-    if (error) throw error;
+    await pool.query(
+      'UPDATE billing_batches SET printed_at = $1 WHERE id = $2',
+      [printed ? new Date().toISOString() : null, id]
+    );
     res.json({ success: true });
   } catch (error) {
     console.error('markBatchPrinted error:', error);
@@ -612,47 +589,43 @@ const markBatchPaid = async (req, res) => {
   if (typeof paid !== 'boolean') return res.status(400).json({ success: false, error: 'paid (boolean) is required' });
 
   try {
-    const { data: batch, error: fetchError } = await supabase
-      .from('billing_batches')
-      .select('id, invoice_path, paid_at, stamped_invoice_path')
-      .eq('id', id)
-      .single();
-    if (fetchError || !batch) return res.status(404).json({ success: false, error: 'Batch not found' });
+    const { rows: batchRows } = await pool.query(
+      'SELECT id, invoice_path, paid_at, stamped_invoice_path FROM billing_batches WHERE id = $1',
+      [id]
+    );
+    const batch = batchRows[0];
+    if (!batch) return res.status(404).json({ success: false, error: 'Batch not found' });
 
     if (paid) {
       if (batch.paid_at) return res.json({ success: true, paid_at: batch.paid_at, stamped_invoice_path: batch.stamped_invoice_path }); // idempotent no-op
       if (!batch.invoice_path) return res.status(400).json({ success: false, error: 'This batch has no invoice PDF to stamp' });
 
-      const { data: fileData, error: downloadError } = await supabase.storage.from('billing-Invoices').download(batch.invoice_path);
-      if (downloadError) throw downloadError;
-      const pdfBytes = Buffer.from(await fileData.arrayBuffer());
+      const pdfBytes = await downloadFile(BILLING_INVOICES_BUCKET, batch.invoice_path);
 
       const paidAt = new Date().toISOString();
       const stampedBytes = await stampInvoicePaid(pdfBytes, paidAt);
       const stampedPath = batch.invoice_path.replace(/\.pdf$/, '_PAID.pdf');
 
-      const { error: uploadError } = await supabase.storage
-        .from('billing-Invoices')
-        .upload(stampedPath, stampedBytes, { contentType: 'application/pdf', upsert: true });
-      if (uploadError) throw uploadError;
+      await uploadFile(BILLING_INVOICES_BUCKET, stampedPath, stampedBytes, 'application/pdf');
 
-      const { error: updateError } = await supabase
-        .from('billing_batches')
-        .update({ paid_at: paidAt, stamped_invoice_path: stampedPath })
-        .eq('id', id);
-      if (updateError) throw updateError;
+      await pool.query(
+        'UPDATE billing_batches SET paid_at = $1, stamped_invoice_path = $2 WHERE id = $3',
+        [paidAt, stampedPath, id]
+      );
 
       res.json({ success: true, paid_at: paidAt, stamped_invoice_path: stampedPath });
     } else {
       if (batch.stamped_invoice_path) {
-        const { error: removeError } = await supabase.storage.from('billing-Invoices').remove([batch.stamped_invoice_path]);
-        if (removeError) console.error('markBatchPaid: stamped file delete error (continuing):', removeError);
+        try {
+          await removeFiles(BILLING_INVOICES_BUCKET, [batch.stamped_invoice_path]);
+        } catch (removeError) {
+          console.error('markBatchPaid: stamped file delete error (continuing):', removeError);
+        }
       }
-      const { error: updateError } = await supabase
-        .from('billing_batches')
-        .update({ paid_at: null, stamped_invoice_path: null })
-        .eq('id', id);
-      if (updateError) throw updateError;
+      await pool.query(
+        'UPDATE billing_batches SET paid_at = NULL, stamped_invoice_path = NULL WHERE id = $1',
+        [id]
+      );
 
       res.json({ success: true });
     }
@@ -673,31 +646,31 @@ const revertBillingBatch = async (req, res) => {
   if (!batchId) return res.status(400).json({ success: false, error: 'batchId is required' });
 
   try {
-    const { data: batch, error: fetchError } = await supabase
-      .from('billing_batches')
-      .select('id, njeis_path, invoice_path')
-      .eq('id', batchId)
-      .single();
+    const { rows: batchRows } = await pool.query(
+      'SELECT id, njeis_path, invoice_path FROM billing_batches WHERE id = $1',
+      [batchId]
+    );
+    const batch = batchRows[0];
 
-    if (fetchError || !batch) {
+    if (!batch) {
       return res.status(404).json({ success: false, error: 'Batch not found (it may have already been reverted).' });
     }
 
-    const { data: revertedAssessments, error: assessmentsError } = await supabase
-      .from('assessments')
-      .update({ billing_status: 'pending', billing_batch_id: null })
-      .eq('billing_batch_id', batchId)
-      .select('id');
-    if (assessmentsError) throw assessmentsError;
+    const { rows: revertedAssessments } = await pool.query(
+      "UPDATE assessments SET billing_status = 'pending', billing_batch_id = NULL WHERE billing_batch_id = $1 RETURNING id",
+      [batchId]
+    );
 
     const filePaths = [batch.njeis_path, batch.invoice_path].filter(Boolean);
     if (filePaths.length > 0) {
-      const { error: storageError } = await supabase.storage.from('billing-Invoices').remove(filePaths);
-      if (storageError) console.error('revertBillingBatch: storage delete error (continuing):', storageError);
+      try {
+        await removeFiles(BILLING_INVOICES_BUCKET, filePaths);
+      } catch (storageError) {
+        console.error('revertBillingBatch: storage delete error (continuing):', storageError);
+      }
     }
 
-    const { error: deleteError } = await supabase.from('billing_batches').delete().eq('id', batchId);
-    if (deleteError) throw deleteError;
+    await pool.query('DELETE FROM billing_batches WHERE id = $1', [batchId]);
 
     res.json({
       success: true,

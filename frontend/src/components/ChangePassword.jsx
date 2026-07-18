@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosInstance'; // Double check this path matches your setup!
+import { AuthLayout } from '@/components/AuthLayout';
+import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/components/ui/password-input';
+import { Label } from '@/components/ui/label';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -43,46 +47,42 @@ const ChangePassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full border border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">Update Required</h2>
-        <p className="text-slate-500 mb-6 text-sm">
-          For security purposes, you must change your temporary password before accessing the portal.
-        </p>
+    <AuthLayout>
+      <h2 className="text-lg font-semibold text-slate-800 mb-2 text-center">Update Required</h2>
+      <p className="text-sm text-slate-500 mb-6 text-center">
+        For security purposes, you must change your temporary password before accessing the portal.
+      </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">New Password</label>
-            <input 
-              type="password" 
-              required
-              className="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Confirm New Password</label>
-            <input 
-              type="password" 
-              required
-              className="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label className="text-slate-700">New Password</Label>
+          <PasswordInput
+            required
+            className="w-full h-11 rounded-lg bg-slate-50 border-slate-200 focus-visible:border-cyan-600 focus-visible:ring-cyan-600/40"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-slate-700">Confirm New Password</Label>
+          <PasswordInput
+            required
+            className="w-full h-11 rounded-lg bg-slate-50 border-slate-200 focus-visible:border-cyan-600 focus-visible:ring-cyan-600/40"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </div>
 
-          <button 
-            type="submit" 
-            disabled={isUpdating} 
-            className="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 mt-4 font-medium transition-colors"
-          >
-            {isUpdating ? 'Updating...' : 'Secure Account & Continue'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <Button
+          type="submit"
+          disabled={isUpdating}
+          className="w-full h-11 mt-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white text-base font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(8,74,90,0.4)] transition-colors"
+        >
+          {isUpdating ? 'Updating...' : 'Secure Account & Continue'}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 };
 

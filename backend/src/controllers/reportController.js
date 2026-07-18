@@ -1,11 +1,14 @@
-const { supabase } = require('../config/db');
+const { pool } = require('../config/db');
+const {
+  NJEIS_FORMS_BUCKET,
+  BILLING_INVOICES_BUCKET,
+  uploadFile,
+  getSignedUrl,
+} = require('../config/storage');
 const { generateNjeisPDF } = require('../utils/njeisGenerator');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const ExcelJS = require('exceljs');
-
-// Strip PostgREST filter metacharacters so a search term can't break out of an .or()/.ilike() filter
-const sanitizeSearchTerm = (raw) => String(raw || '').replace(/[,().*%\\"]/g, '').trim();
 
 // Converts a 24-hour "HH:MM" string into 12-hour AM/PM format for report display.
 const formatTime12h = (timeStr) => {
@@ -23,23 +26,19 @@ const generateMasterReport = async (req, res) => {
   const { practitionerId, targetMonth, targetYear } = req.body;
 
   try {
-    const { data: practitioner, error: pracError } = await supabase
-      .from('practitioners')
-      .select('*')
-      .eq('id', practitionerId)
-      .single();
-
-    if (pracError) throw pracError;
+    const { rows: practitionerRows } = await pool.query(
+      'SELECT * FROM practitioners WHERE id = $1',
+      [practitionerId]
+    );
+    const practitioner = practitionerRows[0];
+    if (!practitioner) throw new Error('Practitioner not found');
 
     const parsedPractitionerId = parseInt(practitionerId, 10);
 
-    const { data: pendingEncounters, error: fetchError } = await supabase
-      .from('assessments')
-      .select('*')
-      .eq('practitioner_id', parsedPractitionerId)
-      .eq('billing_status', 'pending');
-
-    if (fetchError) throw fetchError;
+    const { rows: pendingEncounters } = await pool.query(
+      "SELECT * FROM assessments WHERE practitioner_id = $1 AND billing_status = 'pending'",
+      [parsedPractitionerId]
+    );
 
     if (!pendingEncounters || pendingEncounters.length === 0) {
       return res.status(404).json({ error: 'No pending encounters found.' });
@@ -64,28 +63,26 @@ const generateMasterReport = async (req, res) => {
     for (const [childName, group] of Object.entries(encountersByChild)) {
       const encounters = group.encounters;
       const patientId = group.patientId;
-      
+
       // Calculate hours by dividing the total_time (minutes) by 60
       const totalHours = encounters.reduce((sum, record) => sum + (parseFloat(record.total_time || 0) / 60), 0);
       const encounterIds = encounters.map(e => e.id);
 
-      // 🌟 NEW: Fetch the full patient record from the database to get DOB, County, and Child ID
+      // 🌟 Fetch the full patient record from the database to get DOB, County, and Child ID
       let patientData = null;
       if (patientId) {
-        const { data: pData, error: pError } = await supabase
-          .from('patients')
-          .select('*')
-          .eq('id', patientId)
-          .single();
-        
-        if (!pError) patientData = pData;
-        else console.warn(`Could not fetch patient details for ID ${patientId}:`, pError.message);
+        try {
+          const { rows: pRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [patientId]);
+          patientData = pRows[0] || null;
+        } catch (pError) {
+          console.warn(`Could not fetch patient details for ID ${patientId}:`, pError.message);
+        }
       }
 
       // Merge the official patient table data with fallbacks
-      const childData = { 
-        first_name: patientData?.first_name || childName.split(' ')[0] || '', 
-        last_name: patientData?.last_name || childName.split(' ').slice(1).join(' ') || '', 
+      const childData = {
+        first_name: patientData?.first_name || childName.split(' ')[0] || '',
+        last_name: patientData?.last_name || childName.split(' ').slice(1).join(' ') || '',
         middle_name: patientData?.middle_name || '',
         dob: patientData?.dob || '',
         county: patientData?.county || '',
@@ -95,41 +92,29 @@ const generateMasterReport = async (req, res) => {
       // 🌟 Pass the enriched childData to the generator
       const pdfBuffer = await generateNjeisPDF(
         practitioner,
-        childData, 
+        childData,
         encounters,
         `${targetMonth}/${targetYear}`
       );
 
       const fileName = `${practitionerId}/${childName}-${Date.now()}.pdf`.replace(/\s+/g, '_');
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('njeis-forms')
-        .upload(fileName, pdfBuffer, { contentType: 'application/pdf' });
-
-      if (uploadError) throw uploadError;
+      await uploadFile(NJEIS_FORMS_BUCKET, fileName, pdfBuffer, 'application/pdf');
 
       // 3. Insert into master_reports with the correct patientId and calculated hours
-      const { data: newReport, error: insertError } = await supabase
-        .from('master_reports')
-        .insert([{
-          practitioner_id: practitionerId,
-          patient_id: patientId, 
-          child_name: childName,
-          date_range: `${targetMonth}/${targetYear}`,
-          total_hours: totalHours, 
-          included_assessment_ids: encounterIds,
-          njeis_pdf_path: uploadData.path,
-          status: 'pending_approval' 
-        }])
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
+      const { rows: newReportRows } = await pool.query(
+        `INSERT INTO master_reports
+           (practitioner_id, patient_id, child_name, date_range, total_hours, included_assessment_ids, njeis_pdf_path, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending_approval')
+         RETURNING *`,
+        [practitionerId, patientId, childName, `${targetMonth}/${targetYear}`, totalHours, JSON.stringify(encounterIds), fileName]
+      );
+      const newReport = newReportRows[0];
 
       // 4. Lock the individual encounters using the new admin column
-      await supabase
-        .from('assessments')
-        .update({ billing_status: 'locked_in_report' })
-        .in('id', encounterIds);
+      await pool.query(
+        "UPDATE assessments SET billing_status = 'locked_in_report' WHERE id = ANY($1::int[])",
+        [encounterIds]
+      );
 
       createdReports.push(newReport);
     }
@@ -144,17 +129,31 @@ const generateMasterReport = async (req, res) => {
 // 2. Logic to fetch pending reports for the admin queue
 const getPendingReports = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('master_reports')
-      .select('*, practitioners(first_name, last_name)') 
-      .eq('status', 'pending_approval');
-
-    if (error) throw error;
-    res.json({ success: true, pendingReports: data });
+    const { rows } = await pool.query(`
+      SELECT r.*, jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name) AS practitioners
+      FROM master_reports r
+      JOIN practitioners p ON p.id = r.practitioner_id
+      WHERE r.status = 'pending_approval'
+    `);
+    res.json({ success: true, pendingReports: rows });
   } catch (error) {
     console.error('Error fetching pending reports:', error);
     res.status(500).json({ error: 'Failed to fetch pending reports.' });
   }
+};
+
+// Resolves a practitioner name search term into matching practitioner IDs,
+// or a single numeric ID if the term itself is numeric.
+const resolvePractitionerIds = async (practitionerSearch) => {
+  const term = practitionerSearch.trim();
+  const asNum = parseInt(term);
+  if (!isNaN(asNum)) return [asNum];
+
+  const { rows } = await pool.query(
+    'SELECT id FROM practitioners WHERE first_name ILIKE $1 OR last_name ILIKE $1',
+    [`%${term}%`]
+  );
+  return rows.map(p => p.id);
 };
 
 // 3. Flexible audit query — filters by practitioner name/id, patient name, date range, billing status
@@ -164,53 +163,46 @@ const getAuditLogs = async (req, res) => {
   try {
     let practitionerIds = null;
     if (practitionerSearch && practitionerSearch.trim()) {
-      const term = sanitizeSearchTerm(practitionerSearch);
-      const asNum = parseInt(term);
-      if (!isNaN(asNum)) {
-        practitionerIds = [asNum];
-      } else {
-        const { data: pracList } = await supabase
-          .from('practitioners')
-          .select('id')
-          .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`);
-        if (!pracList || pracList.length === 0) return res.json({ success: true, logs: [] });
-        practitionerIds = pracList.map(p => p.id);
-      }
+      practitionerIds = await resolvePractitionerIds(practitionerSearch);
+      if (practitionerIds.length === 0) return res.json({ success: true, logs: [] });
     }
 
-    let query = supabase
-      .from('assessments')
-      .select(`
-        id, service_date, status, type, location, start_time, end_time, total_time,
-        billing_status, billing_review, patient_first_name, patient_last_name, patient_id,
-        practitioner_id, acknowledged_at, practitioner_response, responded_at,
-        practitioners(first_name, last_name, position_title)
-      `)
-      .order('service_date', { ascending: false })
-      .limit(1000);
+    const params = [];
+    let sql = `
+      SELECT a.id, a.service_date, a.status, a.type, a.location, a.start_time, a.end_time, a.total_time,
+             a.billing_status, a.billing_review, a.patient_first_name, a.patient_last_name, a.patient_id,
+             a.practitioner_id, a.acknowledged_at, a.practitioner_response, a.responded_at,
+             jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name, 'position_title', p.position_title) AS practitioners
+      FROM assessments a
+      JOIN practitioners p ON p.id = a.practitioner_id
+      WHERE 1=1
+    `;
 
-    if (startDate) query = query.gte('service_date', startDate);
-    if (endDate) query = query.lte('service_date', endDate);
+    if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
 
     if (compliance === 'true') {
       // Compliance mode: logs > 30 days old still in pending/njeis_review
       const threshold = new Date();
       threshold.setDate(threshold.getDate() - 30);
       const thresholdDate = threshold.toISOString().split('T')[0];
-      if (!endDate) query = query.lte('service_date', thresholdDate);
-      query = query.in('billing_status', ['pending', 'njeis_review']);
+      if (!endDate) { params.push(thresholdDate); sql += ` AND a.service_date <= $${params.length}`; }
+      params.push(['pending', 'njeis_review']);
+      sql += ` AND a.billing_status = ANY($${params.length}::text[])`;
     } else if (billingStatus && billingStatus !== 'all') {
-      query = query.eq('billing_status', billingStatus);
+      params.push(billingStatus); sql += ` AND a.billing_status = $${params.length}`;
     }
 
-    if (practitionerIds) query = query.in('practitioner_id', practitionerIds);
+    if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
     if (patientSearch && patientSearch.trim()) {
-      const term = sanitizeSearchTerm(patientSearch);
-      query = query.or(`patient_first_name.ilike.%${term}%,patient_last_name.ilike.%${term}%`);
+      const term = patientSearch.trim();
+      params.push(`%${term}%`);
+      sql += ` AND (a.patient_first_name ILIKE $${params.length} OR a.patient_last_name ILIKE $${params.length})`;
     }
 
-    const { data: logs, error } = await query;
-    if (error) throw error;
+    sql += ' ORDER BY a.service_date DESC LIMIT 1000';
+
+    const { rows: logs } = await pool.query(sql, params);
     res.json({ success: true, logs: logs || [] });
   } catch (error) {
     console.error('getAuditLogs error:', error);
@@ -225,42 +217,34 @@ const generateAuditNJEIS = async (req, res) => {
   try {
     let practitionerIds = null;
     if (practitionerSearch && practitionerSearch.trim()) {
-      const term = sanitizeSearchTerm(practitionerSearch);
-      const asNum = parseInt(term);
-      if (!isNaN(asNum)) {
-        practitionerIds = [asNum];
-      } else {
-        const { data: pracList } = await supabase
-          .from('practitioners')
-          .select('id')
-          .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`);
-        if (!pracList || pracList.length === 0) return res.status(404).json({ error: 'No matching practitioners found' });
-        practitionerIds = pracList.map(p => p.id);
-      }
+      practitionerIds = await resolvePractitionerIds(practitionerSearch);
+      if (practitionerIds.length === 0) return res.status(404).json({ error: 'No matching practitioners found' });
     }
 
-    let query = supabase
-      .from('assessments')
-      .select(`
-        id, service_date, status, type, location, start_time, end_time, total_time,
-        billing_status, patient_first_name, patient_last_name, patient_id,
-        practitioner_id, parent_signature, practitioner_signature,
-        practitioners(first_name, last_name, position_title)
-      `)
-      .order('service_date', { ascending: true })
-      .limit(1000);
+    const params = [];
+    let sql = `
+      SELECT a.id, a.service_date, a.status, a.type, a.location, a.start_time, a.end_time, a.total_time,
+             a.billing_status, a.patient_first_name, a.patient_last_name, a.patient_id,
+             a.practitioner_id, a.parent_signature, a.practitioner_signature,
+             jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name, 'position_title', p.position_title) AS practitioners
+      FROM assessments a
+      JOIN practitioners p ON p.id = a.practitioner_id
+      WHERE 1=1
+    `;
 
-    if (startDate) query = query.gte('service_date', startDate);
-    if (endDate) query = query.lte('service_date', endDate);
-    if (billingStatus && billingStatus !== 'all') query = query.eq('billing_status', billingStatus);
-    if (practitionerIds) query = query.in('practitioner_id', practitionerIds);
+    if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
+    if (billingStatus && billingStatus !== 'all') { params.push(billingStatus); sql += ` AND a.billing_status = $${params.length}`; }
+    if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
     if (patientSearch && patientSearch.trim()) {
-      const term = sanitizeSearchTerm(patientSearch);
-      query = query.or(`patient_first_name.ilike.%${term}%,patient_last_name.ilike.%${term}%`);
+      const term = patientSearch.trim();
+      params.push(`%${term}%`);
+      sql += ` AND (a.patient_first_name ILIKE $${params.length} OR a.patient_last_name ILIKE $${params.length})`;
     }
 
-    const { data: logs, error } = await query;
-    if (error) throw error;
+    sql += ' ORDER BY a.service_date ASC LIMIT 1000';
+
+    const { rows: logs } = await pool.query(sql, params);
     if (!logs || logs.length === 0) return res.status(404).json({ error: 'No logs found for the given filters' });
 
     // Group by (practitioner_id, patient_id) — keeps NJEIS header info consistent per form
@@ -281,7 +265,8 @@ const generateAuditNJEIS = async (req, res) => {
       // Fetch full patient record for DOB, county, official child_id
       let patientData = { first_name: group.firstName || '', last_name: group.lastName || '', middle_name: '', dob: '', county: '', child_id: 'N/A' };
       if (group.patientId) {
-        const { data: pData } = await supabase.from('patients').select('*').eq('id', group.patientId).single();
+        const { rows: pRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [group.patientId]);
+        const pData = pRows[0];
         if (pData) {
           patientData = {
             first_name: pData.first_name || patientData.first_name,
@@ -329,14 +314,9 @@ const generateAuditNJEIS = async (req, res) => {
     ].join('');
     const fileName = `audit/AUDIT_NJEIS_${ts}.pdf`;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('njeis-forms')
-      .upload(fileName, Buffer.from(mergedBytes), { contentType: 'application/pdf', upsert: false });
-    if (uploadError) throw uploadError;
+    await uploadFile(NJEIS_FORMS_BUCKET, fileName, Buffer.from(mergedBytes), 'application/pdf');
 
-    const { data: { signedUrl } } = await supabase.storage
-      .from('njeis-forms')
-      .createSignedUrl(uploadData.path, 3600);
+    const signedUrl = await getSignedUrl(NJEIS_FORMS_BUCKET, fileName, 3600);
 
     res.json({ success: true, downloadUrl: signedUrl, pageCount: mergedDoc.getPageCount() });
   } catch (error) {
@@ -625,12 +605,14 @@ const issueInvoiceOverride = async (req, res) => {
   }
   try {
     // Fetch full assessment + practitioner data
-    const { data: assessments, error: fetchError } = await supabase
-      .from('assessments')
-      .select('*, practitioners(*), patients(*)')
-      .in('id', assessmentIds)
-      .in('billing_status', ['declined', 'rejected']);
-    if (fetchError) throw fetchError;
+    const { rows: assessments } = await pool.query(
+      `SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
+       FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
+       LEFT JOIN patients pt ON pt.id = a.patient_id
+       WHERE a.id = ANY($1::int[]) AND a.billing_status = ANY($2::text[])`,
+      [assessmentIds, ['declined', 'rejected']]
+    );
     if (!assessments || assessments.length === 0) {
       return res.status(400).json({ error: 'No eligible assessments found' });
     }
@@ -644,12 +626,10 @@ const issueInvoiceOverride = async (req, res) => {
     });
 
     // Update DB status FIRST — so failed PDF/upload attempts leave no orphan files in storage
-    const { error } = await supabase
-      .from('assessments')
-      .update({ billing_status: 'invoiced', billing_review: 'accept', is_override: true })
-      .in('id', assessmentIds)
-      .in('billing_status', ['declined', 'rejected']);
-    if (error) throw error;
+    await pool.query(
+      "UPDATE assessments SET billing_status = 'invoiced', billing_review = 'accept', is_override = true WHERE id = ANY($1::int[]) AND billing_status = ANY($2::text[])",
+      [assessmentIds, ['declined', 'rejected']]
+    );
 
     const now = new Date();
     const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -685,35 +665,30 @@ const issueInvoiceOverride = async (req, res) => {
       const maxDate = (serviceDates[serviceDates.length - 1] || '').replace(/-/g, '');
       const filePath = `${yearMonth}/${practName}/Override_Invoice_${minDate}_${maxDate}_${timeStamp}.pdf`;
 
-      await supabase.storage.from('billing-Invoices').upload(filePath, invoicePdfBuffer, { contentType: 'application/pdf', upsert: true });
-      const { data: urlData } = await supabase.storage.from('billing-Invoices').createSignedUrl(filePath, 3600);
-      const signedUrl = urlData?.signedUrl || null;
+      await uploadFile(BILLING_INVOICES_BUCKET, filePath, invoicePdfBuffer, 'application/pdf');
+      const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, filePath, 3600);
 
       logs.forEach(a => { downloadUrls[a.id] = signedUrl; });
 
       // Create a billing_batches row so this override invoice can be tracked in Invoice Status
       // (printed/paid) the same way normal batches are — mirrors generateNJEISForms' insert→stamp order
       // so a failed insert/stamp here never leaves assessments pointing at a batch with no invoice.
-      const { data: batchRow, error: batchInsertError } = await supabase
-        .from('billing_batches')
-        .insert({
-          practitioner_id: practitioner.id,
-          start_date: serviceDates[0] || null,
-          end_date: serviceDates[serviceDates.length - 1] || null,
-          njeis_path: null,
-          invoice_path: filePath,
-        })
-        .select('id')
-        .single();
-
-      if (batchInsertError) {
-        console.warn('issueInvoiceOverride: billing_batches insert failed (non-fatal):', batchInsertError.message);
-      } else if (batchRow) {
-        const { error: stampError } = await supabase
-          .from('assessments')
-          .update({ billing_batch_id: batchRow.id })
-          .in('id', logs.map(l => l.id));
-        if (stampError) console.warn('issueInvoiceOverride: billing_batch_id stamp failed (non-fatal):', stampError.message);
+      try {
+        const { rows: batchRows } = await pool.query(
+          `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path, invoice_path)
+           VALUES ($1, $2, $3, NULL, $4)
+           RETURNING id`,
+          [practitioner.id, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath]
+        );
+        const batchRow = batchRows[0];
+        if (batchRow) {
+          await pool.query(
+            'UPDATE assessments SET billing_batch_id = $1 WHERE id = ANY($2::int[])',
+            [batchRow.id, logs.map(l => l.id)]
+          );
+        }
+      } catch (batchInsertError) {
+        console.warn('issueInvoiceOverride: billing_batches insert/stamp failed (non-fatal):', batchInsertError.message);
       }
     }
 

@@ -3,7 +3,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
-const { supabase } = require('../config/db'); 
+const { pool } = require('../config/db');
 
 // Import the functions from the controller
 const { registerPatient, getPatients, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats } = require('../controllers/patientController');
@@ -35,15 +35,14 @@ router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {
     const { assessmentId } = req.params;
     const practitionerId = req.practitioner.practitionerId;
 
-    // 1. Fetch data from Supabase — scoped to the requesting practitioner (no cross-account access)
-    const { data: assessment, error } = await supabase
-      .from('assessments')
-      .select('*')
-      .eq('id', assessmentId)
-      .eq('practitioner_id', practitionerId)
-      .single();
+    // 1. Fetch data — scoped to the requesting practitioner (no cross-account access)
+    const { rows } = await pool.query(
+      'SELECT * FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [assessmentId, practitionerId]
+    );
+    const assessment = rows[0];
 
-    if (error || !assessment) return res.status(404).send('Assessment record not found');
+    if (!assessment) return res.status(404).send('Assessment record not found');
 
     // 2. Load the template
     const pdfPath = path.join(__dirname, '../../templates/NJEIS-020.pdf');

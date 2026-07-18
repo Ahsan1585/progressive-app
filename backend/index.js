@@ -12,14 +12,8 @@ const { PDFDocument } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
 
-// --- Supabase Database Initialization ---
-const { createClient } = require('@supabase/supabase-js');
-const supabaseUrl = process.env.SUPABASE_URL;
-
-// 👇 CHANGED BACK: It now looks for exactly "SUPABASE_KEY" in your .env file
-const supabaseKey = process.env.SUPABASE_KEY; 
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+// --- Database Initialization ---
+const { pool } = require('./src/config/db');
 
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
@@ -101,70 +95,41 @@ app.post('/api/interventions', protect, async (req, res) => {
     const trustedPractitionerId = req.practitioner.practitionerId;
 
     // Ownership check: the patient must belong to the requesting practitioner
-    const { data: ownedPatient, error: ownerrErr } = await supabase
-      .from('patients')
-      .select('id')
-      .eq('id', patientId)
-      .eq('practitioner_id', trustedPractitionerId)
-      .single();
-    if (ownerrErr || !ownedPatient) {
+    const { rows: ownedRows } = await pool.query(
+      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      [patientId, trustedPractitionerId]
+    );
+    if (!ownedRows[0]) {
       return res.status(403).json({ error: 'Not authorized for this patient' });
     }
 
     // Service type check: the submitted type must be one the practitioner was registered to provide
-    const { data: submittingPractitioner, error: practitionerErr } = await supabase
-      .from('practitioners')
-      .select('service_types')
-      .eq('id', trustedPractitionerId)
-      .single();
-    if (practitionerErr) {
-      return res.status(500).json({ error: 'Server error' });
-    }
+    const { rows: practitionerRows } = await pool.query(
+      'SELECT service_types FROM practitioners WHERE id = $1',
+      [trustedPractitionerId]
+    );
+    const submittingPractitioner = practitionerRows[0];
     if (submittingPractitioner.service_types?.length > 0 && !submittingPractitioner.service_types.includes(type)) {
       return res.status(403).json({ error: 'You are not registered to provide this service type' });
     }
 
-    const { data, error } = await supabase
-      .from('assessments')
-      .insert([
-        {
-          patient_id: patientId,
-          practitioner_id: trustedPractitionerId,
-          
-          // Patient Demographics
-          patient_first_name,
-          patient_last_name,
-          patient_dob,
-          patient_county, 
-          
-          // Practitioner Details
-          practitioner_first_name,
-          practitioner_last_name,
-          practitioner_discipline,
-          
-          // Encounter Details
-          service_date: date,
-          start_time: startTime,
-          end_time: endTime,
-          total_time: finalTotalTime,
-          status: status,
-          type: type,
-          location: location,
-          
-          // Signatures
-          parent_signature: parentSignatureBase64,        
-          practitioner_signature: practitionerSignatureBase64,
-          
-          form_data: {}
-        }
-      ]);
+    const { rows: insertedRows } = await pool.query(
+      `INSERT INTO assessments
+         (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
+          practitioner_first_name, practitioner_last_name, practitioner_discipline,
+          service_date, start_time, end_time, total_time, status, type, location,
+          parent_signature, practitioner_signature, form_data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+       RETURNING *`,
+      [
+        patientId, trustedPractitionerId, patient_first_name, patient_last_name, patient_dob, patient_county,
+        practitioner_first_name, practitioner_last_name, practitioner_discipline,
+        date, startTime, endTime, finalTotalTime, status, type, location,
+        parentSignatureBase64, practitionerSignatureBase64, JSON.stringify({})
+      ]
+    );
 
-    if (error) {
-      console.error("Supabase Insertion Error:", error);
-      return res.status(500).json({ error: 'Database error' });
-    }
-
-    res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data });
+    res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: insertedRows });
   } catch (error) {
     console.error('Failed to save encounter:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -180,13 +145,12 @@ app.get('/api/practitioner/profile', protect, async (req, res) => {
   try {
     const practitionerId = req.practitioner.practitionerId;
     // Explicit allow-list — never return password_hash, ssn, or pay_rate to the client
-    const { data, error } = await supabase
-      .from('practitioners')
-      .select('id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature, service_types')
-      .eq('id', practitionerId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
+    const { rows } = await pool.query(
+      `SELECT id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature, service_types
+       FROM practitioners WHERE id = $1`,
+      [practitionerId]
+    );
+    const data = rows[0];
 
     // Map the signature so the frontend can read it easily
     if (data) data.signature = data.saved_signature;
@@ -204,12 +168,8 @@ app.post('/api/practitioner/signature', protect, async (req, res) => {
     const practitionerId = req.practitioner.practitionerId;
     const { signature } = req.body;
 
-    const { error } = await supabase
-      .from('practitioners')
-      .update({ saved_signature: signature })
-      .eq('id', practitionerId);
+    await pool.query('UPDATE practitioners SET saved_signature = $1 WHERE id = $2', [signature, practitionerId]);
 
-    if (error) throw error;
     res.json({ success: true, message: 'Default signature securely saved.' });
   } catch (error) {
     console.error('Signature save error:', error);
@@ -229,13 +189,11 @@ app.get('/api/reports/practitioner/njeis-form', protect, async (req, res) => {
     
     const practitionerId = req.practitioner.practitionerId;
 
-    const { data: assessments, error } = await supabase
-      .from('assessments')
-      .select('*')
-      .eq('practitioner_id', practitionerId)
-      .order('service_date', { ascending: true });
+    const { rows: assessments } = await pool.query(
+      'SELECT * FROM assessments WHERE practitioner_id = $1 ORDER BY service_date ASC',
+      [practitionerId]
+    );
 
-    if (error) throw error;
     if (!assessments || assessments.length === 0) return res.status(404).send('No records found for this practitioner.');
 
     const groupedByPatient = assessments.reduce((acc, record) => {
@@ -352,13 +310,13 @@ app.get('/api/admin/reports/njeis-form', protect, requireRole(['ceo', 'staff_dir
       return res.status(400).json({ error: "Invalid search field" });
     }
 
-    const { data: assessments, error } = await supabase
-      .from('assessments')
-      .select('*')
-      .eq(type, value)
-      .order('service_date', { ascending: true });
+    // `type` is safe to interpolate as a column name here — it's already
+    // validated against ALLOWED_SEARCH_COLUMNS above, never raw user input.
+    const { rows: assessments } = await pool.query(
+      `SELECT * FROM assessments WHERE ${type} = $1 ORDER BY service_date ASC`,
+      [value]
+    );
 
-    if (error) throw error;
     if (!assessments || assessments.length === 0) {
       return res.status(404).send('No records found for this identifier.');
     }
@@ -469,21 +427,17 @@ app.get('/api/interventions/:patientId', protect, async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
     // Ownership check: only return assessments for a patient owned by the requester
-    const { data: ownedPatient } = await supabase
-      .from('patients')
-      .select('id')
-      .eq('id', patientId)
-      .eq('practitioner_id', practitionerId)
-      .single();
-    if (!ownedPatient) return res.status(403).json({ error: 'Not authorized for this patient' });
+    const { rows: ownedRows } = await pool.query(
+      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      [patientId, practitionerId]
+    );
+    if (!ownedRows[0]) return res.status(403).json({ error: 'Not authorized for this patient' });
 
-    const { data, error } = await supabase
-      .from('assessments')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('service_date', { ascending: false });
-    if (error) throw error;
-    res.json(data);
+    const { rows } = await pool.query(
+      'SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date DESC',
+      [patientId]
+    );
+    res.json(rows);
   } catch (error) {
     console.error('Fetch interventions error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -495,18 +449,4 @@ app.get('/health', (req, res) => { res.json({ status: 'ok', timestamp: new Date(
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-
-  // Keep-alive: ping self every 10 min to prevent Render free tier from sleeping
-  const pingUrl = process.env.RENDER_EXTERNAL_URL;
-  if (pingUrl) {
-    const https = require('https');
-    setInterval(() => {
-      https.get(`${pingUrl}/health`, (res) => {
-        console.log(`[keep-alive] ping → ${res.statusCode}`);
-      }).on('error', (err) => {
-        console.warn(`[keep-alive] ping failed: ${err.message}`);
-      });
-    }, 10 * 60 * 1000);
-    console.log(`[keep-alive] pinging ${pingUrl}/health every 10 min`);
-  }
 });

@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/toast";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { isPasswordStrong, getPasswordRules } from "@/utils/password";
@@ -61,8 +61,7 @@ export default function ChangePasswordVoluntary() {
         {error && <InlineErrorBanner message={error} />}
 
         <Field id="newPassword" label="New password">
-          <Input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -80,8 +79,7 @@ export default function ChangePasswordVoluntary() {
         </ul>
 
         <Field id="confirmPassword" label="Confirm new password" error={mismatch ? "Passwords do not match." : null}>
-          <Input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

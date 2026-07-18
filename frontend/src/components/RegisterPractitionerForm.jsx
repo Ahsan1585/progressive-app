@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 
 const formatPhone = (val) => {
@@ -9,6 +10,13 @@ const formatPhone = (val) => {
   if (d.length <= 3) return d;
   if (d.length <= 6) return `${d.slice(0,3)}-${d.slice(3)}`;
   return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`;
+};
+
+const formatSSN = (val) => {
+  const d = val.replace(/\D/g, '').slice(0, 9);
+  if (d.length <= 3) return d;
+  if (d.length <= 5) return `${d.slice(0,3)}-${d.slice(3)}`;
+  return `${d.slice(0,3)}-${d.slice(3,5)}-${d.slice(5)}`;
 };
 
 // Service Type Code legend from the NJEIS-020 form — must match
@@ -549,11 +557,12 @@ export const RegisterPractitionerForm = () => {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">SSN / EIN</Label>
-              <Input
-                type="password"
+              <PasswordInput
+                inputMode="numeric"
                 value={regForm.ssn}
-                onChange={(e) => setRegForm({...regForm, ssn: e.target.value})}
+                onChange={(e) => setRegForm({...regForm, ssn: formatSSN(e.target.value)})}
                 placeholder="XXX-XX-XXXX"
+                maxLength={11}
                 required={regForm.role === 'practitioner'}
               />
             </div>
@@ -562,8 +571,7 @@ export const RegisterPractitionerForm = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Temporary Password</Label>
-              <Input
-                type="password"
+              <PasswordInput
                 required
                 placeholder="••••••••"
                 value={regForm.password}

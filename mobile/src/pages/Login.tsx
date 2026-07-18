@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthLayout } from "@/components/shell/AuthLayout";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import type { LoginResponse, ApiErrorBody } from "@/types";
@@ -91,8 +92,7 @@ export default function Login() {
 
         <div>
           <Field id="password" label="Password">
-            <Input
-              type="password"
+            <PasswordInput
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

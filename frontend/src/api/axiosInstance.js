@@ -20,7 +20,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('role');
-      if (window.location.pathname !== '/' && window.location.pathname !== '/admin-login') {
+      if (window.location.pathname !== '/') {
         window.location.assign('/');
       }
     }

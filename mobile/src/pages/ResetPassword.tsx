@@ -5,6 +5,7 @@ import api from "@/api/axiosInstance";
 import { AuthLayout } from "@/components/shell/AuthLayout";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { isPasswordStrong, getPasswordRules } from "@/utils/password";
 import { cn } from "@/lib/utils";
@@ -101,8 +102,7 @@ export default function ResetPassword() {
         </Field>
 
         <Field id="newPassword" label="New password">
-          <Input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -121,8 +121,7 @@ export default function ResetPassword() {
         </ul>
 
         <Field id="confirmPassword" label="Confirm new password" error={mismatch ? "Passwords do not match." : null}>
-          <Input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
