@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 165 40" role="img" aria-label="Izaya">
-  <polyline points="4,9 17,20 4,31" fill="none" stroke="#10B981" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" />
-  <text x="30" y="30" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="27" letter-spacing="0.5" fill="#0F172A">IZAYA</text>
-  <circle cx="55" cy="5" r="3.5" fill="#10B981" />
-  <circle cx="110" cy="5" r="3.5" fill="#10B981" />
-</svg>

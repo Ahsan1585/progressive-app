@@ -1,7 +1,5 @@
 import { Lock, ShieldCheck, Smartphone } from 'lucide-react';
-// TODO: swap for the real Izaya logo once it's saved to frontend/src/assets/
-// (this placeholder wordmark approximates it so the build isn't broken in the meantime).
-import izayaLogo from '@/assets/izaya-logo.svg';
+import izayaLogo from '@/assets/izaya-logo.png';
 
 // The practitioner mobile app is a separate deployment (its own PWA install
 // flow lives there — Android gets a native install prompt, iOS gets "Add to

@@ -1,9 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Lock, ShieldCheck } from "lucide-react";
-// TODO: swap for the real Izaya logo once it's saved alongside the
-// frontend app's copy (this placeholder wordmark keeps both apps in sync
-// until the real file lands).
-import izayaLogo from "@/assets/izaya-logo.svg";
+import izayaLogo from "@/assets/izaya-logo.png";
 
 // Scoped override of the app's tokens for the pre-auth stack: Izaya teal
 // instead of the app-wide Clinical Trust Blue for the --primary family, and
