@@ -129,6 +129,53 @@ const generateInvoicePDF = async (practitioner, encounters) => {
   page.drawText('Therapist Signature: _______________________', { x: margin + 6, y: y - declBoxH + 14, font: bold, size: 10, color: rgb(0,0,0) });
   page.drawText('Date: _______________', { x: margin + contentWidth - 145, y: y - declBoxH + 14, font: bold, size: 10, color: rgb(0,0,0) });
 
+  // ── County hours / total amount summary ──
+  // One flat rate applies to the whole invoice (a batch is always scoped to a
+  // single practitioner), so the total is just total hours * that rate.
+  const declBottomY = y - declBoxH;
+
+  const countyTotals = {};
+  encounters.forEach(enc => {
+    const county = (enc.county || '').trim() || 'Unspecified';
+    const hours = parseFloat(enc.total_hours) || 0;
+    countyTotals[county] = (countyTotals[county] || 0) + hours;
+  });
+  const countyNames = Object.keys(countyTotals).sort();
+  const totalHours = countyNames.reduce((sum, c) => sum + countyTotals[c], 0);
+  const payRate = parseFloat(encounters[0]?.rate_of_pay) || 0;
+  const totalAmount = totalHours * payRate;
+
+  const summaryLineH = 16;
+  const summaryNeededH = 20 + Math.max(countyNames.length, 2) * summaryLineH;
+
+  let summaryPage = page;
+  let summaryY;
+  if (declBottomY - summaryNeededH < margin) {
+    // Long invoice — the declaration box already runs close to the page edge,
+    // so give the summary its own page instead of overlapping/overflowing.
+    summaryPage = pdfDoc.addPage([612, 792]);
+    summaryY = summaryPage.getSize().height - margin;
+  } else {
+    summaryY = declBottomY - 26;
+  }
+
+  summaryPage.drawText('HOURS:', { x: margin, y: summaryY, font: bold, size: 10, color: rgb(0,0,0) });
+  summaryPage.drawText(`Total Hours: ${totalHours.toFixed(2)}`, { x: margin + 260, y: summaryY, font: bold, size: 10, color: rgb(0,0,0) });
+
+  let rowY = summaryY - summaryLineH;
+  countyNames.forEach((county, i) => {
+    summaryPage.drawText(`${county}: ${countyTotals[county].toFixed(2)}`, { x: margin, y: rowY, font: regular, size: 10, color: rgb(0,0,0) });
+    if (i === 0) {
+      summaryPage.drawText(`Total Amount: $${totalAmount.toFixed(2)}`, { x: margin + 260, y: rowY, font: bold, size: 10, color: rgb(0,0,0) });
+    }
+    rowY -= summaryLineH;
+  });
+  // Only one county — the "Total Amount" line still needs to be drawn even
+  // though the loop above only writes it alongside the first county row.
+  if (countyNames.length === 0) {
+    summaryPage.drawText(`Total Amount: $${totalAmount.toFixed(2)}`, { x: margin + 260, y: rowY, font: bold, size: 10, color: rgb(0,0,0) });
+  }
+
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 };
