@@ -24,7 +24,7 @@ export function AuthLayout({ children }) {
           <div className="flex flex-col items-center justify-center mb-8 text-center">
             <img src={izayaLogo} alt="Izaya" className="h-9 w-auto mb-3" />
             <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">
-              Early Intervention Management System
+              Early Intervention Simplified
             </p>
           </div>
           {children}

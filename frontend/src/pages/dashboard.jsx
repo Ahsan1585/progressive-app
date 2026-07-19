@@ -303,6 +303,10 @@ const Dashboard = () => {
             })
           )}
         </div>
+
+        <div className="p-4 border-t border-slate-100">
+          <p className="text-[10px] text-slate-300 text-center font-medium tracking-wide uppercase">Early Intervention Simplified</p>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">

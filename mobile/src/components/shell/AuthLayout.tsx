@@ -74,7 +74,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             <div className="mb-8 flex flex-col items-center text-center">
               <img src={izayaLogo} alt="Izaya" className="mb-3 h-8 w-auto" />
               <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">
-                Early Intervention Management System
+                Early Intervention Simplified
               </p>
             </div>
             {children}

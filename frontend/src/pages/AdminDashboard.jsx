@@ -163,6 +163,7 @@ const AdminDashboard = () => {
 
         <div className="p-4 border-t border-slate-100">
           <p className="text-xs text-slate-400 text-center font-medium">Progressive Steps NJ</p>
+          <p className="text-[10px] text-slate-300 text-center font-medium tracking-wide uppercase mt-0.5">Early Intervention Simplified</p>
         </div>
       </aside>
 
