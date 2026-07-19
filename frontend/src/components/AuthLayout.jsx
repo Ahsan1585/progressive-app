@@ -4,10 +4,10 @@ import izayaLogo from '@/assets/izaya-logo.png';
 // The practitioner mobile app is a separate deployment (its own PWA install
 // flow lives there — Android gets a native install prompt, iOS gets "Add to
 // Home Screen" instructions — neither can be triggered from this origin).
-const MOBILE_APP_URL = 'https://mobile-pied-two.vercel.app/login';
+export const MOBILE_APP_URL = 'https://mobile-pied-two.vercel.app/login';
 // `install=1` tells the mobile login page to lead with the install
 // card instead of burying it below the sign-in form.
-const MOBILE_APP_INSTALL_URL = `${MOBILE_APP_URL}?install=1`;
+export const MOBILE_APP_INSTALL_URL = `${MOBILE_APP_URL}?install=1`;
 
 // Decorative hero banner (mobile layout only) — early-intervention motif
 // (sprout growth + a parent/child pair holding hands) on the Izaya
