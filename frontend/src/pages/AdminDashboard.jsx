@@ -4,6 +4,7 @@ import api from '@/api/axiosInstance';
 import { MasterReports } from '@/components/MasterReports';
 import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
+import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
   practitioners: ['ceo', 'staff_director', 'account_specialist'],
@@ -161,9 +162,10 @@ const AdminDashboard = () => {
 
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
-          <p className="text-xs text-slate-900 text-center font-medium">Securely Powered by Izaya</p>
-          <p className="text-[10px] text-slate-900 text-center font-medium tracking-wide uppercase mt-0.5">Early Intervention Simplified</p>
+        <div className="p-4 border-t border-slate-100 flex flex-col items-center">
+          <img src={izayaLogo} alt="Izaya" className="h-5 w-auto mb-1.5" />
+          <p className="text-xs text-slate-700 text-center font-medium">Securely Powered by Izaya</p>
+          <p className="text-[10px] text-slate-700 text-center font-medium tracking-wide uppercase mt-0.5">Early Intervention Simplified</p>
         </div>
       </aside>
 
