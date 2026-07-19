@@ -60,16 +60,16 @@ function LoginHero() {
 // desktop redesign is provided); the rest is the mobile-first layout.
 export function AuthLayout({ children }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-[420px]">
-        {/* Hero banner — mobile only */}
-        <div className="md:hidden relative -mb-3.5 h-[104px] overflow-hidden rounded-t-[22px] rounded-b-md bg-gradient-to-br from-[#0E6E67] via-[#2E8FC7] to-[#2FBF9F]">
+    <div className="min-h-screen flex flex-col bg-white md:items-center md:justify-center md:bg-slate-100 md:p-4">
+      <div className="flex flex-1 flex-col md:flex-none md:w-full md:max-w-[420px]">
+        {/* Hero banner — mobile only, flush to the screen edges */}
+        <div className="md:hidden relative h-44 shrink-0 overflow-hidden bg-gradient-to-br from-[#0E6E67] via-[#2E8FC7] to-[#2FBF9F]">
           <LoginHero />
         </div>
 
-        <div className="relative overflow-hidden rounded-t-md rounded-b-[22px] md:rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-8px_rgba(15,23,42,0.12)] animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="relative overflow-hidden md:rounded-2xl border-0 md:border md:border-slate-200/80 bg-white md:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-8px_rgba(15,23,42,0.12)] animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="hidden md:block h-1 bg-gradient-to-r from-cyan-600 to-teal-500" />
-          <div className="p-8">
+          <div className="px-6 pt-8 pb-6 md:p-8">
             <div className="flex flex-col items-center justify-center mb-6 md:mb-8 text-center">
               <img src={izayaLogo} alt="Izaya" className="h-9 w-auto mb-3" />
               <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">
@@ -85,6 +85,24 @@ export function AuthLayout({ children }) {
 
             {children}
           </div>
+        </div>
+
+        {/* Mobile: single combined install badge — flush width, fills the rest of the screen so no page background shows around it */}
+        <div className="md:hidden flex flex-1 flex-col items-center justify-center gap-2.5 bg-slate-50 px-6 py-8">
+          <a
+            href={MOBILE_APP_INSTALL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2.5 rounded-xl bg-[#132A3E] px-4.5 py-2.5 text-white transition-colors hover:brightness-110"
+          >
+            <Download className="size-[18px] shrink-0" aria-hidden="true" />
+            <span className="flex flex-col text-left leading-tight">
+              <span className="text-[9px] font-medium uppercase tracking-wide opacity-75">No app store needed</span>
+              <span className="text-[13px] font-semibold">Install App on Your Phone</span>
+            </span>
+          </a>
+          <p className="text-[11px] text-slate-500">Works on iPhone &amp; Android — installs in seconds</p>
+          <p className="text-[11px] text-slate-600">Izaya Consulting LLC</p>
         </div>
       </div>
 
@@ -123,24 +141,6 @@ export function AuthLayout({ children }) {
             Get it on iPhone
           </a>
         </div>
-      </div>
-
-      {/* Mobile: single combined install badge */}
-      <div className="md:hidden mt-5 flex flex-col items-center gap-2.5">
-        <a
-          href={MOBILE_APP_INSTALL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2.5 rounded-xl bg-[#132A3E] px-4.5 py-2.5 text-white transition-colors hover:brightness-110"
-        >
-          <Download className="size-[18px] shrink-0" aria-hidden="true" />
-          <span className="flex flex-col text-left leading-tight">
-            <span className="text-[9px] font-medium uppercase tracking-wide opacity-75">No app store needed</span>
-            <span className="text-[13px] font-semibold">Install App on Your Phone</span>
-          </span>
-        </a>
-        <p className="text-[11px] text-slate-500">Works on iPhone &amp; Android — installs in seconds</p>
-        <p className="text-[11px] text-slate-600">Izaya Consulting LLC</p>
       </div>
     </div>
   );

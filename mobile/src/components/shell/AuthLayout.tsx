@@ -103,33 +103,29 @@ function LoginHero() {
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div
-      className="safe-top safe-bottom flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-100 px-5 py-8"
+      className="safe-top safe-bottom flex min-h-0 flex-1 flex-col overflow-y-auto bg-white"
       style={authThemeVars}
     >
-      <div className="m-auto w-full max-w-sm">
-        <div className="relative -mb-3.5 h-[104px] overflow-hidden rounded-t-[22px] rounded-b-md bg-gradient-to-br from-[#0E6E67] via-[#2E8FC7] to-[#2FBF9F]">
-          <LoginHero />
+      <div className="relative h-44 shrink-0 overflow-hidden bg-gradient-to-br from-[#0E6E67] via-[#2E8FC7] to-[#2FBF9F]">
+        <LoginHero />
+      </div>
+
+      <div className="flex flex-1 flex-col bg-white px-6 pt-8 pb-6">
+        <div className="mb-4 flex flex-col items-center text-center">
+          <img src={izayaLogo} alt="Izaya" className="mb-3 h-8 w-auto" />
+          <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">
+            Early Intervention Simplified
+          </p>
         </div>
 
-        <div className="relative overflow-hidden rounded-t-md rounded-b-[22px] border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-8px_rgba(15,23,42,0.12)]">
-          <div className="p-6">
-            <div className="mb-4 flex flex-col items-center text-center">
-              <img src={izayaLogo} alt="Izaya" className="mb-3 h-8 w-auto" />
-              <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">
-                Early Intervention Simplified
-              </p>
-            </div>
-
-            <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700">
-              <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
-              Secured &amp; HIPAA Compliant
-            </div>
-
-            {children}
-          </div>
+        <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700">
+          <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
+          Secured &amp; HIPAA Compliant
         </div>
 
-        <p className="mt-5 text-center text-[11px] text-slate-600">Izaya Consulting LLC</p>
+        {children}
+
+        <p className="mt-auto pt-8 text-center text-[11px] text-slate-600">Izaya Consulting LLC</p>
       </div>
     </div>
   );
