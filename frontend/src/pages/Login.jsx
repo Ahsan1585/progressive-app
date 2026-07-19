@@ -95,7 +95,7 @@ const Login = () => {
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="w-full h-11 mt-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white text-base font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(8,74,90,0.4)] transition-colors"
+          className="w-full h-11 mt-2 rounded-lg bg-gradient-to-br from-[#0E6E67] to-[#132A3E] hover:brightness-110 md:bg-none md:bg-cyan-700 md:hover:bg-cyan-800 text-white text-base font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(8,74,90,0.4)] transition-colors"
         >
           {isSubmitting ? 'Signing in...' : 'Sign In'}
         </Button>
