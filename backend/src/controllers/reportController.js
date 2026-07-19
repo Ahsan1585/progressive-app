@@ -210,6 +210,45 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
+// 3b. Org-wide patient roster — every patient any practitioner has registered
+const getAllPatients = async (req, res) => {
+  const { practitionerSearch, patientSearch, status } = req.query;
+
+  try {
+    let practitionerIds = null;
+    if (practitionerSearch && practitionerSearch.trim()) {
+      practitionerIds = await resolvePractitionerIds(practitionerSearch);
+      if (practitionerIds.length === 0) return res.json({ success: true, patients: [] });
+    }
+
+    const params = [];
+    let sql = `
+      SELECT pt.id, pt.first_name, pt.middle_name, pt.last_name, pt.dob, pt.county, pt.child_id,
+             pt.status, pt.created_at, pt.practitioner_id,
+             jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name) AS practitioners
+      FROM patients pt
+      JOIN practitioners p ON p.id = pt.practitioner_id
+      WHERE 1=1
+    `;
+
+    if (status && status !== 'all') { params.push(status); sql += ` AND pt.status = $${params.length}`; }
+    if (practitionerIds) { params.push(practitionerIds); sql += ` AND pt.practitioner_id = ANY($${params.length}::int[])`; }
+    if (patientSearch && patientSearch.trim()) {
+      const term = patientSearch.trim();
+      params.push(`%${term}%`);
+      sql += ` AND (pt.first_name ILIKE $${params.length} OR pt.last_name ILIKE $${params.length} OR pt.child_id ILIKE $${params.length})`;
+    }
+
+    sql += ' ORDER BY pt.created_at DESC LIMIT 2000';
+
+    const { rows: patients } = await pool.query(sql, params);
+    res.json({ success: true, patients: patients || [] });
+  } catch (error) {
+    console.error('getAllPatients error:', error);
+    res.status(500).json({ error: 'Failed to fetch patients' });
+  }
+};
+
 // 4. Generate merged NJEIS PDF from audit query — one form per (practitioner, child) pair, 10 rows per page
 const generateAuditNJEIS = async (req, res) => {
   const { practitionerSearch, patientSearch, startDate, endDate, billingStatus } = req.body;
@@ -704,6 +743,7 @@ module.exports = {
   generateMasterReport,
   getPendingReports,
   getAuditLogs,
+  getAllPatients,
   generateAuditNJEIS,
   generateAuditReportPDF,
   generateAuditReportExcel,

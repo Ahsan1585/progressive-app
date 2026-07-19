@@ -1,6 +1,8 @@
 const { patientSchema } = require('../utils/patientSchema');
 const { pool } = require('../config/db');
 
+const VALID_PATIENT_STATUSES = ['active', 'inactive'];
+
 const registerPatient = async (req, res) => {
   try {
     console.log("Entering registerPatient..."); // Debug log
@@ -64,6 +66,72 @@ const getPatients = async (req, res) => {
   } catch (err) {
     console.error("Fetch Patients Error:", err);
     res.status(500).json({ error: 'Server error fetching patients' });
+  }
+};
+
+const updatePatient = async (req, res) => {
+  try {
+    const practitionerId = req.practitioner.practitionerId;
+    const { id } = req.params;
+
+    const { rows: ownedRows } = await pool.query(
+      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!ownedRows[0]) return res.status(404).json({ error: 'Patient not found' });
+
+    const validatedData = patientSchema.parse(req.body);
+
+    const { rows } = await pool.query(
+      `UPDATE patients
+       SET first_name = $1, middle_name = $2, last_name = $3, dob = $4, county = $5, child_id = $6
+       WHERE id = $7
+       RETURNING *`,
+      [
+        validatedData.firstName,
+        validatedData.middleName || null,
+        validatedData.lastName,
+        validatedData.dob,
+        validatedData.county,
+        validatedData.childId,
+        id,
+      ]
+    );
+
+    res.json({ message: 'Patient updated successfully', data: rows[0] });
+  } catch (error) {
+    console.error('Error updating patient:', error);
+    if (error.errors) return res.status(400).json({ error: error.errors });
+    if (error.code === '23505') return res.status(409).json({ error: 'Child ID is already in use' });
+    res.status(500).json({ error: 'Failed to update patient' });
+  }
+};
+
+const updatePatientStatus = async (req, res) => {
+  try {
+    const practitionerId = req.practitioner.practitionerId;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!VALID_PATIENT_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `Status must be one of: ${VALID_PATIENT_STATUSES.join(', ')}` });
+    }
+
+    const { rows: ownedRows } = await pool.query(
+      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!ownedRows[0]) return res.status(404).json({ error: 'Patient not found' });
+
+    const { rows } = await pool.query(
+      'UPDATE patients SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    res.json({ message: 'Patient status updated', data: rows[0] });
+  } catch (error) {
+    console.error('Error updating patient status:', error);
+    res.status(500).json({ error: 'Failed to update patient status' });
   }
 };
 
@@ -233,4 +301,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats };

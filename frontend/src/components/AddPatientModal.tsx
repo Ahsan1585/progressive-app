@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,17 +19,31 @@ const formSchema = z.object({
   childId: z.string().regex(/^\d{9}$/, "Child ID must be exactly 9 digits"),
 });
 
+type EditablePatient = {
+  id: number | string;
+  first_name: string;
+  middle_name?: string | null;
+  last_name: string;
+  dob: string;
+  county: string;
+  child_id: string;
+};
+
 export function AddPatientModal({
   onPatientAdded,
   open: controlledOpen,
   onOpenChange,
   showTrigger = true,
+  patient,
 }: {
   onPatientAdded: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
+  /** When provided, the modal edits this patient instead of registering a new one. */
+  patient?: EditablePatient | null;
 }) {
+  const isEditMode = !!patient;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
@@ -39,15 +53,36 @@ export function AddPatientModal({
     defaultValues: { firstName: "", middleName: "", lastName: "", dob: "", county: "", childId: "" },
   });
 
+  // Re-sync the form whenever a different patient is opened for editing.
+  useEffect(() => {
+    if (open && patient) {
+      form.reset({
+        firstName: patient.first_name || "",
+        middleName: patient.middle_name || "",
+        lastName: patient.last_name || "",
+        dob: patient.dob ? patient.dob.split("T")[0] : "",
+        county: patient.county || "",
+        childId: patient.child_id || "",
+      });
+    } else if (open && !patient) {
+      form.reset({ firstName: "", middleName: "", lastName: "", dob: "", county: "", childId: "" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, patient?.id]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await api.post("/api/patients/register", values);
+      if (isEditMode && patient) {
+        await api.put(`/api/patients/${patient.id}`, values);
+      } else {
+        await api.post("/api/patients/register", values);
+      }
       onPatientAdded();
       form.reset();
       setOpen(false);
     } catch (error) {
       console.error("Submission failed:", error);
-      alert("Failed to register patient. Check console for details.");
+      alert(`Failed to ${isEditMode ? "update" : "register"} patient. Check console for details.`);
     }
   };
 
@@ -69,7 +104,7 @@ export function AddPatientModal({
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Register Patient</DialogTitle>
+          <DialogTitle>{isEditMode ? "Edit Patient" : "Register Patient"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -110,7 +145,7 @@ export function AddPatientModal({
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={handleCancel}>Cancel</Button>
-              <Button type="submit">Register Patient</Button>
+              <Button type="submit">{isEditMode ? "Save Changes" : "Register Patient"}</Button>
             </div>
           </form>
         </Form>

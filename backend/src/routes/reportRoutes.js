@@ -6,6 +6,7 @@ const {
   generateMasterReport,
   getPendingReports,
   getAuditLogs,
+  getAllPatients,
   generateAuditNJEIS,
   generateAuditReportPDF,
   generateAuditReportExcel,
@@ -17,6 +18,7 @@ const ceoGuard = [protect, requireRole(['ceo'])];
 router.post('/generate',           ...ceoGuard, generateMasterReport);
 router.get('/pending',             ...ceoGuard, getPendingReports);
 router.get('/audit-logs',          ...ceoGuard, getAuditLogs);
+router.get('/patients',            ...ceoGuard, getAllPatients);
 router.post('/audit-njeis',        ...ceoGuard, generateAuditNJEIS);
 router.post('/audit-report-pdf',   ...ceoGuard, generateAuditReportPDF);
 router.post('/audit-report-excel', ...ceoGuard, generateAuditReportExcel);

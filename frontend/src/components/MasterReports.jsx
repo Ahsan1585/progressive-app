@@ -11,6 +11,7 @@ const MODULES = [
   { id: 'child',        title: 'Patient History',     desc: 'Track child interventions'    },
   { id: 'financial',    title: 'Financial Audit',     desc: 'Revenue & invoice tracking'   },
   { id: 'compliance',   title: 'Compliance Flags',    desc: 'Missing forms & signatures'   },
+  { id: 'patients',     title: 'All Patients',        desc: 'Org-wide patient roster'      },
 ];
 
 const STATUS_LABELS = {
@@ -34,6 +35,12 @@ const MODULE_TITLES = {
   child:        'Patient Service History Report',
   financial:    'Financial Reconciliation Audit',
   compliance:   'Compliance & Exception Monitor',
+  patients:     'Organization-Wide Patient Roster',
+};
+
+const PATIENT_STATUS_STYLES = {
+  active:   'bg-emerald-50 text-emerald-700 border-emerald-200',
+  inactive: 'bg-slate-100 text-slate-500 border-slate-200',
 };
 
 export const MasterReports = () => {
@@ -44,9 +51,11 @@ export const MasterReports = () => {
   const [patientSearch, setPatientSearch]           = useState('');
   const [dateRange, setDateRange]                   = useState({ start: '', end: '' });
   const [billingStatus, setBillingStatus]           = useState('all');
+  const [patientStatus, setPatientStatus]           = useState('all');
 
   // Results
   const [logs, setLogs]                             = useState(null);
+  const [patientRows, setPatientRows]               = useState(null);
   const [isLoading, setIsLoading]                   = useState(false);
 
   // Actions
@@ -86,9 +95,21 @@ export const MasterReports = () => {
   const handleRunReport = async () => {
     setIsLoading(true);
     setLogs(null);
+    setPatientRows(null);
     setNjeisUrl(null);
     setSelectedIds(new Set());
     try {
+      if (activeModule === 'patients') {
+        const params = {};
+        if (practitionerSearch.trim()) params.practitionerSearch = practitionerSearch.trim();
+        if (patientSearch.trim())       params.patientSearch      = patientSearch.trim();
+        if (patientStatus !== 'all')    params.status             = patientStatus;
+
+        const response = await api.get('/api/reports/patients', { params });
+        setPatientRows(response.data.patients || []);
+        return;
+      }
+
       const params = {};
       if (practitionerSearch.trim()) params.practitionerSearch = practitionerSearch.trim();
       if (patientSearch.trim())       params.patientSearch      = patientSearch.trim();
@@ -106,8 +127,8 @@ export const MasterReports = () => {
       const response = await api.get('/api/reports/audit-logs', { params });
       setLogs(response.data.logs || []);
     } catch (error) {
-      console.error('Failed to fetch audit logs', error);
-      alert('Failed to fetch logs: ' + (error.response?.data?.error || error.message));
+      console.error('Failed to fetch report', error);
+      alert('Failed to fetch report: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsLoading(false);
     }
@@ -202,7 +223,9 @@ export const MasterReports = () => {
     setPatientSearch('');
     setDateRange({ start: '', end: '' });
     setBillingStatus('all');
+    setPatientStatus('all');
     setLogs(null);
+    setPatientRows(null);
     setNjeisUrl(null);
     setSelectedIds(new Set());
   };
@@ -210,8 +233,10 @@ export const MasterReports = () => {
   const handleModuleSwitch = (id) => {
     setActiveModule(id);
     setLogs(null);
+    setPatientRows(null);
     setNjeisUrl(null);
     setBillingStatus(id === 'financial' ? 'invoiced' : 'all');
+    setPatientStatus('all');
     setSelectedIds(new Set());
   };
 
@@ -262,6 +287,15 @@ export const MasterReports = () => {
       }
     : null;
 
+  const patientStats = patientRows
+    ? {
+        total:              patientRows.length,
+        active:             patientRows.filter(p => (p.status || 'active') === 'active').length,
+        inactive:           patientRows.filter(p => p.status === 'inactive').length,
+        uniquePractitioners: new Set(patientRows.map(p => p.practitioner_id)).size,
+      }
+    : null;
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -274,7 +308,7 @@ export const MasterReports = () => {
       </div>
 
       {/* MODULE TABS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:hidden">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 print:hidden">
         {MODULES.map((mod) => (
           <button
             key={mod.id}
@@ -362,15 +396,35 @@ export const MasterReports = () => {
               </div>
             )}
 
-            {/* Date Range */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Date Range Start</Label>
-              <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Date Range End</Label>
-              <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} />
-            </div>
+            {/* Patient Status — patients module */}
+            {activeModule === 'patients' && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Patient Status</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={patientStatus}
+                  onChange={(e) => setPatientStatus(e.target.value)}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            )}
+
+            {/* Date Range — not applicable to the patient roster */}
+            {activeModule !== 'patients' && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700">Date Range Start</Label>
+                  <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700">Date Range End</Label>
+                  <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
@@ -394,7 +448,83 @@ export const MasterReports = () => {
         </div>
       </div>
 
-      {/* RESULTS */}
+      {/* RESULTS — All Patients roster */}
+      {patientRows !== null && (
+        <>
+          {patientStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:hidden">
+              {[
+                { label: 'Total Patients', value: patientStats.total },
+                { label: 'Active',         value: patientStats.active },
+                { label: 'Inactive',       value: patientStats.inactive },
+                { label: 'Practitioners',  value: patientStats.uniquePractitioners },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">{s.label}</div>
+                  <div className="text-2xl font-bold text-slate-800 mt-1">{s.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-7 py-4 border-b border-slate-100 bg-slate-50/30 print:hidden">
+              <h3 className="font-bold text-slate-800">Patient Roster</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{patientRows.length} patient{patientRows.length !== 1 ? 's' : ''} found across all practitioners</p>
+            </div>
+
+            {patientRows.length === 0 ? (
+              <div className="py-20 text-center text-slate-500">
+                <svg className="w-12 h-12 mx-auto text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <p className="text-sm font-medium">No patients found for the selected filters.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                      <th className="py-3.5 px-4">Patient Name</th>
+                      <th className="py-3.5 px-4">Child ID</th>
+                      <th className="py-3.5 px-4">Date of Birth</th>
+                      <th className="py-3.5 px-4">County</th>
+                      <th className="py-3.5 px-4">Practitioner</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4">Registered</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {patientRows.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-semibold text-slate-800 capitalize">
+                          {p.first_name}{p.middle_name ? ` ${p.middle_name}` : ''} {p.last_name}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 font-mono text-xs">{p.child_id}</td>
+                        <td className="py-3 px-4 text-slate-600 text-xs">{formatDate(p.dob)}</td>
+                        <td className="py-3 px-4 capitalize text-slate-600">{p.county || '-'}</td>
+                        <td className="py-3 px-4 text-slate-600">
+                          {p.practitioners?.first_name} {p.practitioners?.last_name}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${PATIENT_STATUS_STYLES[p.status] || PATIENT_STATUS_STYLES.active}`}>
+                            {p.status === 'inactive' ? 'Inactive' : 'Active'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 text-xs">
+                          {p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* RESULTS — audit logs */}
       {logs !== null && (
         <>
           {/* Summary stat cards */}

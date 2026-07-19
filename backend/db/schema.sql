@@ -67,9 +67,11 @@ CREATE TABLE patients (
   child_id text NOT NULL,
   created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   practitioner_id integer,
+  status text NOT NULL DEFAULT 'active',
   PRIMARY KEY (id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
-  CONSTRAINT patients_child_id_key UNIQUE (child_id)
+  CONSTRAINT patients_child_id_key UNIQUE (child_id),
+  CONSTRAINT patients_status_check CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text]))
 );
 ALTER SEQUENCE patients_id_seq OWNED BY patients.id;
 

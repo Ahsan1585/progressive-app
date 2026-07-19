@@ -6,7 +6,7 @@ const { PDFDocument } = require('pdf-lib');
 const { pool } = require('../config/db');
 
 // Import the functions from the controller
-const { registerPatient, getPatients, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats } = require('../controllers/patientController');
+const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats } = require('../controllers/patientController');
 const { protect } = require('../middleware/authMiddleware');
 
 // Route to register a new patient
@@ -14,6 +14,12 @@ router.post('/register', protect, registerPatient);
 
 // Route to get the list of patients for the dashboard
 router.get('/', protect, getPatients);
+
+// Route to edit a patient's details
+router.put('/:id', protect, updatePatient);
+
+// Route to toggle a patient's active/inactive status
+router.patch('/:id/status', protect, updatePatientStatus);
 
 // Rejected log routes — placed before /:id wildcard to avoid route conflict
 router.get('/rejected-logs', protect, getRejectedLogs);

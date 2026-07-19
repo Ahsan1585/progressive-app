@@ -10,7 +10,10 @@ import { formatTime12h } from '@/utils/formatTime';
 const Dashboard = () => {
   const [patients, setPatients] = useState([]);
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [patientStatusFilter, setPatientStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isInterventionModalOpen, setIsInterventionModalOpen] = useState(false);
   const [interventions, setInterventions] = useState([]);
   
@@ -63,12 +66,14 @@ const Dashboard = () => {
     try {
       const response = await api.get('/api/patients');
       setPatients(response.data);
+      return response.data;
     } catch (error) {
       console.error('Failed to fetch patients', error);
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
         navigate('/');
       }
+      return [];
     }
   };
 
@@ -166,6 +171,31 @@ const Dashboard = () => {
     }
   };
 
+  const handleTogglePatientStatus = async (patient) => {
+    const nextStatus = patient.status === 'inactive' ? 'active' : 'inactive';
+    setIsUpdatingStatus(true);
+    try {
+      const response = await api.patch(`/api/patients/${patient.id}/status`, { status: nextStatus });
+      const updated = response.data.data;
+      setPatients(prev => prev.map(p => p.id === patient.id ? updated : p));
+      setSelectedPatient(prev => (prev?.id === patient.id ? updated : prev));
+    } catch (err) {
+      console.error('Failed to update patient status', err);
+      alert('Failed to update patient status. Please try again.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handlePatientUpdated = async () => {
+    const updatedList = await fetchPatients();
+    setEditingPatient(null);
+    setSelectedPatient(prev => {
+      if (!prev) return prev;
+      return updatedList.find(p => p.id === prev.id) || prev;
+    });
+  };
+
   const handleAcknowledge = async (logId) => {
     setIsAcknowledging(logId);
     try {
@@ -224,6 +254,7 @@ const Dashboard = () => {
   }, [selectedPatient]);
 
   const filteredPatients = patients.filter(p => {
+    if (patientStatusFilter !== 'all' && (p.status || 'active') !== patientStatusFilter) return false;
     const term = patientSearchTerm.trim().toLowerCase();
     if (!term) return true;
     const fullName = `${p.first_name} ${p.middle_name || ''} ${p.last_name}`.toLowerCase();
@@ -243,7 +274,7 @@ const Dashboard = () => {
         <div className="p-5 border-b border-slate-100 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">My Patients</h2>
-            <AddPatientModal onPatientAdded={fetchPatients} />
+            <AddPatientModal onPatientAdded={() => fetchPatients()} />
           </div>
           
           <div className="relative">
@@ -257,6 +288,26 @@ const Dashboard = () => {
               value={patientSearchTerm}
               onChange={(e) => setPatientSearchTerm(e.target.value)}
             />
+          </div>
+
+          <div className="flex gap-1.5">
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'active', label: 'Active' },
+              { key: 'inactive', label: 'Inactive' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setPatientStatusFilter(key)}
+                className={`flex-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                  patientStatusFilter === key
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -282,10 +333,30 @@ const Dashboard = () => {
                   }`}
                   onClick={() => { setSelectedPatient(p); setSidebarOpen(false); }}
                 >
-                  <div className="font-semibold text-[15px] capitalize pr-6">{p.first_name}{p.middle_name ? ` ${p.middle_name}` : ''} {p.last_name}</div>
-                  <div className={`text-xs mt-1 font-medium tracking-wide ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
-                    ID: {p.child_id}
+                  <div className="font-semibold text-[15px] capitalize pr-12">{p.first_name}{p.middle_name ? ` ${p.middle_name}` : ''} {p.last_name}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs font-medium tracking-wide ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                      ID: {p.child_id}
+                    </span>
+                    {(p.status || 'active') === 'inactive' && (
+                      <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+                        isSelected ? 'bg-blue-500 border-blue-400 text-blue-100' : 'bg-slate-100 border-slate-200 text-slate-500'
+                      }`}>
+                        Inactive
+                      </span>
+                    )}
                   </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditingPatient(p); }}
+                    className={`absolute top-2.5 right-9 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${
+                      isSelected ? 'hover:bg-blue-500 text-blue-100' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
+                    }`}
+                    title="Edit patient"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
                   <button
                     onClick={e => { e.stopPropagation(); handleDeletePatient(p); }}
                     disabled={deletingPatientId === p.id}
@@ -679,13 +750,22 @@ const Dashboard = () => {
                     
                     <div className="flex flex-col">
                       <span className="text-xs text-slate-500 uppercase font-semibold tracking-wider">Status</span>
-                      <span className="text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md w-max">
-                        Active
-                      </span>
+                      <button
+                        onClick={() => handleTogglePatientStatus(selectedPatient)}
+                        disabled={isUpdatingStatus}
+                        title="Click to change status"
+                        className={`text-sm font-medium px-2 py-0.5 rounded-md w-max border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                          (selectedPatient.status || 'active') === 'inactive'
+                            ? 'text-slate-600 bg-slate-100 border-slate-200 hover:bg-slate-200'
+                            : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                      >
+                        {(selectedPatient.status || 'active') === 'inactive' ? 'Inactive' : 'Active'}
+                      </button>
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col gap-3 md:flex-shrink-0">
                   <Button
                     onClick={() => setIsInterventionModalOpen(true)}
@@ -697,11 +777,22 @@ const Dashboard = () => {
                     Log Intervention
                   </Button>
 
-                  <LogInterventionModal 
-                    patient={selectedPatient} 
-                    isOpen={isInterventionModalOpen} 
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditingPatient(selectedPatient)}
+                    className="text-slate-600 font-semibold px-5 py-6 rounded-xl transition-all flex items-center justify-center gap-2 w-full md:w-auto cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Edit Patient
+                  </Button>
+
+                  <LogInterventionModal
+                    patient={selectedPatient}
+                    isOpen={isInterventionModalOpen}
                     onClose={() => setIsInterventionModalOpen(false)}
-                    onSuccess={fetchInterventions} 
+                    onSuccess={fetchInterventions}
                   />
                 </div>
               </div>
@@ -769,10 +860,19 @@ const Dashboard = () => {
 
       {/* Registration modal triggered from the empty-state icon/checklist (sidebar has its own instance) */}
       <AddPatientModal
-        onPatientAdded={fetchPatients}
+        onPatientAdded={() => fetchPatients()}
         open={registerModalOpen}
         onOpenChange={setRegisterModalOpen}
         showTrigger={false}
+      />
+
+      {/* Edit modal — triggered from the sidebar pencil icon or the patient detail card */}
+      <AddPatientModal
+        onPatientAdded={handlePatientUpdated}
+        open={!!editingPatient}
+        onOpenChange={(next) => { if (!next) setEditingPatient(null); }}
+        showTrigger={false}
+        patient={editingPatient}
       />
 
       {/* Resubmit Modal */}
