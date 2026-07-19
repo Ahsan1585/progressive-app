@@ -145,6 +145,11 @@ export const BillingManager = () => {
   };
   const dismissToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
+  // Clear the practitioner search + date range filters for each tab.
+  const resetPendingFilters = () => { setSearchTerm(''); setDateRange({ start: '', end: '' }); };
+  const resetHistoryFilters = () => { setHistorySearch(''); setHistoryDate({ start: '', end: '' }); };
+  const resetStatusFilters = () => { setStatusSearch(''); setStatusDateRange({ start: '', end: '' }); };
+
   // ==========================================
   // PENDING QUEUE LOGIC
   // ==========================================
@@ -725,6 +730,7 @@ export const BillingManager = () => {
                 <Label className="text-sm font-semibold text-slate-700">End Date</Label>
                 <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} />
               </div>
+              <Button onClick={resetPendingFilters} variant="outline" size="lg" className="cursor-pointer text-slate-600">Reset</Button>
               <Button onClick={fetchLogs} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh</Button>
             </div>
           </div>
@@ -1139,6 +1145,7 @@ export const BillingManager = () => {
                 <Label className="text-sm font-semibold text-slate-700">Service Date To</Label>
                 <Input type="date" value={historyDate.end} onChange={(e) => setHistoryDate({...historyDate, end: e.target.value})} />
               </div>
+              <Button onClick={resetHistoryFilters} variant="outline" size="lg" className="cursor-pointer text-slate-600">Reset</Button>
               <Button onClick={fetchHistory} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh Bills</Button>
             </div>
           </div>
@@ -1365,6 +1372,7 @@ export const BillingManager = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <Button onClick={resetStatusFilters} variant="outline" size="lg" className="cursor-pointer text-slate-600">Reset</Button>
               <Button onClick={fetchBatches} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh</Button>
             </div>
           </div>
