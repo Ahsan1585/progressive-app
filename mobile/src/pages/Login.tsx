@@ -16,7 +16,7 @@ export default function Login() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, logoutBanner, clearLogoutBanner } = useAuth();
-  const { canPromptInstall, promptInstall, showIOSInstructions, isInstalled } = useInstallPrompt();
+  const { canPromptInstall, promptInstall, showIOSInstructions, isInstalled, isInstalling } = useInstallPrompt();
 
   // Arrived here specifically to install (e.g. the "Get it on Android/iPhone"
   // links on the web login page) — lead with the install card instead of
@@ -55,7 +55,19 @@ export default function Login() {
     }
   };
 
-  const installCard = canPromptInstall ? (
+  const installCard = isInstalling ? (
+    <div className="pop-in flex items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary">
+        <Download className="size-5" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-ink">Installing Izaya…</p>
+        <div className="progress-bar-track mt-2" role="progressbar" aria-label="Installing">
+          <div className="progress-bar-indeterminate" />
+        </div>
+      </div>
+    </div>
+  ) : canPromptInstall ? (
     <div className="pop-in flex items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary">
         <Download className="size-5" aria-hidden="true" />

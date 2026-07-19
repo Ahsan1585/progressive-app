@@ -33,9 +33,19 @@ function isIOSDevice(): boolean {
  * Safari (iOS and macOS) never fires this event; that path is out of scope
  * here and handled with manual "Add to Home Screen" instructions elsewhere.
  */
+// How long to show the indeterminate "installing" state if the browser
+// never fires `appinstalled` (some Android/Chrome versions are inconsistent
+// about it, or the user backgrounds the tab mid-install) — a safety valve so
+// the UI can't get stuck showing "Installing…" forever.
+const INSTALL_FALLBACK_TIMEOUT_MS = 20000;
+
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(isRunningStandalone);
+  // True from the moment the user accepts the native install dialog until
+  // the OS actually finishes installing (`appinstalled`) — there's no web
+  // API for real install progress, so this only drives an indeterminate bar.
+  const [isInstalling, setIsInstalling] = useState(false);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -46,6 +56,7 @@ export function useInstallPrompt() {
     const onAppInstalled = () => {
       setDeferredPrompt(null);
       setIsInstalled(true);
+      setIsInstalling(false);
     };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -56,11 +67,18 @@ export function useInstallPrompt() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isInstalling) return;
+    const timer = window.setTimeout(() => setIsInstalling(false), INSTALL_FALLBACK_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [isInstalling]);
+
   const promptInstall = useCallback(async () => {
     if (!deferredPrompt) return;
     await deferredPrompt.prompt();
     try {
-      await deferredPrompt.userChoice;
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === "accepted") setIsInstalling(true);
     } finally {
       // A captured prompt event can only be used once.
       setDeferredPrompt(null);
@@ -74,6 +92,7 @@ export function useInstallPrompt() {
     // "Add to Home Screen" instructions.
     showIOSInstructions: isIOSDevice() && !isInstalled,
     isInstalled,
+    isInstalling,
     promptInstall,
   };
 }
