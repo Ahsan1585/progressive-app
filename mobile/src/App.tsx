@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useSystemColorScheme } from "@/hooks/useSystemColorScheme";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -6,6 +7,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { RequireAuth, RequireForcedChange, RequireGuest } from "@/routes/guards";
 import { IdleGate } from "@/components/shell/IdleGate";
 import { ShellLayout } from "@/components/shell/ShellLayout";
+import { SplashScreen } from "@/components/shell/SplashScreen";
 
 import Login from "@/pages/Login";
 import UnsupportedRole from "@/pages/UnsupportedRole";
@@ -43,8 +45,14 @@ function AuthenticatedTree() {
 
 function App() {
   useSystemColorScheme();
+  // Plays once per app launch (state is initialized fresh on every real
+  // page load, but survives ordinary in-session client-side navigation) —
+  // the route tree mounts underneath it immediately so the destination
+  // screen is ready by the time the splash departs.
+  const [showSplash, setShowSplash] = useState(true);
   return (
     <BrowserRouter>
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       <AuthProvider>
         <ToastProvider>
           <Routes>
