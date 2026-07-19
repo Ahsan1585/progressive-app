@@ -1433,7 +1433,7 @@ export const BillingManager = () => {
                             className="cursor-pointer disabled:opacity-50"
                           >
                             <Badge variant={batch.paid_at ? 'success' : 'warning'}>
-                              {isUpdatingPaid ? 'Updating…' : batch.paid_at ? `Paid ${new Date(batch.paid_at).toLocaleDateString()}` : 'Unpaid'}
+                              {isUpdatingPaid ? 'Updating…' : batch.paid_at ? 'Paid' : 'Unpaid'}
                             </Badge>
                           </button>
                         </td>

@@ -611,7 +611,7 @@ const markBatchPaid = async (req, res) => {
       await uploadFile(BILLING_INVOICES_BUCKET, backupPath, pdfBytes, 'application/pdf');
 
       const paidAt = new Date().toISOString();
-      const stampedBytes = await stampInvoicePaid(pdfBytes, paidAt);
+      const stampedBytes = await stampInvoicePaid(pdfBytes);
       await uploadFile(BILLING_INVOICES_BUCKET, batch.invoice_path, stampedBytes, 'application/pdf');
 
       await pool.query(

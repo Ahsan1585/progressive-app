@@ -1,13 +1,11 @@
 const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
 
-// Overlays a "PAID" watermark + paid date onto an existing single-page invoice PDF.
+// Overlays a "PAID" watermark onto an existing single-page invoice PDF.
+// Deliberately no date anywhere on the stamp — just the paid marker.
 // Draws on every page in case a future invoice layout spans more than one.
-const stampInvoicePaid = async (pdfBytes, paidAt) => {
+const stampInvoicePaid = async (pdfBytes) => {
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-  const paidDateLabel = new Date(paidAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   for (const page of pdfDoc.getPages()) {
     const { width, height } = page.getSize();
@@ -27,8 +25,8 @@ const stampInvoicePaid = async (pdfBytes, paidAt) => {
     });
 
     // Small info box, top-right corner
-    const boxW = 150;
-    const boxH = 34;
+    const boxW = 90;
+    const boxH = 22;
     const boxX = width - 40 - boxW;
     const boxY = height - 40 - boxH;
     page.drawRectangle({
@@ -40,8 +38,7 @@ const stampInvoicePaid = async (pdfBytes, paidAt) => {
       borderColor: rgb(0.75, 0.1, 0.1),
       borderWidth: 1.5,
     });
-    page.drawText('PAID', { x: boxX + 8, y: boxY + 18, font: bold, size: 12, color: rgb(0.75, 0.1, 0.1) });
-    page.drawText(paidDateLabel, { x: boxX + 8, y: boxY + 6, font: regular, size: 8, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText('PAID', { x: boxX + 8, y: boxY + 7, font: bold, size: 12, color: rgb(0.75, 0.1, 0.1) });
   }
 
   return Buffer.from(await pdfDoc.save());
