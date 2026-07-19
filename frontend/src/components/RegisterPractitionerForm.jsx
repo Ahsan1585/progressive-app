@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const formatPhone = (val) => {
   const d = val.replace(/\D/g, '').slice(0, 10);
@@ -71,6 +73,8 @@ export const RegisterPractitionerForm = () => {
   const [reactivatingId, setReactivatingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'deactivated' | 'all'
+  const [roleFilter, setRoleFilter] = useState('all'); // 'all' | one of ROLE_LABELS keys
+  const [staffSearch, setStaffSearch] = useState('');
 
   // --- Edit Profile State ---
   const [editingMember, setEditingMember] = useState(null); // member object being edited, or null
@@ -252,9 +256,15 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
-  const visibleStaff = staffList.filter(s =>
-    statusFilter === 'all' ? true : statusFilter === 'active' ? s.is_active !== false : s.is_active === false
-  );
+  const visibleStaff = staffList.filter(s => {
+    const matchesStatus = statusFilter === 'all' ? true : statusFilter === 'active' ? s.is_active !== false : s.is_active === false;
+    const matchesRole = roleFilter === 'all' ? true : s.role === roleFilter;
+    const term = staffSearch.trim().toLowerCase();
+    const matchesSearch = !term || [s.first_name, s.last_name, s.email, s.position_title]
+      .filter(Boolean)
+      .some(field => field.toLowerCase().includes(term));
+    return matchesStatus && matchesRole && matchesSearch;
+  });
 
   return (
     <div className="space-y-6">
@@ -292,39 +302,65 @@ export const RegisterPractitionerForm = () => {
       {/* ── SECTION 1: STAFF ROSTER ── */}
       {activeTab === 'roster' && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 flex-wrap">
-          <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
+        <div className="px-6 py-4 border-b border-slate-100 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
 
-          <div className="ml-auto flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            {[
-              { key: 'active', label: 'Active' },
-              { key: 'deactivated', label: 'Deactivated' },
-              { key: 'all', label: 'All' },
-            ].map(opt => (
-              <button
-                key={opt.key}
-                onClick={() => setStatusFilter(opt.key)}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                  statusFilter === opt.key
-                    ? 'bg-white text-slate-800 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            <div className="ml-auto flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+              {[
+                { key: 'active', label: 'Active' },
+                { key: 'deactivated', label: 'Deactivated' },
+                { key: 'all', label: 'All' },
+              ].map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => setStatusFilter(opt.key)}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                    statusFilter === opt.key
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-slate-400 font-medium">{visibleStaff.length} member{visibleStaff.length !== 1 ? 's' : ''}</span>
           </div>
-          <span className="text-xs text-slate-400 font-medium">{visibleStaff.length} member{visibleStaff.length !== 1 ? 's' : ''}</span>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[220px] max-w-sm">
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search by name, email, or position..."
+                className="pl-9"
+                value={staffSearch}
+                onChange={(e) => setStaffSearch(e.target.value)}
+              />
+            </div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {loadingStaff ? (
           <div className="p-8 text-center text-sm text-slate-400">Loading staff...</div>
         ) : visibleStaff.length === 0 ? (
           <div className="p-8 text-center text-sm text-slate-400">
-            {statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.'}
+            {staffSearch.trim() || roleFilter !== 'all'
+              ? 'No staff match your search or filters.'
+              : statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
