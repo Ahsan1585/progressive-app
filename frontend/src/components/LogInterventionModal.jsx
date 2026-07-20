@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -249,6 +250,11 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
 
   if (!patient) return null;
 
+  const totalMinutes = calculateTotalMinutes(formData.startTime, formData.endTime);
+  const totalTimeLabel = formData.startTime && formData.endTime
+    ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`
+    : null;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
@@ -280,6 +286,13 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
               <Input type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} required />
             </div>
           </div>
+
+          {totalTimeLabel && (
+            <div className="-mt-4 flex items-center gap-2 w-fit px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
+              <Clock className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-semibold text-blue-700">Total Time: {totalTimeLabel}</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
             <div className="space-y-2">
