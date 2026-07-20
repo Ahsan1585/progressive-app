@@ -18,6 +18,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import Home from "@/pages/shell/Home";
 import Roster from "@/pages/shell/Roster";
 import Inbox from "@/pages/shell/Inbox";
+import Messages from "@/pages/shell/Messages";
 import Profile from "@/pages/shell/Profile";
 
 import AddPatient from "@/pages/AddPatient";
@@ -120,6 +121,7 @@ function App() {
                 <Route path="/home" element={<Home />} />
                 <Route path="/roster" element={<Roster />} />
                 <Route path="/inbox" element={<Inbox />} />
+                <Route path="/messages" element={<Messages />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
 

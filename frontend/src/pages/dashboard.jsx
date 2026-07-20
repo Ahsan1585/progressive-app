@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { AddPatientModal } from '@/components/AddPatientModal';
 import { LogInterventionModal } from '@/components/LogInterventionModal';
+import { MessagesPanel } from '@/components/MessagesPanel';
 import { Button } from '@/components/ui/button';
 import SignaturePad from '@/components/SignaturePad';
 import { formatTime12h } from '@/utils/formatTime';
@@ -41,6 +42,8 @@ const Dashboard = () => {
   // Empty-state: registration modal + quick stats
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [practitionerStats, setPractitionerStats] = useState(null); // { logsThisMonth, hoursThisMonth }
+  const [messagesOpen, setMessagesOpen] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   const navigate = useNavigate();
 
@@ -121,6 +124,15 @@ const Dashboard = () => {
       if (response.data.success) setPractitionerStats(response.data);
     } catch (error) {
       console.error('Failed to fetch practitioner stats', error);
+    }
+  };
+
+  const fetchUnreadMessageCount = async () => {
+    try {
+      const response = await api.get('/api/messages/unread-count');
+      setUnreadMessageCount(response.data.unreadCount || 0);
+    } catch (error) {
+      console.error('Failed to fetch unread message count', error);
     }
   };
 
@@ -247,6 +259,7 @@ const Dashboard = () => {
     fetchProfile();
     fetchRejectedLogs();
     fetchStats();
+    fetchUnreadMessageCount();
   }, [navigate]);
 
   useEffect(() => {
@@ -503,6 +516,22 @@ const Dashboard = () => {
             </div>
 
             <button
+              onClick={() => setMessagesOpen(true)}
+              className="relative flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
+              title="Messages"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
+              </svg>
+              <span className="hidden md:inline">Messages</span>
+              {unreadMessageCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => { localStorage.removeItem('token'); navigate('/'); }}
               className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
               title="Sign Out"
@@ -514,6 +543,12 @@ const Dashboard = () => {
             </button>
           </div>
         </header>
+
+        <MessagesPanel
+          open={messagesOpen}
+          onOpenChange={setMessagesOpen}
+          onThreadRead={() => setUnreadMessageCount(0)}
+        />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
 

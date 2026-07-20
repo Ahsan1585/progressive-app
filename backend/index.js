@@ -20,6 +20,8 @@ const patientRoutes = require('./src/routes/patientRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const reportRoutes = require('./src/routes/reportRoutes'); 
 const billingRoutes = require('./src/routes/billingRoutes'); // 🌟 NEW: Imported billing routes
+const messageRoutes = require('./src/routes/messageRoutes');
+const scheduleRoutes = require('./src/routes/scheduleRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +50,8 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/billing', billingRoutes); // 🌟 NEW: Mounted billing routes to fix the 404 error!
+app.use('/api/messages', messageRoutes);
+app.use('/api/schedule', scheduleRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).

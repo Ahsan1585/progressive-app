@@ -20,8 +20,8 @@ const registerPatient = async (req, res) => {
 
     // 3. Insert into Postgres
     const { rows } = await pool.query(
-      `INSERT INTO patients (first_name, middle_name, last_name, dob, county, child_id, practitioner_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO patients (first_name, middle_name, last_name, dob, county, child_id, practitioner_id, parent_name, parent_email)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         validatedData.firstName,
@@ -31,6 +31,8 @@ const registerPatient = async (req, res) => {
         validatedData.county,
         validatedData.childId,
         practitionerId,
+        validatedData.parentName || null,
+        validatedData.parentEmail || null,
       ]
     );
 
@@ -87,8 +89,8 @@ const updatePatient = async (req, res) => {
 
     const { rows } = await pool.query(
       `UPDATE patients
-       SET first_name = $1, middle_name = $2, last_name = $3, dob = $4, county = $5, child_id = $6
-       WHERE id = $7
+       SET first_name = $1, middle_name = $2, last_name = $3, dob = $4, county = $5, child_id = $6, parent_name = $7, parent_email = $8
+       WHERE id = $9
        RETURNING *`,
       [
         validatedData.firstName,
@@ -97,6 +99,8 @@ const updatePatient = async (req, res) => {
         validatedData.dob,
         validatedData.county,
         validatedData.childId,
+        validatedData.parentName || null,
+        validatedData.parentEmail || null,
         id,
       ]
     );

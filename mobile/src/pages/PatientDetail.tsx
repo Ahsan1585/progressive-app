@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -9,9 +9,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
+import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h } from "@/utils/time";
 import { serviceTypeMap, locationCodeMap, statusCodeMap } from "@/constants/njeis";
-import type { Assessment } from "@/types";
+import type { Assessment, ScheduledSession } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -20,9 +22,41 @@ export default function PatientDetail() {
   const patient = patients.find((p) => p.id === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
 
+  const { showToast } = useToast();
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  const [sessions, setSessions] = React.useState<ScheduledSession[]>([]);
+  const [scheduleTarget, setScheduleTarget] = React.useState<ScheduledSession | "new" | null>(null);
+  const [cancellingId, setCancellingId] = React.useState<string | null>(null);
+
+  const fetchSessions = React.useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await api.get<ScheduledSession[]>("/api/schedule", { params: { patientId: id } });
+      setSessions(res.data.filter((s) => s.status === "scheduled"));
+    } catch {
+      // Non-critical — the upcoming-sessions list just stays empty.
+    }
+  }, [id]);
+
+  React.useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  const handleCancelSession = async (sessionId: string) => {
+    setCancellingId(sessionId);
+    try {
+      await api.patch(`/api/schedule/${sessionId}/cancel`);
+      showToast("Session cancelled.");
+      fetchSessions();
+    } catch {
+      showToast("Couldn't cancel this session. Please try again.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const handleToggleStatus = async () => {
     if (!patient) return;
@@ -125,6 +159,56 @@ export default function PatientDetail() {
           </Button>
         </div>
 
+        <div className="mb-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-[15px] font-semibold text-ink">Upcoming sessions</h3>
+            <button
+              type="button"
+              onClick={() => setScheduleTarget("new")}
+              className="press-scale flex items-center gap-1 text-xs font-semibold text-primary"
+            >
+              <CalendarPlus className="size-3.5" aria-hidden="true" />
+              Schedule
+            </button>
+          </div>
+          {sessions.length === 0 ? (
+            <p className="text-sm text-ink-muted">No upcoming sessions scheduled.</p>
+          ) : (
+            <ul className="space-y-2">
+              {sessions.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-2 rounded-card border border-border bg-surface p-3 shadow-[var(--elev-rest)]">
+                  <div className="min-w-0">
+                    <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(s.session_date)}</p>
+                    <p className="tabular text-xs text-ink-muted">
+                      {formatTime12h(s.start_time)} - {formatTime12h(s.end_time)}
+                      {s.location ? ` · ${s.location}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setScheduleTarget(s)}
+                      aria-label="Reschedule"
+                      className="press-scale flex size-9 items-center justify-center rounded-control text-ink-muted hover:bg-surface-sunken"
+                    >
+                      <CalendarClock className="size-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelSession(s.id)}
+                      disabled={cancellingId === s.id}
+                      aria-label="Cancel session"
+                      className="press-scale flex size-9 items-center justify-center rounded-control text-danger hover:bg-danger-bg disabled:opacity-50"
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <h3 className="mb-2 text-[15px] font-semibold text-ink">Encounter history</h3>
 
         {error ? (
@@ -178,6 +262,17 @@ export default function PatientDetail() {
           </ul>
         )}
       </div>
+
+      <ScheduleSessionSheet
+        target={scheduleTarget}
+        patientId={id || ""}
+        parentEmail={patient?.parent_email}
+        onOpenChange={(open) => !open && setScheduleTarget(null)}
+        onSaved={() => {
+          setScheduleTarget(null);
+          fetchSessions();
+        }}
+      />
     </PushScreen>
   );
 }

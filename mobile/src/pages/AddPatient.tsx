@@ -17,9 +17,20 @@ interface FormState {
   dob: string;
   county: string;
   childId: string;
+  parentName: string;
+  parentEmail: string;
 }
 
-const EMPTY_FORM: FormState = { firstName: "", middleName: "", lastName: "", dob: "", county: "", childId: "" };
+const EMPTY_FORM: FormState = {
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  dob: "",
+  county: "",
+  childId: "",
+  parentName: "",
+  parentEmail: "",
+};
 
 // Pushed full screen (not a small modal) — the field count and on-screen
 // keyboard need the space (design: Add Patient).
@@ -48,6 +59,9 @@ export default function AddPatient() {
     if (form.county.trim().length < 2) nextErrors.county = "County is required.";
     const childIdError = validateChildId(form.childId);
     if (childIdError) nextErrors.childId = childIdError;
+    if (form.parentEmail.trim() && !/^\S+@\S+\.\S+$/.test(form.parentEmail.trim())) {
+      nextErrors.parentEmail = "Enter a valid email address.";
+    }
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -104,6 +118,18 @@ export default function AddPatient() {
             onBlur={() => setErrors((prev) => ({ ...prev, childId: validateChildId(form.childId) ?? undefined }))}
             required
           />
+        </Field>
+        <Field id="parentName" label="Parent name" optional>
+          <Input value={form.parentName} onChange={(e) => setField("parentName", e.target.value)} />
+        </Field>
+        <Field
+          id="parentEmail"
+          label="Parent email"
+          error={errors.parentEmail}
+          optional
+          hint="Used to send scheduling notifications with a calendar invite."
+        >
+          <Input type="email" value={form.parentEmail} onChange={(e) => setField("parentEmail", e.target.value)} />
         </Field>
 
         <div className="pt-2">

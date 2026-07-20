@@ -69,6 +69,8 @@ CREATE TABLE patients (
   created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   practitioner_id integer,
   status text NOT NULL DEFAULT 'active',
+  parent_name text,
+  parent_email text,
   PRIMARY KEY (id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
   CONSTRAINT patients_child_id_key UNIQUE (child_id),
@@ -180,6 +182,49 @@ CREATE TABLE billing_invoices (
   PRIMARY KEY (id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id)
 );
+
+-- messages: one thread per practitioner (practitioner_id is always the
+-- thread owner, even for office-authored rows). sender_id/sender_role
+-- record who actually wrote a given message. practitioner_read_at /
+-- office_read_at track each side's own last-read point for unread badges.
+CREATE SEQUENCE messages_id_seq;
+CREATE TABLE messages (
+  id integer NOT NULL DEFAULT nextval('messages_id_seq'::regclass),
+  practitioner_id integer NOT NULL,
+  sender_id integer NOT NULL,
+  sender_role text NOT NULL,
+  body text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  practitioner_read_at timestamp with time zone,
+  office_read_at timestamp with time zone,
+  PRIMARY KEY (id),
+  FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
+  FOREIGN KEY (sender_id) REFERENCES practitioners(id)
+);
+ALTER SEQUENCE messages_id_seq OWNED BY messages.id;
+
+-- scheduled_sessions: a practitioner-created appointment for one of their
+-- patients. If the patient has a parent_email, creating/updating/cancelling
+-- a row triggers an email with a calendar (.ics) invite to the parent.
+CREATE SEQUENCE scheduled_sessions_id_seq;
+CREATE TABLE scheduled_sessions (
+  id integer NOT NULL DEFAULT nextval('scheduled_sessions_id_seq'::regclass),
+  patient_id integer NOT NULL,
+  practitioner_id integer NOT NULL,
+  session_date date NOT NULL,
+  start_time time NOT NULL,
+  end_time time NOT NULL,
+  location text,
+  notes text,
+  status text NOT NULL DEFAULT 'scheduled',
+  parent_notified_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id),
+  FOREIGN KEY (patient_id) REFERENCES patients(id),
+  FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
+  CONSTRAINT scheduled_sessions_status_check CHECK (status = ANY (ARRAY['scheduled'::text, 'cancelled'::text]))
+);
+ALTER SEQUENCE scheduled_sessions_id_seq OWNED BY scheduled_sessions.id;
 
 -- master_reports: FK -> patients, practitioners
 CREATE SEQUENCE master_reports_id_seq;

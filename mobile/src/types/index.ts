@@ -30,6 +30,32 @@ export interface Patient {
   practitioner_id: string;
   status?: "active" | "inactive";
   last_service_date?: string | null;
+  parent_name?: string | null;
+  parent_email?: string | null;
+}
+
+export interface Message {
+  id: string;
+  practitioner_id: string;
+  sender_id: string;
+  sender_role: Role;
+  body: string;
+  created_at: string;
+}
+
+export interface ScheduledSession {
+  id: string;
+  patient_id: string;
+  practitioner_id: string;
+  patient_first_name?: string;
+  patient_last_name?: string;
+  session_date: string;
+  start_time: string;
+  end_time: string;
+  location: string | null;
+  notes: string | null;
+  status: "scheduled" | "cancelled";
+  parent_notified_at: string | null;
 }
 
 export type BillingStatus =

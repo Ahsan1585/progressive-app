@@ -23,6 +23,9 @@ interface AppDataContextValue {
   statsError: string | null;
   fetchStats: () => Promise<void>;
 
+  unreadMessageCount: number;
+  fetchUnreadMessageCount: () => Promise<void>;
+
   setSavedSignature: (base64: string | null) => void;
 }
 
@@ -47,6 +50,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [stats, setStats] = React.useState<PractitionerStats | null>(null);
   const [statsLoading, setStatsLoading] = React.useState(true);
   const [statsError, setStatsError] = React.useState<string | null>(null);
+
+  const [unreadMessageCount, setUnreadMessageCount] = React.useState(0);
 
   const fetchPatients = React.useCallback(async () => {
     setPatientsLoading(true);
@@ -104,12 +109,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchUnreadMessageCount = React.useCallback(async () => {
+    try {
+      const res = await api.get<{ unreadCount: number }>("/api/messages/unread-count");
+      setUnreadMessageCount(res.data.unreadCount || 0);
+    } catch {
+      // Non-critical for a badge count — leave the previous value in place.
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchPatients();
     fetchProfile();
     fetchRejectedLogs();
     fetchStats();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats]);
+    fetchUnreadMessageCount();
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount]);
 
   const setSavedSignature = React.useCallback((base64: string | null) => {
     setProfile((prev) => (prev ? { ...prev, signature: base64, saved_signature: base64 } : prev));
@@ -133,6 +148,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       statsLoading,
       statsError,
       fetchStats,
+      unreadMessageCount,
+      fetchUnreadMessageCount,
       setSavedSignature,
     }),
     [
@@ -152,6 +169,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       statsLoading,
       statsError,
       fetchStats,
+      unreadMessageCount,
+      fetchUnreadMessageCount,
       setSavedSignature,
     ]
   );

@@ -17,6 +17,8 @@ const formSchema = z.object({
   dob: z.string().min(1, "Date of Birth is required"),
   county: z.string().min(2, "County is required"),
   childId: z.string().regex(/^\d{9}$/, "Child ID must be exactly 9 digits"),
+  parentName: z.string().optional(),
+  parentEmail: z.string().email("Enter a valid email").optional().or(z.literal("")),
 });
 
 type EditablePatient = {
@@ -27,6 +29,8 @@ type EditablePatient = {
   dob: string;
   county: string;
   child_id: string;
+  parent_name?: string | null;
+  parent_email?: string | null;
 };
 
 export function AddPatientModal({
@@ -50,7 +54,7 @@ export function AddPatientModal({
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { firstName: "", middleName: "", lastName: "", dob: "", county: "", childId: "" },
+    defaultValues: { firstName: "", middleName: "", lastName: "", dob: "", county: "", childId: "", parentName: "", parentEmail: "" },
   });
 
   // Re-sync the form whenever a different patient is opened for editing.
@@ -63,9 +67,11 @@ export function AddPatientModal({
         dob: patient.dob ? patient.dob.split("T")[0] : "",
         county: patient.county || "",
         childId: patient.child_id || "",
+        parentName: patient.parent_name || "",
+        parentEmail: patient.parent_email || "",
       });
     } else if (open && !patient) {
-      form.reset({ firstName: "", middleName: "", lastName: "", dob: "", county: "", childId: "" });
+      form.reset({ firstName: "", middleName: "", lastName: "", dob: "", county: "", childId: "", parentName: "", parentEmail: "" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, patient?.id]);
@@ -139,6 +145,21 @@ export function AddPatientModal({
                   />
                 </FormControl>
                 <p className="text-xs text-slate-400">Please enter the 9 digit child id provided.</p>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="parentName" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Parent Name <span className="text-slate-400 font-normal text-xs">(optional)</span></FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="parentEmail" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Parent Email <span className="text-slate-400 font-normal text-xs">(optional)</span></FormLabel>
+                <FormControl><Input type="email" {...field} /></FormControl>
+                <p className="text-xs text-slate-400">Used to send scheduling notifications with a calendar invite.</p>
                 <FormMessage />
               </FormItem>
             )} />

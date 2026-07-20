@@ -70,18 +70,23 @@ const CHECK_ICON = <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" /></svg>;
 const FEATURES = [
   {
     icon: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none" /></svg>,
-    title: 'Sessions & scheduling',
-    body: 'See every upcoming appointment at a glance, get gentle reminders, and reschedule without the phone tag.',
+    title: 'Session documentation',
+    body: 'Log every session — date, time, service type, location, and both signatures — in minutes, from a phone or a desktop.',
   },
   {
-    icon: <svg viewBox="0 0 24 24"><path d="M4 19 L4 13 M10 19 L10 9 M16 19 L16 5" /><circle cx="4" cy="13" r="2.2" fill="currentColor" stroke="none" /><circle cx="10" cy="9" r="2.2" fill="currentColor" stroke="none" /><circle cx="16" cy="5" r="2.2" fill="currentColor" stroke="none" /><path d="M20 19 L2 19" /></svg>,
-    title: 'Milestones & progress',
-    body: 'Watch growth unfold step by step — goals, achievements, and session notes, tracked together over time.',
+    icon: <svg viewBox="0 0 24 24"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01" /><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>,
+    title: 'Automated NJEIS billing',
+    body: 'Generate state-required NJEIS forms and pay invoices directly from logged sessions, and track every log from submitted to invoiced.',
   },
   {
     icon: <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /><path d="M9 11h6M9 15h3" /></svg>,
-    title: 'Secure messaging',
-    body: 'Reach your care team directly, share updates, and keep every conversation private, organized, and in one thread.',
+    title: 'Direct messaging',
+    body: 'Message your office directly and hear back in the same thread — no phone tag, no lost emails.',
+  },
+  {
+    icon: <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /><circle cx="9" cy="14" r="1.3" fill="currentColor" stroke="none" /><circle cx="15" cy="14" r="1.3" fill="currentColor" stroke="none" /></svg>,
+    title: 'Session scheduling',
+    body: "Schedule a child's next visit and their parent gets an email with a calendar invite — no separate app or login required.",
   },
 ];
 
@@ -268,7 +273,7 @@ const Login = () => {
         .il-section-head h2{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px, 3vw, 40px); color:var(--il-navy); line-height:1.15; margin:0 0 14px; }
         .il-section-head p{ font-size:15.5px; color:var(--il-body); line-height:1.65; margin:0; }
 
-        .il-feature-grid{ position:relative; z-index:2; max-width:1080px; margin:0 auto; display:grid; grid-template-columns:repeat(3, 1fr); gap:26px; }
+        .il-feature-grid{ position:relative; z-index:2; max-width:840px; margin:0 auto; display:grid; grid-template-columns:repeat(2, 1fr); gap:26px; }
         .il-feature{ background:var(--il-card); border:1px solid var(--il-line); border-radius:18px; padding:30px 28px; transition: transform 0.25s var(--il-ease), box-shadow 0.25s var(--il-ease), border-color 0.25s ease; }
         .il-feature:hover{ transform:translateY(-5px); box-shadow:0 20px 40px -16px rgba(19,42,62,0.18); border-color:rgba(47,191,159,0.4); }
         .il-f-icon{ width:48px; height:48px; border-radius:13px; background:linear-gradient(135deg, rgba(47,191,159,0.14), rgba(46,143,199,0.12)); display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
@@ -370,10 +375,10 @@ const Login = () => {
 
           <div className="il-hero-copy">
             <div className="il-eyebrow">Early Intervention Simplified</div>
-            <h1>Every step of their journey, <em>held in one place.</em></h1>
-            <p className="il-hero-sub">Izaya brings families and care teams together — appointments, milestones, and secure communication in one calm, HIPAA-compliant space. Less paperwork. More presence.</p>
+            <h1>Every session, every message, <em>handled in one place.</em></h1>
+            <p className="il-hero-sub">Izaya gives early intervention practitioners — and the agencies that manage them — one place to log sessions, message the office, schedule visits, and handle state billing. Less paperwork, faster turnaround.</p>
             <div className="il-hero-points">
-              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>Built for families &amp; providers alike</div>
+              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>Built for practitioners &amp; the agencies that manage them</div>
               <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>HIPAA-compliant &amp; secured by design</div>
               <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>On any device — no app store required</div>
             </div>
@@ -430,7 +435,7 @@ const Login = () => {
               </form>
 
               <div className="il-card-foot">
-                New to Izaya? Your provider will send you an invitation.<br />
+                New to Izaya? Your agency administrator will set up your account.<br />
                 Trouble signing in? <a href="mailto:support@izayaedge.com">support@izayaedge.com</a>
               </div>
             </div>
@@ -446,8 +451,8 @@ const Login = () => {
         <div className="il-spine-node" aria-hidden="true">{CHECK_ICON}</div>
 
         <div className="il-section-head">
-          <h2>One calm place for the whole journey</h2>
-          <p>Early intervention involves a lot of moving pieces — sessions, notes, progress, people. Izaya keeps them together, so families and providers stay on the same page.</p>
+          <h2>One system for documentation, billing, and staff oversight</h2>
+          <p>Early intervention agencies juggle session logs, state paperwork, and payroll across a whole team of practitioners. Izaya keeps it together — from the first signature to the final invoice.</p>
         </div>
 
         <div className="il-feature-grid">
@@ -470,7 +475,7 @@ const Login = () => {
         <div className="il-dl-band">
           <div className="il-dl-copy">
             <h2>Take Izaya with you</h2>
-            <p>The full app installs straight from your phone's browser — no app store, no account setup, ready in seconds.</p>
+            <p>Practitioners can log sessions, message the office, and manage their schedule on the go — the full app installs straight from your phone's browser, no app store, ready in seconds.</p>
             <div className="il-dl-steps">
               <div className="il-dl-step"><span className="il-sn">1</span>Open your phone's camera</div>
               <div className="il-dl-step"><span className="il-sn">2</span>Scan the code &amp; open the link</div>
