@@ -900,6 +900,8 @@ export const BillingManager = () => {
                           <td className="py-4 px-4 text-center align-top">
                             {isLockedByOther ? (
                               <Badge variant="warning">IN PROGRESS BY {log.locked_by_name?.toUpperCase()}</Badge>
+                            ) : isLockedByMe && log.workflow_status === 'pending' ? (
+                              <Badge variant="info">Locked</Badge>
                             ) : (
                               <>
                                 {log.workflow_status === 'pending' && <Badge variant="warning">Awaiting Forms</Badge>}
