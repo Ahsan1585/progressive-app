@@ -272,14 +272,47 @@ const resetPassword = async (req, res) => {
 const getAllStaff = async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, first_name, last_name, email, role, position_title, service_types,
-              pay_rate, address, phone_number, created_at, is_active, profile_picture
-       FROM practitioners
-       ORDER BY created_at DESC`
+      `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.position_title, p.service_types,
+              p.pay_rate, p.address, p.phone_number, p.created_at, p.is_active, p.profile_picture,
+              pcu.address AS pending_address, pcu.phone_number AS pending_phone_number, pcu.submitted_at AS pending_submitted_at
+       FROM practitioners p
+       LEFT JOIN pending_contact_updates pcu ON pcu.practitioner_id = p.id
+       ORDER BY p.created_at DESC`
     );
     res.json({ staff: rows });
   } catch (error) {
     console.error('Get staff error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// --- Function 4c: Accept or reject a practitioner's self-submitted contact info change ---
+const reviewContactUpdate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // 'accept' | 'reject'
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({ error: "action must be 'accept' or 'reject'" });
+    }
+
+    const { rows: pendingRows } = await pool.query(
+      'SELECT address, phone_number FROM pending_contact_updates WHERE practitioner_id = $1',
+      [id]
+    );
+    const pending = pendingRows[0];
+    if (!pending) return res.status(404).json({ error: 'No pending contact change for this practitioner' });
+
+    if (action === 'accept') {
+      await pool.query(
+        'UPDATE practitioners SET address = $1, phone_number = $2 WHERE id = $3',
+        [pending.address, pending.phone_number, id]
+      );
+    }
+    await pool.query('DELETE FROM pending_contact_updates WHERE practitioner_id = $1', [id]);
+
+    res.json({ success: true, applied: action === 'accept' });
+  } catch (error) {
+    console.error('Review contact update error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -416,5 +449,6 @@ module.exports = {
   updateStaffProfile,
   updateStaffRole,
   deleteStaffMember,
-  reactivateStaffMember
+  reactivateStaffMember,
+  reviewContactUpdate
 };

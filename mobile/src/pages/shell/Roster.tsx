@@ -18,6 +18,13 @@ export default function Roster() {
   const byStatus = statusFilter === "all" ? patients : patients.filter((p) => (p.status || "active") === statusFilter);
   const filtered = filterPatients(byStatus, query);
 
+  // Refetch every time the practitioner lands on Roster (route components
+  // fully remount on navigation) — replaces the native pull-to-refresh
+  // gesture disabled by the page-pinning bounce fix.
+  React.useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
+
   return (
     <div className="safe-top flex flex-1 flex-col">
       <div className="sticky top-0 z-10 space-y-3 border-b border-border bg-bg px-4 pb-3 pt-5">

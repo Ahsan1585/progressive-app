@@ -150,6 +150,19 @@ CREATE TABLE billing_locks (
   FOREIGN KEY (locked_by) REFERENCES practitioners(id)
 );
 
+-- pending_contact_updates: one row per practitioner with a self-submitted
+-- address/phone change awaiting admin review — the practitioners table
+-- itself is only written once a ceo/staff_director/account_specialist
+-- accepts it in the Staff Directory (or the row is just deleted on reject).
+CREATE TABLE pending_contact_updates (
+  practitioner_id integer NOT NULL,
+  address text,
+  phone_number varchar(20),
+  submitted_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (practitioner_id),
+  FOREIGN KEY (practitioner_id) REFERENCES practitioners(id)
+);
+
 -- billing_invoices: FK -> practitioners (unused by current app code, see note above)
 CREATE TABLE billing_invoices (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

@@ -74,6 +74,8 @@ export const RegisterPractitionerForm = () => {
   const [reactivatingId, setReactivatingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
   const [viewingPhoto, setViewingPhoto] = useState(null); // { url, name } or null
+  const [reviewingContact, setReviewingContact] = useState(null); // member object with a pending contact change
+  const [reviewingAction, setReviewingAction] = useState(null); // 'accept' | 'reject' — which button is in flight
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'deactivated' | 'all'
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | one of ROLE_LABELS keys
   const [staffSearch, setStaffSearch] = useState('');
@@ -200,6 +202,30 @@ export const RegisterPractitionerForm = () => {
       alert('Failed to update role.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleReviewContact = async (action) => {
+    if (!reviewingContact) return;
+    setReviewingAction(action);
+    try {
+      await api.post(`/api/auth/staff/${reviewingContact.id}/contact-request`, { action });
+      setStaffList(prev => prev.map(s => s.id === reviewingContact.id
+        ? {
+            ...s,
+            address: action === 'accept' ? reviewingContact.pending_address : s.address,
+            phone_number: action === 'accept' ? reviewingContact.pending_phone_number : s.phone_number,
+            pending_address: null,
+            pending_phone_number: null,
+            pending_submitted_at: null,
+          }
+        : s
+      ));
+      setReviewingContact(null);
+    } catch {
+      alert('Failed to process the contact change. Please try again.');
+    } finally {
+      setReviewingAction(null);
     }
   };
 
@@ -410,6 +436,17 @@ export const RegisterPractitionerForm = () => {
                           <span className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
                             Deactivated
                           </span>
+                        )}
+                        {(member.pending_address || member.pending_phone_number) && (
+                          <button
+                            type="button"
+                            onClick={() => setReviewingContact(member)}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wide cursor-pointer hover:bg-amber-100 transition-colors"
+                            title="Review contact info change"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            Pending Update
+                          </button>
                         )}
                       </div>
                     </td>
@@ -713,6 +750,51 @@ export const RegisterPractitionerForm = () => {
               alt={viewingPhoto.name}
               className="w-full aspect-square rounded-xl object-cover border border-slate-200"
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── PENDING CONTACT INFO CHANGE REVIEW ── */}
+      <Dialog open={!!reviewingContact} onOpenChange={(open) => !open && setReviewingContact(null)}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Contact Info Change — {reviewingContact?.first_name} {reviewingContact?.last_name}</DialogTitle>
+          </DialogHeader>
+          {reviewingContact && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500">
+                Submitted by the practitioner{reviewingContact.pending_submitted_at ? ` on ${new Date(reviewingContact.pending_submitted_at).toLocaleDateString()}` : ''}. Review and accept to apply it to their record, or reject to discard.
+              </p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Current</p>
+                  <p className="text-slate-700">{reviewingContact.phone_number || '—'}</p>
+                  <p className="text-slate-700">{reviewingContact.address || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Requested</p>
+                  <p className="text-slate-900 font-medium">{reviewingContact.pending_phone_number || '—'}</p>
+                  <p className="text-slate-900 font-medium">{reviewingContact.pending_address || '—'}</p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                  disabled={!!reviewingAction}
+                  onClick={() => handleReviewContact('reject')}
+                >
+                  {reviewingAction === 'reject' ? 'Rejecting…' : 'Reject'}
+                </Button>
+                <Button
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={!!reviewingAction}
+                  onClick={() => handleReviewContact('accept')}
+                >
+                  {reviewingAction === 'accept' ? 'Accepting…' : 'Accept'}
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -16,6 +16,13 @@ export default function Inbox() {
   const navigate = useNavigate();
   const [acknowledging, setAcknowledging] = React.useState<RejectedLog | null>(null);
 
+  // Refetch every time the practitioner lands on Inbox (route components
+  // fully remount on navigation) — replaces the native pull-to-refresh
+  // gesture disabled by the page-pinning bounce fix.
+  React.useEffect(() => {
+    fetchRejectedLogs();
+  }, [fetchRejectedLogs]);
+
   return (
     <div className="safe-top flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-border bg-bg px-4 pb-3 pt-5">

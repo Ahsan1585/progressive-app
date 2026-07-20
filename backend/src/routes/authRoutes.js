@@ -32,7 +32,8 @@ const {
   updateStaffProfile,
   updateStaffRole,
   deleteStaffMember,
-  reactivateStaffMember
+  reactivateStaffMember,
+  reviewContactUpdate
 } = require('../controllers/authController');
 
 // ==========================================
@@ -58,6 +59,10 @@ router.delete('/staff/:id', protect, requireRole(['ceo']), deleteStaffMember);
 
 // Reactivate a deactivated staff member (CEO only)
 router.patch('/staff/:id/reactivate', protect, requireRole(['ceo']), reactivateStaffMember);
+
+// Accept or reject a practitioner's self-submitted contact info change
+// (CEO + Staff Director + Account Specialist — same tier as editing staff profiles)
+router.post('/staff/:id/contact-request', protect, requireRole(['ceo', 'staff_director', 'account_specialist']), reviewContactUpdate);
 
 
 // ==========================================

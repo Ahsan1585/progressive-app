@@ -101,6 +101,12 @@ export interface PractitionerProfile {
   // Mapped by the backend from saved_signature for convenience.
   signature?: string | null;
   profile_picture?: string | null;
+  // Set while a self-submitted address/phone change is awaiting admin review
+  // in the Staff Directory — practitioners.address/phone_number stay
+  // unchanged (and are what's shown above) until it's accepted.
+  pending_address?: string | null;
+  pending_phone_number?: string | null;
+  pending_submitted_at?: string | null;
 }
 
 export interface PractitionerStats {

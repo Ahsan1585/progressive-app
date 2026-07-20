@@ -146,8 +146,12 @@ app.get('/api/practitioner/profile', protect, async (req, res) => {
     const practitionerId = req.practitioner.practitionerId;
     // Explicit allow-list — never return password_hash, ssn, or pay_rate to the client
     const { rows } = await pool.query(
-      `SELECT id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature, service_types, profile_picture
-       FROM practitioners WHERE id = $1`,
+      `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.position_title, p.address, p.phone_number,
+              p.saved_signature, p.service_types, p.profile_picture,
+              pcu.address AS pending_address, pcu.phone_number AS pending_phone_number, pcu.submitted_at AS pending_submitted_at
+       FROM practitioners p
+       LEFT JOIN pending_contact_updates pcu ON pcu.practitioner_id = p.id
+       WHERE p.id = $1`,
       [practitionerId]
     );
     const data = rows[0];
@@ -200,6 +204,38 @@ app.post('/api/practitioner/profile-picture', protect, async (req, res) => {
     res.json({ success: true, message: 'Profile picture saved.' });
   } catch (error) {
     console.error('Profile picture save error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH: Submit an address/phone change for the practitioner's own record
+// (self-service, mirrors the signature/profile-picture self-service endpoints
+// above) — does NOT write practitioners directly. It queues a pending_contact_updates
+// row that only takes effect once a ceo/staff_director/account_specialist
+// accepts it in the admin Staff Directory (see /api/auth/staff/:id/contact-request/*).
+app.patch('/api/practitioner/contact-info', protect, async (req, res) => {
+  try {
+    const practitionerId = req.practitioner.practitionerId;
+    const { address, phone_number } = req.body;
+
+    if (address !== undefined && typeof address !== 'string') {
+      return res.status(400).json({ error: 'address must be a string' });
+    }
+    if (phone_number !== undefined && typeof phone_number !== 'string') {
+      return res.status(400).json({ error: 'phone_number must be a string' });
+    }
+
+    await pool.query(
+      `INSERT INTO pending_contact_updates (practitioner_id, address, phone_number, submitted_at)
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT (practitioner_id) DO UPDATE
+         SET address = EXCLUDED.address, phone_number = EXCLUDED.phone_number, submitted_at = now()`,
+      [practitionerId, address?.trim() || null, phone_number?.trim() || null]
+    );
+
+    res.json({ success: true, message: 'Submitted — an admin will review your change shortly.' });
+  } catch (error) {
+    console.error('Contact info update error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

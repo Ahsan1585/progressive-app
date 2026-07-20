@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, PenLine, LogOut, ChevronRight, Download, Camera } from "lucide-react";
+import { KeyRound, PenLine, LogOut, ChevronRight, Download, Camera, Phone } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -21,6 +21,13 @@ export default function Profile() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [croppingFile, setCroppingFile] = React.useState<File | null>(null);
+
+  // Refetch every time the practitioner lands on Profile (route components
+  // fully remount on navigation) — replaces the native pull-to-refresh
+  // gesture disabled by the page-pinning bounce fix.
+  React.useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handlePickPhoto = () => fileInputRef.current?.click();
 
@@ -105,6 +112,28 @@ export default function Profile() {
             <span className="text-xs font-medium text-primary">Install</span>
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={() => navigate("/profile/contact-info")}
+          className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
+        >
+          <Phone className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium text-ink">Contact information</span>
+            {!profileLoading && (profile?.pending_address || profile?.pending_phone_number) && (
+              <span className="block text-xs font-semibold text-warning">Awaiting admin approval</span>
+            )}
+          </div>
+          {profileLoading ? (
+            <Skeleton className="h-4 w-20" />
+          ) : (
+            <span className="max-w-[40%] truncate text-xs font-medium text-ink-faint">
+              {profile?.phone_number || "Not set"}
+            </span>
+          )}
+          <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+        </button>
 
         <button
           type="button"
