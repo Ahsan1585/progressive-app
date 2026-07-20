@@ -85,6 +85,15 @@ export const BillingManager = () => {
   // the backend's invoiceStatusWriteGuard in billingRoutes.js.
   const currentUserRole = localStorage.getItem('role');
   const canSeeInvoiceStatus = currentUserRole !== 'billing';
+  const isAdmin = currentUserRole === 'ceo';
+
+  // --- CURRENT USER (needed to tell "locked by me" apart from "locked by someone else") ---
+  const [currentUserId, setCurrentUserId] = useState(null);
+  useEffect(() => {
+    api.get('/api/practitioner/profile')
+      .then(res => { if (res.data?.id) setCurrentUserId(res.data.id); })
+      .catch(() => {});
+  }, []);
 
   // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history' | 'status'
@@ -153,8 +162,8 @@ export const BillingManager = () => {
   // ==========================================
   // PENDING QUEUE LOGIC
   // ==========================================
-  const fetchLogs = async () => {
-    setIsLoading(true);
+  const fetchLogs = async ({ silent = false } = {}) => {
+    if (!silent) setIsLoading(true);
     try {
       const response = await api.get('/api/billing/pending-logs', {
         params: { search: searchTerm, startDate: dateRange.start, endDate: dateRange.end }
@@ -163,7 +172,7 @@ export const BillingManager = () => {
     } catch (error) {
       console.error("Failed to fetch billing logs", error);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -174,6 +183,52 @@ export const BillingManager = () => {
       setLogActions({});
     }
   }, [dateRange, activeTab]);
+
+  // Poll in the background so other billing specialists' locks/releases show up
+  // here without needing a manual refresh — silent so it doesn't flash the
+  // "Loading billing pipeline..." full-table state every cycle.
+  useEffect(() => {
+    if (activeTab !== 'pending') return;
+    const interval = setInterval(() => fetchLogs({ silent: true }), 20000);
+    return () => clearInterval(interval);
+  }, [activeTab, searchTerm, dateRange]);
+
+  const handleLock = async (practitionerId) => {
+    try {
+      const response = await api.post(`/api/billing/practitioner/${practitionerId}/lock`);
+      if (response.data.success) {
+        setPractitionerLogs(prev => prev.map(l =>
+          l.practitioner_id === practitionerId
+            ? { ...l, locked_by_id: response.data.locked_by_id, locked_by_name: response.data.locked_by_name }
+            : l
+        ));
+        await handleToggleExpand(practitionerId);
+      }
+    } catch (error) {
+      if (error.response?.status === 409) {
+        pushToast('error', `Already locked by ${error.response.data.locked_by_name}`);
+      } else {
+        pushToast('error', 'Failed to lock practitioner');
+      }
+      fetchLogs({ silent: true });
+    }
+  };
+
+  const handleRelease = async (practitionerId) => {
+    try {
+      await api.post(`/api/billing/practitioner/${practitionerId}/unlock`);
+      setPractitionerLogs(prev => prev.map(l =>
+        l.practitioner_id === practitionerId ? { ...l, locked_by_id: null, locked_by_name: null } : l
+      ));
+      setExpandedRows(prev => {
+        const n = new Set(prev);
+        n.delete(practitionerId);
+        return n;
+      });
+    } catch (error) {
+      pushToast('error', error.response?.data?.error || 'Failed to release lock');
+    }
+  };
 
   const filteredLogs = practitionerLogs.filter(log => {
     const term = searchTerm.toLowerCase();
@@ -325,9 +380,14 @@ export const BillingManager = () => {
 
       setPractitionerLogs(prev => prev.map(log =>
         log.practitioner_id === practitionerId
-          ? { ...log, workflow_status: 'complete', sevf_documents: sevfDocuments, invoice_documents: invoiceDocuments }
+          ? { ...log, workflow_status: 'complete', sevf_documents: sevfDocuments, invoice_documents: invoiceDocuments, locked_by_id: null, locked_by_name: null }
           : log
       ));
+
+      // Documents are generated — release the lock automatically so it doesn't
+      // linger for a completed row (fire-and-forget: a hiccup here shouldn't
+      // surface as a false "generation failed" error after the real work succeeded).
+      api.post(`/api/billing/practitioner/${practitionerId}/unlock`).catch(() => {});
     } catch (error) {
       pushToast('error', 'Generation failed: ' + error.message);
     } finally {
@@ -766,25 +826,64 @@ export const BillingManager = () => {
                     // there's nothing left to issue a SEVF/invoice for.
                     const allLogsReviewed = isExpanded && logsForRow.length > 0 && hasBillableLog &&
                       logsForRow.every(s => logActions[s.id] || s.billing_review);
+                    const isLockedByMe = !!log.locked_by_id && log.locked_by_id === currentUserId;
+                    const isLockedByOther = !!log.locked_by_id && log.locked_by_id !== currentUserId;
 
                     return (
                       <React.Fragment key={log.practitioner_id}>
                         <tr className="hover:bg-slate-50 transition-colors">
                           <td className="py-4 px-4 align-top">
                             <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleToggleExpand(log.practitioner_id)}
-                                className="p-1 rounded hover:bg-slate-200 transition-colors text-slate-400 flex-shrink-0 cursor-pointer"
-                                aria-label={isExpanded ? 'Collapse logs' : 'Expand logs'}
-                                aria-expanded={isExpanded}
-                              >
-                                <ChevronRight className={`size-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
-                              </button>
+                              {isLockedByOther ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="p-1 rounded text-slate-300 flex-shrink-0">
+                                      <Lock className="size-4" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Locked by {log.locked_by_name}</TooltipContent>
+                                </Tooltip>
+                              ) : isLockedByMe ? (
+                                <button
+                                  onClick={() => handleToggleExpand(log.practitioner_id)}
+                                  className="p-1 rounded hover:bg-slate-200 transition-colors text-slate-400 flex-shrink-0 cursor-pointer"
+                                  aria-label={isExpanded ? 'Collapse logs' : 'Expand logs'}
+                                  aria-expanded={isExpanded}
+                                >
+                                  <ChevronRight className={`size-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                                </button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleLock(log.practitioner_id)}
+                                  className="h-7 px-2 gap-1 text-slate-600 cursor-pointer flex-shrink-0"
+                                >
+                                  <Lock className="size-3.5" />
+                                  Lock
+                                </Button>
+                              )}
                               <div>
                                 <div className="font-bold text-slate-800 capitalize">{log.first_name} {log.last_name}</div>
                                 <div className="text-xs text-slate-500 mt-0.5 font-mono">ID: {log.practitioner_id}</div>
                               </div>
                             </div>
+                            {isLockedByMe && (
+                              <button
+                                onClick={() => handleRelease(log.practitioner_id)}
+                                className="mt-1.5 ml-1 text-xs font-medium text-slate-400 hover:text-red-600 transition-colors cursor-pointer underline underline-offset-2"
+                              >
+                                Release
+                              </button>
+                            )}
+                            {isLockedByOther && isAdmin && (
+                              <button
+                                onClick={() => handleRelease(log.practitioner_id)}
+                                className="mt-1.5 ml-1 text-xs font-medium text-slate-400 hover:text-red-600 transition-colors cursor-pointer underline underline-offset-2"
+                              >
+                                Force Release
+                              </button>
+                            )}
                           </td>
                           <td className="py-4 px-4 text-center align-top">
                             <div className="font-bold text-slate-700">{log.total_interventions}</div>
@@ -797,9 +896,15 @@ export const BillingManager = () => {
                             {log.unique_children_count}
                           </td>
                           <td className="py-4 px-4 text-center align-top">
-                            {log.workflow_status === 'pending' && <Badge variant="warning">Awaiting Forms</Badge>}
-                            {log.workflow_status === 'njeis_review' && <Badge variant="info">In Review</Badge>}
-                            {log.workflow_status === 'complete' && <Badge variant="success">Complete</Badge>}
+                            {isLockedByOther ? (
+                              <Badge variant="warning">IN PROGRESS BY {log.locked_by_name?.toUpperCase()}</Badge>
+                            ) : (
+                              <>
+                                {log.workflow_status === 'pending' && <Badge variant="warning">Awaiting Forms</Badge>}
+                                {log.workflow_status === 'njeis_review' && <Badge variant="info">In Review</Badge>}
+                                {log.workflow_status === 'complete' && <Badge variant="success">Complete</Badge>}
+                              </>
+                            )}
                           </td>
                           <td className="py-4 px-4 text-center align-top">
                             {log.sevf_documents?.length > 0 ? (
@@ -820,7 +925,9 @@ export const BillingManager = () => {
                             ) : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="py-4 px-4 text-right align-top">
-                            {(log.workflow_status === 'pending' || log.workflow_status === 'njeis_review') && (
+                            {isLockedByOther ? (
+                              <span className="text-xs text-slate-400">Locked by {log.locked_by_name}</span>
+                            ) : (log.workflow_status === 'pending' || log.workflow_status === 'njeis_review') && (
                               <div className="flex flex-col items-end gap-1">
                                 <Button
                                   onClick={() => handleGenerateAndIssue(log.practitioner_id)}
@@ -834,7 +941,7 @@ export const BillingManager = () => {
                                   {processingId === log.practitioner_id ? 'Generating...' : 'Generate & Issue'}
                                 </Button>
                                 {!isExpanded && (
-                                  <span className="text-xs text-slate-400">Expand to review logs</span>
+                                  <span className="text-xs text-slate-400">{isLockedByMe ? 'Expand to review logs' : 'Lock to review logs'}</span>
                                 )}
                                 {isExpanded && logsForRow.length > 0 && !allLogsReviewed && (
                                   <span className="text-xs text-amber-600 font-medium">Review all logs to enable</span>

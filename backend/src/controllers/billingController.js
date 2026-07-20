@@ -40,6 +40,16 @@ const getPendingLogs = async (req, res) => {
 
     const { rows: assessments } = await pool.query(sql, params);
 
+    const { rows: lockRows } = await pool.query(`
+      SELECT bl.practitioner_id, bl.locked_by, p.first_name, p.last_name
+      FROM billing_locks bl
+      JOIN practitioners p ON p.id = bl.locked_by
+    `);
+    const lockMap = {};
+    lockRows.forEach(l => {
+      lockMap[l.practitioner_id] = { locked_by_id: l.locked_by, locked_by_name: `${l.first_name} ${l.last_name}` };
+    });
+
     const practitionerMap = {};
 
     assessments.forEach(record => {
@@ -52,7 +62,9 @@ const getPendingLogs = async (req, res) => {
           total_interventions: 0,
           unique_children: new Set(),
           total_hours: 0,
-          workflow_status: 'njeis_review'
+          workflow_status: 'njeis_review',
+          locked_by_id: lockMap[pId]?.locked_by_id || null,
+          locked_by_name: lockMap[pId]?.locked_by_name || null,
         };
       }
 
@@ -706,6 +718,73 @@ const revertBillingBatch = async (req, res) => {
   }
 };
 
+// --- 15. Lock a practitioner's Pending Bills row so only one billing specialist works it ---
+const lockPractitioner = async (req, res) => {
+  const practitionerId = parseInt(req.params.id, 10);
+  const lockerId = req.practitioner.practitionerId;
+  if (!practitionerId) return res.status(400).json({ success: false, error: 'Invalid practitioner id' });
+
+  try {
+    const { rows: insertedRows } = await pool.query(
+      `INSERT INTO billing_locks (practitioner_id, locked_by)
+       VALUES ($1, $2)
+       ON CONFLICT (practitioner_id) DO NOTHING
+       RETURNING practitioner_id`,
+      [practitionerId, lockerId]
+    );
+
+    if (insertedRows.length > 0) {
+      const { rows: lockerRows } = await pool.query('SELECT first_name, last_name FROM practitioners WHERE id = $1', [lockerId]);
+      const locker = lockerRows[0];
+      return res.json({ success: true, locked_by_id: lockerId, locked_by_name: `${locker?.first_name || ''} ${locker?.last_name || ''}`.trim() });
+    }
+
+    // Already locked — find out by whom.
+    const { rows: existingRows } = await pool.query(
+      `SELECT bl.locked_by, p.first_name, p.last_name
+       FROM billing_locks bl JOIN practitioners p ON p.id = bl.locked_by
+       WHERE bl.practitioner_id = $1`,
+      [practitionerId]
+    );
+    const existing = existingRows[0];
+    const lockedByName = `${existing?.first_name || ''} ${existing?.last_name || ''}`.trim();
+
+    if (existing?.locked_by === lockerId) {
+      // Idempotent — already yours.
+      return res.json({ success: true, locked_by_id: lockerId, locked_by_name: lockedByName });
+    }
+
+    return res.status(409).json({ success: false, error: 'Already locked by another billing specialist', locked_by_name: lockedByName });
+  } catch (error) {
+    console.error('lockPractitioner error:', error);
+    res.status(500).json({ success: false, error: 'Failed to lock practitioner' });
+  }
+};
+
+// --- 16. Release a practitioner's Pending Bills lock — owner, or a ceo (Admin) override ---
+const unlockPractitioner = async (req, res) => {
+  const practitionerId = parseInt(req.params.id, 10);
+  const requesterId = req.practitioner.practitionerId;
+  const requesterRole = req.practitioner.role;
+  if (!practitionerId) return res.status(400).json({ success: false, error: 'Invalid practitioner id' });
+
+  try {
+    const { rows: existingRows } = await pool.query('SELECT locked_by FROM billing_locks WHERE practitioner_id = $1', [practitionerId]);
+    const existing = existingRows[0];
+    if (!existing) return res.json({ success: true }); // already unlocked
+
+    if (existing.locked_by !== requesterId && requesterRole !== 'ceo') {
+      return res.status(403).json({ success: false, error: 'Only the billing specialist holding this lock (or an Admin) can release it' });
+    }
+
+    await pool.query('DELETE FROM billing_locks WHERE practitioner_id = $1', [practitionerId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('unlockPractitioner error:', error);
+    res.status(500).json({ success: false, error: 'Failed to release lock' });
+  }
+};
+
 module.exports = {
   getPendingLogs,
   generateNJEISForms,
@@ -719,5 +798,7 @@ module.exports = {
   getBillingBatches,
   revertBillingBatch,
   markBatchPrinted,
-  markBatchPaid
+  markBatchPaid,
+  lockPractitioner,
+  unlockPractitioner
 };

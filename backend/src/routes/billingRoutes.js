@@ -16,7 +16,9 @@ const {
   getBillingBatches,
   revertBillingBatch,
   markBatchPrinted,
-  markBatchPaid
+  markBatchPaid,
+  lockPractitioner,
+  unlockPractitioner
 } = require('../controllers/billingController');
 
 // Covers Pending Bills + Completed Bills (and the read-only batches list, which
@@ -39,6 +41,8 @@ router.get('/download',          ...billingGuard, getInvoiceDownloadUrl);
 router.get('/vault-logs',        ...billingGuard, getVaultLogs);
 router.get('/batches',           ...billingGuard, getBillingBatches);
 router.post('/revert-batch',     ...billingGuard, revertBillingBatch);
+router.post('/practitioner/:id/lock',   ...billingGuard, lockPractitioner);
+router.post('/practitioner/:id/unlock', ...billingGuard, unlockPractitioner);
 router.patch('/batch/:id/printed', ...invoiceStatusWriteGuard, markBatchPrinted);
 router.patch('/batch/:id/paid',    ...invoiceStatusWriteGuard, markBatchPaid);
 

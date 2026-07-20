@@ -136,6 +136,19 @@ CREATE TABLE billing_batches (
 -- assessments.billing_batch_id references this table but has no formal FK
 -- constraint in the source DB either; not adding one here to match exactly.
 
+-- billing_locks: one row per practitioner currently claimed by a billing
+-- specialist on the Pending Bills tab, so two specialists can't work the
+-- same practitioner's logs at once. No expiry — released explicitly by the
+-- lock holder, automatically after Generate & Issue, or force-released by a ceo.
+CREATE TABLE billing_locks (
+  practitioner_id integer NOT NULL,
+  locked_by integer NOT NULL,
+  locked_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (practitioner_id),
+  FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
+  FOREIGN KEY (locked_by) REFERENCES practitioners(id)
+);
+
 -- billing_invoices: FK -> practitioners (unused by current app code, see note above)
 CREATE TABLE billing_invoices (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
