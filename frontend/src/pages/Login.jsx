@@ -44,22 +44,22 @@ function HorizonIllustration() {
         <path d="M0 150 Q 220 96 460 132 T 900 122 T 1440 138 V220 H0 Z" fill="url(#ilHillA)" opacity="0.16" />
         <path d="M0 178 Q 260 128 560 162 T 1080 152 T 1440 168 V220 H0 Z" fill="url(#ilHillA)" opacity="0.3" />
         <path d="M0 202 Q 300 168 640 192 T 1440 194 V220 H0 Z" fill="url(#ilHillA)" opacity="0.55" />
-        <g transform="translate(200,196)">
+        <g transform="translate(610,196)">
           <circle cx="0" cy="-42" r="11" fill="#0E6E67" />
           <path d="M-13 -7 C-13 -23 -12 -31 0 -31 C12 -31 13 -23 13 -7 L13 4 L-13 4 Z" fill="#0E6E67" />
           <circle cx="33" cy="-26" r="8" fill="#0E6E67" opacity="0.85" />
           <path d="M21 -3 C21 -14 22 -19 33 -19 C44 -19 45 -14 45 -3 L45 4 L21 4 Z" fill="#0E6E67" opacity="0.85" />
           <path d="M13 -11 Q22 -7 21 -4" stroke="#0E6E67" strokeWidth="3" fill="none" strokeLinecap="round" />
         </g>
-        <g transform="translate(1190,160)" opacity="0.9">
+        <g transform="translate(830,160)" opacity="0.9">
           <path d="M0 40 V12" stroke="#0E6E67" strokeWidth="3.5" strokeLinecap="round" />
           <path d="M0 26 C -13 22 -15 9 -7 2 C -2 12 0 19 0 26 Z" fill="#0E6E67" />
           <path d="M0 19 C 13 15 15 4 8 -4 C 3 6 0 13 0 19 Z" fill="#0E6E67" />
         </g>
-        <circle cx="420" cy="168" r="5" fill="#2FBF9F" />
-        <circle cx="640" cy="158" r="5" fill="#2FBF9F" />
-        <circle cx="880" cy="152" r="5" fill="#2FBF9F" />
-        <circle cx="1080" cy="156" r="5" fill="#2FBF9F" />
+        <circle cx="560" cy="168" r="5" fill="#2FBF9F" />
+        <circle cx="680" cy="158" r="5" fill="#2FBF9F" />
+        <circle cx="780" cy="152" r="5" fill="#2FBF9F" />
+        <circle cx="900" cy="156" r="5" fill="#2FBF9F" />
       </svg>
     </div>
   );
@@ -113,12 +113,32 @@ function DownloadQR() {
   );
 }
 
+// Shown once to a first-time visitor arriving on a phone browser — the QR
+// code further down the page is for someone on a *desktop* scanning it with
+// their phone, which is useless if they're already reading this on the
+// phone itself. This links straight to the installable app's own install
+// page instead (this origin isn't itself a PWA, so there's no
+// beforeinstallprompt to hook here).
+const MOBILE_BANNER_SEEN_KEY = 'izaya-mobile-install-banner-seen';
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
+  // Lazy initializer (not an effect) — this is a one-time read of the
+  // device/localStorage at mount, not a value that needs to stay in sync
+  // with anything afterward.
+  const [showMobileInstallBanner, setShowMobileInstallBanner] = useState(() => {
+    try {
+      const isPhoneViewport = window.matchMedia('(max-width: 767px)').matches;
+      const alreadySeen = localStorage.getItem(MOBILE_BANNER_SEEN_KEY) === 'true';
+      return isPhoneViewport && !alreadySeen;
+    } catch {
+      return false;
+    }
+  });
   const navigate = useNavigate();
   const location = useLocation();
   const resetSuccess = location.state?.resetSuccess;
@@ -128,6 +148,11 @@ const Login = () => {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const dismissMobileInstallBanner = () => {
+    setShowMobileInstallBanner(false);
+    try { localStorage.setItem(MOBILE_BANNER_SEEN_KEY, 'true'); } catch { /* ignore */ }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -163,7 +188,7 @@ const Login = () => {
       <style>{`
         .izaya-landing{
           --il-navy:#132A3E; --il-navy-deep:#0C1D2C; --il-teal:#0E6E67; --il-mint:#2FBF9F; --il-sky:#2E8FC7;
-          --il-paper:#F7FAF9; --il-card:#FFFFFF; --il-ink:#1B2B38; --il-slate:#5C6B73; --il-slate-light:#8FA0A8;
+          --il-paper:#F7FAF9; --il-card:#FFFFFF; --il-ink:#1B2B38; --il-slate:#5C6B73; --il-slate-light:#8FA0A8; --il-body:#3D4B54;
           --il-line:#E2EAE8; --il-focus-glow: 0 0 0 4px rgba(47,191,159,0.16); --il-ease: cubic-bezier(0.22, 1, 0.36, 1);
           font-family:'Inter', sans-serif; color:var(--il-ink); background:var(--il-paper); overflow-x:hidden;
         }
@@ -174,8 +199,8 @@ const Login = () => {
         .il-nav.scrolled{ background:rgba(247,250,249,0.88); backdrop-filter:blur(14px); box-shadow:0 1px 0 rgba(19,42,62,0.06); padding:14px 48px; }
         .il-nav-logo{ width:118px; height:auto; display:block; }
         .il-nav-right{ display:flex; align-items:center; gap:26px; }
-        .il-nav-link{ font-size:13.5px; font-weight:500; color:var(--il-slate); text-decoration:none; transition:color 0.15s ease; }
-        .il-nav-link:hover{ color:var(--il-navy); }
+        .il-nav-link{ font-size:13.5px; font-weight:500; color:var(--il-ink); opacity:0.75; text-decoration:none; transition:color 0.15s ease, opacity 0.15s ease; }
+        .il-nav-link:hover{ color:var(--il-navy); opacity:1; }
         .il-nav-cta{ font-size:13.5px; font-weight:600; color:var(--il-navy); text-decoration:none; padding:9px 18px; border:1.5px solid var(--il-navy); border-radius:999px; transition: background 0.18s ease, color 0.18s ease; }
         .il-nav-cta:hover{ background:var(--il-navy); color:#fff; }
 
@@ -189,10 +214,10 @@ const Login = () => {
 
         .il-hero-copy{ max-width:560px; }
         .il-eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--il-teal); margin-bottom:22px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.1s forwards; }
-        .izaya-landing h1{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(42px, 4.6vw, 64px); line-height:1.08; letter-spacing:-0.5px; color:var(--il-navy); margin:0 0 24px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.22s forwards; }
+        .izaya-landing h1{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(32px, 8vw, 64px); line-height:1.12; letter-spacing:-0.5px; color:var(--il-navy); margin:0 0 24px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.22s forwards; overflow-wrap:break-word; }
         .izaya-landing h1 em{ font-style:normal; position:relative; white-space:nowrap; }
         .izaya-landing h1 em::after{ content:""; position:absolute; left:0; right:0; bottom:6px; height:12px; background:rgba(47,191,159,0.28); z-index:-1; border-radius:3px; }
-        .il-hero-sub{ font-size:17px; line-height:1.65; color:var(--il-slate); margin-bottom:34px; max-width:480px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.34s forwards; }
+        .il-hero-sub{ font-size:17px; line-height:1.65; color:var(--il-body); margin-bottom:34px; max-width:480px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.34s forwards; }
         .il-hero-points{ display:flex; flex-direction:column; gap:14px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.46s forwards; }
         .il-point{ display:flex; align-items:center; gap:12px; font-size:14.5px; font-weight:500; color:var(--il-ink); }
         .il-point .il-pn{ width:26px; height:26px; border-radius:50%; background:var(--il-mint); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 10px -3px rgba(47,191,159,0.5); }
@@ -204,7 +229,7 @@ const Login = () => {
         .il-auth-wrap::before{ content:""; position:absolute; inset:-40px -30px; background:radial-gradient(60% 55% at 50% 45%, rgba(47,191,159,0.13), transparent 70%); z-index:0; pointer-events:none; }
         .il-card{ position:relative; z-index:1; background:var(--il-card); border-radius:22px; padding:34px 34px 28px; box-shadow: 0 1px 2px rgba(19,42,62,0.05), 0 24px 60px -18px rgba(19,42,62,0.22); border:1px solid rgba(255,255,255,0.6); max-width:420px; margin-left:auto; }
         .il-card h2{ font-family:'Fraunces', serif; font-weight:600; font-size:24px; color:var(--il-navy); margin:0 0 4px; }
-        .il-card-sub{ font-size:13.5px; color:var(--il-slate); margin-bottom:22px; }
+        .il-card-sub{ font-size:13.5px; color:var(--il-body); margin-bottom:22px; }
         .il-trust-bar{ display:flex; align-items:center; gap:8px; margin-bottom:24px; padding:9px 13px; background:rgba(47,191,159,0.07); border:1px solid rgba(47,191,159,0.18); border-radius:10px; font-size:12px; color:var(--il-teal); font-weight:600; width:fit-content; }
         .il-trust-bar svg{ width:13px; height:13px; flex-shrink:0; }
 
@@ -226,7 +251,7 @@ const Login = () => {
         .il-signin-btn:disabled{ opacity:0.7; cursor:not-allowed; }
         .il-signin-btn svg{ width:16px; height:16px; }
 
-        .il-card-foot{ margin-top:18px; padding-top:16px; border-top:1px solid var(--il-line); font-size:12.5px; color:var(--il-slate); text-align:center; line-height:1.55; }
+        .il-card-foot{ margin-top:18px; padding-top:16px; border-top:1px solid var(--il-line); font-size:12.5px; color:var(--il-body); text-align:center; line-height:1.55; }
         .il-card-foot a{ color:var(--il-teal); font-weight:600; text-decoration:none; }
         .il-card-foot a:hover{ text-decoration:underline; }
 
@@ -241,7 +266,7 @@ const Login = () => {
         .il-features{ position:relative; padding:72px 48px 96px; }
         .il-section-head{ text-align:center; max-width:640px; margin:36px auto 56px; }
         .il-section-head h2{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px, 3vw, 40px); color:var(--il-navy); line-height:1.15; margin:0 0 14px; }
-        .il-section-head p{ font-size:15.5px; color:var(--il-slate); line-height:1.65; margin:0; }
+        .il-section-head p{ font-size:15.5px; color:var(--il-body); line-height:1.65; margin:0; }
 
         .il-feature-grid{ position:relative; z-index:2; max-width:1080px; margin:0 auto; display:grid; grid-template-columns:repeat(3, 1fr); gap:26px; }
         .il-feature{ background:var(--il-card); border:1px solid var(--il-line); border-radius:18px; padding:30px 28px; transition: transform 0.25s var(--il-ease), box-shadow 0.25s var(--il-ease), border-color 0.25s ease; }
@@ -249,7 +274,7 @@ const Login = () => {
         .il-f-icon{ width:48px; height:48px; border-radius:13px; background:linear-gradient(135deg, rgba(47,191,159,0.14), rgba(46,143,199,0.12)); display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
         .il-f-icon svg{ width:23px; height:23px; stroke:var(--il-teal); stroke-width:1.9; fill:none; stroke-linecap:round; stroke-linejoin:round; }
         .il-feature h3{ font-family:'Fraunces', serif; font-weight:600; font-size:18.5px; color:var(--il-navy); margin:0 0 8px; }
-        .il-feature p{ font-size:13.5px; color:var(--il-slate); line-height:1.62; margin:0; }
+        .il-feature p{ font-size:13.5px; color:var(--il-body); line-height:1.62; margin:0; }
 
         .il-download{ position:relative; padding:0 48px; }
         .il-dl-band{ position:relative; z-index:2; max-width:1080px; margin:36px auto 0; background: radial-gradient(80% 120% at 85% 0%, rgba(47,191,159,0.18), transparent 55%), radial-gradient(70% 110% at 8% 100%, rgba(46,143,199,0.15), transparent 55%), linear-gradient(150deg, var(--il-navy) 0%, var(--il-navy-deep) 100%); border-radius:26px; padding:60px 64px; display:grid; grid-template-columns:1.2fr 0.8fr; gap:56px; align-items:center; overflow:hidden; box-shadow:0 30px 70px -24px rgba(12,29,44,0.5); }
@@ -267,15 +292,15 @@ const Login = () => {
         .il-qr{ width:184px; height:184px; display:flex; align-items:center; justify-content:center; margin:0 auto; }
         .il-qr canvas{ border-radius:6px; }
         .il-qr-label{ margin-top:12px; font-size:12.5px; font-weight:600; color:var(--il-navy); }
-        .il-qr-sub{ font-size:11px; color:var(--il-slate-light); margin-top:2px; font-family:monospace; }
+        .il-qr-sub{ font-size:12px; color:var(--il-body); margin-top:2px; font-family:monospace; }
 
         .izaya-landing footer{ margin-top:96px; border-top:1px solid var(--il-line); padding:36px 48px 44px; }
         .il-foot-inner{ max-width:1080px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; }
         .il-foot-brand{ display:flex; align-items:center; gap:14px; }
         .il-foot-brand svg{ width:96px; height:auto; }
-        .il-foot-brand span{ font-size:12.5px; color:var(--il-slate-light); }
+        .il-foot-brand span{ font-size:12.5px; color:var(--il-body); }
         .il-foot-links{ display:flex; gap:22px; }
-        .il-foot-links a{ font-size:12.5px; color:var(--il-slate); text-decoration:none; }
+        .il-foot-links a{ font-size:12.5px; color:var(--il-body); text-decoration:none; }
         .il-foot-links a:hover{ color:var(--il-navy); }
         .il-foot-hipaa{ display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--il-teal); }
         .il-foot-hipaa svg{ width:13px; height:13px; }
@@ -295,12 +320,35 @@ const Login = () => {
           .il-nav{ padding:16px 22px; }
           .il-nav-link{ display:none; }
           .il-features, .il-download{ padding-left:22px; padding-right:22px; }
+          .izaya-landing h1 em{ white-space:normal; }
         }
 
         @media (prefers-reduced-motion: reduce){
           .il-eyebrow, .izaya-landing h1, .il-hero-sub, .il-hero-points, .il-auth-wrap{
             animation:none !important; opacity:1 !important; transform:none !important;
           }
+        }
+
+        .il-mobile-banner{
+          position:fixed; left:12px; right:12px; bottom:12px; z-index:60;
+          display:flex; align-items:center; gap:12px;
+          background:var(--il-navy); color:#fff;
+          border-radius:16px; padding:14px 14px 14px 16px;
+          box-shadow:0 16px 40px -12px rgba(12,29,44,0.55);
+          animation: ilBannerUp 0.45s var(--il-ease) forwards;
+        }
+        @keyframes ilBannerUp{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:translateY(0); } }
+        .il-mobile-banner-icon{ width:36px; height:36px; border-radius:10px; background:rgba(47,191,159,0.18); border:1px solid rgba(47,191,159,0.4); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .il-mobile-banner-icon svg{ width:18px; height:18px; stroke:var(--il-mint); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .il-mobile-banner-text{ flex:1; min-width:0; }
+        .il-mobile-banner-text .t1{ font-size:13.5px; font-weight:600; }
+        .il-mobile-banner-text .t2{ font-size:12px; color:rgba(255,255,255,0.82); margin-top:1px; }
+        .il-mobile-banner-cta{ flex-shrink:0; background:var(--il-mint); color:var(--il-navy-deep); font-size:12.5px; font-weight:700; padding:9px 14px; border-radius:10px; text-decoration:none; white-space:nowrap; }
+        .il-mobile-banner-close{ flex-shrink:0; background:none; border:none; color:rgba(255,255,255,0.5); padding:4px; cursor:pointer; line-height:0; }
+        .il-mobile-banner-close svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+
+        @media (min-width: 768px){
+          .il-mobile-banner{ display:none; }
         }
       `}</style>
 
@@ -454,6 +502,35 @@ const Login = () => {
           </div>
         </div>
       </footer>
+
+      {showMobileInstallBanner && (
+        <div className="il-mobile-banner" role="dialog" aria-label="Install the Izaya app">
+          <span className="il-mobile-banner-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>
+          </span>
+          <div className="il-mobile-banner-text">
+            <div className="t1">Install the Izaya app</div>
+            <div className="t2">Faster access, right from your home screen</div>
+          </div>
+          <a
+            href={MOBILE_APP_INSTALL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="il-mobile-banner-cta"
+            onClick={dismissMobileInstallBanner}
+          >
+            Install
+          </a>
+          <button
+            type="button"
+            className="il-mobile-banner-close"
+            onClick={dismissMobileInstallBanner}
+            aria-label="Dismiss"
+          >
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
