@@ -383,11 +383,19 @@ export const RegisterPractitionerForm = () => {
                   <tr key={member.id} className={`hover:bg-slate-50 transition-colors ${isDeactivated ? 'opacity-60' : ''}`}>
                     <td className="px-6 py-3 font-medium text-slate-800">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                          <span className="text-white text-xs font-bold">
-                            {member.first_name?.[0]}{member.last_name?.[0]}
-                          </span>
-                        </div>
+                        {member.profile_picture ? (
+                          <img
+                            src={member.profile_picture}
+                            alt=""
+                            className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs font-bold">
+                              {member.first_name?.[0]}{member.last_name?.[0]}
+                            </span>
+                          </div>
+                        )}
                         {member.first_name} {member.last_name}
                         {isDeactivated && (
                           <span className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">

@@ -17,9 +17,12 @@ export default function Inbox() {
   const [acknowledging, setAcknowledging] = React.useState<RejectedLog | null>(null);
 
   return (
-    <div className="safe-top flex-1 px-4 pb-6 pt-5">
-      <h1 className="mb-4 text-[20px] font-semibold leading-[26px] text-ink">Inbox</h1>
+    <div className="safe-top flex flex-1 flex-col">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg px-4 pb-3 pt-5">
+        <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Inbox</h1>
+      </header>
 
+      <div className="flex-1 px-4 py-3">
       {rejectedError ? (
         <InlineErrorBanner message={rejectedError} onRetry={fetchRejectedLogs} />
       ) : rejectedLoading ? (
@@ -72,6 +75,7 @@ export default function Inbox() {
           ))}
         </ul>
       )}
+      </div>
 
       <AcknowledgeDeclineSheet
         log={acknowledging}

@@ -21,6 +21,7 @@ import Inbox from "@/pages/shell/Inbox";
 import Profile from "@/pages/shell/Profile";
 
 import AddPatient from "@/pages/AddPatient";
+import EditPatient from "@/pages/EditPatient";
 import PatientDetail from "@/pages/PatientDetail";
 import LogIntervention from "@/pages/LogIntervention";
 import ResubmitLog from "@/pages/ResubmitLog";
@@ -104,6 +105,7 @@ function App() {
               {/* Pushed full-screen views — no tab bar */}
               <Route path="/patients/new" element={<AddPatient />} />
               <Route path="/patients/:id" element={<PatientDetail />} />
+              <Route path="/patients/:id/edit" element={<EditPatient />} />
               <Route path="/patients/:id/log" element={<LogIntervention />} />
               <Route path="/inbox/:id/resubmit" element={<ResubmitLog />} />
               <Route path="/profile/change-password" element={<ChangePasswordVoluntary />} />

@@ -28,6 +28,8 @@ export interface Patient {
   county: string;
   child_id: string;
   practitioner_id: string;
+  status?: "active" | "inactive";
+  last_service_date?: string | null;
 }
 
 export type BillingStatus =
@@ -98,6 +100,7 @@ export interface PractitionerProfile {
   saved_signature?: string | null;
   // Mapped by the backend from saved_signature for convenience.
   signature?: string | null;
+  profile_picture?: string | null;
 }
 
 export interface PractitionerStats {

@@ -146,7 +146,7 @@ app.get('/api/practitioner/profile', protect, async (req, res) => {
     const practitionerId = req.practitioner.practitionerId;
     // Explicit allow-list — never return password_hash, ssn, or pay_rate to the client
     const { rows } = await pool.query(
-      `SELECT id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature, service_types
+      `SELECT id, first_name, last_name, email, role, position_title, address, phone_number, saved_signature, service_types, profile_picture
        FROM practitioners WHERE id = $1`,
       [practitionerId]
     );
@@ -173,6 +173,33 @@ app.post('/api/practitioner/signature', protect, async (req, res) => {
     res.json({ success: true, message: 'Default signature securely saved.' });
   } catch (error) {
     console.error('Signature save error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// A resized/compressed JPEG data URL comfortably fits well under this — this
+// mainly guards against a client sending an uncompressed original by mistake.
+const MAX_PROFILE_PICTURE_BASE64_LENGTH = 2_000_000; // ~1.5MB decoded
+
+// POST: Save or update the practitioner's own profile picture (self-service,
+// separate from updateStaffProfile which is admin/office-manager editing others).
+app.post('/api/practitioner/profile-picture', protect, async (req, res) => {
+  try {
+    const practitionerId = req.practitioner.practitionerId;
+    const { picture } = req.body;
+
+    if (picture !== null && (typeof picture !== 'string' || !picture.startsWith('data:image/'))) {
+      return res.status(400).json({ error: 'picture must be a data:image/... URL or null' });
+    }
+    if (picture && picture.length > MAX_PROFILE_PICTURE_BASE64_LENGTH) {
+      return res.status(400).json({ error: 'Image is too large — please use a smaller photo.' });
+    }
+
+    await pool.query('UPDATE practitioners SET profile_picture = $1 WHERE id = $2', [picture, practitionerId]);
+
+    res.json({ success: true, message: 'Profile picture saved.' });
+  } catch (error) {
+    console.error('Profile picture save error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

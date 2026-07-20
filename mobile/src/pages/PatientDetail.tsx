@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList, Plus, Pencil } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -16,12 +16,27 @@ import type { Assessment } from "@/types";
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { patients } = useAppData();
+  const { patients, fetchPatients } = useAppData();
   const patient = patients.find((p) => p.id === id);
+  const [updatingStatus, setUpdatingStatus] = React.useState(false);
 
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  const handleToggleStatus = async () => {
+    if (!patient) return;
+    const nextStatus = patient.status === "inactive" ? "active" : "inactive";
+    setUpdatingStatus(true);
+    try {
+      await api.patch(`/api/patients/${id}/status`, { status: nextStatus });
+      await fetchPatients();
+    } catch {
+      // Silent — the pill just won't have changed; user can retry the tap.
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const fetchAssessments = React.useCallback(async () => {
     if (!id) return;
@@ -46,7 +61,21 @@ export default function PatientDetail() {
 
   return (
     <PushScreen>
-      <AppBar title={title} />
+      <AppBar
+        title={title}
+        trailing={
+          patient && (
+            <button
+              type="button"
+              onClick={() => navigate(`/patients/${id}/edit`)}
+              aria-label="Edit patient"
+              className="press-scale flex size-11 items-center justify-center rounded-control text-ink hover:bg-surface-sunken"
+            >
+              <Pencil className="size-5" aria-hidden="true" />
+            </button>
+          )
+        }
+      />
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {patient && (
@@ -68,15 +97,31 @@ export default function PatientDetail() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">County</p>
                 <p className="text-sm font-medium capitalize text-ink">{patient.county || "N/A"}</p>
               </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Status</p>
+                <button
+                  type="button"
+                  onClick={handleToggleStatus}
+                  disabled={updatingStatus}
+                  className={
+                    "mt-0.5 inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold disabled:opacity-50 " +
+                    (patient.status === "inactive"
+                      ? "border-border-strong bg-surface-sunken text-ink-muted"
+                      : "border-success-border bg-success-bg text-success")
+                  }
+                >
+                  {patient.status === "inactive" ? "Inactive" : "Active"}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Sticky "Log Intervention" primary action — always reachable without scrolling. */}
+        {/* Sticky "Log Session" primary action — always reachable without scrolling. */}
         <div className="sticky top-0 z-10 -mx-4 mb-4 bg-bg px-4 pb-3 pt-1">
           <Button className="w-full" size="lg" onClick={() => navigate(`/patients/${id}/log`)}>
             <Plus className="size-4" aria-hidden="true" />
-            Log intervention
+            Log Session
           </Button>
         </div>
 

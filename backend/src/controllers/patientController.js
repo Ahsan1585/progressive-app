@@ -58,7 +58,10 @@ const getPatients = async (req, res) => {
     const practitionerId = req.practitioner.practitionerId;
 
     const { rows: patients } = await pool.query(
-      'SELECT * FROM patients WHERE practitioner_id = $1',
+      `SELECT p.*,
+              (SELECT MAX(a.service_date) FROM assessments a WHERE a.patient_id = p.id) AS last_service_date
+       FROM patients p
+       WHERE p.practitioner_id = $1`,
       [practitionerId]
     );
 

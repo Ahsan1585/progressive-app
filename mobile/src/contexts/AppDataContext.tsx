@@ -53,7 +53,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setPatientsError(null);
     try {
       const res = await api.get<Patient[]>("/api/patients");
-      setPatients(res.data);
+      // The API returns `id` as a JSON number (Postgres integer column), but
+      // every consumer compares it against route params (always strings, via
+      // useParams) — normalize to string here, once, to match the declared
+      // Patient.id: string type and make every `p.id === paramId` lookup work.
+      setPatients(res.data.map((p) => ({ ...p, id: String(p.id) })));
     } catch {
       setPatientsError("Couldn't load your patient roster.");
     } finally {

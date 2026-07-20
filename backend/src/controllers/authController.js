@@ -273,7 +273,7 @@ const getAllStaff = async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, first_name, last_name, email, role, position_title, service_types,
-              pay_rate, address, phone_number, created_at, is_active
+              pay_rate, address, phone_number, created_at, is_active, profile_picture
        FROM practitioners
        ORDER BY created_at DESC`
     );

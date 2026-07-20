@@ -261,6 +261,15 @@ const Dashboard = () => {
     return fullName.includes(term) || p.child_id?.toLowerCase().includes(term);
   });
 
+  // "Jump back in" — most recently serviced patients first (never-serviced
+  // patients sort last), not just whatever order the roster happens to load in.
+  const recentPatients = [...patients].sort((a, b) => {
+    if (!a.last_service_date && !b.last_service_date) return 0;
+    if (!a.last_service_date) return 1;
+    if (!b.last_service_date) return -1;
+    return b.last_service_date.localeCompare(a.last_service_date);
+  }).slice(0, 5);
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900 font-sans">
 
@@ -666,7 +675,7 @@ const Dashboard = () => {
                   <div className="w-full max-w-lg mt-6 text-left">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 px-1">Jump back in</p>
                     <div className="flex gap-2 overflow-x-auto pb-2">
-                      {patients.slice(0, 5).map((p) => (
+                      {recentPatients.map((p) => (
                         <button
                           key={p.id}
                           onClick={() => setSelectedPatient(p)}

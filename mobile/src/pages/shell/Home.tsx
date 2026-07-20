@@ -7,20 +7,33 @@ import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 
 export default function Home() {
   const { practitioner } = useAuth();
-  const { stats, statsLoading, statsError, fetchStats, rejectedLogs, rejectedLoading } = useAppData();
+  const { stats, statsLoading, statsError, fetchStats, rejectedLogs, rejectedLoading, patients, patientsLoading } = useAppData();
   const navigate = useNavigate();
 
+  // "Jump back in" — most recently serviced patients first (never-serviced
+  // patients sort last), not just whatever order the roster happens to load in.
+  const recentPatients = [...patients]
+    .sort((a, b) => {
+      if (!a.last_service_date && !b.last_service_date) return 0;
+      if (!a.last_service_date) return 1;
+      if (!b.last_service_date) return -1;
+      return b.last_service_date.localeCompare(a.last_service_date);
+    })
+    .slice(0, 5);
+
   return (
-    <div className="safe-top flex-1 px-4 pb-6 pt-5">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-ink-muted">Welcome back</p>
-          <h1 className="text-[20px] font-semibold leading-[26px] text-ink">
-            {practitioner?.firstName ?? "Practitioner"}
+    <div className="safe-top flex flex-1 flex-col">
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-bg px-4 pb-3 pt-5">
+        <div className="min-w-0">
+          <p className="text-sm text-ink-muted">Welcome back,</p>
+          <h1 className="truncate text-[20px] font-semibold capitalize leading-[26px] text-ink">
+            {practitioner ? `${practitioner.firstName} ${practitioner.lastName}` : "Practitioner"}
           </h1>
         </div>
-        <span className="flex size-2 rounded-full bg-success" title="Session active" aria-hidden="true" />
+        <span className="flex size-2 shrink-0 rounded-full bg-success" title="Session active" aria-hidden="true" />
       </header>
+
+      <div className="flex-1 px-4 py-3">
 
       {statsError ? (
         <InlineErrorBanner message={statsError} onRetry={fetchStats} className="mb-6" />
@@ -34,6 +47,33 @@ export default function Home() {
             formatter={(n) => n.toFixed(1)}
           />
           <StatTile label="In pipeline" value={stats?.pendingReviewCount ?? null} loading={statsLoading} />
+        </div>
+      )}
+
+      {!patientsLoading && patients.length > 0 && (
+        <div className="mb-6">
+          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">Jump back in</p>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {recentPatients.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate(`/patients/${p.id}`)}
+                className="press-scale flex-shrink-0 whitespace-nowrap rounded-full border border-border-strong bg-surface px-4 py-2 text-sm font-semibold capitalize text-ink"
+              >
+                {p.first_name} {p.last_name?.[0]}.
+              </button>
+            ))}
+            {patients.length > 5 && (
+              <button
+                type="button"
+                onClick={() => navigate("/roster")}
+                className="press-scale flex-shrink-0 whitespace-nowrap rounded-full border border-border bg-surface-sunken px-4 py-2 text-sm font-semibold text-ink-muted"
+              >
+                +{patients.length - 5} more
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -53,6 +93,7 @@ export default function Home() {
           <ChevronRight className="size-4 shrink-0 text-danger" aria-hidden="true" />
         </button>
       )}
+      </div>
     </div>
   );
 }

@@ -7,12 +7,16 @@ import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { filterPatients } from "@/utils/roster";
 
+type StatusFilter = "all" | "active" | "inactive";
+
 export default function Roster() {
   const { patients, patientsLoading, patientsError, fetchPatients } = useAppData();
   const [query, setQuery] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const navigate = useNavigate();
 
-  const filtered = filterPatients(patients, query);
+  const byStatus = statusFilter === "all" ? patients : patients.filter((p) => (p.status || "active") === statusFilter);
+  const filtered = filterPatients(byStatus, query);
 
   return (
     <div className="safe-top flex flex-1 flex-col">
@@ -48,6 +52,23 @@ export default function Roster() {
               <X className="size-4" aria-hidden="true" />
             </button>
           )}
+        </div>
+        <div className="flex gap-1.5" role="group" aria-label="Filter by status">
+          {(["all", "active", "inactive"] as StatusFilter[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className={
+                "flex-1 rounded-control border px-2.5 py-1.5 text-xs font-semibold capitalize " +
+                (statusFilter === key
+                  ? "border-primary bg-primary text-primary-fg"
+                  : "border-border bg-surface text-ink-muted")
+              }
+            >
+              {key}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -102,7 +123,14 @@ export default function Roster() {
                       {p.first_name}
                       {p.middle_name ? ` ${p.middle_name}` : ""} {p.last_name}
                     </p>
-                    <p className="tabular mt-0.5 text-xs text-ink-muted">ID: {p.child_id}</p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <p className="tabular text-xs text-ink-muted">ID: {p.child_id}</p>
+                      {p.status === "inactive" && (
+                        <span className="rounded-full border border-border-strong bg-surface-sunken px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+                          Inactive
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </button>
               </li>

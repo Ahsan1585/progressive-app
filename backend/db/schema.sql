@@ -49,6 +49,7 @@ CREATE TABLE practitioners (
   reset_token_expires timestamp with time zone,
   is_active boolean NOT NULL DEFAULT true,
   service_types text[] DEFAULT '{}'::text[],
+  profile_picture text,
   PRIMARY KEY (id),
   CONSTRAINT practitioners_email_key UNIQUE (email),
   CONSTRAINT practitioners_role_check CHECK (role = ANY (ARRAY['practitioner'::text, 'staff_director'::text, 'billing'::text, 'ceo'::text, 'account_specialist'::text]))

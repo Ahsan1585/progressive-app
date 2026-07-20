@@ -174,7 +174,17 @@ export default function LogIntervention() {
 
   return (
     <PushScreen>
-      <AppBar title="Log intervention" onBack={handleBack} />
+      <AppBar title="Log Session" onBack={handleBack} />
+
+      {patient && (
+        <div className="border-b border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Logging session for</p>
+          <p className="truncate text-[17px] font-semibold capitalize text-ink">
+            {patient.first_name}
+            {patient.middle_name ? ` ${patient.middle_name}` : ""} {patient.last_name}
+          </p>
+        </div>
+      )}
 
       {/* Sticky section-chip bar */}
       <div className="sticky top-14 z-20 flex gap-2 border-b border-border bg-bg px-4 py-2.5">
