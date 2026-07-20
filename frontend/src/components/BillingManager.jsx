@@ -871,16 +871,18 @@ export const BillingManager = () => {
                             {isLockedByMe && (
                               <button
                                 onClick={() => handleRelease(log.practitioner_id)}
-                                className="mt-1.5 ml-1 text-xs font-medium text-slate-400 hover:text-red-600 transition-colors cursor-pointer underline underline-offset-2"
+                                className="mt-1.5 ml-1 inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer"
                               >
+                                <Lock className="size-3" />
                                 Release
                               </button>
                             )}
                             {isLockedByOther && isAdmin && (
                               <button
                                 onClick={() => handleRelease(log.practitioner_id)}
-                                className="mt-1.5 ml-1 text-xs font-medium text-slate-400 hover:text-red-600 transition-colors cursor-pointer underline underline-offset-2"
+                                className="mt-1.5 ml-1 inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer"
                               >
+                                <Lock className="size-3" />
                                 Force Release
                               </button>
                             )}

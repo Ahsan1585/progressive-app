@@ -40,15 +40,22 @@ const getPendingLogs = async (req, res) => {
 
     const { rows: assessments } = await pool.query(sql, params);
 
-    const { rows: lockRows } = await pool.query(`
-      SELECT bl.practitioner_id, bl.locked_by, p.first_name, p.last_name
-      FROM billing_locks bl
-      JOIN practitioners p ON p.id = bl.locked_by
-    `);
+    // Non-fatal: billing_locks may not exist yet on an environment that hasn't
+    // run the migration — fall back to "nothing locked" rather than breaking
+    // the whole Pending Bills list over it.
     const lockMap = {};
-    lockRows.forEach(l => {
-      lockMap[l.practitioner_id] = { locked_by_id: l.locked_by, locked_by_name: `${l.first_name} ${l.last_name}` };
-    });
+    try {
+      const { rows: lockRows } = await pool.query(`
+        SELECT bl.practitioner_id, bl.locked_by, p.first_name, p.last_name
+        FROM billing_locks bl
+        JOIN practitioners p ON p.id = bl.locked_by
+      `);
+      lockRows.forEach(l => {
+        lockMap[l.practitioner_id] = { locked_by_id: l.locked_by, locked_by_name: `${l.first_name} ${l.last_name}` };
+      });
+    } catch (lockError) {
+      console.warn('getPendingLogs: billing_locks lookup failed (continuing without lock info):', lockError.message);
+    }
 
     const practitionerMap = {};
 
