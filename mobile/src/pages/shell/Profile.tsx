@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { useToast } from "@/components/ui/toast";
-import { resizeImageToDataUrl } from "@/utils/image";
+import { ImageCropSheet } from "@/components/ImageCropSheet";
 
 export default function Profile() {
   const { practitioner, logout } = useAuth();
@@ -20,17 +20,20 @@ export default function Profile() {
   const { showToast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
+  const [croppingFile, setCroppingFile] = React.useState<File | null>(null);
 
   const handlePickPhoto = () => fileInputRef.current?.click();
 
-  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
-    if (!file) return;
+    if (file) setCroppingFile(file);
+  };
 
+  const handleCropConfirm = async (dataUrl: string) => {
+    setCroppingFile(null);
     setUploadingPhoto(true);
     try {
-      const dataUrl = await resizeImageToDataUrl(file);
       await api.post("/api/practitioner/profile-picture", { picture: dataUrl });
       await fetchProfile();
       showToast("Profile picture updated.");
@@ -153,6 +156,14 @@ export default function Profile() {
           navigate("/login", { replace: true });
         }}
       />
+
+      {croppingFile && (
+        <ImageCropSheet
+          file={croppingFile}
+          onCancel={() => setCroppingFile(null)}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }

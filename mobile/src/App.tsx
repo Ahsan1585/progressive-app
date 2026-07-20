@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useSystemColorScheme } from "@/hooks/useSystemColorScheme";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -44,13 +44,33 @@ function AuthenticatedTree() {
   );
 }
 
+const SPLASH_SESSION_KEY = "izaya-splash-shown";
+
 function App() {
   useSystemColorScheme();
-  // Plays once per app launch (state is initialized fresh on every real
-  // page load, but survives ordinary in-session client-side navigation) —
-  // the route tree mounts underneath it immediately so the destination
+  // Plays once per browser tab session — sessionStorage (not just in-memory
+  // state) so a pull-to-refresh reload after login doesn't replay it; a
+  // genuinely new session (tab/app fully closed and reopened) still gets it.
+  // The route tree mounts underneath it immediately so the destination
   // screen is ready by the time the splash departs.
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    try {
+      return sessionStorage.getItem(SPLASH_SESSION_KEY) !== "true";
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    if (showSplash) {
+      try {
+        sessionStorage.setItem(SPLASH_SESSION_KEY, "true");
+      } catch {
+        // Storage unavailable (private mode, etc.) — splash will just replay; harmless.
+      }
+    }
+  }, [showSplash]);
+
   return (
     <BrowserRouter>
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}

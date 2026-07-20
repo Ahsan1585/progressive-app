@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const formatPhone = (val) => {
   const d = val.replace(/\D/g, '').slice(0, 10);
@@ -72,6 +73,7 @@ export const RegisterPractitionerForm = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [reactivatingId, setReactivatingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
+  const [viewingPhoto, setViewingPhoto] = useState(null); // { url, name } or null
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'deactivated' | 'all'
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | one of ROLE_LABELS keys
   const [staffSearch, setStaffSearch] = useState('');
@@ -384,11 +386,18 @@ export const RegisterPractitionerForm = () => {
                     <td className="px-6 py-3 font-medium text-slate-800">
                       <div className="flex items-center gap-2">
                         {member.profile_picture ? (
-                          <img
-                            src={member.profile_picture}
-                            alt=""
-                            className="w-7 h-7 rounded-full object-cover flex-shrink-0"
-                          />
+                          <button
+                            type="button"
+                            onClick={() => setViewingPhoto({ url: member.profile_picture, name: `${member.first_name} ${member.last_name}` })}
+                            className="w-7 h-7 rounded-full flex-shrink-0 cursor-pointer ring-offset-1 hover:ring-2 hover:ring-blue-400 transition-all"
+                            title="View photo"
+                          >
+                            <img
+                              src={member.profile_picture}
+                              alt=""
+                              className="w-7 h-7 rounded-full object-cover"
+                            />
+                          </button>
                         ) : (
                           <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-xs font-bold">
@@ -691,6 +700,22 @@ export const RegisterPractitionerForm = () => {
           </div>
         </div>
       )}
+
+      {/* ── PHOTO LIGHTBOX ── */}
+      <Dialog open={!!viewingPhoto} onOpenChange={(open) => !open && setViewingPhoto(null)}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>{viewingPhoto?.name}</DialogTitle>
+          </DialogHeader>
+          {viewingPhoto && (
+            <img
+              src={viewingPhoto.url}
+              alt={viewingPhoto.name}
+              className="w-full aspect-square rounded-xl object-cover border border-slate-200"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── EDIT PROFILE DIALOG ── */}
       {editingMember && editForm && (
