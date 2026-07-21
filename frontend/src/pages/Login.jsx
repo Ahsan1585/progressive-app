@@ -217,13 +217,13 @@ const Login = () => {
         .il-hero::before{ content:""; position:absolute; inset:0; background: radial-gradient(70% 60% at 78% 10%, rgba(46,143,199,0.10), transparent 60%), radial-gradient(60% 50% at 12% 20%, rgba(47,191,159,0.10), transparent 60%), linear-gradient(180deg, #EEF6F4 0%, var(--il-paper) 55%); pointer-events:none; }
         .il-hero-inner{ position:relative; z-index:2; width:100%; max-width:1200px; margin:0 auto; display:grid; grid-template-columns: 1.1fr 0.9fr; gap:72px; align-items:center; }
 
-        .il-hero-copy{ max-width:560px; }
-        .il-eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--il-teal); margin-bottom:22px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.1s forwards; }
-        .izaya-landing h1{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(32px, 8vw, 64px); line-height:1.12; letter-spacing:-0.5px; color:var(--il-navy); margin:0 0 24px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.22s forwards; overflow-wrap:break-word; }
+        .il-hero-copy{ max-width:600px; }
+        .il-eyebrow{ display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--il-teal); margin-bottom:16px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.1s forwards; }
+        .izaya-landing h1{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(32px, 6vw, 54px); line-height:1.16; letter-spacing:-0.5px; color:var(--il-navy); margin:0 0 18px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.22s forwards; overflow-wrap:break-word; }
         .izaya-landing h1 em{ font-style:normal; position:relative; white-space:nowrap; }
-        .izaya-landing h1 em::after{ content:""; position:absolute; left:0; right:0; bottom:6px; height:12px; background:rgba(47,191,159,0.28); z-index:-1; border-radius:3px; }
-        .il-hero-sub{ font-size:17px; line-height:1.65; color:var(--il-body); margin-bottom:34px; max-width:480px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.34s forwards; }
-        .il-hero-points{ display:flex; flex-direction:column; gap:14px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.46s forwards; }
+        .izaya-landing h1 em::after{ content:""; position:absolute; left:0; right:0; bottom:5px; height:10px; background:rgba(47,191,159,0.28); z-index:-1; border-radius:3px; }
+        .il-hero-sub{ font-size:16.5px; line-height:1.6; color:var(--il-body); margin-bottom:26px; max-width:480px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.34s forwards; }
+        .il-hero-points{ display:flex; flex-direction:column; gap:10px; opacity:0; animation: ilUp 0.8s var(--il-ease) 0.46s forwards; }
         .il-point{ display:flex; align-items:center; gap:12px; font-size:14.5px; font-weight:500; color:var(--il-ink); }
         .il-point .il-pn{ width:26px; height:26px; border-radius:50%; background:var(--il-mint); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 10px -3px rgba(47,191,159,0.5); }
         .il-point .il-pn svg{ width:13px; height:13px; stroke:#fff; stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
@@ -268,12 +268,12 @@ const Login = () => {
         .il-spine-node{ position:relative; z-index:2; width:46px; height:46px; margin:0 auto; border-radius:50%; background:var(--il-mint); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 8px var(--il-paper), 0 8px 20px -6px rgba(47,191,159,0.55); }
         .il-spine-node svg{ width:20px; height:20px; stroke:#fff; stroke-width:2.4; fill:none; stroke-linecap:round; stroke-linejoin:round; }
 
-        .il-features{ position:relative; padding:72px 48px 96px; }
-        .il-section-head{ text-align:center; max-width:640px; margin:36px auto 56px; }
+        .il-features{ position:relative; padding:64px 48px 48px; }
+        .il-section-head{ text-align:center; max-width:640px; margin:32px auto 40px; }
         .il-section-head h2{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px, 3vw, 40px); color:var(--il-navy); line-height:1.15; margin:0 0 14px; }
         .il-section-head p{ font-size:15.5px; color:var(--il-body); line-height:1.65; margin:0; }
 
-        .il-feature-grid{ position:relative; z-index:2; max-width:840px; margin:0 auto; display:grid; grid-template-columns:repeat(2, 1fr); gap:26px; }
+        .il-feature-grid{ position:relative; z-index:2; max-width:920px; margin:0 auto; display:grid; grid-template-columns:repeat(2, 1fr); gap:22px; }
         .il-feature{ background:var(--il-card); border:1px solid var(--il-line); border-radius:18px; padding:30px 28px; transition: transform 0.25s var(--il-ease), box-shadow 0.25s var(--il-ease), border-color 0.25s ease; }
         .il-feature:hover{ transform:translateY(-5px); box-shadow:0 20px 40px -16px rgba(19,42,62,0.18); border-color:rgba(47,191,159,0.4); }
         .il-f-icon{ width:48px; height:48px; border-radius:13px; background:linear-gradient(135deg, rgba(47,191,159,0.14), rgba(46,143,199,0.12)); display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
@@ -375,7 +375,7 @@ const Login = () => {
 
           <div className="il-hero-copy">
             <div className="il-eyebrow">Early Intervention Simplified</div>
-            <h1>Every session, every message, <em>handled in one place.</em></h1>
+            <h1>Sessions and messages,<br /><em>handled in one place.</em></h1>
             <p className="il-hero-sub">Izaya gives early intervention practitioners — and the agencies that manage them — one place to log sessions, message the office, schedule visits, and handle state billing. Less paperwork, faster turnaround.</p>
             <div className="il-hero-points">
               <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>Built for practitioners &amp; the agencies that manage them</div>
