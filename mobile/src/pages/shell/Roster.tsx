@@ -29,12 +29,17 @@ export default function Roster() {
     <div className="safe-top flex flex-1 flex-col">
       <div className="sticky top-0 z-10 space-y-3 border-b border-border bg-bg px-4 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Roster</h1>
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Roster</h1>
+            <p className="mt-0.5 truncate text-xs text-ink-muted">
+              Tap + to add a patient · open one to log or schedule a session
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => navigate("/patients/new")}
             aria-label="Add patient"
-            className="press-scale flex size-11 items-center justify-center rounded-control border border-border-strong bg-surface text-ink"
+            className="press-scale flex size-11 shrink-0 items-center justify-center rounded-control border border-border-strong bg-surface text-ink"
           >
             <Plus className="size-5" aria-hidden="true" />
           </button>

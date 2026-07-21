@@ -1,6 +1,6 @@
 import * as React from "react";
 import api from "@/api/axiosInstance";
-import type { Patient, PractitionerProfile, PractitionerStats, RejectedLog } from "@/types";
+import type { Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession } from "@/types";
 
 interface AppDataContextValue {
   patients: Patient[];
@@ -25,6 +25,10 @@ interface AppDataContextValue {
 
   unreadMessageCount: number;
   fetchUnreadMessageCount: () => Promise<void>;
+
+  upcomingSessions: ScheduledSession[];
+  upcomingSessionsLoading: boolean;
+  fetchUpcomingSessions: () => Promise<void>;
 
   setSavedSignature: (base64: string | null) => void;
 }
@@ -52,6 +56,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [statsError, setStatsError] = React.useState<string | null>(null);
 
   const [unreadMessageCount, setUnreadMessageCount] = React.useState(0);
+
+  const [upcomingSessions, setUpcomingSessions] = React.useState<ScheduledSession[]>([]);
+  const [upcomingSessionsLoading, setUpcomingSessionsLoading] = React.useState(true);
 
   const fetchPatients = React.useCallback(async () => {
     setPatientsLoading(true);
@@ -118,13 +125,30 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchUpcomingSessions = React.useCallback(async () => {
+    setUpcomingSessionsLoading(true);
+    try {
+      // Local YYYY-MM-DD (not toISOString, which shifts to UTC and can drop
+      // to yesterday's date for practitioners west of UTC in the evening).
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const res = await api.get<ScheduledSession[]>("/api/schedule", { params: { from: today } });
+      setUpcomingSessions(res.data.filter((s) => s.status === "scheduled"));
+    } catch {
+      // Non-critical — the Home schedule section just stays empty.
+    } finally {
+      setUpcomingSessionsLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchPatients();
     fetchProfile();
     fetchRejectedLogs();
     fetchStats();
     fetchUnreadMessageCount();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount]);
+    fetchUpcomingSessions();
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions]);
 
   const setSavedSignature = React.useCallback((base64: string | null) => {
     setProfile((prev) => (prev ? { ...prev, signature: base64, saved_signature: base64 } : prev));
@@ -150,6 +174,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchStats,
       unreadMessageCount,
       fetchUnreadMessageCount,
+      upcomingSessions,
+      upcomingSessionsLoading,
+      fetchUpcomingSessions,
       setSavedSignature,
     }),
     [
@@ -171,6 +198,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchStats,
       unreadMessageCount,
       fetchUnreadMessageCount,
+      upcomingSessions,
+      upcomingSessionsLoading,
+      fetchUpcomingSessions,
       setSavedSignature,
     ]
   );

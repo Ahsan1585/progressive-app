@@ -1,11 +1,40 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronRight, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, ChevronRight, MapPin, RefreshCw, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
 import { StatTile } from "@/components/StatTile";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { formatTime12h } from "@/utils/time";
 import { cn } from "@/lib/utils";
+import type { ScheduledSession } from "@/types";
+
+// Buckets upcoming sessions into calendar-relative groups (Today / Tomorrow /
+// weekday name within the next week / "Mon D" beyond that). Sessions arrive
+// pre-sorted by date+time from the backend, so a single pass preserves
+// chronological order within and across groups — no re-sort needed.
+function groupSessionsByDay(sessions: ScheduledSession[]) {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const groups: { label: string; isToday: boolean; sessions: ScheduledSession[] }[] = [];
+  for (const s of sessions) {
+    const [y, m, d] = s.session_date.split("T")[0].split("-").map(Number);
+    const sessionDate = new Date(y, m - 1, d);
+    const diffDays = Math.round((sessionDate.getTime() - todayStart.getTime()) / 86400000);
+
+    let label: string;
+    if (diffDays === 0) label = "Today";
+    else if (diffDays === 1) label = "Tomorrow";
+    else if (diffDays > 1 && diffDays < 7) label = sessionDate.toLocaleDateString(undefined, { weekday: "long" });
+    else label = sessionDate.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.sessions.push(s);
+    else groups.push({ label, isToday: diffDays === 0, sessions: [s] });
+  }
+  return groups;
+}
 
 export default function Home() {
   const { practitioner } = useAuth();
@@ -13,6 +42,7 @@ export default function Home() {
     stats, statsLoading, statsError, fetchStats,
     rejectedLogs, rejectedLoading, fetchRejectedLogs,
     patients, patientsLoading, fetchPatients,
+    upcomingSessions, upcomingSessionsLoading, fetchUpcomingSessions,
   } = useAppData();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -20,7 +50,7 @@ export default function Home() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchPatients()]);
+      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchPatients(), fetchUpcomingSessions()]);
     } finally {
       setRefreshing(false);
     }
@@ -36,7 +66,10 @@ export default function Home() {
     fetchStats();
     fetchRejectedLogs();
     fetchPatients();
-  }, [fetchStats, fetchRejectedLogs, fetchPatients]);
+    fetchUpcomingSessions();
+  }, [fetchStats, fetchRejectedLogs, fetchPatients, fetchUpcomingSessions]);
+
+  const scheduleGroups = React.useMemo(() => groupSessionsByDay(upcomingSessions), [upcomingSessions]);
 
   // "Jump back in" — most recently serviced patients first (never-serviced
   // patients sort last), not just whatever order the roster happens to load in.
@@ -92,6 +125,74 @@ export default function Home() {
             formatter={(n) => n.toFixed(1)}
           />
           <StatTile label="In pipeline" value={stats?.pendingReviewCount ?? null} loading={statsLoading} />
+        </div>
+      )}
+
+      {!upcomingSessionsLoading && upcomingSessions.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Your Schedule</p>
+            <p className="tabular text-xs text-ink-faint">
+              {upcomingSessions.length} upcoming
+            </p>
+          </div>
+          <div className="space-y-4">
+            {scheduleGroups.map((group) => (
+              <div key={group.label}>
+                <div className="mb-1.5 flex items-center gap-2 px-1">
+                  {group.isToday && <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />}
+                  <p className={cn("text-xs font-semibold", group.isToday ? "text-primary" : "text-ink-muted")}>
+                    {group.label}
+                  </p>
+                </div>
+                <ul role="list" className="space-y-2">
+                  {group.sessions.map((s) => {
+                    const [, month, day] = s.session_date.split("T")[0].split("-");
+                    const monthLabel = new Date(2000, parseInt(month, 10) - 1, 1).toLocaleDateString(undefined, { month: "short" });
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/patients/${s.patient_id}`)}
+                          className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-3 text-left shadow-[var(--elev-rest)]"
+                        >
+                          <div
+                            className={cn(
+                              "flex size-11 shrink-0 flex-col items-center justify-center rounded-control",
+                              group.isToday ? "bg-primary text-primary-fg" : "bg-surface-sunken text-ink"
+                            )}
+                          >
+                            <span className="text-[9px] font-bold uppercase leading-none">{monthLabel}</span>
+                            <span className="tabular text-[15px] font-bold leading-tight">{parseInt(day, 10)}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[15px] font-semibold capitalize text-ink">
+                              {s.patient_first_name} {s.patient_last_name}
+                            </p>
+                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">
+                              <span className="tabular">
+                                {formatTime12h(s.start_time)} – {formatTime12h(s.end_time)}
+                              </span>
+                              {s.location && (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span className="flex items-center gap-0.5 truncate">
+                                    <MapPin className="size-3 shrink-0" aria-hidden="true" />
+                                    <span className="truncate">{s.location}</span>
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

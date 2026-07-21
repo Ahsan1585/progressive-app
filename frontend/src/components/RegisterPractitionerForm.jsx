@@ -335,11 +335,11 @@ export const RegisterPractitionerForm = () => {
           onClick={() => setActiveTab('roster')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
             activeTab === 'roster'
-              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5'
+              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-blue-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
           }`}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className={`w-4 h-4 ${activeTab === 'roster' ? 'text-blue-600' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           Staff Roster
@@ -348,11 +348,11 @@ export const RegisterPractitionerForm = () => {
           onClick={() => setActiveTab('register')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
             activeTab === 'register'
-              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5'
+              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-emerald-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
           }`}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className={`w-4 h-4 ${activeTab === 'register' ? 'text-emerald-600' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
           Register New Account
@@ -364,26 +364,27 @@ export const RegisterPractitionerForm = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
-            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
 
             <div className="ml-auto flex items-center gap-1 bg-slate-200 rounded-lg p-1 shadow-inner">
               {[
-                { key: 'active', label: 'Active' },
-                { key: 'deactivated', label: 'Deactivated' },
-                { key: 'all', label: 'All' },
+                { key: 'active', label: 'Active', dot: 'bg-emerald-500', text: 'text-emerald-700', ring: 'ring-emerald-500/25' },
+                { key: 'deactivated', label: 'Deactivated', dot: 'bg-rose-500', text: 'text-rose-700', ring: 'ring-rose-500/25' },
+                { key: 'all', label: 'All', dot: 'bg-blue-500', text: 'text-blue-700', ring: 'ring-blue-500/25' },
               ].map(opt => (
                 <button
                   key={opt.key}
                   onClick={() => setStatusFilter(opt.key)}
-                  className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                     statusFilter === opt.key
-                      ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5'
+                      ? `bg-white ${opt.text} shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ${opt.ring}`
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === opt.key ? opt.dot : 'bg-slate-400'}`} />
                   {opt.label}
                 </button>
               ))}

@@ -77,22 +77,28 @@ export function StaffChatPopover({ practitioner, onClose }) {
         ) : messages.length === 0 ? (
           <p className="text-sm text-slate-400 text-center py-8">No messages yet.</p>
         ) : (
-          messages.map((m) => (
-            <div key={m.id} className={`flex ${m.sender_role !== 'practitioner' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                  m.sender_role !== 'practitioner'
-                    ? 'bg-slate-900 text-white rounded-br-sm'
-                    : 'bg-slate-100 text-slate-800 rounded-bl-sm'
-                }`}
-              >
-                <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                <p className={`text-[10px] mt-1 ${m.sender_role !== 'practitioner' ? 'text-slate-300' : 'text-slate-400'}`}>
-                  {new Date(m.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                </p>
+          messages.map((m) => {
+            const isOffice = m.sender_role !== 'practitioner';
+            return (
+              <div key={m.id} className={`flex flex-col ${isOffice ? 'items-end' : 'items-start'}`}>
+                <span className={`px-1 text-[11px] font-semibold mb-0.5 ${isOffice ? 'text-slate-500' : 'text-blue-600'}`}>
+                  {isOffice ? 'Office' : `${practitioner.first_name} ${practitioner.last_name}`}
+                </span>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                    isOffice
+                      ? 'bg-slate-900 text-white rounded-br-sm'
+                      : 'bg-blue-600 text-white rounded-bl-sm'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  <p className={`text-[10px] mt-1 ${isOffice ? 'text-slate-300' : 'text-blue-100'}`}>
+                    {new Date(m.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>
