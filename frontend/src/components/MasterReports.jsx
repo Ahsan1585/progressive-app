@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '@/api/axiosInstance';
+import izayaLogo from '@/assets/izaya-logo.png';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -303,7 +304,10 @@ export const MasterReports = () => {
 
       {/* HEADER */}
       <div className="print:hidden">
-        <h1 className="text-2xl font-bold text-slate-800">System Audit & Reports</h1>
+        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          System Audit & Reports
+          <img src={izayaLogo} alt="" className="h-5 w-auto" />
+        </h1>
         <p className="text-sm text-slate-500 mt-1">Generate comprehensive system exports for compliance, billing, and staff utilization.</p>
       </div>
 

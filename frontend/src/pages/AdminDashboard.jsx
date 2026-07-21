@@ -184,6 +184,7 @@ const AdminDashboard = () => {
               </svg>
             </button>
             <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse hidden md:block"></span>
+            <img src={izayaLogo} alt="" className="h-5 w-auto hidden sm:block" />
             <h2 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
               {activeTab === 'practitioners' ? 'Staff Directory' : activeTab === 'reports' ? 'Master Reports' : 'Billing & Invoices'}
             </h2>
