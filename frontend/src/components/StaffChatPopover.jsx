@@ -55,23 +55,23 @@ export function StaffChatPopover({ practitioner, onClose }) {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex h-[480px] w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
+    <div className="fixed bottom-5 right-5 z-50 flex h-[480px] w-[340px] flex-col overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-[0_20px_60px_-12px_rgba(0,0,0,0.55)]">
+      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-4 py-3">
         <div>
-          <p className="text-sm font-bold text-slate-800">{practitioner.first_name} {practitioner.last_name}</p>
-          <p className="text-xs text-slate-400">{practitioner.position_title || 'Practitioner'}</p>
+          <p className="text-sm font-bold text-white">{practitioner.first_name} {practitioner.last_name}</p>
+          <p className="text-xs text-slate-300">{practitioner.position_title || 'Practitioner'}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
+          className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10 hover:text-white cursor-pointer"
           aria-label="Close chat"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2 px-3 py-3">
+      <div className="flex-1 overflow-y-auto space-y-2 bg-slate-50 px-3 py-3">
         {isLoading ? (
           <p className="text-sm text-slate-400 text-center py-8">Loading…</p>
         ) : messages.length === 0 ? (

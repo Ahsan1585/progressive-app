@@ -54,7 +54,7 @@ const AdminDashboard = () => {
         );
       case 'practitioners':
         return (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-5xl mx-auto w-full">
             <RegisterPractitionerForm />
           </div>
         );

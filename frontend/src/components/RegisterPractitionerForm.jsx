@@ -330,13 +330,13 @@ export const RegisterPractitionerForm = () => {
     <div className="space-y-6">
 
       {/* ── TAB SWITCHER ── */}
-      <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200">
+      <div className="inline-flex items-center gap-1 p-1 bg-slate-200 rounded-xl shadow-inner">
         <button
           onClick={() => setActiveTab('roster')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
             activeTab === 'roster'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
           }`}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -346,10 +346,10 @@ export const RegisterPractitionerForm = () => {
         </button>
         <button
           onClick={() => setActiveTab('register')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
             activeTab === 'register'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
           }`}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -369,7 +369,7 @@ export const RegisterPractitionerForm = () => {
             </svg>
             <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
 
-            <div className="ml-auto flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+            <div className="ml-auto flex items-center gap-1 bg-slate-200 rounded-lg p-1 shadow-inner">
               {[
                 { key: 'active', label: 'Active' },
                 { key: 'deactivated', label: 'Deactivated' },
@@ -378,10 +378,10 @@ export const RegisterPractitionerForm = () => {
                 <button
                   key={opt.key}
                   onClick={() => setStatusFilter(opt.key)}
-                  className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                     statusFilter === opt.key
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
                   {opt.label}
@@ -440,8 +440,8 @@ export const RegisterPractitionerForm = () => {
                 {visibleStaff.map(member => {
                   const isDeactivated = member.is_active === false;
                   return (
-                  <tr key={member.id} className={`hover:bg-slate-50 transition-colors ${isDeactivated ? 'opacity-60' : ''}`}>
-                    <td className="px-6 py-3 font-medium text-slate-800">
+                  <tr key={member.id} className="hover:bg-slate-50 transition-colors">
+                    <td className={`px-6 py-3 font-medium text-slate-800 ${isDeactivated ? 'opacity-60' : ''}`}>
                       <div className="flex items-center gap-2">
                         {member.profile_picture ? (
                           <button
@@ -482,9 +482,9 @@ export const RegisterPractitionerForm = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{member.email}</td>
-                    <td className="px-4 py-3 text-slate-500">{member.position_title || '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.email}</td>
+                    <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.position_title || '—'}</td>
+                    <td className={`px-4 py-3 ${isDeactivated ? 'opacity-60' : ''}`}>
                       {currentUserRole === 'ceo' ? (
                         <select
                           value={member.role}
@@ -513,7 +513,7 @@ export const RegisterPractitionerForm = () => {
                               className={`relative p-1.5 rounded-lg transition-colors cursor-pointer ${
                                 openChatMember?.id === member.id
                                   ? 'text-blue-600 bg-blue-50'
-                                  : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                                  : 'text-slate-700 hover:text-blue-600 hover:bg-blue-50'
                               }`}
                               title="Message practitioner"
                             >
@@ -529,7 +529,7 @@ export const RegisterPractitionerForm = () => {
                           {(currentUserRole === 'ceo' || member.role === 'practitioner') && (
                             <button
                               onClick={() => handleOpenEdit(member)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                               title="Edit profile"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -542,7 +542,7 @@ export const RegisterPractitionerForm = () => {
                               <button
                                 onClick={() => handleReactivate(member.id)}
                                 disabled={reactivatingId === member.id}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40 cursor-pointer"
+                                className="p-1.5 rounded-lg text-slate-700 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40 cursor-pointer"
                                 title="Reactivate user"
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -553,7 +553,7 @@ export const RegisterPractitionerForm = () => {
                               <button
                                 onClick={() => setConfirmDelete(member)}
                                 disabled={deletingId === member.id}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
+                                className="p-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
                                 title="Deactivate user"
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
