@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, MessageCircle } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,9 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { StaffChatPopover } from '@/components/StaffChatPopover';
+
+const MESSAGE_THREADS_POLL_MS = 20000;
 
 const formatPhone = (val) => {
   const d = val.replace(/\D/g, '').slice(0, 10);
@@ -80,6 +83,10 @@ export const RegisterPractitionerForm = () => {
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | one of ROLE_LABELS keys
   const [staffSearch, setStaffSearch] = useState('');
 
+  // --- Messaging (integrated into the roster row, not a separate tab) ---
+  const [unreadByPractitioner, setUnreadByPractitioner] = useState({}); // { [practitionerId]: count }
+  const [openChatMember, setOpenChatMember] = useState(null); // member object or null
+
   // --- Edit Profile State ---
   const [editingMember, setEditingMember] = useState(null); // member object being edited, or null
   const [editForm, setEditForm] = useState(null);
@@ -110,6 +117,31 @@ export const RegisterPractitionerForm = () => {
       .catch(() => {})
       .finally(() => setLoadingStaff(false));
   }, []);
+
+  const fetchMessageThreads = async () => {
+    try {
+      const res = await api.get('/api/messages/threads');
+      const next = {};
+      for (const t of res.data) next[t.practitioner_id] = t.unread_count;
+      setUnreadByPractitioner(next);
+    } catch {
+      // Non-critical — the blinking indicator just won't update this tick.
+    }
+  };
+
+  useEffect(() => {
+    fetchMessageThreads();
+    const interval = setInterval(fetchMessageThreads, MESSAGE_THREADS_POLL_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleOpenChat = (member) => {
+    setOpenChatMember((prev) => (prev?.id === member.id ? null : member));
+    // Opening the thread marks the office's unread messages read server-side
+    // (GET /api/messages/:id) — clear the blink immediately rather than
+    // waiting for the next poll tick.
+    setUnreadByPractitioner((prev) => ({ ...prev, [member.id]: 0 }));
+  };
 
   const handleOpenEdit = (member) => {
     setEditingMember(member);
@@ -475,6 +507,25 @@ export const RegisterPractitionerForm = () => {
                     {(currentUserRole === 'ceo' || currentUserRole === 'staff_director' || currentUserRole === 'account_specialist') && (
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {member.role === 'practitioner' && (
+                            <button
+                              onClick={() => handleOpenChat(member)}
+                              className={`relative p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                openChatMember?.id === member.id
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                              }`}
+                              title="Message practitioner"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                              {unreadByPractitioner[member.id] > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                                </span>
+                              )}
+                            </button>
+                          )}
                           {(currentUserRole === 'ceo' || member.role === 'practitioner') && (
                             <button
                               onClick={() => handleOpenEdit(member)}
@@ -930,6 +981,10 @@ export const RegisterPractitionerForm = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {openChatMember && (
+        <StaffChatPopover practitioner={openChatMember} onClose={() => setOpenChatMember(null)} />
       )}
 
     </div>

@@ -4,14 +4,12 @@ import api from '@/api/axiosInstance';
 import { MasterReports } from '@/components/MasterReports';
 import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
-import { MessageCenter } from '@/components/MessageCenter';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
   practitioners: ['ceo', 'staff_director', 'account_specialist'],
   reports:       ['ceo'],
   billing:       ['ceo', 'billing', 'account_specialist'],
-  messages:      ['ceo', 'staff_director', 'billing', 'account_specialist'],
 };
 
 const ROLE_LABELS = {
@@ -64,12 +62,6 @@ const AdminDashboard = () => {
         return (
           <div className="max-w-7xl mx-auto w-full">
             <MasterReports />
-          </div>
-        );
-      case 'messages':
-        return (
-          <div className="max-w-6xl mx-auto w-full">
-            <MessageCenter />
           </div>
         );
       default:
@@ -168,22 +160,6 @@ const AdminDashboard = () => {
             </button>
           )}
 
-          {visibleTabs.includes('messages') && (
-            <button
-              onClick={() => { setActiveTab('messages'); setSidebarOpen(false); setDesktopNavOpen(false); }}
-              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
-                activeTab === 'messages'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
-              </svg>
-              Messages
-            </button>
-          )}
-
         </nav>
 
         <div className="p-4 border-t border-slate-100 flex flex-col items-center">
@@ -209,7 +185,7 @@ const AdminDashboard = () => {
             </button>
             <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse hidden md:block"></span>
             <h2 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
-              {activeTab === 'practitioners' ? 'Staff Directory' : activeTab === 'reports' ? 'Master Reports' : activeTab === 'messages' ? 'Messages' : 'Billing & Invoices'}
+              {activeTab === 'practitioners' ? 'Staff Directory' : activeTab === 'reports' ? 'Master Reports' : 'Billing & Invoices'}
             </h2>
           </div>
           <div className="flex items-center gap-3">
