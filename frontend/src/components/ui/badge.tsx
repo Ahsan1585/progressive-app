@@ -14,6 +14,7 @@ const badgeVariants = cva(
         danger: "border-red-200 bg-red-100 text-red-700",
         info: "border-blue-200 bg-blue-100 text-blue-700",
         override: "border-violet-200 bg-violet-100 text-violet-700",
+        hold: "border-orange-200 bg-orange-100 text-orange-700",
       },
     },
     defaultVariants: {

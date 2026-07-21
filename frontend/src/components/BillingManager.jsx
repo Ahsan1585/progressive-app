@@ -13,8 +13,33 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   Search, ChevronRight, ChevronDown, Download, Check, X, Undo2,
-  Ban, Clock, Lock, CheckCircle2, CircleAlert,
+  Ban, Clock, Lock, CheckCircle2, CircleAlert, PauseCircle, PlayCircle,
 } from 'lucide-react';
+
+// --- Copy for the Reject/Return/Hold note modal, keyed by action type ---
+const ACTION_MODAL_COPY = {
+  return: {
+    title: 'Return Log to Practitioner',
+    description: 'This log will be sent back to the practitioner for revision. They must correct and resubmit it before it can be billed.',
+    label: 'Return Note',
+    placeholder: 'Describe what needs to be corrected (e.g., incorrect service type, wrong start time)...',
+    ringClass: 'focus-visible:ring-blue-500/30 focus-visible:border-blue-400',
+  },
+  reject: {
+    title: 'Reject Log',
+    description: 'This log will be permanently rejected from billing. The practitioner will be notified — no further action is required from them.',
+    label: 'Rejection Reason',
+    placeholder: 'Explain the reason for rejection (e.g., duplicate entry, service not covered)...',
+    ringClass: 'focus-visible:ring-red-500/30 focus-visible:border-red-400',
+  },
+  hold: {
+    title: 'Place Log on Hold',
+    description: 'This log will be moved to a separate "On Hold" section for this practitioner, set aside from their regular billing queue until it’s reviewed.',
+    label: 'Hold Reason / Ticket',
+    placeholder: 'Explain why this log is on hold (e.g., waiting on parent signature, disputed service date)...',
+    ringClass: 'focus-visible:ring-orange-500/30 focus-visible:border-orange-400',
+  },
+};
 
 // --- Review-badge resolution (kept separate: pending-queue and vault-history are genuinely different decision trees) ---
 function getPendingReviewBadge(session, isLocked, isReturned, logActions) {
@@ -111,10 +136,13 @@ export const BillingManager = () => {
   const [loadingExpand, setLoadingExpand] = useState(new Set());
   const [processingLogId, setProcessingLogId] = useState(null);
 
-  // --- ACTION MODAL STATE (Reject / Return) ---
-  const [actionModal, setActionModal] = useState(null); // { session, practitionerId, type: 'reject'|'return' }
+  // --- ACTION MODAL STATE (Reject / Return / Hold) ---
+  const [actionModal, setActionModal] = useState(null); // { session, practitionerId, type: 'reject'|'return'|'hold' }
   const [actionNote, setActionNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --- HOLD CONFIRMATION PROMPT (centered, shown right after placing a log on hold) ---
+  const [holdConfirmation, setHoldConfirmation] = useState(null); // { practitionerName } or null
 
   // --- REVERT BATCH MODAL STATE (Completed Bills → Send Back to Pending) ---
   const [revertModal, setRevertModal] = useState(null); // { group } or null
@@ -202,7 +230,7 @@ export const BillingManager = () => {
             ? { ...l, locked_by_id: response.data.locked_by_id, locked_by_name: response.data.locked_by_name }
             : l
         ));
-        await handleToggleExpand(practitionerId);
+        await handleToggleExpand(practitionerId, practitionerId, 'pending');
       }
     } catch (error) {
       if (error.response?.status === 409) {
@@ -243,31 +271,35 @@ export const BillingManager = () => {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  const handleToggleExpand = async (practitionerId) => {
+  // rowKey distinguishes a practitioner's regular pending group from their
+  // separate Hold group in expandedRows/expandedLogs/loadingExpand — for the
+  // pending group it's just the practitioner id (unchanged, existing
+  // behavior), for the Hold group it's `${practitionerId}-hold`.
+  const handleToggleExpand = async (rowKey, practitionerId, groupType = 'pending') => {
     const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(practitionerId)) {
-      newExpanded.delete(practitionerId);
+    if (newExpanded.has(rowKey)) {
+      newExpanded.delete(rowKey);
       setExpandedRows(newExpanded);
       return;
     }
-    newExpanded.add(practitionerId);
+    newExpanded.add(rowKey);
     setExpandedRows(newExpanded);
 
-    if (!expandedLogs[practitionerId]) {
-      setLoadingExpand(prev => new Set(prev).add(practitionerId));
+    if (!expandedLogs[rowKey]) {
+      setLoadingExpand(prev => new Set(prev).add(rowKey));
       try {
         const response = await api.get('/api/billing/practitioner-logs', {
-          params: { practitionerId, startDate: dateRange.start, endDate: dateRange.end }
+          params: { practitionerId, groupType, startDate: dateRange.start, endDate: dateRange.end }
         });
         if (response.data.success) {
-          setExpandedLogs(prev => ({ ...prev, [practitionerId]: response.data.logs }));
+          setExpandedLogs(prev => ({ ...prev, [rowKey]: response.data.logs }));
         }
       } catch (error) {
         console.error('Failed to fetch practitioner logs', error);
       } finally {
         setLoadingExpand(prev => {
           const n = new Set(prev);
-          n.delete(practitionerId);
+          n.delete(rowKey);
           return n;
         });
       }
@@ -289,6 +321,31 @@ export const BillingManager = () => {
     } catch (error) {
       setLogActions(prev => ({ ...prev, [session.id]: '' }));
       console.error('Failed to accept log', error);
+    } finally {
+      setProcessingLogId(null);
+    }
+  };
+
+  // Moves a log off Hold and back into the practitioner's regular pending
+  // queue. Their Hold row disappears on its own once it has no logs left
+  // (getPendingLogs only creates a Hold group entry when one exists).
+  const handleReleaseHold = async (session, practitionerId) => {
+    setProcessingLogId(session.id);
+    try {
+      await api.patch('/api/billing/log-status', { assessmentId: session.id, status: 'pending' });
+      const holdKey = `${practitionerId}-hold`;
+      setExpandedLogs(prev => {
+        const next = { ...prev, [holdKey]: (prev[holdKey] || []).filter(l => l.id !== session.id) };
+        // Force the practitioner's regular group to refetch next time it's
+        // (re)expanded, so the released log shows up there.
+        delete next[practitionerId];
+        return next;
+      });
+      fetchLogs({ silent: true });
+      pushToast('success', 'Log released from hold and returned to Pending Bills.');
+    } catch (error) {
+      pushToast('error', 'Failed to release log from hold.');
+      console.error('Failed to release hold', error);
     } finally {
       setProcessingLogId(null);
     }
@@ -317,6 +374,29 @@ export const BillingManager = () => {
             l.id === actionModal.session.id ? { ...l, billing_status: 'rejected', billing_review: 'return' } : l
           )
         }));
+      } else if (actionModal.type === 'hold') {
+        // Moves to a brand new, separate Hold row for this practitioner — remove
+        // it from the regular group's list here (rather than just re-labeling it
+        // in place) and invalidate the Hold group's cache so it's fetched fresh
+        // next time it's expanded.
+        setExpandedLogs(prev => {
+          const next = { ...prev };
+          next[actionModal.practitionerId] = (prev[actionModal.practitionerId] || []).filter(
+            l => l.id !== actionModal.session.id
+          );
+          delete next[`${actionModal.practitionerId}-hold`];
+          return next;
+        });
+        setExpandedRows(prev => {
+          const n = new Set(prev);
+          n.delete(`${actionModal.practitionerId}-hold`);
+          return n;
+        });
+        const practitionerSummary = practitionerLogs.find(l => l.practitioner_id === actionModal.practitionerId);
+        setHoldConfirmation({
+          practitionerName: practitionerSummary ? `${practitionerSummary.first_name} ${practitionerSummary.last_name}` : 'this practitioner',
+        });
+        setTimeout(() => setHoldConfirmation(null), 5000);
       } else {
         // Stay in list as grayed-out "Excluded" — permanently rejected, not included in report
         setExpandedLogs(prev => ({
@@ -823,6 +903,115 @@ export const BillingManager = () => {
                     // make it obvious where one bill entry ends and the next begins).
                     const rowTint = rowIndex % 2 === 1 ? 'bg-slate-50/70' : 'bg-white';
                     const groupTopBorder = rowIndex > 0 ? 'border-t-2 border-slate-200' : '';
+
+                    // Hold rows are a separate, simpler line item for this same
+                    // practitioner — no lock/generate workflow, just review + release.
+                    if (log.group_type === 'hold') {
+                      const holdRowKey = `${log.practitioner_id}-hold`;
+                      const isHoldExpanded = expandedRows.has(holdRowKey);
+                      const heldLogs = expandedLogs[holdRowKey] || [];
+                      const isLoadingHoldRow = loadingExpand.has(holdRowKey);
+
+                      return (
+                        <React.Fragment key={holdRowKey}>
+                          <tr className={`${rowTint} ${groupTopBorder} bg-orange-50/40 hover:bg-orange-50/70 transition-colors`}>
+                            <td className="py-5 px-4 align-top">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleToggleExpand(holdRowKey, log.practitioner_id, 'hold')}
+                                  className="p-1 rounded hover:bg-orange-200/60 transition-colors text-orange-500 flex-shrink-0 cursor-pointer"
+                                  aria-label={isHoldExpanded ? 'Collapse held logs' : 'Expand held logs'}
+                                  aria-expanded={isHoldExpanded}
+                                >
+                                  <ChevronRight className={`size-4 transition-transform duration-200 ${isHoldExpanded ? 'rotate-90' : ''}`} />
+                                </button>
+                                <div>
+                                  <div className="font-bold text-slate-800 capitalize flex items-center gap-1.5">
+                                    {log.first_name} {log.last_name}
+                                    <PauseCircle className="size-3.5 text-orange-500 flex-shrink-0" aria-hidden="true" />
+                                  </div>
+                                  <div className="text-xs text-slate-500 mt-0.5 font-mono">ID: {log.practitioner_id} · On Hold</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-5 px-4 text-center align-top">
+                              <div className="font-bold text-slate-700">{log.total_interventions}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">{log.total_hours.toFixed(1)} hrs</div>
+                            </td>
+                            <td className="py-5 px-4 text-center align-top font-medium text-slate-600">
+                              {log.unique_children_count}
+                            </td>
+                            <td className="py-5 px-4 text-center align-top">
+                              <Badge variant="hold">On Hold</Badge>
+                            </td>
+                            <td className="py-5 px-4 text-center align-top"><span className="text-slate-300">-</span></td>
+                            <td className="py-5 px-4 text-center align-top"><span className="text-slate-300">-</span></td>
+                            <td className="py-5 px-4 text-right align-top">
+                              {!isHoldExpanded && <span className="text-xs text-slate-400">Expand to review</span>}
+                            </td>
+                          </tr>
+                          {isHoldExpanded && (
+                            <tr>
+                              <td colSpan="7" className={`${rowTint} px-0 py-0`}>
+                                <div className="px-8 py-4 border-t border-orange-100">
+                                  {isLoadingHoldRow ? (
+                                    <div className="text-center py-4 text-slate-500 text-sm">Loading held logs...</div>
+                                  ) : heldLogs.length === 0 ? (
+                                    <div className="text-center py-4 text-slate-500 text-sm">No held logs found.</div>
+                                  ) : (
+                                    <table className="w-full text-left border-collapse text-sm tabular-nums">
+                                      <caption className="sr-only">Logs on hold for {log.first_name} {log.last_name}</caption>
+                                      <thead>
+                                        <tr className="text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-300">
+                                          <th scope="col" className="py-2.5 px-3">Patient Name</th>
+                                          <th scope="col" className="py-2.5 px-3">Service Date</th>
+                                          <th scope="col" className="py-2.5 px-3">Hold Reason / Ticket</th>
+                                          <th scope="col" className="py-2.5 px-3">Held On</th>
+                                          <th scope="col" className="py-2.5 px-3 text-right">Action</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100">
+                                        {heldLogs.map(session => (
+                                          <tr key={session.id}>
+                                            <td className="py-3 px-3 font-medium text-slate-700 capitalize">
+                                              {session.patient_first_name} {session.patient_last_name}
+                                            </td>
+                                            <td className="py-3 px-3 text-slate-500">
+                                              {session.service_date
+                                                ? new Date(session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                                : '-'}
+                                            </td>
+                                            <td className="py-3 px-3 text-slate-600 max-w-xs">{session.hold_note || '-'}</td>
+                                            <td className="py-3 px-3 text-slate-500">
+                                              {session.held_at
+                                                ? new Date(session.held_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                                : '-'}
+                                            </td>
+                                            <td className="py-3 px-3 text-right">
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleReleaseHold(session, log.practitioner_id)}
+                                                disabled={processingLogId === session.id}
+                                                className="gap-1 text-orange-700 border-orange-200 hover:bg-orange-50 cursor-pointer"
+                                              >
+                                                <PlayCircle className="size-3.5" />
+                                                Release
+                                              </Button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    }
+
                     const isExpanded = expandedRows.has(log.practitioner_id);
                     const logsForRow = expandedLogs[log.practitioner_id] || [];
                     const declinedCount = logsForRow.filter(l => l.billing_status === 'declined').length;
@@ -852,7 +1041,7 @@ export const BillingManager = () => {
                                 </Tooltip>
                               ) : isLockedByMe ? (
                                 <button
-                                  onClick={() => handleToggleExpand(log.practitioner_id)}
+                                  onClick={() => handleToggleExpand(log.practitioner_id, log.practitioner_id, 'pending')}
                                   className="p-1 rounded hover:bg-slate-200 transition-colors text-slate-400 flex-shrink-0 cursor-pointer"
                                   aria-label={isExpanded ? 'Collapse logs' : 'Expand logs'}
                                   aria-expanded={isExpanded}
@@ -1111,6 +1300,12 @@ export const BillingManager = () => {
                                                         Return
                                                       </span>
                                                     </SelectItem>
+                                                    <SelectItem value="hold">
+                                                      <span className="inline-flex items-center gap-1.5">
+                                                        <PauseCircle className="size-3.5 text-orange-600 shrink-0" aria-hidden="true" />
+                                                        Hold
+                                                      </span>
+                                                    </SelectItem>
                                                   </SelectContent>
                                                 </Select>
                                               )}
@@ -1135,16 +1330,12 @@ export const BillingManager = () => {
         </div>
       )}
 
-      {/* ACTION MODAL (Reject / Return) */}
+      {/* ACTION MODAL (Reject / Return / Hold) */}
       <Dialog open={!!actionModal} onOpenChange={(open) => { if (!open) closeActionModal(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{actionModal?.type === 'return' ? 'Return Log to Practitioner' : 'Reject Log'}</DialogTitle>
-            <DialogDescription>
-              {actionModal?.type === 'return'
-                ? 'This log will be sent back to the practitioner for revision. They must correct and resubmit it before it can be billed.'
-                : 'This log will be permanently rejected from billing. The practitioner will be notified — no further action is required from them.'}
-            </DialogDescription>
+            <DialogTitle>{ACTION_MODAL_COPY[actionModal?.type]?.title ?? 'Reject Log'}</DialogTitle>
+            <DialogDescription>{ACTION_MODAL_COPY[actionModal?.type]?.description}</DialogDescription>
           </DialogHeader>
 
           {actionModal && (
@@ -1163,21 +1354,13 @@ export const BillingManager = () => {
 
               <div className="space-y-2">
                 <Label>
-                  {actionModal.type === 'return' ? 'Return Note' : 'Rejection Reason'}
+                  {ACTION_MODAL_COPY[actionModal.type]?.label}
                   <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <Textarea
-                  className={
-                    actionModal.type === 'return'
-                      ? 'focus-visible:ring-blue-500/30 focus-visible:border-blue-400'
-                      : 'focus-visible:ring-red-500/30 focus-visible:border-red-400'
-                  }
+                  className={ACTION_MODAL_COPY[actionModal.type]?.ringClass}
                   rows={4}
-                  placeholder={
-                    actionModal.type === 'return'
-                      ? 'Describe what needs to be corrected (e.g., incorrect service type, wrong start time)...'
-                      : 'Explain the reason for rejection (e.g., duplicate entry, service not covered)...'
-                  }
+                  placeholder={ACTION_MODAL_COPY[actionModal.type]?.placeholder}
                   value={actionNote}
                   onChange={(e) => setActionNote(e.target.value)}
                   autoFocus
@@ -1192,7 +1375,11 @@ export const BillingManager = () => {
             </Button>
             <Button
               className={`text-white cursor-pointer disabled:opacity-50 ${
-                actionModal?.type === 'return' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'
+                actionModal?.type === 'return'
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : actionModal?.type === 'hold'
+                    ? 'bg-orange-600 hover:bg-orange-700'
+                    : 'bg-red-600 hover:bg-red-700'
               }`}
               onClick={handleActionSubmit}
               disabled={!actionNote.trim() || isSubmitting}
@@ -1201,9 +1388,29 @@ export const BillingManager = () => {
                 ? 'Sending...'
                 : actionModal?.type === 'return'
                   ? 'Return to Practitioner'
-                  : 'Confirm Rejection'}
+                  : actionModal?.type === 'hold'
+                    ? 'Place on Hold'
+                    : 'Confirm Rejection'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* HOLD CONFIRMATION (centered prompt shown right after placing a log on hold) */}
+      <Dialog open={!!holdConfirmation} onOpenChange={(open) => { if (!open) setHoldConfirmation(null); }}>
+        <DialogContent className="sm:max-w-sm text-center">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-orange-100">
+            <PauseCircle className="size-6 text-orange-600" />
+          </div>
+          <DialogHeader>
+            <DialogTitle className="text-center">Log placed on hold</DialogTitle>
+            <DialogDescription className="text-center">
+              A new "On Hold" line item for {holdConfirmation?.practitionerName} has been created below in the Pending Bills list.
+            </DialogDescription>
+          </DialogHeader>
+          <Button className="w-full cursor-pointer" onClick={() => setHoldConfirmation(null)}>
+            Got it
+          </Button>
         </DialogContent>
       </Dialog>
 

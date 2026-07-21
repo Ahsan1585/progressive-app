@@ -114,10 +114,12 @@ CREATE TABLE assessments (
   is_override boolean DEFAULT false,
   practitioner_response text,
   responded_at timestamp with time zone,
+  hold_note text,
+  held_at timestamp with time zone,
   PRIMARY KEY (id),
   FOREIGN KEY (patient_id) REFERENCES patients(id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
-  CONSTRAINT assessments_billing_review_check CHECK (billing_review = ANY (ARRAY['accept'::text, 'reject'::text, 'return'::text]))
+  CONSTRAINT assessments_billing_review_check CHECK (billing_review = ANY (ARRAY['accept'::text, 'reject'::text, 'return'::text, 'hold'::text]))
 );
 ALTER SEQUENCE assessments_id_seq OWNED BY assessments.id;
 
