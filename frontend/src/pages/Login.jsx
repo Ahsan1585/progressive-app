@@ -273,13 +273,13 @@ const Login = () => {
         .il-section-head h2{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(28px, 3vw, 40px); color:var(--il-navy); line-height:1.15; margin:0 0 14px; }
         .il-section-head p{ font-size:15.5px; color:var(--il-body); line-height:1.65; margin:0; }
 
-        .il-feature-grid{ position:relative; z-index:2; max-width:920px; margin:0 auto; display:grid; grid-template-columns:repeat(2, 1fr); gap:22px; }
-        .il-feature{ background:var(--il-card); border:1px solid var(--il-line); border-radius:18px; padding:30px 28px; transition: transform 0.25s var(--il-ease), box-shadow 0.25s var(--il-ease), border-color 0.25s ease; }
+        .il-feature-grid{ position:relative; z-index:2; max-width:880px; margin:0 auto; display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; align-items:start; }
+        .il-feature{ background:var(--il-card); border:1px solid var(--il-line); border-radius:16px; padding:20px 22px; display:flex; align-items:flex-start; gap:16px; transition: transform 0.25s var(--il-ease), box-shadow 0.25s var(--il-ease), border-color 0.25s ease; }
         .il-feature:hover{ transform:translateY(-5px); box-shadow:0 20px 40px -16px rgba(19,42,62,0.18); border-color:rgba(47,191,159,0.4); }
-        .il-f-icon{ width:48px; height:48px; border-radius:13px; background:linear-gradient(135deg, rgba(47,191,159,0.14), rgba(46,143,199,0.12)); display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
-        .il-f-icon svg{ width:23px; height:23px; stroke:var(--il-teal); stroke-width:1.9; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-        .il-feature h3{ font-family:'Fraunces', serif; font-weight:600; font-size:18.5px; color:var(--il-navy); margin:0 0 8px; }
-        .il-feature p{ font-size:13.5px; color:var(--il-body); line-height:1.62; margin:0; }
+        .il-f-icon{ width:40px; height:40px; border-radius:11px; background:linear-gradient(135deg, rgba(47,191,159,0.14), rgba(46,143,199,0.12)); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .il-f-icon svg{ width:19px; height:19px; stroke:var(--il-teal); stroke-width:1.9; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+        .il-feature h3{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; color:var(--il-navy); margin:0 0 4px; }
+        .il-feature p{ font-size:13.5px; color:var(--il-body); line-height:1.55; margin:0; }
 
         .il-download{ position:relative; padding:0 48px; }
         .il-dl-band{ position:relative; z-index:2; max-width:1080px; margin:36px auto 0; background: radial-gradient(80% 120% at 85% 0%, rgba(47,191,159,0.18), transparent 55%), radial-gradient(70% 110% at 8% 100%, rgba(46,143,199,0.15), transparent 55%), linear-gradient(150deg, var(--il-navy) 0%, var(--il-navy-deep) 100%); border-radius:26px; padding:60px 64px; display:grid; grid-template-columns:1.2fr 0.8fr; gap:56px; align-items:center; overflow:hidden; box-shadow:0 30px 70px -24px rgba(12,29,44,0.5); }
@@ -466,8 +466,10 @@ const Login = () => {
           {FEATURES.map((f) => (
             <div className="il-feature" key={f.title}>
               <div className="il-f-icon">{f.icon}</div>
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
+              <div>
+                <h3>{f.title}</h3>
+                <p>{f.body}</p>
+              </div>
             </div>
           ))}
         </div>
