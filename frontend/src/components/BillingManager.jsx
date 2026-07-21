@@ -735,13 +735,13 @@ export const BillingManager = () => {
     <div className="flex flex-col space-y-6">
 
       {/* TAB NAVIGATION */}
-      <div className="flex p-1 bg-slate-200/60 rounded-xl w-fit border border-slate-200 shadow-sm">
+      <div className="flex p-1 bg-slate-200 rounded-xl w-fit shadow-inner">
         <button
           onClick={() => setActiveTab('pending')}
           className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
             activeTab === 'pending'
-              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+              ? 'bg-white text-blue-700 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-blue-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
           }`}
         >
           Pending Bills
@@ -750,8 +750,8 @@ export const BillingManager = () => {
           onClick={() => setActiveTab('history')}
           className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
             activeTab === 'history'
-              ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+              ? 'bg-white text-emerald-700 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-emerald-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
           }`}
         >
           Completed Bills
@@ -761,8 +761,8 @@ export const BillingManager = () => {
             onClick={() => setActiveTab('status')}
             className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
               activeTab === 'status'
-                ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+                ? 'bg-white text-amber-700 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-amber-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             Invoice Status
@@ -790,8 +790,8 @@ export const BillingManager = () => {
                 <Label className="text-sm font-semibold text-slate-700">End Date</Label>
                 <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} />
               </div>
-              <Button onClick={resetPendingFilters} variant="outline" size="lg" className="cursor-pointer text-slate-600">Reset</Button>
-              <Button onClick={fetchLogs} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh</Button>
+              <Button onClick={resetPendingFilters} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Reset</Button>
+              <Button onClick={fetchLogs} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Refresh</Button>
             </div>
           </div>
 
@@ -809,13 +809,20 @@ export const BillingManager = () => {
                   <th scope="col" className="py-4 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {isLoading ? (
                   <tr><td colSpan="7" className="py-12 text-center text-slate-500">Loading billing pipeline...</td></tr>
                 ) : filteredLogs.length === 0 ? (
                   <tr><td colSpan="7" className="py-12 text-center text-slate-500">No active workflows pending.</td></tr>
                 ) : (
-                  filteredLogs.map((log) => {
+                  filteredLogs.map((log, rowIndex) => {
+                    // Groups (a practitioner's summary row + its expanded detail row) are
+                    // visually banded by alternating tint, with a heavier divider only
+                    // between groups — not between a group's own two rows — so each
+                    // practitioner's entry reads as one clear unit (design feedback:
+                    // make it obvious where one bill entry ends and the next begins).
+                    const rowTint = rowIndex % 2 === 1 ? 'bg-slate-50/70' : 'bg-white';
+                    const groupTopBorder = rowIndex > 0 ? 'border-t-2 border-slate-200' : '';
                     const isExpanded = expandedRows.has(log.practitioner_id);
                     const logsForRow = expandedLogs[log.practitioner_id] || [];
                     const declinedCount = logsForRow.filter(l => l.billing_status === 'declined').length;
@@ -831,8 +838,8 @@ export const BillingManager = () => {
 
                     return (
                       <React.Fragment key={log.practitioner_id}>
-                        <tr className="hover:bg-slate-50 transition-colors">
-                          <td className="py-4 px-4 align-top">
+                        <tr className={`${rowTint} ${groupTopBorder} hover:bg-blue-50/50 transition-colors`}>
+                          <td className="py-5 px-4 align-top">
                             <div className="flex items-center gap-2">
                               {isLockedByOther ? (
                                 <Tooltip>
@@ -887,17 +894,17 @@ export const BillingManager = () => {
                               </button>
                             )}
                           </td>
-                          <td className="py-4 px-4 text-center align-top">
+                          <td className="py-5 px-4 text-center align-top">
                             <div className="font-bold text-slate-700">{log.total_interventions}</div>
                             <div className="text-xs text-slate-500 mt-0.5">{log.total_hours.toFixed(1)} hrs</div>
                             {declinedCount > 0 && (
                               <div className="text-xs text-red-500 font-semibold mt-0.5">({declinedCount} rejected)</div>
                             )}
                           </td>
-                          <td className="py-4 px-4 text-center align-top font-medium text-slate-600">
+                          <td className="py-5 px-4 text-center align-top font-medium text-slate-600">
                             {log.unique_children_count}
                           </td>
-                          <td className="py-4 px-4 text-center align-top">
+                          <td className="py-5 px-4 text-center align-top">
                             {isLockedByOther ? (
                               <Badge variant="warning">IN PROGRESS BY {log.locked_by_name?.toUpperCase()}</Badge>
                             ) : isLockedByMe && log.workflow_status === 'pending' ? (
@@ -910,7 +917,7 @@ export const BillingManager = () => {
                               </>
                             )}
                           </td>
-                          <td className="py-4 px-4 text-center align-top">
+                          <td className="py-5 px-4 text-center align-top">
                             {log.sevf_documents?.length > 0 ? (
                               <div className="flex flex-col gap-1.5 items-center">
                                 {log.sevf_documents.map(doc => (
@@ -919,7 +926,7 @@ export const BillingManager = () => {
                               </div>
                             ) : <span className="text-slate-300">-</span>}
                           </td>
-                          <td className="py-4 px-4 text-center align-top">
+                          <td className="py-5 px-4 text-center align-top">
                             {log.invoice_documents?.length > 0 ? (
                               <div className="flex flex-col gap-1.5 items-center">
                                 {log.invoice_documents.map(doc => (
@@ -928,7 +935,7 @@ export const BillingManager = () => {
                               </div>
                             ) : <span className="text-slate-300">-</span>}
                           </td>
-                          <td className="py-4 px-4 text-right align-top">
+                          <td className="py-5 px-4 text-right align-top">
                             {isLockedByOther ? (
                               <span className="text-xs text-slate-400">Locked by {log.locked_by_name}</span>
                             ) : (log.workflow_status === 'pending' || log.workflow_status === 'njeis_review') && (
@@ -962,8 +969,8 @@ export const BillingManager = () => {
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan="7" className="bg-white px-0 py-0 border-b border-slate-200">
-                              <div className="px-8 py-4 border-t border-slate-100">
+                            <td colSpan="7" className={`${rowTint} px-0 py-0`}>
+                              <div className="px-8 py-4 border-t border-slate-200">
                                 {isLoadingThisRow ? (
                                   <div className="text-center py-4 text-slate-500 text-sm">Loading logs...</div>
                                 ) : logsForRow.length === 0 ? (
@@ -1256,8 +1263,8 @@ export const BillingManager = () => {
                 <Label className="text-sm font-semibold text-slate-700">Service Date To</Label>
                 <Input type="date" value={historyDate.end} onChange={(e) => setHistoryDate({...historyDate, end: e.target.value})} />
               </div>
-              <Button onClick={resetHistoryFilters} variant="outline" size="lg" className="cursor-pointer text-slate-600">Reset</Button>
-              <Button onClick={fetchHistory} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh Bills</Button>
+              <Button onClick={resetHistoryFilters} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Reset</Button>
+              <Button onClick={fetchHistory} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Refresh Bills</Button>
             </div>
           </div>
 
@@ -1483,8 +1490,8 @@ export const BillingManager = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={resetStatusFilters} variant="outline" size="lg" className="cursor-pointer text-slate-600">Reset</Button>
-              <Button onClick={fetchBatches} variant="outline" size="lg" className="cursor-pointer text-slate-600">Refresh</Button>
+              <Button onClick={resetStatusFilters} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Reset</Button>
+              <Button onClick={fetchBatches} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Refresh</Button>
             </div>
           </div>
 

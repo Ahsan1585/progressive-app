@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StaffChatPopover } from '@/components/StaffChatPopover';
 
-const MESSAGE_THREADS_POLL_MS = 20000;
+const MESSAGE_THREADS_POLL_MS = 5000;
 
 const formatPhone = (val) => {
   const d = val.replace(/\D/g, '').slice(0, 10);
@@ -129,10 +129,35 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
+  // Only poll while this tab is actually visible — leaving Staff Directory
+  // open in a background tab all day shouldn't keep hitting the backend.
+  // Refetches immediately on refocus so the indicator is caught up right away.
   useEffect(() => {
-    fetchMessageThreads();
-    const interval = setInterval(fetchMessageThreads, MESSAGE_THREADS_POLL_MS);
-    return () => clearInterval(interval);
+    let interval = null;
+
+    const startPolling = () => {
+      if (interval) return;
+      fetchMessageThreads();
+      interval = setInterval(fetchMessageThreads, MESSAGE_THREADS_POLL_MS);
+    };
+    const stopPolling = () => {
+      if (!interval) return;
+      clearInterval(interval);
+      interval = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') startPolling();
+      else stopPolling();
+    };
+
+    if (document.visibilityState === 'visible') startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleOpenChat = (member) => {
