@@ -213,7 +213,7 @@ const Login = () => {
         .izaya-landing .ilg-m{ stroke:var(--il-mint); fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
         .izaya-landing .ilg-node{ fill:var(--il-mint); }
 
-        .il-hero{ position:relative; min-height:100vh; display:flex; align-items:center; padding:120px 48px 240px; }
+        .il-hero{ position:relative; display:flex; align-items:center; padding:120px 48px 240px; }
         .il-hero::before{ content:""; position:absolute; inset:0; background: radial-gradient(70% 60% at 78% 10%, rgba(46,143,199,0.10), transparent 60%), radial-gradient(60% 50% at 12% 20%, rgba(47,191,159,0.10), transparent 60%), linear-gradient(180deg, #EEF6F4 0%, var(--il-paper) 55%); pointer-events:none; }
         .il-hero-inner{ position:relative; z-index:2; width:100%; max-width:1200px; margin:0 auto; display:grid; grid-template-columns: 1.1fr 0.9fr; gap:72px; align-items:center; }
 
@@ -286,6 +286,13 @@ const Login = () => {
         .il-dl-band::before{ content:""; position:absolute; inset:0; background-image: radial-gradient(circle 3px at 12% 22%, rgba(47,191,159,0.5) 99%, transparent), radial-gradient(circle 2px at 30% 78%, rgba(255,255,255,0.25) 99%, transparent), radial-gradient(circle 2.5px at 55% 14%, rgba(47,191,159,0.35) 99%, transparent), radial-gradient(circle 2px at 88% 68%, rgba(255,255,255,0.2) 99%, transparent); pointer-events:none; }
         .il-dl-copy h2{ font-family:'Fraunces', serif; font-weight:600; font-size:clamp(26px, 2.8vw, 36px); color:#fff; line-height:1.15; margin:0 0 14px; }
         .il-dl-copy > p{ font-size:15px; color:rgba(255,255,255,0.78); line-height:1.65; margin:0 0 28px; max-width:440px; }
+        .il-dl-buttons{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom:22px; }
+        .il-dl-btn{ display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.08); border:1.5px solid rgba(255,255,255,0.22); border-radius:12px; padding:10px 16px; color:#fff; text-decoration:none; transition: background 0.18s ease, border-color 0.18s ease, transform 0.1s ease; }
+        .il-dl-btn:hover{ background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.4); transform:translateY(-1px); }
+        .il-dl-btn svg{ width:22px; height:22px; flex-shrink:0; }
+        .il-dl-btn span{ display:flex; flex-direction:column; line-height:1.15; }
+        .il-dl-btn em{ font-style:normal; font-size:10.5px; font-weight:500; color:rgba(255,255,255,0.7); }
+        .il-dl-btn b{ font-size:14.5px; font-weight:700; }
         .il-dl-steps{ display:flex; flex-direction:column; gap:14px; }
         .il-dl-step{ display:flex; align-items:center; gap:14px; font-size:14px; color:rgba(255,255,255,0.9); }
         .il-dl-step .il-sn{ width:28px; height:28px; border-radius:50%; background:rgba(47,191,159,0.18); border:1.5px solid var(--il-mint); color:var(--il-mint); font-size:12.5px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -476,6 +483,39 @@ const Login = () => {
           <div className="il-dl-copy">
             <h2>Take Izaya with you</h2>
             <p>Practitioners can log sessions, message the office, and manage their schedule on the go — the full app installs straight from your phone's browser, no app store, ready in seconds.</p>
+            <div className="il-dl-buttons">
+              <a
+                className="il-dl-btn"
+                href={MOBILE_APP_INSTALL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  <path d="M16.365 1.43c0 1.14-.462 2.15-1.217 2.9-.83.83-2.19 1.47-3.29 1.38-.14-1.1.44-2.24 1.19-2.99.83-.85 2.24-1.48 3.31-1.29zm4.51 16.4c-.44 1.02-.65 1.47-1.22 2.37-.79 1.26-1.9 2.83-3.29 2.84-1.23.02-1.55-.8-3.22-.79-1.67.01-2.02.81-3.25.79-1.39-.02-2.44-1.43-3.23-2.69-2.21-3.5-2.44-7.6-1.08-9.79.97-1.56 2.5-2.47 3.93-2.47 1.46 0 2.38.8 3.59.8 1.17 0 1.88-.8 3.57-.8 1.28 0 2.64.7 3.6 1.9-3.17 1.74-2.66 6.28.6 7.83z" />
+                </svg>
+                <span>
+                  <em>Install for</em>
+                  <b>iPhone</b>
+                </span>
+              </a>
+              <a
+                className="il-dl-btn"
+                href={MOBILE_APP_INSTALL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  <path d="M3.6 2.15a1 1 0 00-.6.91v17.88a1 1 0 00.6.91l10.35-9.85L3.6 2.15z" />
+                  <path d="M17.6 8.6l-3.05-1.74-3.36 3.14 3.36 3.14 3.06-1.74a1.6 1.6 0 000-2.8z" />
+                  <path d="M13.9 11.9L4.1 21.2l9.5-5.42-1.7-1.88z" />
+                  <path d="M13.9 12.1l1.7-1.88-9.5-5.42 7.8 7.3z" />
+                </svg>
+                <span>
+                  <em>Install for</em>
+                  <b>Android</b>
+                </span>
+              </a>
+            </div>
             <div className="il-dl-steps">
               <div className="il-dl-step"><span className="il-sn">1</span>Open your phone's camera</div>
               <div className="il-dl-step"><span className="il-sn">2</span>Scan the code &amp; open the link</div>
