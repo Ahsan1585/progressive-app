@@ -207,6 +207,7 @@ export const BillingManager = () => {
   useEffect(() => {
     if (activeTab === 'pending') {
       fetchLogs();
+      setExpandedRows(new Set());
       setExpandedLogs({});
       setLogActions({});
     }
