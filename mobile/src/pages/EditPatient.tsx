@@ -38,7 +38,7 @@ export default function EditPatient() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { patients, fetchPatients } = useAppData();
-  const patient = patients.find((p) => p.id === id);
+  const patient = patients.find((p) => String(p.id) === id);
 
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<Partial<Record<keyof FormState, string>>>({});

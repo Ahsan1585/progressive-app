@@ -305,8 +305,8 @@ const Login = () => {
         .il-dl-note{ margin-top:26px; display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--il-mint); background:rgba(47,191,159,0.12); border:1px solid rgba(47,191,159,0.3); padding:8px 14px; border-radius:999px; }
         .il-dl-note svg{ width:14px; height:14px; stroke:var(--il-mint); stroke-width:2; fill:none; stroke-linecap:round; }
 
-        .il-qr-tile{ justify-self:center; background:#fff; border-radius:20px; padding:22px 22px 16px; text-align:center; box-shadow:0 20px 50px -14px rgba(0,0,0,0.45); transform:rotate(1.5deg); transition:transform 0.3s var(--il-ease); }
-        .il-qr-tile:hover{ transform:rotate(0deg) scale(1.02); }
+        .il-qr-tile{ justify-self:center; background:#fff; border-radius:20px; padding:22px 22px 16px; text-align:center; box-shadow:0 20px 50px -14px rgba(0,0,0,0.45); transition:transform 0.3s var(--il-ease); }
+        .il-qr-tile:hover{ transform:scale(1.02); }
         .il-qr{ width:184px; height:184px; display:flex; align-items:center; justify-content:center; margin:0 auto; }
         .il-qr canvas{ border-radius:6px; }
         .il-qr-label{ margin-top:12px; font-size:12.5px; font-weight:600; color:var(--il-navy); }
@@ -377,7 +377,6 @@ const Login = () => {
         </a>
         <div className="il-nav-right">
           <a className="il-nav-link" href="#features">Why Izaya</a>
-          <a className="il-nav-link" href="mailto:support@izayaedge.com">Support</a>
           <a className="il-nav-cta" href="#download">Get the App</a>
         </div>
       </nav>
@@ -387,7 +386,7 @@ const Login = () => {
         <div className="il-hero-inner">
 
           <div className="il-hero-copy">
-            <div className="il-eyebrow">The Practitioner-to-Payment System</div>
+            <div className="il-eyebrow">Early Intervention Simplified</div>
             <h1>Every session becomes<br /><em>a paid invoice</em> — no gaps.</h1>
             <p className="il-hero-sub">Izaya connects what happens in the field to what happens in your back office: a practitioner delivers a service and logs it, your team reviews and controls it, the state-required NJEIS form generates itself, and a pay invoice goes out — one continuous, auditable record from first signature to final payment.</p>
             <div className="il-hero-points">

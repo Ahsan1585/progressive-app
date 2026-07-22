@@ -19,7 +19,7 @@ export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { patients, fetchPatients } = useAppData();
-  const patient = patients.find((p) => p.id === id);
+  const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
 
   const { showToast } = useToast();

@@ -22,7 +22,7 @@ export default function ResubmitLog() {
   const { rejectedLogs, fetchRejectedLogs, profile } = useAppData();
   const { showToast } = useToast();
 
-  const log = rejectedLogs.find((l) => l.id === id);
+  const log = rejectedLogs.find((l) => String(l.id) === id);
 
   const allowedServiceTypeOptions = React.useMemo(() => {
     const allowed = profile?.service_types;
