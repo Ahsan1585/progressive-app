@@ -10,7 +10,7 @@ const formatServiceDate = (dateStr) => {
 
 const generateInvoicePDF = async (practitioner, encounters) => {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([612, 792]); // Letter size
+  let page = pdfDoc.addPage([612, 792]); // Letter size
 
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -60,23 +60,38 @@ const generateInvoicePDF = async (practitioner, encounters) => {
 
   const headerH = 24;
   const rowH    = 20;
-  const tableTop = y;
 
-  // Header background
-  page.drawRectangle({ x: margin, y: tableTop - headerH, width: contentWidth, height: headerH, color: rgb(0.95, 0.95, 0.95), borderColor: rgb(0,0,0), borderWidth: 0.5 });
+  // Draws the column-header band at the current `y` and returns the y just
+  // below it — pulled out so it can be re-drawn at the top of each new page
+  // the data-row loop below spills onto.
+  const drawTableHeader = () => {
+    const tableTop = y;
+    page.drawRectangle({ x: margin, y: tableTop - headerH, width: contentWidth, height: headerH, color: rgb(0.95, 0.95, 0.95), borderColor: rgb(0,0,0), borderWidth: 0.5 });
 
-  let cx = margin;
-  cols.forEach(col => {
-    page.drawLine({ start: { x: cx, y: tableTop }, end: { x: cx, y: tableTop - headerH }, thickness: 0.5, color: rgb(0,0,0) });
-    page.drawText(col.label, { x: cx + 3, y: tableTop - headerH + 8, font: bold, size: 8, color: rgb(0,0,0) });
-    cx += col.w;
-  });
-  page.drawLine({ start: { x: cx, y: tableTop }, end: { x: cx, y: tableTop - headerH }, thickness: 0.5, color: rgb(0,0,0) });
+    let hx = margin;
+    cols.forEach(col => {
+      page.drawLine({ start: { x: hx, y: tableTop }, end: { x: hx, y: tableTop - headerH }, thickness: 0.5, color: rgb(0,0,0) });
+      page.drawText(col.label, { x: hx + 3, y: tableTop - headerH + 8, font: bold, size: 8, color: rgb(0,0,0) });
+      hx += col.w;
+    });
+    page.drawLine({ start: { x: hx, y: tableTop }, end: { x: hx, y: tableTop - headerH }, thickness: 0.5, color: rgb(0,0,0) });
 
-  y = tableTop - headerH;
+    y = tableTop - headerH;
+  };
 
-  // Data rows
+  drawTableHeader();
+
+  // Data rows — a batch can span 100+ logs, far more than one Letter page
+  // holds. Start a fresh page (with the header repeated) whenever the next
+  // row wouldn't fully fit above the bottom margin, instead of drawing rows
+  // off the bottom of the page where they're generated but never visible.
   encounters.forEach(enc => {
+    if (y - rowH < margin) {
+      page = pdfDoc.addPage([612, 792]);
+      y = height - margin;
+      drawTableHeader();
+    }
+
     const vals = [
       String(enc.child_id   || ''),
       String(enc.county     || ''),
@@ -89,7 +104,7 @@ const generateInvoicePDF = async (practitioner, encounters) => {
 
     page.drawRectangle({ x: margin, y: y - rowH, width: contentWidth, height: rowH, borderColor: rgb(0,0,0), borderWidth: 0.5 });
 
-    cx = margin;
+    let cx = margin;
     vals.forEach((val, i) => {
       page.drawLine({ start: { x: cx, y }, end: { x: cx, y: y - rowH }, thickness: 0.5, color: rgb(0,0,0) });
       page.drawText(val, { x: cx + 3, y: y - rowH + 6, font: regular, size: 9, color: rgb(0,0,0) });
@@ -114,6 +129,12 @@ const generateInvoicePDF = async (practitioner, encounters) => {
   ];
 
   const declBoxH = 145;
+  if (y - declBoxH < margin) {
+    // Same off-page problem as the data rows: a long invoice can leave too
+    // little room on the last table page for the declaration box to fit.
+    page = pdfDoc.addPage([612, 792]);
+    y = height - margin;
+  }
   page.drawRectangle({ x: margin, y: y - declBoxH, width: contentWidth, height: declBoxH, borderColor: rgb(0,0,0), borderWidth: 2 });
 
   const declTitle = "CLAIMANT'S CERTIFICATION AND DECLARATION";
