@@ -1,4 +1,7 @@
 {
+  "redirects": [
+    { "source": "/", "destination": "/eis", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/eis/assets/:path*", "destination": "/assets/:path*" },
     { "source": "/eis/favicon.svg", "destination": "/favicon.svg" },
