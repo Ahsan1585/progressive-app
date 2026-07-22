@@ -26,6 +26,11 @@ const scheduleRoutes = require('./src/routes/scheduleRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Cloud Run sits behind exactly one Google Front End proxy hop — trust it so
+// req.ip reflects the real client IP instead of the proxy's, which is what
+// the login rate limiter keys on (otherwise every client shares one bucket).
+app.set('trust proxy', 1);
+
 // --- Middleware ---
 app.use(helmet());
 
