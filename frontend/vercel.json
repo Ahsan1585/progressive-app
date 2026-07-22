@@ -1,5 +1,10 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/eis/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/eis/favicon.svg", "destination": "/favicon.svg" },
+    { "source": "/eis/icons.svg", "destination": "/icons.svg" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
