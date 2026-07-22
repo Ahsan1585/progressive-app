@@ -57,45 +57,46 @@ const getPendingLogs = async (req, res) => {
       console.warn('getPendingLogs: billing_locks lookup failed (continuing without lock info):', lockError.message);
     }
 
+    // Held logs stay in the same practitioner group as their regular pending/
+    // njeis_review logs — Hold is just a per-log "don't include this one in
+    // SEVF/invoice generation yet" marker (already enforced by those queries
+    // only selecting 'pending'/'njeis_review'), not a separate queue.
     const practitionerMap = {};
-    // Logs placed on hold are aggregated into a completely separate summary
-    // row per practitioner — set aside from their regular billing queue so
-    // they don't block or get mixed into that practitioner's normal SEVF/
-    // invoice generation until someone reviews and releases them.
-    const holdMap = {};
 
     assessments.forEach(record => {
       const pId = record.practitioner_id;
-      const targetMap = record.billing_status === 'on_hold' ? holdMap : practitionerMap;
 
-      if (!targetMap[pId]) {
-        targetMap[pId] = {
+      if (!practitionerMap[pId]) {
+        practitionerMap[pId] = {
           practitioner_id: pId,
           first_name: record.practitioner_live_first_name || 'Unknown',
           last_name: record.practitioner_live_last_name || 'Unknown',
           total_interventions: 0,
           unique_children: new Set(),
           total_hours: 0,
-          workflow_status: record.billing_status === 'on_hold' ? 'hold' : 'njeis_review',
-          group_type: record.billing_status === 'on_hold' ? 'hold' : 'pending',
+          on_hold_count: 0,
+          workflow_status: 'njeis_review',
           locked_by_id: lockMap[pId]?.locked_by_id || null,
           locked_by_name: lockMap[pId]?.locked_by_name || null,
         };
       }
 
       if (record.billing_status === 'pending') {
-        targetMap[pId].workflow_status = 'pending';
+        practitionerMap[pId].workflow_status = 'pending';
+      }
+      if (record.billing_status === 'on_hold') {
+        practitionerMap[pId].on_hold_count += 1;
       }
 
-      targetMap[pId].total_interventions += 1;
-      targetMap[pId].unique_children.add(record.patient_id);
+      practitionerMap[pId].total_interventions += 1;
+      practitionerMap[pId].unique_children.add(record.patient_id);
 
       const hours = record.total_time ? (record.total_time / 60) : 0;
-      targetMap[pId].total_hours += hours;
+      practitionerMap[pId].total_hours += hours;
     });
 
     // 🌟 FIX: Use the new folder helper to resolve URLs
-    const logs = await Promise.all([...Object.values(practitionerMap), ...Object.values(holdMap)].map(async log => {
+    const logs = await Promise.all(Object.values(practitionerMap).map(async log => {
       let njeis_url = null;
       if (log.workflow_status === 'njeis_review') {
         const d = new Date();
@@ -121,14 +122,7 @@ const getPendingLogs = async (req, res) => {
       };
     }));
 
-    // Keep practitioners grouped together alphabetically, with each
-    // practitioner's Hold row (if any) directly beneath their regular row.
-    logs.sort((a, b) => {
-      const nameCompare = `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
-      if (nameCompare !== 0) return nameCompare;
-      if (a.practitioner_id !== b.practitioner_id) return a.practitioner_id - b.practitioner_id;
-      return (a.group_type === 'hold' ? 1 : 0) - (b.group_type === 'hold' ? 1 : 0);
-    });
+    logs.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
 
     res.json({ success: true, logs });
   } catch (error) {
@@ -472,11 +466,14 @@ const updateLogStatus = async (req, res) => {
 // type='hold'   → billing_status='on_hold'   (set aside into its own section for this practitioner, reviewed later)
 const rejectLog = async (req, res) => {
   const { assessmentId, note, type = 'return' } = req.body;
-  if (!assessmentId || !note?.trim()) {
-    return res.status(400).json({ error: 'assessmentId and a note are required' });
-  }
   if (!['return', 'reject', 'hold'].includes(type)) {
     return res.status(400).json({ error: 'type must be return, reject, or hold' });
+  }
+  // Hold is a one-click "set this log aside for now" action — no note
+  // required. Return/Reject still need one so the practitioner knows what
+  // to fix (or why it was rejected).
+  if (!assessmentId || (type !== 'hold' && !note?.trim())) {
+    return res.status(400).json({ error: 'assessmentId and a note are required' });
   }
   try {
     if (type === 'hold') {
@@ -484,7 +481,7 @@ const rejectLog = async (req, res) => {
         `UPDATE assessments
          SET billing_status = 'on_hold', billing_review = 'hold', hold_note = $1, held_at = $2
          WHERE id = $3`,
-        [note.trim(), new Date().toISOString(), assessmentId]
+        [note?.trim() || null, new Date().toISOString(), assessmentId]
       );
       return res.json({ success: true });
     }
@@ -512,12 +509,14 @@ const rejectLog = async (req, res) => {
 
 // --- 9. Fetch Individual Logs for a Practitioner ---
 const getPractitionerLogs = async (req, res) => {
-  const { practitionerId, startDate, endDate, groupType = 'pending' } = req.query;
+  const { practitionerId, startDate, endDate } = req.query;
   if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
 
   try {
-    const statusFilter = groupType === 'hold' ? ['on_hold'] : ['pending', 'njeis_review'];
-    const params = [practitionerId, statusFilter];
+    // Held logs are returned alongside the practitioner's regular pending/
+    // njeis_review logs (not a separate fetch) — Hold is a per-log marker,
+    // not its own queue.
+    const params = [practitionerId, ['pending', 'njeis_review', 'on_hold']];
     let sql = `
       SELECT id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
              total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at
