@@ -654,7 +654,11 @@ export const RegisterPractitionerForm = () => {
             <Label className="text-sm font-semibold text-slate-700">Discipline / Position Title</Label>
             <select
               value={regForm.positionTitle}
-              onChange={(e) => setRegForm({...regForm, positionTitle: e.target.value})}
+              onChange={(e) => {
+                const positionTitle = e.target.value;
+                const role = positionTitle === 'Office Staff' && regForm.role === 'practitioner' ? 'staff_director' : regForm.role;
+                setRegForm({...regForm, positionTitle, role});
+              }}
               className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required={regForm.role === 'practitioner'}
             >
@@ -701,7 +705,7 @@ export const RegisterPractitionerForm = () => {
                 className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
-                <option value="practitioner">Practitioner</option>
+                {regForm.positionTitle !== 'Office Staff' && <option value="practitioner">Practitioner</option>}
                 <option value="staff_director">Office Manager</option>
                 <option value="billing">Billing Specialist</option>
                 <option value="account_specialist">Account Specialist</option>
