@@ -54,7 +54,7 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
 
 function App() {
   return (
-    <Router>
+    <Router basename={import.meta.env.BASE_URL}>
       <IdleLogout />
       <Routes>
         <Route path="/" element={<Login />} />
