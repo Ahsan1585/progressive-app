@@ -69,24 +69,28 @@ const CHECK_ICON = <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" /></svg>;
 
 const FEATURES = [
   {
+    step: '01',
     icon: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none" /></svg>,
-    title: 'Session documentation',
-    body: 'Log every session — date, time, service type, location, and both signatures — in minutes, from a phone or a desktop.',
+    title: 'Deliver & Document',
+    body: 'A practitioner logs the visit — date, time, service type, location, and both signatures — in minutes, from a phone or a desktop.',
   },
   {
+    step: '02',
+    icon: <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /><circle cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none" /></svg>,
+    title: 'Review & Control',
+    body: "Your office reviews every log, locks a practitioner's queue while working it, and accepts, returns, or declines it before anything gets billed.",
+  },
+  {
+    step: '03',
     icon: <svg viewBox="0 0 24 24"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01" /><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>,
-    title: 'Automated NJEIS billing',
-    body: 'Generate state-required NJEIS forms and pay invoices directly from logged sessions, and track every log from submitted to invoiced.',
+    title: 'Convert to State Forms',
+    body: 'Approved logs generate the state-required NJEIS billing form automatically — no manual re-entry, no transcription errors.',
   },
   {
-    icon: <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /><path d="M9 11h6M9 15h3" /></svg>,
-    title: 'Direct messaging',
-    body: 'Message your office directly and hear back in the same thread — no phone tag, no lost emails.',
-  },
-  {
-    icon: <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /><circle cx="9" cy="14" r="1.3" fill="currentColor" stroke="none" /><circle cx="15" cy="14" r="1.3" fill="currentColor" stroke="none" /></svg>,
-    title: 'Session scheduling',
-    body: "Schedule a child's next visit and their parent gets an email with a calendar invite — no separate app or login required.",
+    step: '04',
+    icon: <svg viewBox="0 0 24 24"><rect x="4" y="3" width="13" height="18" rx="2" /><path d="M8 8h5M8 12h5M8 16h3" /><circle cx="18" cy="17" r="5" fill="currentColor" stroke="none" opacity="0.15" /><path d="M15.5 17l1.5 1.5 3-3" /></svg>,
+    title: 'Invoice & Get Paid',
+    body: 'A pay invoice generates straight from those same approved logs, and stays tracked from issued to printed to paid.',
   },
 ];
 
@@ -278,8 +282,10 @@ const Login = () => {
         .il-feature:hover{ transform:translateY(-5px); box-shadow:0 20px 40px -16px rgba(19,42,62,0.18); border-color:rgba(47,191,159,0.4); }
         .il-f-icon{ width:40px; height:40px; border-radius:11px; background:linear-gradient(135deg, rgba(47,191,159,0.14), rgba(46,143,199,0.12)); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .il-f-icon svg{ width:19px; height:19px; stroke:var(--il-teal); stroke-width:1.9; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+        .il-feature-step{ font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--il-teal); margin-bottom:3px; }
         .il-feature h3{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; color:var(--il-navy); margin:0 0 4px; }
         .il-feature p{ font-size:13.5px; color:var(--il-body); line-height:1.55; margin:0; }
+        .il-feature-note{ max-width:640px; margin:28px auto 0; text-align:center; font-size:13px; color:var(--il-slate); line-height:1.6; }
 
         .il-download{ position:relative; padding:0 48px; }
         .il-dl-band{ position:relative; z-index:2; max-width:1080px; margin:36px auto 0; background: radial-gradient(80% 120% at 85% 0%, rgba(47,191,159,0.18), transparent 55%), radial-gradient(70% 110% at 8% 100%, rgba(46,143,199,0.15), transparent 55%), linear-gradient(150deg, var(--il-navy) 0%, var(--il-navy-deep) 100%); border-radius:26px; padding:60px 64px; display:grid; grid-template-columns:1.2fr 0.8fr; gap:56px; align-items:center; overflow:hidden; box-shadow:0 30px 70px -24px rgba(12,29,44,0.5); }
@@ -381,13 +387,13 @@ const Login = () => {
         <div className="il-hero-inner">
 
           <div className="il-hero-copy">
-            <div className="il-eyebrow">Early Intervention Simplified</div>
-            <h1>Sessions and messages,<br /><em>handled in one place.</em></h1>
-            <p className="il-hero-sub">Izaya gives early intervention practitioners — and the agencies that manage them — one place to log sessions, message the office, schedule visits, and handle state billing. Less paperwork, faster turnaround.</p>
+            <div className="il-eyebrow">The Practitioner-to-Payment System</div>
+            <h1>Every session becomes<br /><em>a paid invoice</em> — no gaps.</h1>
+            <p className="il-hero-sub">Izaya connects what happens in the field to what happens in your back office: a practitioner delivers a service and logs it, your team reviews and controls it, the state-required NJEIS form generates itself, and a pay invoice goes out — one continuous, auditable record from first signature to final payment.</p>
             <div className="il-hero-points">
-              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>Built for practitioners &amp; the agencies that manage them</div>
-              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>HIPAA-compliant &amp; secured by design</div>
-              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>On any device — no app store required</div>
+              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>One record, from session to signature to state form to invoice</div>
+              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>Built-in oversight — review, return, or approve every log before it's billed</div>
+              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>HIPAA-compliant and audit-ready, end to end</div>
             </div>
           </div>
 
@@ -458,8 +464,8 @@ const Login = () => {
         <div className="il-spine-node" aria-hidden="true">{CHECK_ICON}</div>
 
         <div className="il-section-head">
-          <h2>One system for documentation, billing, and staff oversight</h2>
-          <p>Early intervention agencies juggle session logs, state paperwork, and payroll across a whole team of practitioners. Izaya keeps it together — from the first signature to the final invoice.</p>
+          <h2>The complete lifecycle, not just a log</h2>
+          <p>A practitioner delivers a service. Izaya carries that record through your office's review, into the state's paperwork, and out the door as a paid invoice — every step traceable, every dollar accounted for.</p>
         </div>
 
         <div className="il-feature-grid">
@@ -467,12 +473,15 @@ const Login = () => {
             <div className="il-feature" key={f.title}>
               <div className="il-f-icon">{f.icon}</div>
               <div>
+                <div className="il-feature-step">Step {f.step}</div>
                 <h3>{f.title}</h3>
                 <p>{f.body}</p>
               </div>
             </div>
           ))}
         </div>
+
+        <p className="il-feature-note">Plus direct messaging with your office and session scheduling with automatic parent calendar invites — built in, not bolted on.</p>
       </section>
 
       {/* DOWNLOAD */}
