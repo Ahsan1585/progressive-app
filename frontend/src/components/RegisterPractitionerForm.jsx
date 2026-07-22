@@ -196,7 +196,7 @@ export const RegisterPractitionerForm = () => {
     e.preventDefault();
     if (!editingMember) return;
 
-    if (editingMember.role === 'practitioner' && editForm.serviceTypes.length === 0) {
+    if (editingMember.role === 'practitioner' && editForm.positionTitle !== 'Office Staff' && editForm.serviceTypes.length === 0) {
       alert('Select at least one service type.');
       return;
     }
@@ -300,7 +300,7 @@ export const RegisterPractitionerForm = () => {
     e.preventDefault();
 
     const effectiveRole = currentUserRole === 'ceo' ? regForm.role : 'practitioner';
-    if (effectiveRole === 'practitioner' && regForm.serviceTypes.length === 0) {
+    if (effectiveRole === 'practitioner' && regForm.positionTitle !== 'Office Staff' && regForm.serviceTypes.length === 0) {
       alert('Select at least one service type.');
       return;
     }
@@ -666,9 +666,11 @@ export const RegisterPractitionerForm = () => {
               <option value="Social Worker">Social Worker</option>
               <option value="Special Educator">Special Educator</option>
               <option value="Family Therapist">Family Therapist</option>
+              <option value="Office Staff">Office Staff</option>
             </select>
           </div>
 
+          {regForm.positionTitle !== 'Office Staff' && (
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-slate-700">
               Service Types {(currentUserRole === 'ceo' ? regForm.role : 'practitioner') === 'practitioner' && '*'}
@@ -687,6 +689,7 @@ export const RegisterPractitionerForm = () => {
               ))}
             </div>
           </div>
+          )}
 
           {/* Role selector — CEO only */}
           {currentUserRole === 'ceo' && (
@@ -730,19 +733,18 @@ export const RegisterPractitionerForm = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">SSN / EIN</Label>
+              <Label className="text-sm font-semibold text-slate-700">SSN / EIN (optional)</Label>
               <PasswordInput
                 inputMode="numeric"
                 value={regForm.ssn}
                 onChange={(e) => setRegForm({...regForm, ssn: formatSSN(e.target.value)})}
                 placeholder="XXX-XX-XXXX"
                 maxLength={11}
-                required={regForm.role === 'practitioner'}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid gap-4 ${regForm.positionTitle === 'Office Staff' ? 'grid-cols-1' : 'grid-cols-2'}`}>
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Temporary Password</Label>
               <PasswordInput
@@ -752,6 +754,7 @@ export const RegisterPractitionerForm = () => {
                 onChange={(e) => setRegForm({...regForm, password: e.target.value})}
               />
             </div>
+            {regForm.positionTitle !== 'Office Staff' && (
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
               <Input
@@ -764,6 +767,7 @@ export const RegisterPractitionerForm = () => {
                 onChange={(e) => setRegForm({...regForm, payRate: e.target.value})}
               />
             </div>
+            )}
           </div>
 
           <div className="pt-4">
@@ -935,9 +939,11 @@ export const RegisterPractitionerForm = () => {
                   <option value="Social Worker">Social Worker</option>
                   <option value="Special Educator">Special Educator</option>
                   <option value="Family Therapist">Family Therapist</option>
+                  <option value="Office Staff">Office Staff</option>
                 </select>
               </div>
 
+              {editForm.positionTitle !== 'Office Staff' && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">
                   Service Types {editingMember.role === 'practitioner' && '*'}
@@ -956,6 +962,7 @@ export const RegisterPractitionerForm = () => {
                   ))}
                 </div>
               </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">Full Address</Label>
@@ -967,7 +974,7 @@ export const RegisterPractitionerForm = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid gap-4 ${editForm.positionTitle === 'Office Staff' ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-slate-700">Phone Number</Label>
                   <Input
@@ -977,6 +984,7 @@ export const RegisterPractitionerForm = () => {
                     placeholder="(555) 123-4567"
                   />
                 </div>
+                {editForm.positionTitle !== 'Office Staff' && (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
                   <Input
@@ -989,6 +997,7 @@ export const RegisterPractitionerForm = () => {
                     onChange={(e) => setEditForm({...editForm, payRate: e.target.value})}
                   />
                 </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">

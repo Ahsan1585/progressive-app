@@ -33,8 +33,10 @@ const provisionPractitioner = async (req, res) => {
     service_types
   } = req.body;
 
+  const isOfficeStaff = position_title === 'Office Staff';
+
   try {
-    if (role === 'practitioner' && (!payRate || isNaN(payRate))) {
+    if (role === 'practitioner' && !isOfficeStaff && (!payRate || isNaN(payRate))) {
       return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
     }
 
@@ -47,7 +49,7 @@ const provisionPractitioner = async (req, res) => {
       ? service_types.filter(code => VALID_SERVICE_TYPE_CODES.includes(code))
       : [];
 
-    if (role === 'practitioner' && serviceTypes.length === 0) {
+    if (role === 'practitioner' && !isOfficeStaff && serviceTypes.length === 0) {
       return res.status(400).json({ error: 'At least one service type is required.' });
     }
 
@@ -364,7 +366,8 @@ const updateStaffProfile = async (req, res) => {
       const serviceTypes = Array.isArray(service_types)
         ? service_types.filter(code => VALID_SERVICE_TYPE_CODES.includes(code))
         : [];
-      if (target.role === 'practitioner' && serviceTypes.length === 0) {
+      const isOfficeStaff = position_title === 'Office Staff';
+      if (target.role === 'practitioner' && !isOfficeStaff && serviceTypes.length === 0) {
         return res.status(400).json({ error: 'At least one service type is required.' });
       }
       addSet('service_types', serviceTypes);
