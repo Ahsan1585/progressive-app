@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import api from '@/api/axiosInstance';
@@ -129,6 +129,12 @@ export const BillingManager = () => {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [expandedLogs, setExpandedLogs] = useState({});
   const [loadingExpand, setLoadingExpand] = useState(new Set());
+  // fetchLogs runs on a 20s interval whose closure is fixed when the effect
+  // last re-ran, so it can't see expandedRows updates in between — read
+  // through this ref instead so a silent refresh always targets whichever
+  // rows are actually expanded right now.
+  const expandedRowsRef = useRef(expandedRows);
+  useEffect(() => { expandedRowsRef.current = expandedRows; }, [expandedRows]);
   const [processingLogId, setProcessingLogId] = useState(null);
 
   // --- ACTION MODAL STATE (Reject / Return — Hold is a one-click action, no modal) ---
@@ -182,6 +188,32 @@ export const BillingManager = () => {
   // ==========================================
   // PENDING QUEUE LOGIC
   // ==========================================
+  // Fetches (or re-fetches) one practitioner's expanded detail rows — the
+  // per-session table with the "Billing Action" column. Shared by the
+  // initial expand and by fetchLogs' background resync below, so both go
+  // through the same request shape.
+  const fetchExpandedLogsFor = async (practitionerId, { silent = false } = {}) => {
+    if (!silent) setLoadingExpand(prev => new Set(prev).add(practitionerId));
+    try {
+      const response = await api.get('/api/billing/practitioner-logs', {
+        params: { practitionerId, startDate: dateRange.start, endDate: dateRange.end }
+      });
+      if (response.data.success) {
+        setExpandedLogs(prev => ({ ...prev, [practitionerId]: response.data.logs }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch practitioner logs', error);
+    } finally {
+      if (!silent) {
+        setLoadingExpand(prev => {
+          const n = new Set(prev);
+          n.delete(practitionerId);
+          return n;
+        });
+      }
+    }
+  };
+
   const fetchLogs = async ({ silent = false } = {}) => {
     if (!silent) setIsLoading(true);
     try {
@@ -189,6 +221,10 @@ export const BillingManager = () => {
         params: { search: searchTerm, startDate: dateRange.start, endDate: dateRange.end }
       });
       if (response.data.success) setPractitionerLogs(response.data.logs);
+      // Already-expanded rows come from a separate endpoint and won't
+      // otherwise pick up changes made outside this dashboard — e.g. a
+      // practitioner resubmitting a returned log from the mobile app.
+      expandedRowsRef.current.forEach(id => fetchExpandedLogsFor(id, { silent: true }));
     } catch (error) {
       console.error("Failed to fetch billing logs", error);
     } finally {
@@ -275,23 +311,7 @@ export const BillingManager = () => {
     setExpandedRows(newExpanded);
 
     if (!expandedLogs[practitionerId]) {
-      setLoadingExpand(prev => new Set(prev).add(practitionerId));
-      try {
-        const response = await api.get('/api/billing/practitioner-logs', {
-          params: { practitionerId, startDate: dateRange.start, endDate: dateRange.end }
-        });
-        if (response.data.success) {
-          setExpandedLogs(prev => ({ ...prev, [practitionerId]: response.data.logs }));
-        }
-      } catch (error) {
-        console.error('Failed to fetch practitioner logs', error);
-      } finally {
-        setLoadingExpand(prev => {
-          const n = new Set(prev);
-          n.delete(practitionerId);
-          return n;
-        });
-      }
+      await fetchExpandedLogsFor(practitionerId);
     }
   };
 
