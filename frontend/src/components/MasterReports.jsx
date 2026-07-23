@@ -382,8 +382,9 @@ export const MasterReports = () => {
               </div>
             )}
 
-            {/* Billing Status — financial module */}
-            {activeModule === 'financial' && (
+            {/* Billing Status — every module except Patients (no billing_status) and
+                Compliance (its own auto-filter already ignores this) */}
+            {activeModule !== 'patients' && activeModule !== 'compliance' && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">Billing Status</Label>
                 <select
@@ -391,11 +392,12 @@ export const MasterReports = () => {
                   value={billingStatus}
                   onChange={(e) => setBillingStatus(e.target.value)}
                 >
-                  <option value="invoiced">Invoiced</option>
+                  <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
                   <option value="njeis_review">In SEVF Review</option>
+                  <option value="invoiced">Invoiced</option>
+                  <option value="rejected">Returned (awaiting revision)</option>
                   <option value="declined">Rejected</option>
-                  <option value="all">All Statuses</option>
                 </select>
               </div>
             )}
