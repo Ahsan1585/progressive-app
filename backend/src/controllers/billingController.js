@@ -28,11 +28,11 @@ const getPendingLogs = async (req, res) => {
   const { search, startDate, endDate } = req.query;
 
   try {
-    // 'rejected' (Returned, awaiting practitioner revision) stays visible here —
-    // it's just locked out of report generation (generateNJEISForms/
-    // generateFinancialInvoice only ever select 'pending'/'njeis_review'), not
-    // hidden from the queue entirely.
-    const params = [['pending', 'njeis_review', 'on_hold', 'rejected']];
+    // 'rejected' (Returned, awaiting practitioner revision) and 'declined'
+    // (permanently rejected) both stay visible here — they're just locked out
+    // of report generation (generateNJEISForms/generateFinancialInvoice only
+    // ever select 'pending'/'njeis_review'), not hidden from the queue entirely.
+    const params = [['pending', 'njeis_review', 'on_hold', 'rejected', 'declined']];
     let sql = `
       SELECT a.*, p.first_name AS practitioner_live_first_name, p.last_name AS practitioner_live_last_name
       FROM assessments a
@@ -591,9 +591,10 @@ const getPractitionerLogs = async (req, res) => {
   try {
     // Held logs are returned alongside the practitioner's regular pending/
     // njeis_review logs (not a separate fetch) — Hold is a per-log marker,
-    // not its own queue. 'rejected' (Returned, awaiting revision) also stays
-    // visible — it's excluded from report generation, not from the list.
-    const params = [practitionerId, ['pending', 'njeis_review', 'on_hold', 'rejected']];
+    // not its own queue. 'rejected' (Returned, awaiting revision) and
+    // 'declined' (permanently rejected) also stay visible — they're excluded
+    // from report generation, not from the list.
+    const params = [practitionerId, ['pending', 'njeis_review', 'on_hold', 'rejected', 'declined']];
     let sql = `
       SELECT id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
              total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at
