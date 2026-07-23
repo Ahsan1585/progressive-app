@@ -8,7 +8,7 @@ const formatServiceDate = (dateStr) => {
   return `${m.padStart(2, '0')}-${d.padStart(2, '0')}-${y}`;
 };
 
-const generateInvoicePDF = async (practitioner, encounters) => {
+const generateInvoicePDF = async (practitioner, encounters, processedBy = '') => {
   const pdfDoc = await PDFDocument.create();
   let page = pdfDoc.addPage([612, 792]); // Letter size
 
@@ -39,6 +39,7 @@ const generateInvoicePDF = async (practitioner, encounters) => {
   drawInfoRow('Address:', practitioner.address || '');
   drawInfoRow('Phone:', practitioner.phone_number || '');
   drawInfoRow('EIN/SSN #:', practitioner.ssn || '');
+  drawInfoRow('Processed By:', processedBy);
   y -= 8;
 
   // ── Therapy types ──

@@ -372,7 +372,15 @@ const generateFinancialInvoice = async (req, res) => {
       };
     });
 
-    const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems);
+    const { rows: specialistRows } = await pool.query(
+      'SELECT first_name, last_name FROM practitioners WHERE id = $1',
+      [req.practitioner.practitionerId]
+    );
+    const processedBy = specialistRows[0]
+      ? `${specialistRows[0].first_name || ''} ${specialistRows[0].last_name || ''}`.trim()
+      : '';
+
+    const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems, processedBy);
 
     const invNow = new Date();
     const invYearMonth = `${invNow.getFullYear()}-${String(invNow.getMonth() + 1).padStart(2, '0')}`;
