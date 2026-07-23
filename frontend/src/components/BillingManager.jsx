@@ -13,7 +13,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   Search, ChevronRight, ChevronDown, Download, Check, X, Undo2,
-  Ban, Clock, Lock, CheckCircle2, CircleAlert, PauseCircle, PlayCircle,
+  Ban, Clock, Lock, CheckCircle2, CircleAlert, PauseCircle, PlayCircle, MessageSquareText,
 } from 'lucide-react';
 
 // --- Copy for the Reject/Return note modal, keyed by action type. Hold is a
@@ -145,6 +145,11 @@ export const BillingManager = () => {
   // --- REVERT BATCH MODAL STATE (Completed Bills → Send Back to Pending) ---
   const [revertModal, setRevertModal] = useState(null); // { group } or null
   const [isReverting, setIsReverting] = useState(false);
+
+  // --- NOTES HISTORY MODAL STATE (return/resubmit note back-and-forth for one log) ---
+  const [notesModal, setNotesModal] = useState(null); // { session } or null
+  const [logNotes, setLogNotes] = useState([]);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
 
   // --- PER-LOG ACTION STATE (controls dropdown value + Review badge) ---
   const [logActions, setLogActions] = useState({}); // { [sessionId]: 'accept'|'reject'|'return' }
@@ -381,6 +386,24 @@ export const BillingManager = () => {
     } finally {
       setProcessingLogId(null);
     }
+  };
+
+  const openNotesModal = async (session) => {
+    setNotesModal({ session });
+    setIsLoadingNotes(true);
+    try {
+      const response = await api.get('/api/billing/log-notes', { params: { assessmentId: session.id } });
+      if (response.data.success) setLogNotes(response.data.notes);
+    } catch (error) {
+      console.error('Failed to fetch log notes', error);
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  const closeNotesModal = () => {
+    setNotesModal(null);
+    setLogNotes([]);
   };
 
   const closeActionModal = () => {
@@ -1135,7 +1158,23 @@ export const BillingManager = () => {
 
                                             {/* Review status badge */}
                                             <td className="py-3 px-3 text-center">
-                                              <Badge variant={reviewBadge.variant}>{reviewBadge.label}</Badge>
+                                              <div className="inline-flex items-center gap-1.5">
+                                                <Badge variant={reviewBadge.variant}>{reviewBadge.label}</Badge>
+                                                {session.rejection_count > 0 && (
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => openNotesModal(session)}
+                                                        className="cursor-pointer text-slate-400 hover:text-slate-600 transition-colors"
+                                                      >
+                                                        <MessageSquareText className="size-3.5" />
+                                                      </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>View return/resubmit notes</TooltipContent>
+                                                  </Tooltip>
+                                                )}
+                                              </div>
                                             </td>
 
                                             {/* Action — locked (with tooltip) or Select dropdown */}
@@ -1307,6 +1346,63 @@ export const BillingManager = () => {
                 : actionModal?.type === 'return'
                   ? 'Return to Practitioner'
                   : 'Confirm Rejection'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* NOTES HISTORY MODAL (full return/resubmit note back-and-forth for one log) */}
+      <Dialog open={!!notesModal} onOpenChange={(open) => { if (!open) closeNotesModal(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Revision notes</DialogTitle>
+            <DialogDescription>
+              {notesModal && (
+                <>
+                  {notesModal.session.patient_first_name} {notesModal.session.patient_last_name}
+                  {' · '}
+                  {notesModal.session.service_date
+                    ? new Date(notesModal.session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    : '-'}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingNotes ? (
+            <div className="text-center py-4 text-slate-500 text-sm">Loading notes...</div>
+          ) : logNotes.length === 0 ? (
+            <div className="text-center py-4 text-slate-500 text-sm">No notes recorded for this log.</div>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {logNotes.map((n, i) => {
+                const isBillingSpecialist = n.author_role !== 'practitioner';
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-xl p-3.5 border text-sm ${
+                      isBillingSpecialist ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className={`font-semibold ${isBillingSpecialist ? 'text-amber-800' : 'text-blue-800'}`}>
+                        {isBillingSpecialist ? 'Billing' : 'Practitioner'}
+                        {n.first_name ? ` · ${n.first_name} ${n.last_name}` : ''}
+                      </span>
+                      <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+                        {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-slate-700 whitespace-pre-wrap">{n.note}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" className="cursor-pointer" onClick={closeNotesModal}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

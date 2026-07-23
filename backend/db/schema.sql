@@ -246,3 +246,23 @@ CREATE TABLE master_reports (
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id)
 );
 ALTER SEQUENCE master_reports_id_seq OWNED BY master_reports.id;
+
+-- assessment_notes: FK -> assessments, practitioners. One row per note
+-- exchanged during a return/resubmit revision cycle (the billing
+-- specialist's return note, or the practitioner's note on resubmission) —
+-- a full history, since a log can be returned and resubmitted more than
+-- once. author_id/author_role mirror messages.sender_id/sender_role.
+CREATE SEQUENCE assessment_notes_id_seq;
+CREATE TABLE assessment_notes (
+  id integer NOT NULL DEFAULT nextval('assessment_notes_id_seq'::regclass),
+  assessment_id integer NOT NULL,
+  author_id integer NOT NULL,
+  author_role text NOT NULL,
+  note text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  PRIMARY KEY (id),
+  FOREIGN KEY (assessment_id) REFERENCES assessments(id),
+  FOREIGN KEY (author_id) REFERENCES practitioners(id)
+);
+ALTER SEQUENCE assessment_notes_id_seq OWNED BY assessment_notes.id;
+CREATE INDEX idx_assessment_notes_assessment_id ON assessment_notes(assessment_id);

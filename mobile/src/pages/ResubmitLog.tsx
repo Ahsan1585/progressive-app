@@ -7,6 +7,7 @@ import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Picker } from "@/components/Picker";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
@@ -36,6 +37,7 @@ export default function ResubmitLog() {
     start_time: log?.start_time ?? "",
     end_time: log?.end_time ?? "",
     status: log?.status ?? "",
+    note: "",
   });
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -134,6 +136,13 @@ export default function ResubmitLog() {
           options={STATUS_CODE_OPTIONS}
           onChange={(v) => setForm((f) => ({ ...f, status: v }))}
         />
+        <Field id="note" label="Note to billing" optional>
+          <Textarea
+            placeholder="Add any context on what you changed..."
+            value={form.note}
+            onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+          />
+        </Field>
 
         <Button type="submit" className="w-full" size="lg" loading={submitting}>
           Resubmit for review

@@ -10,6 +10,7 @@ const {
   getInvoiceHistory,
   getInvoiceDownloadUrl,
   getPractitionerLogs,
+  getLogNotes,
   updateLogStatus,
   rejectLog,
   getVaultLogs,
@@ -32,6 +33,7 @@ const invoiceStatusWriteGuard = [protect, requireRole(['ceo', 'account_specialis
 
 router.get('/pending-logs',      ...billingGuard, getPendingLogs);
 router.get('/practitioner-logs', ...billingGuard, getPractitionerLogs);
+router.get('/log-notes',         ...billingGuard, getLogNotes);
 router.patch('/log-status',      ...billingGuard, updateLogStatus);
 router.post('/reject-log',       ...billingGuard, rejectLog);
 router.post('/generate-njeis',   ...billingGuard, generateNJEISForms);

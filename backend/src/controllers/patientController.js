@@ -228,7 +228,7 @@ const acknowledgeLog = async (req, res) => {
 
 const resubmitLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
-  const { assessmentId, type, location, start_time, end_time, total_time, status } = req.body;
+  const { assessmentId, type, location, start_time, end_time, total_time, status, note } = req.body;
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
   try {
@@ -257,6 +257,18 @@ const resubmitLog = async (req, res) => {
        WHERE id = $7`,
       [type, location, start_time, end_time, total_time, status, assessmentId]
     );
+
+    // Optional — the practitioner's note on why/how they revised the log,
+    // kept alongside the billing specialist's original return note so the
+    // full back-and-forth is visible even after rejection_note is cleared.
+    if (note && note.trim()) {
+      await pool.query(
+        `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+         VALUES ($1, $2, $3, $4)`,
+        [assessmentId, practitionerId, req.practitioner.role, note.trim()]
+      );
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error resubmitting log:', error);

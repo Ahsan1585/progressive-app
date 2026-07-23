@@ -500,6 +500,18 @@ const rejectLog = async (req, res) => {
        WHERE id = $6`,
       [newStatus, type, note.trim(), new Date().toISOString(), (current?.rejection_count || 0) + 1, assessmentId]
     );
+
+    // Only 'return' starts a revision cycle the practitioner acts on — keep a
+    // permanent record of it (separate from rejection_note, which resubmitLog
+    // clears each cycle) so the full back-and-forth stays visible later.
+    if (type === 'return') {
+      await pool.query(
+        `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+         VALUES ($1, $2, $3, $4)`,
+        [assessmentId, req.practitioner.practitionerId, req.practitioner.role, note.trim()]
+      );
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error processing log action:', error);
@@ -533,6 +545,27 @@ const getPractitionerLogs = async (req, res) => {
   } catch (error) {
     console.error('Error fetching practitioner logs:', error);
     res.status(500).json({ error: 'Failed to fetch practitioner logs' });
+  }
+};
+
+// --- 9b. Fetch the full return/resubmit note history for one log ---
+const getLogNotes = async (req, res) => {
+  const { assessmentId } = req.query;
+  if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
+
+  try {
+    const { rows: notes } = await pool.query(
+      `SELECT n.author_role, n.note, n.created_at, p.first_name, p.last_name
+       FROM assessment_notes n
+       LEFT JOIN practitioners p ON p.id = n.author_id
+       WHERE n.assessment_id = $1
+       ORDER BY n.created_at ASC`,
+      [assessmentId]
+    );
+    res.json({ success: true, notes });
+  } catch (error) {
+    console.error('Error fetching log notes:', error);
+    res.status(500).json({ error: 'Failed to fetch log notes' });
   }
 };
 
@@ -830,6 +863,7 @@ module.exports = {
   getInvoiceHistory,
   getInvoiceDownloadUrl,
   getPractitionerLogs,
+  getLogNotes,
   updateLogStatus,
   rejectLog,
   getVaultLogs,
