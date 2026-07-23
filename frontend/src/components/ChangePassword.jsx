@@ -36,7 +36,7 @@ const ChangePassword = () => {
       const response = await api.post('/api/auth/change-password', { newPassword });
 
       if (response.data.success) {
-        alert("Password successfully changed! Welcome to the portal.");
+        alert("Password updated.");
         navigate('/dashboard');
       }
     } catch {
@@ -50,7 +50,7 @@ const ChangePassword = () => {
     <AuthLayout>
       <h2 className="text-lg font-semibold text-slate-800 mb-2 text-center">Update Required</h2>
       <p className="text-sm text-slate-500 mb-6 text-center">
-        For security purposes, you must change your temporary password before accessing the portal.
+        You'll need to set a new password before continuing.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -79,7 +79,7 @@ const ChangePassword = () => {
           disabled={isUpdating}
           className="w-full h-11 mt-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white text-base font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(8,74,90,0.4)] transition-colors"
         >
-          {isUpdating ? 'Updating...' : 'Secure Account & Continue'}
+          {isUpdating ? 'Updating...' : 'Set New Password'}
         </Button>
       </form>
     </AuthLayout>

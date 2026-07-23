@@ -72,7 +72,7 @@ const FEATURES = [
     step: '01',
     icon: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none" /></svg>,
     title: 'Deliver & Document',
-    body: 'A practitioner logs the visit — date, time, service type, location, and both signatures — in minutes, from a phone or a desktop.',
+    body: 'A practitioner logs the visit (date, time, service type, location, and both signatures) in a few minutes, from a phone or a desktop.',
   },
   {
     step: '02',
@@ -84,7 +84,7 @@ const FEATURES = [
     step: '03',
     icon: <svg viewBox="0 0 24 24"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01" /><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>,
     title: 'Convert to State Forms',
-    body: 'Approved logs generate the state-required NJEIS billing form automatically — no manual re-entry, no transcription errors.',
+    body: 'Approved logs generate the state-required NJEIS billing form automatically, without manual re-entry or transcription errors.',
   },
   {
     step: '04',
@@ -387,12 +387,12 @@ const Login = () => {
 
           <div className="il-hero-copy">
             <div className="il-eyebrow">Early Intervention Simplified</div>
-            <h1>Every session becomes<br /><em>a paid invoice</em> — no gaps.</h1>
-            <p className="il-hero-sub">Izaya connects what happens in the field to what happens in your back office: a practitioner delivers a service and logs it, your team reviews and controls it, the state-required NJEIS form generates itself, and a pay invoice goes out — one continuous, auditable record from first signature to final payment.</p>
+            <h1>Every session becomes<br /><em>a paid invoice</em>, without the gaps.</h1>
+            <p className="il-hero-sub">Izaya connects what happens in the field to what happens in your back office. A practitioner logs a visit, your team reviews it, the state-required NJEIS form is generated automatically, and a pay invoice goes out. It's one record, from the first signature to the final payment.</p>
             <div className="il-hero-points">
-              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>One record, from session to signature to state form to invoice</div>
-              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>Built-in oversight — review, return, or approve every log before it's billed</div>
-              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>HIPAA-compliant and audit-ready, end to end</div>
+              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>One record, from session to invoice</div>
+              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>Your office reviews, returns, or approves every log before it's billed</div>
+              <div className="il-point"><span className="il-pn">{CHECK_ICON}</span>HIPAA-compliant, with a full audit trail</div>
             </div>
           </div>
 
@@ -463,8 +463,8 @@ const Login = () => {
         <div className="il-spine-node" aria-hidden="true">{CHECK_ICON}</div>
 
         <div className="il-section-head">
-          <h2>The complete lifecycle, not just a log</h2>
-          <p>A practitioner delivers a service. Izaya carries that record through your office's review, into the state's paperwork, and out the door as a paid invoice — every step traceable, every dollar accounted for.</p>
+          <h2>Built for the full billing lifecycle</h2>
+          <p>A practitioner delivers a service. Izaya carries that record through your office's review, into the state paperwork, and out the door as a paid invoice, with a clear record at every step.</p>
         </div>
 
         <div className="il-feature-grid">
@@ -480,7 +480,7 @@ const Login = () => {
           ))}
         </div>
 
-        <p className="il-feature-note">Plus direct messaging with your office and session scheduling with automatic parent calendar invites — built in, not bolted on.</p>
+        <p className="il-feature-note">It also includes direct messaging with your office and session scheduling with automatic calendar invites for parents.</p>
       </section>
 
       {/* DOWNLOAD */}
@@ -492,7 +492,7 @@ const Login = () => {
         <div className="il-dl-band">
           <div className="il-dl-copy">
             <h2>Take Izaya with you</h2>
-            <p>Practitioners can log sessions, message the office, and manage their schedule on the go — the full app installs straight from your phone's browser, no app store, ready in seconds.</p>
+            <p>Practitioners can log sessions, message the office, and manage their schedule on the go. The full app installs straight from your phone's browser. No app store required.</p>
             <div className="il-dl-buttons">
               <a
                 className="il-dl-btn"
@@ -529,11 +529,11 @@ const Login = () => {
             <div className="il-dl-steps">
               <div className="il-dl-step"><span className="il-sn">1</span>Open your phone's camera</div>
               <div className="il-dl-step"><span className="il-sn">2</span>Scan the code &amp; open the link</div>
-              <div className="il-dl-step"><span className="il-sn">3</span>Tap "Install" — that's it</div>
+              <div className="il-dl-step"><span className="il-sn">3</span>Tap "Install" and you're done</div>
             </div>
             <div className="il-dl-note">
               <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" /></svg>
-              Works on iPhone &amp; Android — no app store needed
+              Works on iPhone and Android. No app store needed.
             </div>
           </div>
 
