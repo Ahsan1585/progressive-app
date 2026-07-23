@@ -475,34 +475,29 @@ export const BillingManager = () => {
       )).sort();
       if (months.length === 0) throw new Error('No billable logs remain — all logs were rejected or returned.');
 
-      const sevfDocuments = [];
-      const invoiceDocuments = [];
-
       for (const month of months) {
         const { start, end } = getMonthBounds(month);
 
         const njeisRes = await api.post('/api/billing/generate-njeis', { practitionerId, startDate: start, endDate: end });
         if (!njeisRes.data.success) throw new Error(`SEVF generation failed for ${formatMonthLabel(month)}`);
-        sevfDocuments.push({ month, url: njeisRes.data.downloadUrl });
 
         const invoiceRes = await api.post('/api/billing/generate-invoice', { practitionerId, startDate: start, endDate: end });
         if (!invoiceRes.data.success) throw new Error(`Invoice generation failed for ${formatMonthLabel(month)}`);
-        invoiceDocuments.push({ month, url: invoiceRes.data.downloadUrl });
       }
+
+      // Documents are generated — release the lock automatically so it doesn't
+      // linger for a completed row. Best-effort: a hiccup here shouldn't
+      // surface as a false "generation failed" error after the real work succeeded.
+      await api.post(`/api/billing/practitioner/${practitionerId}/unlock`).catch(() => {});
 
       // billing_status stays 'njeis_review' server-side even though both
       // documents now exist — the row only moves to Completed Bills once the
-      // specialist explicitly clicks "Send to Completed Bills" below.
-      setPractitionerLogs(prev => prev.map(log =>
-        log.practitioner_id === practitionerId
-          ? { ...log, sevf_documents: sevfDocuments, invoice_documents: invoiceDocuments, locked_by_id: null, locked_by_name: null }
-          : log
-      ));
-
-      // Documents are generated — release the lock automatically so it doesn't
-      // linger for a completed row (fire-and-forget: a hiccup here shouldn't
-      // surface as a false "generation failed" error after the real work succeeded).
-      api.post(`/api/billing/practitioner/${practitionerId}/unlock`).catch(() => {});
+      // specialist explicitly clicks "Send to Completed Bills" below. Refetch
+      // rather than construct sevf_documents/invoice_documents locally, so the
+      // "ready to send" state is the same server-derived truth (from
+      // billing_batches) that survives polling/refresh — not just something
+      // held in memory until the next fetch quietly wipes it.
+      await fetchLogs();
     } catch (error) {
       pushToast('error', 'Generation failed: ' + error.message);
     } finally {

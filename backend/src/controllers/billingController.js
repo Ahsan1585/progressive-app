@@ -66,6 +66,7 @@ const getPendingLogs = async (req, res) => {
     // SEVF/invoice generation yet" marker (already enforced by those queries
     // only selecting 'pending'/'njeis_review'), not a separate queue.
     const practitionerMap = {};
+    const batchIdsByPractitioner = {};
 
     assessments.forEach(record => {
       const pId = record.practitioner_id;
@@ -83,6 +84,7 @@ const getPendingLogs = async (req, res) => {
           locked_by_id: lockMap[pId]?.locked_by_id || null,
           locked_by_name: lockMap[pId]?.locked_by_name || null,
         };
+        batchIdsByPractitioner[pId] = new Set();
       }
 
       if (record.billing_status === 'pending') {
@@ -90,6 +92,11 @@ const getPendingLogs = async (req, res) => {
       }
       if (record.billing_status === 'on_hold') {
         practitionerMap[pId].on_hold_count += 1;
+      }
+      // Only njeis_review logs represent an in-flight generate/complete cycle —
+      // their batch(es) are what "Send to Completed Bills" cares about.
+      if (record.billing_status === 'njeis_review' && record.billing_batch_id) {
+        batchIdsByPractitioner[pId].add(record.billing_batch_id);
       }
 
       practitionerMap[pId].total_interventions += 1;
@@ -99,30 +106,48 @@ const getPendingLogs = async (req, res) => {
       practitionerMap[pId].total_hours += hours;
     });
 
-    // 🌟 FIX: Use the new folder helper to resolve URLs
+    // Resolve each practitioner's in-flight batches (from billing_batches, not
+    // local component state) so "documents generated, ready to send" survives
+    // polling/refresh/navigation instead of being lost the moment the
+    // generate response leaves memory.
+    const allBatchIds = Array.from(new Set(Object.values(batchIdsByPractitioner).flatMap(s => Array.from(s))));
+    const batchesById = {};
+    if (allBatchIds.length > 0) {
+      const { rows: batchRows } = await pool.query(
+        'SELECT id, start_date, njeis_path, invoice_path FROM billing_batches WHERE id = ANY($1::uuid[])',
+        [allBatchIds]
+      );
+      batchRows.forEach(b => { batchesById[b.id] = b; });
+    }
+
     const logs = await Promise.all(Object.values(practitionerMap).map(async log => {
-      let njeis_url = null;
-      if (log.workflow_status === 'njeis_review') {
-        const d = new Date();
-        const yearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        const practName = `${log.first_name}_${log.last_name}`.replace(/\s+/g, '_');
-        const folderPath = `${yearMonth}/${practName}`;
-        const folderItems = await listFilesDetailed(BILLING_INVOICES_BUCKET, `${folderPath}/`);
-        const njeisItems = folderItems
-          .filter(f => path.basename(f.name).startsWith('NJEIS'))
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        const latestNjeis = njeisItems[0];
-        if (latestNjeis) {
-          njeis_url = await getSignedUrl(BILLING_INVOICES_BUCKET, latestNjeis.name, 3600);
+      const batchIds = Array.from(batchIdsByPractitioner[log.practitioner_id] || []);
+      const batches = batchIds.map(id => batchesById[id]).filter(Boolean);
+
+      const sevf_documents = [];
+      const invoice_documents = [];
+      await Promise.all(batches.map(async batch => {
+        const month = batch.start_date ? String(batch.start_date).slice(0, 7) : 'unknown';
+        if (batch.njeis_path) {
+          sevf_documents.push({ month, url: await getSignedUrl(BILLING_INVOICES_BUCKET, batch.njeis_path, 3600) });
         }
-      }
+        if (batch.invoice_path) {
+          invoice_documents.push({ month, url: await getSignedUrl(BILLING_INVOICES_BUCKET, batch.invoice_path, 3600) });
+        }
+      }));
+
+      // Ready only once every in-flight batch has both documents — a batch
+      // missing its invoice (partial-failure mid-generation) shouldn't let
+      // the practitioner get marked complete.
+      const readyToComplete = batches.length > 0 && batches.every(b => b.njeis_path && b.invoice_path);
 
       return {
         ...log,
         unique_children_count: log.unique_children.size,
         unique_children: undefined,
-        njeis_url,
-        invoice_url: null
+        sevf_documents,
+        invoice_documents,
+        readyToComplete,
       };
     }));
 
