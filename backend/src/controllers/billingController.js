@@ -353,7 +353,6 @@ const generateFinancialInvoice = async (req, res) => {
     if (!assessments || assessments.length === 0) return res.status(400).json({ success: false, error: "No reviewed assessments found." });
 
     const practitioner = assessments[0].practitioners;
-    const allAssessmentIds = assessments.map(a => a.id);
     let totalHours = 0;
     const rawPayRate = (practitioner.pay_rate && parseFloat(practitioner.pay_rate) > 0) ? parseFloat(practitioner.pay_rate) : 0;
 
@@ -401,10 +400,38 @@ const generateFinancialInvoice = async (req, res) => {
       await pool.query('UPDATE billing_batches SET invoice_path = $1 WHERE id = $2', [filePath, batchId]);
     }
 
-    await pool.query("UPDATE assessments SET billing_status = 'invoiced' WHERE id = ANY($1::int[])", [allAssessmentIds]);
+    // Deliberately NOT flipping billing_status to 'invoiced' here — the row
+    // stays visible (and billable-batch-editable) in Pending Bills until the
+    // billing specialist explicitly confirms via "Send to Completed Bills"
+    // (see completeBilling below), even though both documents already exist.
 
     res.json({ success: true, downloadUrl: signedUrl, message: 'Invoice issued successfully!' });
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+};
+
+// --- 4b. STEP 3: Move a practitioner's fully-generated logs to Completed Bills ---
+// Only advances logs already past both generation steps (billing_status
+// 'njeis_review' means generateNJEISForms already ran on them; the frontend
+// only enables this action once both SEVF and invoice documents exist).
+const completeBilling = async (req, res) => {
+  const { practitionerId } = req.body;
+  if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assessments SET billing_status = 'invoiced'
+       WHERE practitioner_id = $1 AND billing_status = 'njeis_review'
+       RETURNING id`,
+      [practitionerId]
+    );
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'No generated logs are ready to complete for this practitioner.' });
+    }
+    res.json({ success: true, count: rows.length });
+  } catch (error) {
+    console.error('Error completing billing:', error);
+    res.status(500).json({ success: false, error: 'Failed to move logs to Completed Bills' });
+  }
 };
 
 // --- 5. Fetch actual files from the invoices bucket ---
@@ -873,6 +900,7 @@ module.exports = {
   getPendingLogs,
   generateNJEISForms,
   generateFinancialInvoice,
+  completeBilling,
   getInvoiceHistory,
   getInvoiceDownloadUrl,
   getPractitionerLogs,

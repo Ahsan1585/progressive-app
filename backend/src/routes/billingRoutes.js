@@ -7,6 +7,7 @@ const {
   getPendingLogs,
   generateNJEISForms,
   generateFinancialInvoice,
+  completeBilling,
   getInvoiceHistory,
   getInvoiceDownloadUrl,
   getPractitionerLogs,
@@ -38,6 +39,7 @@ router.patch('/log-status',      ...billingGuard, updateLogStatus);
 router.post('/reject-log',       ...billingGuard, rejectLog);
 router.post('/generate-njeis',   ...billingGuard, generateNJEISForms);
 router.post('/generate-invoice', ...billingGuard, generateFinancialInvoice);
+router.post('/complete-billing',  ...billingGuard, completeBilling);
 router.get('/history',           ...billingGuard, getInvoiceHistory);
 router.get('/download',          ...billingGuard, getInvoiceDownloadUrl);
 router.get('/vault-logs',        ...billingGuard, getVaultLogs);

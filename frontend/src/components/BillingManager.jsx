@@ -490,9 +490,12 @@ export const BillingManager = () => {
         invoiceDocuments.push({ month, url: invoiceRes.data.downloadUrl });
       }
 
+      // billing_status stays 'njeis_review' server-side even though both
+      // documents now exist — the row only moves to Completed Bills once the
+      // specialist explicitly clicks "Send to Completed Bills" below.
       setPractitionerLogs(prev => prev.map(log =>
         log.practitioner_id === practitionerId
-          ? { ...log, workflow_status: 'complete', sevf_documents: sevfDocuments, invoice_documents: invoiceDocuments, locked_by_id: null, locked_by_name: null }
+          ? { ...log, sevf_documents: sevfDocuments, invoice_documents: invoiceDocuments, locked_by_id: null, locked_by_name: null }
           : log
       ));
 
@@ -502,6 +505,21 @@ export const BillingManager = () => {
       api.post(`/api/billing/practitioner/${practitionerId}/unlock`).catch(() => {});
     } catch (error) {
       pushToast('error', 'Generation failed: ' + error.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleSendToCompleted = async (practitionerId) => {
+    setProcessingId(practitionerId);
+    try {
+      const response = await api.post('/api/billing/complete-billing', { practitionerId });
+      if (response.data.success) {
+        pushToast('success', 'Moved to Completed Bills.');
+        fetchLogs();
+      }
+    } catch (error) {
+      pushToast('error', error.response?.data?.error || 'Failed to move to Completed Bills');
     } finally {
       setProcessingId(null);
     }
@@ -950,6 +968,9 @@ export const BillingManager = () => {
                       logsForRow.every(s => logActions[s.id] || s.billing_review);
                     const isLockedByMe = !!log.locked_by_id && log.locked_by_id === currentUserId;
                     const isLockedByOther = !!log.locked_by_id && log.locked_by_id !== currentUserId;
+                    // Both documents generated but not yet sent to Completed Bills —
+                    // billing_status is still 'njeis_review' server-side until then.
+                    const readyToComplete = log.sevf_documents?.length > 0 && log.invoice_documents?.length > 0;
 
                     return (
                       <React.Fragment key={log.practitioner_id}>
@@ -1030,8 +1051,8 @@ export const BillingManager = () => {
                             ) : (
                               <>
                                 {log.workflow_status === 'pending' && <Badge variant="warning">Awaiting Forms</Badge>}
-                                {log.workflow_status === 'njeis_review' && <Badge variant="info">In Review</Badge>}
-                                {log.workflow_status === 'complete' && <Badge variant="success">Complete</Badge>}
+                                {log.workflow_status === 'njeis_review' && !readyToComplete && <Badge variant="info">In Review</Badge>}
+                                {readyToComplete && <Badge variant="success">Ready to Send</Badge>}
                               </>
                             )}
                           </td>
@@ -1056,6 +1077,15 @@ export const BillingManager = () => {
                           <td className="py-5 px-4 text-right align-top">
                             {isLockedByOther ? (
                               <span className="text-xs text-slate-400">Locked by {log.locked_by_name}</span>
+                            ) : readyToComplete ? (
+                              <Button
+                                onClick={() => handleSendToCompleted(log.practitioner_id)}
+                                disabled={processingId === log.practitioner_id}
+                                className="ml-auto w-44 text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <CheckCircle2 className="size-4 mr-1" />
+                                {processingId === log.practitioner_id ? 'Sending...' : 'Send to Completed Bills'}
+                              </Button>
                             ) : (log.workflow_status === 'pending' || log.workflow_status === 'njeis_review') && (
                               <div className="flex flex-col items-end gap-1">
                                 <Button
@@ -1076,12 +1106,6 @@ export const BillingManager = () => {
                                   <span className="text-xs text-amber-600 font-medium">Review all logs to enable</span>
                                 )}
                               </div>
-                            )}
-                            {log.workflow_status === 'complete' && (
-                              <Button disabled className="bg-emerald-100 text-emerald-700 border border-emerald-200 ml-auto w-44 opacity-100 cursor-default">
-                                <CheckCircle2 className="size-4 mr-1" />
-                                Issued & Complete
-                              </Button>
                             )}
                           </td>
                         </tr>
