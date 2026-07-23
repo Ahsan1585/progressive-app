@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StaffChatPopover } from '@/components/StaffChatPopover';
-import izayaLogo from '@/assets/izaya-logo.png';
 
 const MESSAGE_THREADS_POLL_MS = 5000;
 
@@ -394,7 +393,6 @@ export const RegisterPractitionerForm = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
-            <img src={izayaLogo} alt="" className="h-4 w-auto" />
 
             <div className="ml-auto flex items-center gap-1 bg-slate-200 rounded-lg p-1 shadow-inner">
               {[
@@ -612,7 +610,6 @@ export const RegisterPractitionerForm = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
           Register New Account
-          <img src={izayaLogo} alt="" className="h-4 w-auto" />
         </h2>
 
         <form onSubmit={handleRegisterPractitioner} className="space-y-4">

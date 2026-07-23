@@ -102,7 +102,6 @@ const AdminDashboard = () => {
       >
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="h-3 w-3 rounded-full bg-blue-600 animate-pulse flex-shrink-0"></span>
             <h1 className="text-lg font-bold text-slate-800 tracking-tight leading-tight truncate">
               Progressive Steps<br/>
               <span className="text-sm font-medium text-slate-500">Admin Portal</span>
@@ -183,7 +182,6 @@ const AdminDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse hidden md:block"></span>
             <img src={izayaLogo} alt="" className="h-5 w-auto hidden sm:block" />
             <h2 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
               {activeTab === 'practitioners' ? 'Staff Directory' : activeTab === 'reports' ? 'Master Reports' : 'Billing & Invoices'}
