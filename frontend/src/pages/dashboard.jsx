@@ -7,6 +7,7 @@ import { MessagesPanel } from '@/components/MessagesPanel';
 import { Button } from '@/components/ui/button';
 import SignaturePad from '@/components/SignaturePad';
 import { formatTime12h } from '@/utils/formatTime';
+import izayaLogo from '@/assets/izaya-logo.png';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState([]);
@@ -431,7 +432,10 @@ const Dashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse hidden md:block"></span>
+            <div className="hidden sm:flex flex-col items-start gap-0.5">
+              <img src={izayaLogo} alt="" className="h-5 w-auto" />
+              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide leading-none whitespace-nowrap">Early Intervention Simplified</span>
+            </div>
             {selectedPatient && (
               <button
                 onClick={handleBackToDashboard}

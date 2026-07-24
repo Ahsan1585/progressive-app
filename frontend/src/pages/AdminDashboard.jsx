@@ -182,7 +182,10 @@ const AdminDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <img src={izayaLogo} alt="" className="h-5 w-auto hidden sm:block" />
+            <div className="hidden sm:flex flex-col items-start gap-0.5">
+              <img src={izayaLogo} alt="" className="h-5 w-auto" />
+              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide leading-none whitespace-nowrap">Early Intervention Simplified</span>
+            </div>
             <h2 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
               {activeTab === 'practitioners' ? 'Staff Directory' : activeTab === 'reports' ? 'Master Reports' : 'Billing & Invoices'}
             </h2>
