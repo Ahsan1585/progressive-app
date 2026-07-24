@@ -476,7 +476,12 @@ export const BillingManager = () => {
       if (months.length === 0) throw new Error('No billable logs remain — all logs were rejected or returned.');
 
       for (const month of months) {
-        const { start, end } = getMonthBounds(month);
+        const { start: monthStart, end: monthEnd } = getMonthBounds(month);
+        // Intersect with the billing specialist's active date filter, if any —
+        // otherwise generation silently widens to the whole calendar month and
+        // pulls in logs the specialist deliberately excluded via a narrower range.
+        const start = dateRange.start && dateRange.start > monthStart ? dateRange.start : monthStart;
+        const end = dateRange.end && dateRange.end < monthEnd ? dateRange.end : monthEnd;
 
         const njeisRes = await api.post('/api/billing/generate-njeis', { practitionerId, startDate: start, endDate: end });
         if (!njeisRes.data.success) throw new Error(`SEVF generation failed for ${formatMonthLabel(month)}`);
