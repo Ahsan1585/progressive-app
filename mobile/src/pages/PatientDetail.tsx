@@ -173,10 +173,18 @@ export default function PatientDetail() {
 
         {/* Sticky "Log Session" primary action — always reachable without scrolling. */}
         <div className="sticky top-0 z-10 -mx-4 mb-4 bg-bg px-4 pb-3 pt-1">
-          <Button className="w-full" size="lg" onClick={() => navigate(`/patients/${id}/log`)}>
+          <Button
+            className="w-full"
+            size="lg"
+            disabled={patient?.status === "inactive"}
+            onClick={() => navigate(`/patients/${id}/log`)}
+          >
             <Plus className="size-4" aria-hidden="true" />
             Log Session
           </Button>
+          {patient?.status === "inactive" && (
+            <p className="mt-1.5 text-center text-xs text-ink-muted">Reactivate this patient to log a new session.</p>
+          )}
         </div>
 
         <div className="mb-4">
