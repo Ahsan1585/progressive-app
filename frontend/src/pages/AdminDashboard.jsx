@@ -159,6 +159,20 @@ const AdminDashboard = () => {
             </button>
           )}
 
+          {userRole === 'ceo' && (
+            <a
+              href={`${import.meta.env.BASE_URL}company-information.html`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l7-3 7 3z" />
+              </svg>
+              Company Information
+            </a>
+          )}
+
         </nav>
 
         <div className="p-4 border-t border-slate-100 flex flex-col items-center">

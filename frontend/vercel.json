@@ -6,6 +6,7 @@
     { "source": "/eis/assets/:path*", "destination": "/assets/:path*" },
     { "source": "/eis/favicon.svg", "destination": "/favicon.svg" },
     { "source": "/eis/icons.svg", "destination": "/icons.svg" },
+    { "source": "/eis/company-information.html", "destination": "/company-information.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
