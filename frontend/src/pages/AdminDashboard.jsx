@@ -14,6 +14,13 @@ const TAB_ACCESS = {
   company:       ['ceo'],
 };
 
+const TAB_TITLES = {
+  practitioners: 'Staff Directory',
+  reports:       'Master Reports',
+  billing:       'Billing & Invoices',
+  company:       'Company Information',
+};
+
 const ROLE_LABELS = {
   ceo:                'Admin',
   staff_director:     'Office Manager',
@@ -226,7 +233,7 @@ const AdminDashboard = () => {
               <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide leading-none whitespace-nowrap">Early Intervention Simplified</span>
             </div>
             <h2 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
-              {activeTab === 'practitioners' ? 'Staff Directory' : activeTab === 'reports' ? 'Master Reports' : 'Billing & Invoices'}
+              {TAB_TITLES[activeTab] || 'Billing & Invoices'}
             </h2>
           </div>
           <div className="flex items-center gap-3">
