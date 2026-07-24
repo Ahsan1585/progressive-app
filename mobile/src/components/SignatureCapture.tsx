@@ -41,6 +41,7 @@ export function SignatureCapture({
   const wrapperRef = React.useRef<HTMLDivElement>(null);
   const drawingRef = React.useRef(false);
   const hasStrokeRef = React.useRef(false);
+  const [hasStroke, setHasStroke] = React.useState(false);
   const [justCaptured, setJustCaptured] = React.useState(false);
 
   const CANVAS_HEIGHT = 200;
@@ -91,6 +92,7 @@ export function SignatureCapture({
     ctx?.moveTo(x, y);
     drawingRef.current = true;
     hasStrokeRef.current = true;
+    setHasStroke(true);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -103,19 +105,24 @@ export function SignatureCapture({
     ctx?.stroke();
   };
 
+  // Lifting a finger mid-signature is normal (crossing a "t", starting a new
+  // letter, a multi-stroke name) — it must NOT finalize the signature. Only
+  // stop the current stroke here; committing happens on explicit Done.
   const onPointerUp = () => {
-    if (!drawingRef.current) return;
     drawingRef.current = false;
+  };
+
+  const handleDone = () => {
     const canvas = canvasRef.current;
-    if (canvas && hasStrokeRef.current) {
-      onChange(canvas.toDataURL("image/png"));
-      setJustCaptured(true);
-      window.setTimeout(() => setJustCaptured(false), 260);
-    }
+    if (!canvas || !hasStrokeRef.current) return;
+    onChange(canvas.toDataURL("image/png"));
+    setJustCaptured(true);
+    window.setTimeout(() => setJustCaptured(false), 260);
   };
 
   const handleClear = () => {
     hasStrokeRef.current = false;
+    setHasStroke(false);
     onChange(null);
     setupCanvas();
   };
@@ -174,7 +181,7 @@ export function SignatureCapture({
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           />
-          {!hasStrokeRef.current && (
+          {!hasStroke && (
             <p className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs text-ink-faint">
               <PenLine className="mr-1 inline size-3.5 align-[-2px]" aria-hidden="true" />
               Sign with your finger or stylus
@@ -188,6 +195,13 @@ export function SignatureCapture({
           <RotateCcw className="size-3.5" aria-hidden="true" />
           {isUsingSaved ? "Draw a new signature" : "Clear"}
         </Button>
+
+        {!showCaptured && (
+          <Button type="button" variant="subtle" size="sm" onClick={handleDone} disabled={!hasStroke}>
+            <CheckCircle2 className="size-3.5" aria-hidden="true" />
+            Done
+          </Button>
+        )}
 
         {showSaveAsDefault && !isUsingSaved && showCaptured && onSaveAsDefaultChange && (
           <label className="flex items-center gap-2 text-sm text-ink-body">
