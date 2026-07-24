@@ -266,3 +266,24 @@ CREATE TABLE assessment_notes (
 );
 ALTER SEQUENCE assessment_notes_id_seq OWNED BY assessment_notes.id;
 CREATE INDEX idx_assessment_notes_assessment_id ON assessment_notes(assessment_id);
+
+-- company_settings: singleton (id always 1, enforced by CHECK) — this app
+-- serves one organization, not multiple tenants. Read by every admin-portal
+-- role (shown in the sidebar); written by 'ceo' (labeled "Admin" in the UI)
+-- only. logo is a base64 data URL stored inline, same pattern as
+-- practitioners.profile_picture/saved_signature — small branding image, no
+-- object storage needed.
+CREATE TABLE company_settings (
+  id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  display_name text,
+  legal_entity_name text,
+  state text,
+  timezone text,
+  address text,
+  phone text,
+  billing_email text,
+  logo text,
+  updated_at timestamp with time zone DEFAULT now()
+);
+INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)
+VALUES (1, 'Progressive Steps NJ', 'Progressive Steps Early Intervention, LLC', 'New Jersey', 'Eastern (ET)', '14 Route 9 South, Old Bridge, NJ 08857', '(732) 555-0148', 'billing@progressivestepsnj.com');

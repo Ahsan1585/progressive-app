@@ -4,12 +4,14 @@ import api from '@/api/axiosInstance';
 import { MasterReports } from '@/components/MasterReports';
 import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
+import { CompanySettings } from '@/components/CompanySettings';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
   practitioners: ['ceo', 'staff_director', 'account_specialist'],
   reports:       ['ceo'],
   billing:       ['ceo', 'billing', 'account_specialist'],
+  company:       ['ceo'],
 };
 
 const ROLE_LABELS = {
@@ -30,6 +32,7 @@ const AdminDashboard = () => {
   });
 
   const [adminProfile, setAdminProfile] = useState(null);
+  const [companySettings, setCompanySettings] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile hamburger toggle
   const [desktopNavOpen, setDesktopNavOpen] = useState(false); // desktop hover-triggered flyout nav
 
@@ -41,6 +44,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     api.get('/api/practitioner/profile')
       .then(res => { if (res.data) setAdminProfile(res.data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Every admin-portal role reads this (sidebar branding), not just 'ceo'.
+    api.get('/api/company')
+      .then(res => { if (res.data.settings) setCompanySettings(res.data.settings); })
       .catch(() => {});
   }, []);
 
@@ -62,6 +72,12 @@ const AdminDashboard = () => {
         return (
           <div className="max-w-7xl mx-auto w-full">
             <MasterReports />
+          </div>
+        );
+      case 'company':
+        return (
+          <div className="max-w-5xl mx-auto w-full">
+            <CompanySettings onSettingsChange={setCompanySettings} />
           </div>
         );
       default:
@@ -102,8 +118,15 @@ const AdminDashboard = () => {
       >
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
+            {companySettings?.logo && (
+              <img
+                src={companySettings.logo}
+                alt=""
+                className="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-200"
+              />
+            )}
             <h1 className="text-lg font-bold text-slate-800 tracking-tight leading-tight truncate">
-              Progressive Steps<br/>
+              {companySettings?.display_name || 'Progressive Steps'}<br/>
               <span className="text-sm font-medium text-slate-500">Admin Portal</span>
             </h1>
           </div>
@@ -159,18 +182,20 @@ const AdminDashboard = () => {
             </button>
           )}
 
-          {userRole === 'ceo' && (
-            <a
-              href={`${import.meta.env.BASE_URL}company-information.html`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+          {visibleTabs.includes('company') && (
+            <button
+              onClick={() => { setActiveTab('company'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                activeTab === 'company'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l7-3 7 3z" />
               </svg>
               Company Information
-            </a>
+            </button>
           )}
 
         </nav>

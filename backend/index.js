@@ -22,6 +22,7 @@ const reportRoutes = require('./src/routes/reportRoutes');
 const billingRoutes = require('./src/routes/billingRoutes'); // 🌟 NEW: Imported billing routes
 const messageRoutes = require('./src/routes/messageRoutes');
 const scheduleRoutes = require('./src/routes/scheduleRoutes');
+const companyRoutes = require('./src/routes/companyRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,6 +58,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/billing', billingRoutes); // 🌟 NEW: Mounted billing routes to fix the 404 error!
 app.use('/api/messages', messageRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/company', companyRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).
