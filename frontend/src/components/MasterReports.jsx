@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const MODULES = [
   { id: 'practitioner', title: 'Practitioner Logs',  desc: 'Audit hours & submissions'    },
@@ -68,6 +69,11 @@ export const MasterReports = () => {
   const [selectedIds, setSelectedIds]               = useState(new Set());
   const [isIssuing, setIsIssuing]                   = useState(false);
   const [overrideUrls, setOverrideUrls]             = useState({});
+
+  // Notes history modal (return/resubmit back-and-forth between billing and practitioner)
+  const [notesModal, setNotesModal]                 = useState(null); // { log } or null
+  const [logNotes, setLogNotes]                     = useState([]);
+  const [isLoadingNotes, setIsLoadingNotes]         = useState(false);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -256,6 +262,24 @@ export const MasterReports = () => {
     } else {
       setSelectedIds(new Set(eligibleLogs.map(l => l.id)));
     }
+  };
+
+  const openNotesModal = async (log) => {
+    setNotesModal({ log });
+    setIsLoadingNotes(true);
+    try {
+      const response = await api.get('/api/billing/log-notes', { params: { assessmentId: log.id } });
+      if (response.data.success) setLogNotes(response.data.notes);
+    } catch (error) {
+      console.error('Failed to fetch log notes', error);
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  const closeNotesModal = () => {
+    setNotesModal(null);
+    setLogNotes([]);
   };
 
   const handleIssueOverride = async () => {
@@ -755,11 +779,23 @@ export const MasterReports = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4 max-w-[240px]">
-                            {log.practitioner_response ? (
-                              <span className="text-xs text-slate-600 italic">{log.practitioner_response}</span>
-                            ) : (
-                              <span className="text-slate-300">-</span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {log.practitioner_response ? (
+                                <span className="text-xs text-slate-600 italic">{log.practitioner_response}</span>
+                              ) : !(log.rejection_count > 0) ? (
+                                <span className="text-slate-300">-</span>
+                              ) : null}
+                              {log.rejection_count > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => openNotesModal(log)}
+                                  title="View billing/practitioner notes"
+                                  className="print:hidden shrink-0 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                </button>
+                              )}
+                            </div>
                           </td>
                           {activeModule === 'compliance' && (
                             <td className="py-3 px-4">
@@ -799,6 +835,61 @@ export const MasterReports = () => {
           )}
         </>
       )}
+
+      {/* NOTES HISTORY MODAL — full return/resubmit note back-and-forth for one log */}
+      <Dialog open={!!notesModal} onOpenChange={(open) => { if (!open) closeNotesModal(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Revision notes</DialogTitle>
+            <DialogDescription>
+              {notesModal && (
+                <>
+                  {notesModal.log.patient_first_name} {notesModal.log.patient_last_name}
+                  {' · '}
+                  {formatDate(notesModal.log.service_date)}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingNotes ? (
+            <div className="text-center py-4 text-slate-500 text-sm">Loading notes...</div>
+          ) : logNotes.length === 0 ? (
+            <div className="text-center py-4 text-slate-500 text-sm">No notes recorded for this log.</div>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {logNotes.map((n, i) => {
+                const isBillingSpecialist = n.author_role !== 'practitioner';
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-xl p-3.5 border text-sm ${
+                      isBillingSpecialist ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className={`font-semibold ${isBillingSpecialist ? 'text-amber-800' : 'text-blue-800'}`}>
+                        {isBillingSpecialist ? 'Billing' : 'Practitioner'}
+                        {n.first_name ? ` · ${n.first_name} ${n.last_name}` : ''}
+                      </span>
+                      <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+                        {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-slate-700 whitespace-pre-wrap">{n.note}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" className="cursor-pointer" onClick={closeNotesModal}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
