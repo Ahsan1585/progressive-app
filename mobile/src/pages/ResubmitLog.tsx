@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useToast } from "@/components/ui/toast";
@@ -11,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Picker } from "@/components/Picker";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { calculateTotalMinutes, formatSafeDate } from "@/utils/time";
 import { SERVICE_TYPE_OPTIONS, STATUS_CODE_OPTIONS, LOCATION_CODE_OPTIONS } from "@/constants/njeis";
 import type { ApiErrorBody } from "@/types";
@@ -41,6 +43,8 @@ export default function ResubmitLog() {
   });
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
 
   const totalMinutes = calculateTotalMinutes(form.start_time, form.end_time);
 
@@ -78,6 +82,22 @@ export default function ResubmitLog() {
       await fetchRejectedLogs();
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/api/patients/logs/${log.id}`);
+      showToast("Log deleted.");
+      await fetchRejectedLogs();
+      navigate("/inbox", { replace: true });
+    } catch (err) {
+      const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
+      showToast(body?.error || "Couldn't delete this log. Please try again.");
+      setConfirmDeleteOpen(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -147,7 +167,28 @@ export default function ResubmitLog() {
         <Button type="submit" className="w-full" size="lg" loading={submitting}>
           Resubmit for review
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full text-danger"
+          size="lg"
+          onClick={() => setConfirmDeleteOpen(true)}
+        >
+          <Trash2 className="size-4" aria-hidden="true" />
+          Delete this log
+        </Button>
       </form>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this log?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </PushScreen>
   );
 }

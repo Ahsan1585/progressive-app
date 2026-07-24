@@ -276,6 +276,35 @@ const resubmitLog = async (req, res) => {
   }
 };
 
+// Practitioner-initiated, permanent — only while a log hasn't entered the
+// billing pipeline (still 'pending') or has been sent back for revision
+// ('rejected'/Returned). Anything past that (njeis_review, invoiced,
+// declined, on_hold) is billing's record to keep, not the practitioner's to delete.
+const deleteLog = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    const log = rows[0];
+    if (!log) return res.status(404).json({ error: 'Log not found' });
+    if (!['pending', 'rejected'].includes(log.billing_status)) {
+      return res.status(400).json({ error: 'This log can no longer be deleted.' });
+    }
+
+    // No ON DELETE CASCADE from assessment_notes -> assessments — clear those
+    // first so a returned log's revision-history rows don't block the delete.
+    await pool.query('DELETE FROM assessment_notes WHERE assessment_id = $1', [id]);
+    await pool.query('DELETE FROM assessments WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting log:', error);
+    res.status(500).json({ error: 'Failed to delete log' });
+  }
+};
+
 const deletePatient = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
@@ -320,4 +349,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deleteLog, deletePatient, getPractitionerStats };

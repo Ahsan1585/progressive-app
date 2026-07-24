@@ -6,7 +6,7 @@ const { PDFDocument } = require('pdf-lib');
 const { pool } = require('../config/db');
 
 // Import the functions from the controller
-const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deletePatient, getPractitionerStats } = require('../controllers/patientController');
+const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deleteLog, deletePatient, getPractitionerStats } = require('../controllers/patientController');
 const { protect } = require('../middleware/authMiddleware');
 
 // Route to register a new patient
@@ -25,6 +25,7 @@ router.patch('/:id/status', protect, updatePatientStatus);
 router.get('/rejected-logs', protect, getRejectedLogs);
 router.post('/resubmit-log', protect, resubmitLog);
 router.post('/acknowledge-log', protect, acknowledgeLog);
+router.delete('/logs/:id', protect, deleteLog);
 
 // Practitioner's own quick stats — placed before /:id wildcard to avoid route conflict
 router.get('/practitioner-stats', protect, getPractitionerStats);

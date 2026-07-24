@@ -32,6 +32,7 @@ const Dashboard = () => {
   const [responseDrafts, setResponseDrafts] = useState({});
 
   const [deletingPatientId, setDeletingPatientId] = useState(null);
+  const [deletingLogId, setDeletingLogId] = useState(null);
 
   // Signature dropdown
   const [sigDropdownOpen, setSigDropdownOpen] = useState(false);
@@ -180,6 +181,22 @@ const Dashboard = () => {
       alert('Failed to delete patient. Please try again.');
     } finally {
       setDeletingPatientId(null);
+    }
+  };
+
+  // Allowed for logs still 'pending' or returned ('rejected') — the backend
+  // re-validates this itself, this is just the confirm-before-destructive-action UX.
+  const handleDeleteLog = async (logId) => {
+    if (!window.confirm('Delete this log? This cannot be undone.')) return;
+    setDeletingLogId(logId);
+    try {
+      await api.delete(`/api/patients/logs/${logId}`);
+      setInterventions(prev => prev.filter(l => l.id !== logId));
+      setRejectedLogs(prev => prev.filter(l => l.id !== logId));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete log. Please try again.');
+    } finally {
+      setDeletingLogId(null);
     }
   };
 
@@ -644,12 +661,21 @@ const Dashboard = () => {
                           {isAcknowledging === log.id ? 'Saving…' : 'Acknowledge'}
                         </button>
                       ) : (
-                        <button
-                          onClick={() => handleOpenResubmit(log)}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                        >
-                          Revise & Resubmit
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleOpenResubmit(log)}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+                          >
+                            Revise & Resubmit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLog(log.id)}
+                            disabled={deletingLogId === log.id}
+                            className="px-4 py-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 text-sm font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {deletingLogId === log.id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -883,6 +909,15 @@ const Dashboard = () => {
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
                                 {displayStatus}
                               </p>
+                              {item.billing_status === 'pending' && (
+                                <button
+                                  onClick={() => handleDeleteLog(item.id)}
+                                  disabled={deletingLogId === item.id}
+                                  className="text-xs font-semibold text-red-500 hover:text-red-700 cursor-pointer disabled:opacity-50"
+                                >
+                                  {deletingLogId === item.id ? 'Deleting…' : 'Delete'}
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>

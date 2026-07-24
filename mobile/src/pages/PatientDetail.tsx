@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2 } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h } from "@/utils/time";
 import { serviceTypeMap, locationCodeMap, statusCodeMap } from "@/constants/njeis";
@@ -30,6 +31,9 @@ export default function PatientDetail() {
   const [sessions, setSessions] = React.useState<ScheduledSession[]>([]);
   const [scheduleTarget, setScheduleTarget] = React.useState<ScheduledSession | "new" | null>(null);
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = React.useState<Assessment | null>(null);
+  const [isDeletingLog, setIsDeletingLog] = React.useState(false);
 
   const fetchSessions = React.useCallback(async () => {
     if (!id) return;
@@ -86,6 +90,22 @@ export default function PatientDetail() {
       setLoading(false);
     }
   }, [id]);
+
+  const handleDeleteLog = async () => {
+    if (!deleteTarget) return;
+    setIsDeletingLog(true);
+    try {
+      await api.delete(`/api/patients/logs/${deleteTarget.id}`);
+      setAssessments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      showToast("Log deleted.");
+      setDeleteTarget(null);
+    } catch (err) {
+      const body = (err as { response?: { data?: { error?: string } } }).response?.data;
+      showToast(body?.error || "Couldn't delete this log. Please try again.");
+    } finally {
+      setIsDeletingLog(false);
+    }
+  };
 
   React.useEffect(() => {
     fetchAssessments();
@@ -257,6 +277,16 @@ export default function PatientDetail() {
                   </span>
                   <span className="font-semibold uppercase tracking-wide">{statusCodeMap[item.status] || item.status}</span>
                 </div>
+                {item.billing_status === "pending" && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(item)}
+                    className="press-scale mt-2 flex items-center gap-1 text-xs font-semibold text-danger"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden="true" />
+                    Delete
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -272,6 +302,17 @@ export default function PatientDetail() {
           setScheduleTarget(null);
           fetchSessions();
         }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this log?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        loading={isDeletingLog}
+        onConfirm={handleDeleteLog}
       />
     </PushScreen>
   );
