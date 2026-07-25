@@ -453,117 +453,120 @@ function PractitionerGroup({
               <div className="p-4 text-center text-sm text-slate-500">Loading sessions...</div>
             ) : sessions.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">No individual logs found.</div>
-            ) : (
-              <>
-                {sessions.map(s => {
-                  const isDeclined = s.billing_status === 'declined';
-                  const isReturned = s.billing_status === 'rejected';
-                  const isOnHold = s.billing_status === 'on_hold';
-                  const isApproved = logActions[s.id] === 'accept' || s.billing_review === 'accept';
-                  const dotColor = isDeclined ? 'bg-red-400' : isReturned ? 'bg-amber-400' : isOnHold ? 'bg-violet-400'
-                    : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
-                  const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
-                  const statusLabelClasses = isDeclined ? 'bg-red-50 text-red-600'
-                    : isReturned ? 'bg-amber-50 text-amber-600'
-                    : isOnHold ? 'bg-violet-50 text-violet-600'
-                    : isApproved ? 'bg-emerald-50 text-emerald-600'
-                    : 'bg-slate-100 text-slate-500';
-                  const isSelected = detailSessionId === s.id;
-                  return (
-                    <div
-                      key={s.id}
-                      onClick={() => onSelectSession(s.id)}
-                      className={`grid grid-cols-3 items-center gap-3 px-4 py-3.5 border-t border-slate-100 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      {/* Column 1: patient + date */}
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} />
-                        <div className="min-w-0">
-                          <div className="text-base font-bold text-slate-900 truncate">{s.patient_first_name} {s.patient_last_name}</div>
-                          <div className="text-sm text-slate-500">
-                            {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Column 2: service codes, centered */}
-                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Status">S:{s.status || '-'}</span>
-                        <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Type">{s.type || '-'}</span>
-                        <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Location">L:{s.location || '-'}</span>
-                      </div>
-
-                      {/* Column 3: status + duration, centered */}
-                      <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                        <span className={`text-sm font-bold uppercase rounded px-2 py-1 ${statusLabelClasses}`}>{statusLabel}</span>
-                        <span className="text-sm font-bold text-slate-600">{formatTime(s.total_time)}</span>
-                        {s.notes_count > 0 && <MessageSquareText className="size-3.5 text-slate-400" />}
+            ) : sessions.map(s => {
+              const isDeclined = s.billing_status === 'declined';
+              const isReturned = s.billing_status === 'rejected';
+              const isOnHold = s.billing_status === 'on_hold';
+              const isApproved = logActions[s.id] === 'accept' || s.billing_review === 'accept';
+              const dotColor = isDeclined ? 'bg-red-400' : isReturned ? 'bg-amber-400' : isOnHold ? 'bg-violet-400'
+                : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
+              const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
+              const statusLabelClasses = isDeclined ? 'bg-red-50 text-red-600'
+                : isReturned ? 'bg-amber-50 text-amber-600'
+                : isOnHold ? 'bg-violet-50 text-violet-600'
+                : isApproved ? 'bg-emerald-50 text-emerald-600'
+                : 'bg-slate-100 text-slate-500';
+              const isSelected = detailSessionId === s.id;
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => onSelectSession(s.id)}
+                  className={`grid grid-cols-3 items-center gap-3 px-4 py-3.5 border-t border-slate-100 cursor-pointer transition-colors ${
+                    isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  {/* Column 1: patient + date */}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} />
+                    <div className="min-w-0">
+                      <div className="text-base font-bold text-slate-900 truncate">{s.patient_first_name} {s.patient_last_name}</div>
+                      <div className="text-sm text-slate-500">
+                        {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
                       </div>
                     </div>
-                  );
-                })}
-
-                {(practitioner.sevf_documents?.length > 0 || practitioner.invoice_documents?.length > 0) && (
-                  <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
-                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Generated documents</div>
-                    <div className="flex flex-wrap gap-2">
-                      {practitioner.sevf_documents?.map(doc => (
-                        <a
-                          key={`sevf-${doc.month}`}
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
-                        >
-                          <Download className="size-3.5" /> SEVF · {formatMonthLabel(doc.month)}
-                        </a>
-                      ))}
-                      {practitioner.invoice_documents?.map(doc => (
-                        <a
-                          key={`inv-${doc.month}`}
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
-                        >
-                          <Download className="size-3.5" /> Invoice · {formatMonthLabel(doc.month)}
-                        </a>
-                      ))}
-                    </div>
                   </div>
-                )}
 
-                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-800 text-white flex-wrap">
-                  <div className="flex gap-3 text-xs text-white/70 flex-wrap">
-                    <span><b className="text-white">{routingCounts.billable}</b> billable</span>
-                    <span><b className="text-white">{routingCounts.heldReturned}</b> held/returned</span>
-                    <span><b className="text-white">{routingCounts.excluded}</b> excluded</span>
+                  {/* Column 2: service codes, centered */}
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Status">S:{s.status || '-'}</span>
+                    <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Type">{s.type || '-'}</span>
+                    <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Location">L:{s.location || '-'}</span>
                   </div>
-                  {readyToComplete ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleSendToCompleted(practitioner.practitioner_id)}
-                      disabled={processingId === practitioner.practitioner_id}
-                      className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
-                    >
-                      <CheckCircle2 className="size-4" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleGenerateAndIssue(practitioner.practitioner_id)}
-                      disabled={!allLogsReviewed || processingId === practitioner.practitioner_id}
-                      className={`cursor-pointer gap-1.5 text-sm ${allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
-                    >
-                      {processingId === practitioner.practitioner_id ? 'Generating...' : 'Generate & Issue'}
-                    </Button>
-                  )}
+
+                  {/* Column 3: status + duration, centered */}
+                  <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                    <span className={`text-sm font-bold uppercase rounded px-2 py-1 ${statusLabelClasses}`}>{statusLabel}</span>
+                    <span className="text-sm font-bold text-slate-600">{formatTime(s.total_time)}</span>
+                    {s.notes_count > 0 && <MessageSquareText className="size-3.5 text-slate-400" />}
+                  </div>
                 </div>
-              </>
-            )
+              );
+            })
           )}
+
+          {/* Generated documents and the Generate & Issue / Send to Completed
+              action bar are intentionally NOT gated on isLockedByMe — the
+              lock auto-releases right after a successful generate (so the
+              row doesn't stay checked out), and "Send to Completed Bills"
+              must stay available afterward even though nothing is locked
+              anymore, matching the legacy table's always-visible columns. */}
+          {(practitioner.sevf_documents?.length > 0 || practitioner.invoice_documents?.length > 0) && (
+            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Generated documents</div>
+              <div className="flex flex-wrap gap-2">
+                {practitioner.sevf_documents?.map(doc => (
+                  <a
+                    key={`sevf-${doc.month}`}
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                  >
+                    <Download className="size-3.5" /> SEVF · {formatMonthLabel(doc.month)}
+                  </a>
+                ))}
+                {practitioner.invoice_documents?.map(doc => (
+                  <a
+                    key={`inv-${doc.month}`}
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
+                  >
+                    <Download className="size-3.5" /> Invoice · {formatMonthLabel(doc.month)}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-800 text-white flex-wrap">
+            <div className="flex gap-3 text-xs text-white/70 flex-wrap">
+              <span><b className="text-white">{routingCounts.billable}</b> billable</span>
+              <span><b className="text-white">{routingCounts.heldReturned}</b> held/returned</span>
+              <span><b className="text-white">{routingCounts.excluded}</b> excluded</span>
+            </div>
+            {readyToComplete ? (
+              <Button
+                size="sm"
+                onClick={() => handleSendToCompleted(practitioner.practitioner_id)}
+                disabled={processingId === practitioner.practitioner_id}
+                className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
+              >
+                <CheckCircle2 className="size-4" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => handleGenerateAndIssue(practitioner.practitioner_id)}
+                disabled={!isLockedByMe || !allLogsReviewed || processingId === practitioner.practitioner_id}
+                title={!isLockedByMe ? 'Lock this practitioner to review logs first' : ''}
+                className={`cursor-pointer gap-1.5 text-sm ${isLockedByMe && allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
+              >
+                {processingId === practitioner.practitioner_id ? 'Generating...' : 'Generate & Issue'}
+              </Button>
+            )}
+          </div>
         </>
       )}
     </div>
