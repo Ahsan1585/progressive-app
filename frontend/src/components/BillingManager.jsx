@@ -935,7 +935,9 @@ export const BillingManager = () => {
 
       {/* TAB 1: PENDING BILLS */}
       {activeTab === 'pending' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col ${
+          pendingBetaMode ? 'relative left-1/2 -translate-x-1/2 w-[94vw] max-w-[1800px]' : ''
+        }`}>
           {/* Beta view toggle — additive only, does not touch the filter bar or table below */}
           <div className="px-7 py-2.5 border-b border-slate-100 bg-violet-50/60 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs text-violet-700">

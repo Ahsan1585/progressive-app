@@ -83,16 +83,16 @@ export const BillingBatchReview = ({
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
 
   return (
-    <div className="flex h-[640px] max-h-[70vh]">
+    <div className="flex h-[80vh] min-h-[720px]">
       {/* LEFT: every practitioner with pending logs, as collapsible/lockable groups */}
-      <div className="w-[420px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/40">
-        <div className="p-3 border-b border-slate-200">
+      <div className="w-[480px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/40">
+        <div className="p-4 border-b border-slate-200">
           <div className="relative">
-            <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="size-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search practitioner..."
-              className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+              className="w-full pl-10 pr-3 py-2.5 text-base rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
               value={practitionerSearch}
               onChange={(e) => setPractitionerSearch(e.target.value)}
             />
@@ -101,7 +101,7 @@ export const BillingBatchReview = ({
 
         <div className="flex-1 overflow-y-auto">
           {filteredPractitioners.length === 0 ? (
-            <div className="p-6 text-center text-sm text-slate-400">
+            <div className="p-6 text-center text-base text-slate-400">
               {practitioners.length === 0 ? 'No active workflows pending.' : 'No practitioner matches your search.'}
             </div>
           ) : filteredPractitioners.map(p => (
@@ -131,27 +131,27 @@ export const BillingBatchReview = ({
       {/* RIGHT: detail panel for whichever session was last clicked */}
       <div className="flex-1 flex flex-col min-w-0">
         {!detailSession ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-slate-400 px-8 text-center">
+          <div className="flex-1 flex items-center justify-center text-base text-slate-500 px-8 text-center">
             {practitioners.length === 0 ? 'No active workflows pending.' : 'Select a session from the queue on the left.'}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="flex gap-1 border-b border-slate-200 mb-5">
+          <div className="flex-1 overflow-y-auto p-8">
+            <div className="flex gap-2 border-b border-slate-200 mb-6">
               <button
                 onClick={() => setDetailTab('session')}
-                className={`px-3 pb-2.5 text-sm font-bold border-b-2 -mb-px cursor-pointer transition-colors ${
-                  detailTab === 'session' ? 'border-blue-500 text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'
+                className={`px-3 pb-3 text-base font-bold border-b-2 -mb-px cursor-pointer transition-colors ${
+                  detailTab === 'session' ? 'border-blue-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
                 Session Detail
               </button>
               <button
                 onClick={() => setDetailTab('analysis')}
-                className={`px-3 pb-2.5 text-sm font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
-                  detailTab === 'analysis' ? 'border-violet-500 text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'
+                className={`px-3 pb-3 text-base font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
+                  detailTab === 'analysis' ? 'border-violet-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <Sparkles className="size-3.5" /> Compliance Analysis
+                <Sparkles className="size-4" /> Compliance Analysis
               </button>
             </div>
 
@@ -209,51 +209,51 @@ function PractitionerGroup({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center gap-2.5 px-3 py-3 bg-white hover:bg-slate-50 transition-colors cursor-pointer text-left"
+        className="w-full flex items-center gap-3 px-4 py-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer text-left"
       >
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
           {`${practitioner.first_name?.[0] || ''}${practitioner.last_name?.[0] || ''}`.toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-sm text-slate-800 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
-          <div className="text-xs text-slate-400">{practitioner.total_interventions} sessions</div>
+          <div className="font-bold text-base text-slate-900 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
+          <div className="text-sm text-slate-500">{practitioner.total_interventions} sessions</div>
         </div>
-        {isLockedByMe && <Lock className="size-3 text-teal-500 flex-shrink-0" />}
-        {isLockedByOther && <Lock className="size-3 text-amber-500 flex-shrink-0" />}
-        <ChevronDown className={`size-4 text-slate-400 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
+        {isLockedByMe && <Lock className="size-4 text-teal-500 flex-shrink-0" />}
+        {isLockedByOther && <Lock className="size-4 text-amber-500 flex-shrink-0" />}
+        <ChevronDown className={`size-5 text-slate-500 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
       </button>
 
       {isExpanded && (
         <>
-          <div className="px-3 py-2.5 bg-white border-t border-slate-100">
+          <div className="px-4 py-3 bg-white border-t border-slate-100">
             {isLockedByOther ? (
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
-                  <Lock className="size-3" /> Locked by {practitioner.locked_by_name}
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5">
+                  <Lock className="size-3.5" /> Locked by {practitioner.locked_by_name}
                 </span>
                 {isAdmin && (
-                  <button onClick={onRelease} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Force Release</button>
+                  <button onClick={onRelease} className="text-sm font-semibold text-red-600 hover:underline cursor-pointer">Force Release</button>
                 )}
               </div>
             ) : isLockedByMe ? (
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2.5 py-1">
-                  <Lock className="size-3" /> Locked to you
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5">
+                  <Lock className="size-3.5" /> Locked to you
                 </span>
-                <button onClick={onRelease} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Release</button>
+                <button onClick={onRelease} className="text-sm font-semibold text-red-600 hover:underline cursor-pointer">Release</button>
               </div>
             ) : (
-              <Button size="sm" variant="outline" onClick={onLock} className="w-full gap-1.5 cursor-pointer">
-                <Lock className="size-3.5" /> Lock to Review
+              <Button size="sm" variant="outline" onClick={onLock} className="w-full gap-1.5 cursor-pointer text-sm">
+                <Lock className="size-4" /> Lock to Review
               </Button>
             )}
           </div>
 
           {isLockedByMe && (
             isLoadingSessions ? (
-              <div className="p-4 text-center text-xs text-slate-400">Loading sessions...</div>
+              <div className="p-4 text-center text-sm text-slate-500">Loading sessions...</div>
             ) : sessions.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-400">No individual logs found.</div>
+              <div className="p-4 text-center text-sm text-slate-500">No individual logs found.</div>
             ) : (
               <>
                 {sessions.map(s => {
@@ -274,16 +274,16 @@ function PractitionerGroup({
                     <div
                       key={s.id}
                       onClick={() => onSelectSession(s.id)}
-                      className={`grid grid-cols-3 items-center gap-3 px-3 py-3 border-t border-slate-100 cursor-pointer transition-colors ${
+                      className={`grid grid-cols-3 items-center gap-3 px-4 py-3.5 border-t border-slate-100 cursor-pointer transition-colors ${
                         isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
                       }`}
                     >
                       {/* Column 1: patient + date */}
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} />
                         <div className="min-w-0">
-                          <div className="text-sm font-bold text-slate-800 truncate">{s.patient_first_name} {s.patient_last_name}</div>
-                          <div className="text-xs text-slate-400">
+                          <div className="text-base font-bold text-slate-900 truncate">{s.patient_first_name} {s.patient_last_name}</div>
+                          <div className="text-sm text-slate-500">
                             {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
                           </div>
                         </div>
@@ -291,15 +291,15 @@ function PractitionerGroup({
 
                       {/* Column 2: service codes, centered */}
                       <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5" title="Service Status">S:{s.status || '-'}</span>
-                        <span className="font-mono text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5" title="Service Type">{s.type || '-'}</span>
-                        <span className="font-mono text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5" title="Service Location">L:{s.location || '-'}</span>
+                        <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Status">S:{s.status || '-'}</span>
+                        <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Type">{s.type || '-'}</span>
+                        <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Location">L:{s.location || '-'}</span>
                       </div>
 
                       {/* Column 3: status + duration, centered */}
                       <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                        <span className={`text-xs font-bold uppercase rounded px-1.5 py-0.5 ${statusLabelClasses}`}>{statusLabel}</span>
-                        <span className="text-xs font-bold text-slate-500">{formatTime(s.total_time)}</span>
+                        <span className={`text-sm font-bold uppercase rounded px-2 py-1 ${statusLabelClasses}`}>{statusLabel}</span>
+                        <span className="text-sm font-bold text-slate-600">{formatTime(s.total_time)}</span>
                         {s.notes_count > 0 && <MessageSquareText className="size-3.5 text-slate-400" />}
                       </div>
                     </div>
@@ -307,18 +307,18 @@ function PractitionerGroup({
                 })}
 
                 {(practitioner.sevf_documents?.length > 0 || practitioner.invoice_documents?.length > 0) && (
-                  <div className="px-3 py-2.5 bg-slate-50 border-t border-slate-200">
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1.5">Generated documents</div>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
+                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Generated documents</div>
+                    <div className="flex flex-wrap gap-2">
                       {practitioner.sevf_documents?.map(doc => (
                         <a
                           key={`sevf-${doc.month}`}
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
                         >
-                          <Download className="size-3" /> SEVF · {formatMonthLabel(doc.month)}
+                          <Download className="size-3.5" /> SEVF · {formatMonthLabel(doc.month)}
                         </a>
                       ))}
                       {practitioner.invoice_documents?.map(doc => (
@@ -327,17 +327,17 @@ function PractitionerGroup({
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
                         >
-                          <Download className="size-3" /> Invoice · {formatMonthLabel(doc.month)}
+                          <Download className="size-3.5" /> Invoice · {formatMonthLabel(doc.month)}
                         </a>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-800 text-white flex-wrap">
-                  <div className="flex gap-3 text-[10px] text-white/60 flex-wrap">
+                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-800 text-white flex-wrap">
+                  <div className="flex gap-3 text-xs text-white/70 flex-wrap">
                     <span><b className="text-white">{routingCounts.billable}</b> billable</span>
                     <span><b className="text-white">{routingCounts.heldReturned}</b> held/returned</span>
                     <span><b className="text-white">{routingCounts.excluded}</b> excluded</span>
@@ -347,16 +347,16 @@ function PractitionerGroup({
                       size="sm"
                       onClick={() => handleSendToCompleted(practitioner.practitioner_id)}
                       disabled={processingId === practitioner.practitioner_id}
-                      className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                      className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                     >
-                      <CheckCircle2 className="size-3.5" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
+                      <CheckCircle2 className="size-4" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
                     </Button>
                   ) : (
                     <Button
                       size="sm"
                       onClick={() => handleGenerateAndIssue(practitioner.practitioner_id)}
                       disabled={!allLogsReviewed || processingId === practitioner.practitioner_id}
-                      className={`cursor-pointer gap-1.5 ${allLogsReviewed ? 'bg-white text-slate-800 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
+                      className={`cursor-pointer gap-1.5 text-sm ${allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
                     >
                       {processingId === practitioner.practitioner_id ? 'Generating...' : 'Generate & Issue'}
                     </Button>
@@ -390,61 +390,61 @@ function SessionDetailPanel({
   };
 
   return (
-    <div className="max-w-xl">
-      <div className="text-xs font-bold uppercase tracking-wide text-blue-500 mb-1">
+    <div className="max-w-2xl">
+      <div className="text-sm font-bold uppercase tracking-wide text-blue-600 mb-1.5">
         {session.service_date ? new Date(session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '-'}
       </div>
-      <h2 className="text-xl font-bold text-slate-800 mb-1">{session.patient_first_name} {session.patient_last_name}</h2>
-      <div className="flex items-center gap-2 mb-5">
-        <p className="text-sm text-slate-500">{session.type || '-'} session</p>
+      <h2 className="text-2xl font-bold text-slate-900 mb-1.5">{session.patient_first_name} {session.patient_last_name}</h2>
+      <div className="flex items-center gap-2 mb-6">
+        <p className="text-base text-slate-600">{session.type || '-'} session</p>
         <Tooltip>
           <TooltipTrigger asChild>
             <button type="button" onClick={() => openNotesModal(session)} className={`cursor-pointer ${session.notes_count > 0 ? 'text-slate-500 hover:text-slate-700' : 'text-slate-300 hover:text-slate-400'}`}>
-              <MessageSquareText className="size-3.5" />
+              <MessageSquareText className="size-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent>{session.notes_count > 0 ? 'View return/resubmit notes' : 'No notes recorded yet'}</TooltipContent>
         </Tooltip>
       </div>
 
-      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Service Codes</div>
-      <div className="grid grid-cols-3 gap-2.5 mb-4">
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
-          <div className="text-[9px] font-bold uppercase text-slate-400">Status</div>
-          <div className="text-sm font-bold font-mono text-slate-800">{session.status || '-'}</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2.5">Service Codes</div>
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-slate-500">Status</div>
+          <div className="text-base font-bold font-mono text-slate-900">{session.status || '-'}</div>
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
-          <div className="text-[9px] font-bold uppercase text-slate-400">Type</div>
-          <div className="text-sm font-bold font-mono text-slate-800">{session.type || '-'}</div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-slate-500">Type</div>
+          <div className="text-base font-bold font-mono text-slate-900">{session.type || '-'}</div>
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
-          <div className="text-[9px] font-bold uppercase text-slate-400">Location</div>
-          <div className="text-sm font-bold font-mono text-slate-800">{session.location || '-'}</div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-slate-500">Location</div>
+          <div className="text-base font-bold font-mono text-slate-900">{session.location || '-'}</div>
         </div>
       </div>
 
-      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Session Time</div>
-      <div className="grid grid-cols-3 gap-2.5 mb-6">
-        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
-          <div className="text-[9px] font-bold uppercase text-slate-400">Start</div>
-          <div className="text-sm font-bold text-slate-800">{session.start_time ? formatTime12h(session.start_time) : '-'}</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2.5">Session Time</div>
+      <div className="grid grid-cols-3 gap-3 mb-7">
+        <div className="bg-white border border-slate-200 rounded-lg px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-slate-500">Start</div>
+          <div className="text-base font-bold text-slate-900">{session.start_time ? formatTime12h(session.start_time) : '-'}</div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
-          <div className="text-[9px] font-bold uppercase text-slate-400">End</div>
-          <div className="text-sm font-bold text-slate-800">{session.end_time ? formatTime12h(session.end_time) : '-'}</div>
+        <div className="bg-white border border-slate-200 rounded-lg px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-slate-500">End</div>
+          <div className="text-base font-bold text-slate-900">{session.end_time ? formatTime12h(session.end_time) : '-'}</div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
-          <div className="text-[9px] font-bold uppercase text-slate-400">Total</div>
-          <div className="text-sm font-bold text-slate-800">{formatTime(session.total_time)}</div>
+        <div className="bg-white border border-slate-200 rounded-lg px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-slate-500">Total</div>
+          <div className="text-base font-bold text-slate-900">{formatTime(session.total_time)}</div>
         </div>
       </div>
 
       {isProcessing ? (
-        <div className="text-sm text-slate-400">Processing...</div>
+        <div className="text-base text-slate-500">Processing...</div>
       ) : isDeclined || isReturned ? (
-        <div className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 mb-4 ${isDeclined ? 'bg-slate-100' : 'bg-amber-50 border border-amber-200'}`}>
-          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${isDeclined ? 'text-slate-500' : 'text-amber-700'}`}>
-            {isDeclined ? <Ban className="size-3.5" /> : <Clock className="size-3.5" />}
+        <div className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 mb-4 ${isDeclined ? 'bg-slate-100' : 'bg-amber-50 border border-amber-200'}`}>
+          <span className={`inline-flex items-center gap-1.5 text-sm font-semibold ${isDeclined ? 'text-slate-600' : 'text-amber-800'}`}>
+            {isDeclined ? <Ban className="size-4" /> : <Clock className="size-4" />}
             {isDeclined ? 'Permanently rejected — excluded from report' : 'Returned to practitioner — awaiting resubmission'}
           </span>
           <Button size="sm" variant="outline" onClick={() => handleReconcile(session, practitionerId)} className="cursor-pointer gap-1 flex-shrink-0">
@@ -452,8 +452,8 @@ function SessionDetailPanel({
           </Button>
         </div>
       ) : isLocked ? (
-        <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4">
-          <Ban className="size-3.5" /> SEVF has been issued — locked until it returns to pending.
+        <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 mb-4">
+          <Ban className="size-4" /> SEVF has been issued — locked until it returns to pending.
         </div>
       ) : isOnHold ? (
         <Button onClick={() => handleReleaseHold(session, practitionerId)} className="cursor-pointer gap-1.5 bg-orange-600 hover:bg-orange-700 text-white mb-4">
@@ -499,10 +499,10 @@ function ActionButton({ label, icon, onClick, active, tone }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-1.5 bg-white cursor-pointer transition-colors ${toneClasses}`}
+      className={`flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-1.5 bg-white cursor-pointer transition-colors ${toneClasses}`}
     >
       {icon}
-      <span className="text-xs font-bold">{label}</span>
+      <span className="text-sm font-bold">{label}</span>
     </button>
   );
 }
@@ -531,53 +531,53 @@ function ComplianceAnalysisPreview({ sessions, practitioner }) {
 
   return (
     <div>
-      <div className="flex items-start gap-3 bg-gradient-to-br from-slate-50 to-violet-50 border border-slate-200 rounded-xl p-4 mb-5">
-        <div className="w-9 h-9 rounded-lg bg-slate-800 text-white flex items-center justify-center flex-shrink-0">
-          <Sparkles className="size-4" />
+      <div className="flex items-start gap-4 bg-gradient-to-br from-slate-50 to-violet-50 border border-slate-200 rounded-xl p-5 mb-6">
+        <div className="w-10 h-10 rounded-lg bg-slate-800 text-white flex items-center justify-center flex-shrink-0">
+          <Sparkles className="size-5" />
         </div>
         <div>
-          <div className="text-sm font-bold text-slate-800 mb-1">Compliance Analysis — preview</div>
-          <p className="text-xs text-slate-500 leading-relaxed">
+          <div className="text-base font-bold text-slate-900 mb-1.5">Compliance Analysis — preview</div>
+          <p className="text-sm text-slate-600 leading-relaxed">
             This will lay every session's Service Date, Type, Start/End Time, Location, Child Name, Service Status, and Practitioner Name side by side against state-required documents, field by field. Document upload isn't built yet (coming to Company Information), so the "State Req." column below is a placeholder — no comparison has actually run and nothing here reflects a real compliance result.
           </p>
         </div>
       </div>
 
-      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Reference documents (from Company Information)</div>
-      <div className="text-xs text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-3 py-2.5 mb-5">
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Reference documents (from Company Information)</div>
+      <div className="text-sm text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-4 py-3 mb-6">
         No state documents on file yet — this feature isn't available in Company Information yet.
       </div>
 
-      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
         Side-by-side preview &middot; {practitionerName}
       </div>
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {sessions.length === 0 ? (
-          <div className="text-xs text-slate-400 text-center py-6">No sessions to preview.</div>
+          <div className="text-sm text-slate-500 text-center py-6">No sessions to preview.</div>
         ) : sessions.map(s => (
           <div key={s.id} className="border border-slate-200 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between bg-slate-50 px-3 py-2 border-b border-slate-200">
-              <span className="text-xs font-bold text-slate-700">{s.patient_first_name} {s.patient_last_name}</span>
-              <span className="text-[10px] text-slate-400">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
+            <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+              <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
+              <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
             </div>
-            <table className="w-full text-xs">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="text-[9px] font-bold uppercase text-slate-400">
-                  <th className="text-left px-3 py-1.5 w-1/3"></th>
-                  <th className="px-3 py-1.5">
-                    <span className="text-sky-600 bg-sky-50 rounded px-1.5 py-0.5">Practitioner</span>
+                <tr className="text-[11px] font-bold uppercase text-slate-500">
+                  <th className="text-left px-4 py-2 w-1/3"></th>
+                  <th className="px-4 py-2">
+                    <span className="text-sky-700 bg-sky-50 rounded px-2 py-0.5">Practitioner</span>
                   </th>
-                  <th className="px-3 py-1.5">
-                    <span className="text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">State Req.</span>
+                  <th className="px-4 py-2">
+                    <span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">State Req.</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARISON_FIELDS.map(f => (
                   <tr key={f.key} className="border-t border-slate-100">
-                    <td className="px-3 py-1.5 font-semibold text-slate-500">{f.label}</td>
-                    <td className="px-3 py-1.5 text-center font-mono font-bold text-slate-700">{f.format(s)}</td>
-                    <td className="px-3 py-1.5 text-center text-slate-300 italic">no document</td>
+                    <td className="px-4 py-2 font-semibold text-slate-600">{f.label}</td>
+                    <td className="px-4 py-2 text-center font-mono font-bold text-slate-800">{f.format(s)}</td>
+                    <td className="px-4 py-2 text-center text-slate-400 italic">no document</td>
                   </tr>
                 ))}
               </tbody>
