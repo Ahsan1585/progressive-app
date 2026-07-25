@@ -44,11 +44,14 @@ const getPendingLogs = async (req, res) => {
       WHERE a.billing_status = ANY($1::text[])
         AND NOT (
           a.billing_status IN ('rejected', 'declined')
-          AND EXISTS (
-            SELECT 1 FROM assessments a2
-            WHERE a2.practitioner_id = a.practitioner_id
-              AND a2.billing_status = 'njeis_review'
-              AND a2.billing_batch_id IS NOT NULL
+          AND (
+            a.reconciled_at IS NOT NULL
+            OR EXISTS (
+              SELECT 1 FROM assessments a2
+              WHERE a2.practitioner_id = a.practitioner_id
+                AND a2.billing_status = 'njeis_review'
+                AND a2.billing_batch_id IS NOT NULL
+            )
           )
         )
     `;
@@ -600,6 +603,35 @@ const rejectLog = async (req, res) => {
   }
 };
 
+// --- 8b. Reconcile a rejected/declined log out of Pending Bills ---
+// For a log whose practitioner never had a batch generated (e.g. every
+// remaining log in the group ended up rejected, so Generate & Issue can
+// never run), the existing "hide once a batch exists" rule never kicks in
+// and it sits in Pending Bills forever. This gives billing an explicit,
+// one-way action to sweep it out — from then on it's only visible via
+// Master Reports, same as a batch-covered rejected/declined log already is.
+const reconcileLog = async (req, res) => {
+  const { assessmentId } = req.body;
+  if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assessments
+       SET reconciled_at = $1
+       WHERE id = $2 AND billing_status IN ('rejected', 'declined')
+       RETURNING id`,
+      [new Date().toISOString(), assessmentId]
+    );
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'Log is not in a rejected or declined state' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error reconciling log:', error);
+    res.status(500).json({ error: 'Failed to reconcile log' });
+  }
+};
+
 // --- 9. Fetch Individual Logs for a Practitioner ---
 const getPractitionerLogs = async (req, res) => {
   const { practitionerId, startDate, endDate } = req.query;
@@ -621,11 +653,14 @@ const getPractitionerLogs = async (req, res) => {
       WHERE practitioner_id = $1 AND billing_status = ANY($2::text[])
         AND NOT (
           billing_status IN ('rejected', 'declined')
-          AND EXISTS (
-            SELECT 1 FROM assessments a2
-            WHERE a2.practitioner_id = assessments.practitioner_id
-              AND a2.billing_status = 'njeis_review'
-              AND a2.billing_batch_id IS NOT NULL
+          AND (
+            reconciled_at IS NOT NULL
+            OR EXISTS (
+              SELECT 1 FROM assessments a2
+              WHERE a2.practitioner_id = assessments.practitioner_id
+                AND a2.billing_status = 'njeis_review'
+                AND a2.billing_batch_id IS NOT NULL
+            )
           )
         )
     `;
@@ -961,6 +996,7 @@ module.exports = {
   getLogNotes,
   updateLogStatus,
   rejectLog,
+  reconcileLog,
   getVaultLogs,
   getBillingBatches,
   revertBillingBatch,

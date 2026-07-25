@@ -388,6 +388,29 @@ export const BillingManager = () => {
     }
   };
 
+  // Sweeps a rejected/declined log out of Pending Bills for good when its
+  // practitioner's batch will never be generated (e.g. every remaining log
+  // ended up rejected, so Generate & Issue stays permanently disabled) —
+  // otherwise it would sit here forever with nothing left to do about it.
+  // From this point it's only reachable through Master Reports.
+  const handleReconcile = async (session, practitionerId) => {
+    setProcessingLogId(session.id);
+    try {
+      await api.post('/api/billing/reconcile-log', { assessmentId: session.id });
+      setExpandedLogs(prev => ({
+        ...prev,
+        [practitionerId]: (prev[practitionerId] || []).filter(l => l.id !== session.id)
+      }));
+      fetchLogs({ silent: true });
+      pushToast('success', 'Log moved to Master Reports.');
+    } catch (error) {
+      pushToast('error', 'Failed to reconcile log.');
+      console.error('Failed to reconcile log', error);
+    } finally {
+      setProcessingLogId(null);
+    }
+  };
+
   const openNotesModal = async (session) => {
     setNotesModal({ session });
     setIsLoadingNotes(true);
@@ -1210,25 +1233,55 @@ export const BillingManager = () => {
                                               {isProcessing ? (
                                                 <span className="text-xs text-slate-400">Processing...</span>
                                               ) : isDeclined ? (
-                                                <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                    <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none">
-                                                      <Ban className="size-3.5 flex-shrink-0" />
-                                                      Excluded
-                                                    </div>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent>Permanently rejected — not included in the generated report</TooltipContent>
-                                                </Tooltip>
+                                                <div className="inline-flex items-center gap-2 justify-end">
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <div className="inline-flex items-center gap-1.5 text-slate-400 text-xs font-medium select-none">
+                                                        <Ban className="size-3.5 flex-shrink-0" />
+                                                        Excluded
+                                                      </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Permanently rejected — not included in the generated report</TooltipContent>
+                                                  </Tooltip>
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleReconcile(session, log.practitioner_id)}
+                                                        className="gap-1 text-slate-600 border-slate-200 hover:bg-slate-50 cursor-pointer"
+                                                      >
+                                                        Reconcile
+                                                      </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Move this log out of Pending Bills — still viewable in Master Reports</TooltipContent>
+                                                  </Tooltip>
+                                                </div>
                                               ) : isReturned ? (
-                                                <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                    <div className="inline-flex items-center gap-1.5 text-amber-500 text-xs font-medium select-none">
-                                                      <Clock className="size-3.5 flex-shrink-0" />
-                                                      Awaiting Revision
-                                                    </div>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent>Returned to practitioner for revision — awaiting resubmission</TooltipContent>
-                                                </Tooltip>
+                                                <div className="inline-flex items-center gap-2 justify-end">
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <div className="inline-flex items-center gap-1.5 text-amber-500 text-xs font-medium select-none">
+                                                        <Clock className="size-3.5 flex-shrink-0" />
+                                                        Awaiting Revision
+                                                      </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Returned to practitioner for revision — awaiting resubmission</TooltipContent>
+                                                  </Tooltip>
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleReconcile(session, log.practitioner_id)}
+                                                        className="gap-1 text-slate-600 border-slate-200 hover:bg-slate-50 cursor-pointer"
+                                                      >
+                                                        Reconcile
+                                                      </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Move this log out of Pending Bills — still viewable in Master Reports</TooltipContent>
+                                                  </Tooltip>
+                                                </div>
                                               ) : isLocked ? (
                                                 <Tooltip>
                                                   <TooltipTrigger asChild>

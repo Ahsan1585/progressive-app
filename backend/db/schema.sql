@@ -116,6 +116,7 @@ CREATE TABLE assessments (
   responded_at timestamp with time zone,
   hold_note text,
   held_at timestamp with time zone,
+  reconciled_at timestamp with time zone,
   PRIMARY KEY (id),
   FOREIGN KEY (patient_id) REFERENCES patients(id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
