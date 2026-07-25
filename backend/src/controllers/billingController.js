@@ -585,10 +585,10 @@ const rejectLog = async (req, res) => {
       [newStatus, type, note.trim(), new Date().toISOString(), (current?.rejection_count || 0) + 1, assessmentId]
     );
 
-    // Only 'return' starts a revision cycle the practitioner acts on — keep a
-    // permanent record of it (separate from rejection_note, which resubmitLog
-    // clears each cycle) so the full back-and-forth stays visible later.
-    if (type === 'return') {
+    // Both 'return' (revision cycle) and 'reject' (permanent decline) get a
+    // note from billing — record it in the same shared history so it shows
+    // up in the comment/notes box either way, not just for returns.
+    if (type === 'return' || type === 'reject') {
       await pool.query(
         `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
          VALUES ($1, $2, $3, $4)`,
