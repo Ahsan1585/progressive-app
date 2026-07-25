@@ -218,8 +218,16 @@ function PractitionerGroup({
           <div className="font-bold text-base text-slate-900 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
           <div className="text-sm text-slate-500">{practitioner.total_interventions} sessions</div>
         </div>
-        {isLockedByMe && <Lock className="size-4 text-teal-500 flex-shrink-0" />}
-        {isLockedByOther && <Lock className="size-4 text-amber-500 flex-shrink-0" />}
+        {isLockedByMe && (
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5 flex-shrink-0">
+            <Lock className="size-3.5" /> Locked to you
+          </span>
+        )}
+        {isLockedByOther && (
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 flex-shrink-0">
+            <Lock className="size-3.5" /> Locked by {practitioner.locked_by_name}
+          </span>
+        )}
         <ChevronDown className={`size-5 text-slate-500 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
       </button>
 
