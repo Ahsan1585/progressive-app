@@ -522,9 +522,20 @@ export const BillingManager = () => {
     return { start: `${monthKey}-01`, end: `${monthKey}-${String(lastDay).padStart(2, '0')}` };
   };
 
-  const handleGenerateAndIssue = async (practitionerId) => {
+  const handleGenerateAndIssue = async (practitionerId, overrideRange) => {
     setProcessingId(practitionerId);
     try {
+      // overrideRange comes from the Batch Review beta's Biweekly/Monthly
+      // period picker — an exact, already-validated range, so generation
+      // runs once against exactly that window instead of being re-derived
+      // per calendar month from the practitioner's log dates.
+      if (overrideRange?.startDate && overrideRange?.endDate) {
+        const { startDate, endDate } = overrideRange;
+        const njeisRes = await api.post('/api/billing/generate-njeis', { practitionerId, startDate, endDate });
+        if (!njeisRes.data.success) throw new Error('SEVF generation failed');
+        const invoiceRes = await api.post('/api/billing/generate-invoice', { practitionerId, startDate, endDate });
+        if (!invoiceRes.data.success) throw new Error('Invoice generation failed');
+      } else {
       // Generation is always scoped to a single calendar month per call, so a practitioner
       // with a multi-month backlog gets one correctly-scoped SEVF + Invoice PER month
       // instead of one merged document spanning all of them.
@@ -548,6 +559,7 @@ export const BillingManager = () => {
 
         const invoiceRes = await api.post('/api/billing/generate-invoice', { practitionerId, startDate: start, endDate: end });
         if (!invoiceRes.data.success) throw new Error(`Invoice generation failed for ${formatMonthLabel(month)}`);
+      }
       }
 
       // Documents are generated — release the lock automatically so it doesn't
@@ -1011,9 +1023,6 @@ export const BillingManager = () => {
           {pendingBetaMode ? (
             <BillingBatchReview
               practitioners={filteredLogs}
-              expandedLogs={expandedLogs}
-              loadingExpand={loadingExpand}
-              fetchExpandedLogsFor={fetchExpandedLogsFor}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
               processingLogId={processingLogId}

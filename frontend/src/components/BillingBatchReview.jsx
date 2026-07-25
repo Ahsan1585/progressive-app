@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
-  Users, ClipboardList, MousePointerClick,
+  Users, ClipboardList, MousePointerClick, CalendarDays,
 } from 'lucide-react';
 
 // Matches BillingManager.jsx's own formatMonthLabel — batches are keyed by
@@ -14,6 +14,32 @@ const formatMonthLabel = (monthKey) => {
   const [y, m] = monthKey.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
+
+// --- Billing period rules (beta only, per explicit request): a specialist
+// can only run Biweekly 1 (1st–15th), Biweekly 2 (16th–last day), or the
+// full Month — never an arbitrary custom range — and never a period that
+// hasn't fully elapsed yet, so nothing gets billed before all of that
+// window's sessions could plausibly have been logged. Biweekly 2's end
+// (and the Monthly end) is computed from the real number of days in that
+// month, so Feb/30-day months aren't hardcoded to day 30.
+const pad2 = (n) => String(n).padStart(2, '0');
+const todayStr = new Date().toISOString().slice(0, 10);
+
+function getMonthPeriods(monthValue) {
+  if (!monthValue) return [];
+  const [year, month] = monthValue.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const mm = pad2(month);
+  const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+  const periods = [
+    { key: 'bw1', label: 'Biweekly 1', sub: `${monthName} 1–15`, start: `${year}-${mm}-01`, end: `${year}-${mm}-15` },
+    { key: 'bw2', label: 'Biweekly 2', sub: `${monthName} 16–${daysInMonth}`, start: `${year}-${mm}-16`, end: `${year}-${mm}-${pad2(daysInMonth)}` },
+    { key: 'monthly', label: 'Monthly', sub: `${monthName} 1–${daysInMonth}`, start: `${year}-${mm}-01`, end: `${year}-${mm}-${pad2(daysInMonth)}` },
+  ];
+  // A period unlocks the day after it ends — e.g. Biweekly 1 (…-15) becomes
+  // selectable on the 16th, Monthly becomes selectable on the 1st of next month.
+  return periods.map(p => ({ ...p, elapsed: todayStr > p.end }));
+}
 
 // --- Beta "Batch Review" view for Pending Bills: a master-detail layout
 // (a scrollable list of ALL practitioners with pending logs on the left —
@@ -24,7 +50,7 @@ const formatMonthLabel = (monthKey) => {
 // backend endpoints either way — this is a presentation layer, not a
 // second workflow.
 export const BillingBatchReview = ({
-  practitioners, expandedLogs, loadingExpand, fetchExpandedLogsFor,
+  practitioners,
   currentUserId, isAdmin, processingLogId, processingId,
   logActions, setLogActions,
   handleLock, handleRelease, handleAccept, handleHold, handleReleaseHold, handleReconcile,
@@ -36,6 +62,41 @@ export const BillingBatchReview = ({
   const [detail, setDetail] = useState(null); // { practitionerId, sessionId } | null
   const [detailTab, setDetailTab] = useState('session'); // 'session' | 'analysis'
 
+  // --- Billing period (Biweekly 1 / Biweekly 2 / Monthly, see getMonthPeriods) ---
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
+  const periods = getMonthPeriods(selectedMonth);
+
+  // Session data is fetched locally, scoped to the selected period — kept
+  // separate from BillingManager's own expandedLogs (which the legacy table
+  // still drives off the shared top-of-page date filter), so switching
+  // periods here can never bleed a different date range into that view.
+  const [periodLogs, setPeriodLogs] = useState({}); // { [practitionerId]: sessions[] }
+  const [periodLoading, setPeriodLoading] = useState(new Set());
+
+  const fetchPeriodLogs = async (practitionerId) => {
+    if (!selectedPeriod) return;
+    setPeriodLoading(prev => new Set(prev).add(practitionerId));
+    try {
+      const res = await api.get('/api/billing/practitioner-logs', {
+        params: { practitionerId, startDate: selectedPeriod.start, endDate: selectedPeriod.end }
+      });
+      if (res.data.success) setPeriodLogs(prev => ({ ...prev, [practitionerId]: res.data.logs }));
+    } catch (error) {
+      console.error('Failed to fetch period logs', error);
+    } finally {
+      setPeriodLoading(prev => { const n = new Set(prev); n.delete(practitionerId); return n; });
+    }
+  };
+
+  // Changing the period invalidates every previously-fetched session list —
+  // start clean rather than show a stale period's sessions.
+  useEffect(() => {
+    setPeriodLogs({});
+    setExpandedGroups(new Set());
+    setDetail(null);
+  }, [selectedPeriod]);
+
   const filteredPractitioners = practitioners.filter(p =>
     `${p.first_name} ${p.last_name}`.toLowerCase().includes(practitionerSearch.toLowerCase()) ||
     p.practitioner_id?.toString().includes(practitionerSearch)
@@ -45,33 +106,36 @@ export const BillingBatchReview = ({
   // visit, a page refresh mid-review, etc.) should show open and populated
   // without requiring a manual click — otherwise the queue silently looks
   // empty even though real sessions exist. Auto-expand + fetch each one
-  // exactly once (autoHandledRef prevents re-forcing a group back open
-  // after the user deliberately collapses it).
+  // exactly once per period (autoHandledRef prevents re-forcing a group
+  // back open after the user deliberately collapses it).
   const autoHandledRef = useRef(new Set());
   useEffect(() => {
+    if (!selectedPeriod) return;
     practitioners.forEach(p => {
       const isLockedByMe = p.locked_by_id && p.locked_by_id === currentUserId;
-      if (!isLockedByMe || autoHandledRef.current.has(p.practitioner_id)) return;
-      autoHandledRef.current.add(p.practitioner_id);
+      const key = `${selectedPeriod.key}:${p.practitioner_id}`;
+      if (!isLockedByMe || autoHandledRef.current.has(key)) return;
+      autoHandledRef.current.add(key);
       setExpandedGroups(prev => new Set(prev).add(p.practitioner_id));
-      if (expandedLogs[p.practitioner_id] === undefined && !loadingExpand.has(p.practitioner_id)) {
-        fetchExpandedLogsFor(p.practitioner_id);
-      }
+      fetchPeriodLogs(p.practitioner_id);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [practitioners]);
+  }, [practitioners, selectedPeriod]);
 
   const toggleGroup = (practitionerId) => {
+    const willExpand = !expandedGroups.has(practitionerId);
     setExpandedGroups(prev => {
       const next = new Set(prev);
       next.has(practitionerId) ? next.delete(practitionerId) : next.add(practitionerId);
       return next;
     });
+    if (willExpand && periodLogs[practitionerId] === undefined) fetchPeriodLogs(practitionerId);
   };
 
   const onLock = async (practitionerId) => {
     await handleLock(practitionerId);
     setExpandedGroups(prev => new Set(prev).add(practitionerId));
+    await fetchPeriodLogs(practitionerId);
   };
 
   const selectSession = (practitionerId, sessionId) => {
@@ -79,12 +143,91 @@ export const BillingBatchReview = ({
     setDetailTab('session');
   };
 
+  // Wrap every session-mutating action so the local period-scoped cache
+  // (not just BillingManager's own state) reflects the result — otherwise
+  // Approve/Hold/Return/Reject/Reconcile would update the wrong cache and
+  // appear to do nothing here.
+  const withRefetch = (fn) => async (session, practitionerId, ...rest) => {
+    await fn(session, practitionerId, ...rest);
+    await fetchPeriodLogs(practitionerId);
+  };
+  const wrappedAccept = withRefetch(handleAccept);
+  const wrappedHold = withRefetch(handleHold);
+  const wrappedReleaseHold = withRefetch(handleReleaseHold);
+  const wrappedReconcile = withRefetch(handleReconcile);
+  const wrappedInlineReturnReject = async (session, practitionerId, type, note) => {
+    await handleInlineReturnReject(session, practitionerId, type, note);
+    await fetchPeriodLogs(practitionerId);
+  };
+  const wrappedGenerateAndIssue = async (practitionerId) => {
+    if (!selectedPeriod) return;
+    await handleGenerateAndIssue(practitionerId, { startDate: selectedPeriod.start, endDate: selectedPeriod.end });
+    await fetchPeriodLogs(practitionerId);
+  };
+  const wrappedSendToCompleted = async (practitionerId) => {
+    await handleSendToCompleted(practitionerId);
+    await fetchPeriodLogs(practitionerId);
+  };
+
   const detailPractitioner = detail ? practitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
-  const detailSessions = detail ? (expandedLogs[detail.practitionerId] || []) : [];
+  const detailSessions = detail ? (periodLogs[detail.practitionerId] || []) : [];
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
 
   return (
-    <div className="flex h-[80vh] min-h-[720px] shadow-inner bg-slate-100">
+    <div className="flex flex-col">
+      {/* PERIOD PICKER: Biweekly 1 / Biweekly 2 / Monthly only, never custom,
+          never a period that hasn't fully elapsed yet. */}
+      <div className="flex items-center gap-4 px-5 py-3.5 border-b border-slate-200 bg-white flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <CalendarDays className="size-4 text-slate-500" />
+          <span className="text-sm font-bold text-slate-700">Billing Period</span>
+        </div>
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={(e) => { setSelectedMonth(e.target.value); setSelectedPeriod(null); }}
+          className="text-sm font-semibold text-slate-800 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        />
+        <div className="flex gap-2 flex-wrap">
+          {periods.map(p => {
+            const isActive = selectedPeriod?.key === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                disabled={!p.elapsed}
+                onClick={() => setSelectedPeriod(p)}
+                title={p.elapsed ? '' : `Not available until ${new Date(new Date(p.end + 'T00:00:00').getTime() + 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                className={`text-left px-3.5 py-2 rounded-lg border transition-colors ${
+                  !p.elapsed ? 'border-slate-200 bg-slate-50 text-slate-300 cursor-not-allowed'
+                    : isActive ? 'border-blue-500 bg-blue-600 text-white cursor-pointer'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-blue-400 cursor-pointer'
+                }`}
+              >
+                <div className="text-sm font-bold flex items-center gap-1.5">
+                  {p.label}
+                  {!p.elapsed && <Lock className="size-3" />}
+                </div>
+                <div className={`text-xs ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>{p.sub}</div>
+              </button>
+            );
+          })}
+        </div>
+        {selectedPeriod && (
+          <span className="text-xs text-slate-400 ml-auto">
+            Reviewing <b className="text-slate-600">{selectedPeriod.label}</b> ({selectedPeriod.start} – {selectedPeriod.end})
+          </span>
+        )}
+      </div>
+
+      {!selectedPeriod ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-24 bg-slate-50">
+          <CalendarDays className="size-10 text-slate-300" />
+          <p className="text-lg font-bold text-slate-600">Select a completed billing period above to begin</p>
+          <p className="text-sm text-slate-400 max-w-md text-center">Only fully-elapsed Biweekly or Monthly periods can be selected — you can't generate bills mid-period.</p>
+        </div>
+      ) : (
+      <div className="flex h-[80vh] min-h-[720px] shadow-inner bg-slate-100">
       {/* LEFT: every practitioner with pending logs, as collapsible/lockable groups */}
       <div className="w-[480px] flex-shrink-0 border-r-2 border-slate-300 flex flex-col bg-slate-50/40 shadow-[4px_0_12px_-6px_rgba(15,23,42,0.15)] z-10">
         <div className="flex items-center gap-2 px-4 py-3 bg-slate-800 text-white">
@@ -115,8 +258,8 @@ export const BillingBatchReview = ({
               practitioner={p}
               isExpanded={expandedGroups.has(p.practitioner_id)}
               onToggle={() => toggleGroup(p.practitioner_id)}
-              sessions={expandedLogs[p.practitioner_id] || []}
-              isLoadingSessions={loadingExpand.has(p.practitioner_id)}
+              sessions={periodLogs[p.practitioner_id] || []}
+              isLoadingSessions={periodLoading.has(p.practitioner_id)}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
               onLock={() => onLock(p.practitioner_id)}
@@ -126,8 +269,8 @@ export const BillingBatchReview = ({
               detailSessionId={detail?.practitionerId === p.practitioner_id ? detail.sessionId : null}
               onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
               processingId={processingId}
-              handleGenerateAndIssue={handleGenerateAndIssue}
-              handleSendToCompleted={handleSendToCompleted}
+              handleGenerateAndIssue={wrappedGenerateAndIssue}
+              handleSendToCompleted={wrappedSendToCompleted}
             />
           ))}
         </div>
@@ -179,17 +322,19 @@ export const BillingBatchReview = ({
                 logActions={logActions}
                 setLogActions={setLogActions}
                 processingLogId={processingLogId}
-                handleAccept={handleAccept}
-                handleHold={handleHold}
-                handleReleaseHold={handleReleaseHold}
-                handleReconcile={handleReconcile}
-                handleInlineReturnReject={handleInlineReturnReject}
+                handleAccept={wrappedAccept}
+                handleHold={wrappedHold}
+                handleReleaseHold={wrappedReleaseHold}
+                handleReconcile={wrappedReconcile}
+                handleInlineReturnReject={wrappedInlineReturnReject}
                 formatTime={formatTime}
               />
             )}
           </div>
         )}
       </div>
+      </div>
+      )}
     </div>
   );
 };
