@@ -78,7 +78,7 @@ export const BillingBatchReview = ({
   return (
     <div className="flex h-[640px] max-h-[70vh]">
       {/* LEFT: every practitioner with pending logs, as collapsible/lockable groups */}
-      <div className="w-80 flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/40">
+      <div className="w-[420px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/40">
         <div className="p-3 border-b border-slate-200">
           <div className="relative">
             <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
