@@ -210,8 +210,15 @@ export const BillingBatchReview = ({
                   const isDeclined = s.billing_status === 'declined';
                   const isReturned = s.billing_status === 'rejected';
                   const isOnHold = s.billing_status === 'on_hold';
+                  const isApproved = logActions[s.id] === 'accept' || s.billing_review === 'accept' || (s.billing_status === 'pending' && s.billing_review === 'accept');
                   const dotColor = isDeclined ? 'bg-red-400' : isReturned ? 'bg-amber-400' : isOnHold ? 'bg-violet-400'
-                    : (logActions[s.id] === 'accept' || s.billing_review === 'accept') ? 'bg-emerald-400' : 'bg-slate-300';
+                    : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
+                  const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
+                  const statusLabelClasses = isDeclined ? 'bg-red-50 text-red-600'
+                    : isReturned ? 'bg-amber-50 text-amber-600'
+                    : isOnHold ? 'bg-violet-50 text-violet-600'
+                    : isApproved ? 'bg-emerald-50 text-emerald-600'
+                    : 'bg-slate-100 text-slate-500';
                   return (
                     <div
                       key={s.id}
@@ -230,12 +237,18 @@ export const BillingBatchReview = ({
                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold text-slate-800 truncate">{s.patient_first_name} {s.patient_last_name}</div>
-                        <div className="text-[10px] text-slate-400 flex items-center gap-1 flex-wrap">
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1 flex-wrap mt-0.5">
                           {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
-                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1">{s.type || '-'}</span>
+                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Status">S:{s.status || '-'}</span>
+                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Type">{s.type || '-'}</span>
+                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Location">L:{s.location || '-'}</span>
+                          <span className={`font-bold uppercase rounded px-1 ${statusLabelClasses}`}>{statusLabel}</span>
                         </div>
                       </div>
-                      {s.notes_count > 0 && <MessageSquareText className="size-3 text-slate-400 flex-shrink-0" />}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[10px] font-bold text-slate-500">{formatTime(s.total_time)}</span>
+                        {s.notes_count > 0 && <MessageSquareText className="size-3 text-slate-400" />}
+                      </div>
                     </div>
                   );
                 })}
