@@ -29,15 +29,28 @@ const getPendingLogs = async (req, res) => {
 
   try {
     // 'rejected' (Returned, awaiting practitioner revision) and 'declined'
-    // (permanently rejected) both stay visible here — they're just locked out
-    // of report generation (generateNJEISForms/generateFinancialInvoice only
-    // ever select 'pending'/'njeis_review'), not hidden from the queue entirely.
+    // (permanently rejected) stay visible here only until the practitioner's
+    // batch is actually generated — once Generate & Issue has run (a
+    // njeis_review record with a billing_batch_id exists for them), those
+    // rejected/declined logs were excluded from that batch on purpose and
+    // just clutter Pending Bills from then on. From that point they're only
+    // reachable through Master Reports, which already supports filtering by
+    // Returned/rejected status.
     const params = [['pending', 'njeis_review', 'on_hold', 'rejected', 'declined']];
     let sql = `
       SELECT a.*, p.first_name AS practitioner_live_first_name, p.last_name AS practitioner_live_last_name
       FROM assessments a
       JOIN practitioners p ON p.id = a.practitioner_id
       WHERE a.billing_status = ANY($1::text[])
+        AND NOT (
+          a.billing_status IN ('rejected', 'declined')
+          AND EXISTS (
+            SELECT 1 FROM assessments a2
+            WHERE a2.practitioner_id = a.practitioner_id
+              AND a2.billing_status = 'njeis_review'
+              AND a2.billing_batch_id IS NOT NULL
+          )
+        )
     `;
     if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
@@ -596,14 +609,25 @@ const getPractitionerLogs = async (req, res) => {
     // Held logs are returned alongside the practitioner's regular pending/
     // njeis_review logs (not a separate fetch) — Hold is a per-log marker,
     // not its own queue. 'rejected' (Returned, awaiting revision) and
-    // 'declined' (permanently rejected) also stay visible — they're excluded
-    // from report generation, not from the list.
+    // 'declined' (permanently rejected) also stay visible, but only until
+    // this practitioner's batch has actually been generated (see
+    // getPendingLogs for the full rationale) — after that they're excluded
+    // here too and only reachable via Master Reports.
     const params = [practitionerId, ['pending', 'njeis_review', 'on_hold', 'rejected', 'declined']];
     let sql = `
       SELECT id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
              total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at
       FROM assessments
       WHERE practitioner_id = $1 AND billing_status = ANY($2::text[])
+        AND NOT (
+          billing_status IN ('rejected', 'declined')
+          AND EXISTS (
+            SELECT 1 FROM assessments a2
+            WHERE a2.practitioner_id = assessments.practitioner_id
+              AND a2.billing_status = 'njeis_review'
+              AND a2.billing_batch_id IS NOT NULL
+          )
+        )
     `;
     if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND service_date <= $${params.length}`; }
