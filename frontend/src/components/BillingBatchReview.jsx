@@ -53,7 +53,7 @@ export const BillingBatchReview = ({
   practitioners,
   currentUserId, isAdmin, processingLogId, processingId,
   logActions, setLogActions,
-  handleLock, handleRelease, handleAccept, handleHold, handleReleaseHold, handleReconcile,
+  handleLock, handleRelease, handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleReconcile,
   handleInlineReturnReject,
   handleGenerateAndIssue, handleSendToCompleted, pushToast, formatTime,
 }) => {
@@ -152,6 +152,7 @@ export const BillingBatchReview = ({
     await fetchPeriodLogs(practitionerId);
   };
   const wrappedAccept = withRefetch(handleAccept);
+  const wrappedResetToPending = withRefetch(handleResetToPending);
   const wrappedHold = withRefetch(handleHold);
   const wrappedReleaseHold = withRefetch(handleReleaseHold);
   const wrappedReconcile = withRefetch(handleReconcile);
@@ -323,6 +324,7 @@ export const BillingBatchReview = ({
                 setLogActions={setLogActions}
                 processingLogId={processingLogId}
                 handleAccept={wrappedAccept}
+                handleResetToPending={wrappedResetToPending}
                 handleHold={wrappedHold}
                 handleReleaseHold={wrappedReleaseHold}
                 handleReconcile={wrappedReconcile}
@@ -541,7 +543,7 @@ function PractitionerGroup({
 // legacy table's expanded row (isDeclined/isReturned/isOnHold/isLocked). ---
 function SessionDetailPanel({
   session, practitionerId, practitionerName, logActions, setLogActions, processingLogId,
-  handleAccept, handleHold, handleReleaseHold, handleReconcile, handleInlineReturnReject, formatTime,
+  handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleReconcile, handleInlineReturnReject, formatTime,
 }) {
   const isDeclined = session.billing_status === 'declined';
   const isReturned = session.billing_status === 'rejected';
@@ -615,9 +617,17 @@ function SessionDetailPanel({
       ) : (
         <div className="grid grid-cols-4 gap-4 mb-6">
           <ActionButton
-            label="Approve" active={logActions[session.id] === 'accept'} tone="emerald"
+            label={logActions[session.id] === 'accept' ? 'Approved' : 'Approve'} active={logActions[session.id] === 'accept'} tone="emerald"
             icon={<Check className="size-4" />}
-            onClick={() => { setLogActions(prev => ({ ...prev, [session.id]: 'accept' })); handleAccept(session, practitionerId); }}
+            onClick={() => {
+              if (logActions[session.id] === 'accept') {
+                setLogActions(prev => ({ ...prev, [session.id]: '' }));
+                handleResetToPending(session, practitionerId);
+              } else {
+                setLogActions(prev => ({ ...prev, [session.id]: 'accept' }));
+                handleAccept(session, practitionerId);
+              }
+            }}
           />
           <ActionButton
             label="Return" active={pendingAction === 'return'} tone="blue"
@@ -777,7 +787,7 @@ function ActionButton({ label, icon, onClick, active, tone }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-2.5 py-6 px-3 rounded-xl border-1.5 bg-white cursor-pointer transition-colors ${toneClasses}`}
+      className={`flex flex-col items-center justify-center gap-2.5 py-7 px-4 rounded-2xl border-2 bg-white cursor-pointer transition-colors shadow-sm ${toneClasses}`}
     >
       {icon}
       <span className="text-sm font-bold">{label}</span>

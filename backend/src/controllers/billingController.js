@@ -521,18 +521,23 @@ const getInvoiceDownloadUrl = async (req, res) => {
 
 // --- 7. Decline or Restore an Individual Assessment ---
 const updateLogStatus = async (req, res) => {
-  const { assessmentId, status } = req.body;
+  const { assessmentId, status, review } = req.body;
   if (!assessmentId || !['declined', 'pending'].includes(status)) {
     return res.status(400).json({ error: 'assessmentId and a valid status (declined | pending) are required' });
   }
 
   try {
     if (status === 'pending') {
+      // `review` distinguishes the three callers that land here:
+      // Approve passes 'accept'; Release-from-Hold and the "reset to
+      // pending" undo both pass null so the log goes back to a genuinely
+      // unreviewed state (previously this always forced 'accept', so a
+      // released-from-hold log silently came back marked Approved).
       // Also clears any hold_note/held_at — this is the same path used to
       // release a log off Hold back into the regular pending queue.
       await pool.query(
-        "UPDATE assessments SET billing_status = $1, billing_review = 'accept', hold_note = NULL, held_at = NULL WHERE id = $2",
-        [status, assessmentId]
+        "UPDATE assessments SET billing_status = $1, billing_review = $2, hold_note = NULL, held_at = NULL WHERE id = $3",
+        [status, review || null, assessmentId]
       );
     } else {
       await pool.query('UPDATE assessments SET billing_status = $1 WHERE id = $2', [status, assessmentId]);

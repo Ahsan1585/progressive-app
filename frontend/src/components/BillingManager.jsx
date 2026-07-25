@@ -334,7 +334,7 @@ export const BillingManager = () => {
     setLogActions(prev => ({ ...prev, [session.id]: 'accept' }));
     setProcessingLogId(session.id);
     try {
-      await api.patch('/api/billing/log-status', { assessmentId: session.id, status: 'pending' });
+      await api.patch('/api/billing/log-status', { assessmentId: session.id, status: 'pending', review: 'accept' });
       setExpandedLogs(prev => ({
         ...prev,
         [practitionerId]: (prev[practitionerId] || []).map(l =>
@@ -345,6 +345,29 @@ export const BillingManager = () => {
     } catch (error) {
       setLogActions(prev => ({ ...prev, [session.id]: '' }));
       console.error('Failed to accept log', error);
+    } finally {
+      setProcessingLogId(null);
+    }
+  };
+
+  // Undoes an Approve, back to a genuinely unreviewed pending log — e.g. the
+  // Batch Review beta's Approve button acting as a toggle. Same endpoint
+  // call as Release-from-Hold (status pending, no review), just without the
+  // "released from hold" toast/context.
+  const handleResetToPending = async (session, practitionerId) => {
+    setProcessingLogId(session.id);
+    try {
+      await api.patch('/api/billing/log-status', { assessmentId: session.id, status: 'pending', review: null });
+      setExpandedLogs(prev => ({
+        ...prev,
+        [practitionerId]: (prev[practitionerId] || []).map(l =>
+          l.id === session.id ? { ...l, billing_status: 'pending', billing_review: null } : l
+        )
+      }));
+      setLogActions(prev => ({ ...prev, [session.id]: '' }));
+    } catch (error) {
+      pushToast('error', 'Failed to reset log to pending.');
+      console.error('Failed to reset log to pending', error);
     } finally {
       setProcessingLogId(null);
     }
@@ -380,7 +403,7 @@ export const BillingManager = () => {
   const handleReleaseHold = async (session, practitionerId) => {
     setProcessingLogId(session.id);
     try {
-      await api.patch('/api/billing/log-status', { assessmentId: session.id, status: 'pending' });
+      await api.patch('/api/billing/log-status', { assessmentId: session.id, status: 'pending', review: null });
       setExpandedLogs(prev => ({
         ...prev,
         [practitionerId]: (prev[practitionerId] || []).map(l =>
@@ -1032,6 +1055,7 @@ export const BillingManager = () => {
               handleLock={handleLock}
               handleRelease={handleRelease}
               handleAccept={handleAccept}
+              handleResetToPending={handleResetToPending}
               handleHold={handleHold}
               handleReleaseHold={handleReleaseHold}
               handleReconcile={handleReconcile}
