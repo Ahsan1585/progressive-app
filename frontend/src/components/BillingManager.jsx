@@ -1211,20 +1211,22 @@ export const BillingManager = () => {
                                             <td className="py-3 px-3 text-center">
                                               <div className="inline-flex items-center gap-1.5">
                                                 <Badge variant={reviewBadge.variant}>{reviewBadge.label}</Badge>
-                                                {session.rejection_count > 0 && (
-                                                  <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => openNotesModal(session)}
-                                                        className="cursor-pointer text-slate-400 hover:text-slate-600 transition-colors"
-                                                      >
-                                                        <MessageSquareText className="size-3.5" />
-                                                      </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>View return/resubmit notes</TooltipContent>
-                                                  </Tooltip>
-                                                )}
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => openNotesModal(session)}
+                                                      className={`cursor-pointer transition-colors ${
+                                                        session.rejection_count > 0
+                                                          ? 'text-slate-500 hover:text-slate-700'
+                                                          : 'text-slate-300 hover:text-slate-400'
+                                                      }`}
+                                                    >
+                                                      <MessageSquareText className="size-3.5" />
+                                                    </button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>{session.rejection_count > 0 ? 'View return/resubmit notes' : 'No notes recorded yet'}</TooltipContent>
+                                                </Tooltip>
                                               </div>
                                             </td>
 
