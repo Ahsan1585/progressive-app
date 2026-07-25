@@ -216,7 +216,7 @@ const AdminDashboard = () => {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-full overflow-hidden print:h-auto print:overflow-visible print:block">
-        <header className="print:hidden h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm shrink-0 z-10">
+        <header className="print:hidden relative h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm shrink-0 z-10">
           <div className="flex items-center gap-3">
             <button
               className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -228,14 +228,14 @@ const AdminDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <div className="hidden sm:flex flex-col items-start gap-0.5">
+            <div className="hidden sm:flex flex-col items-center gap-0.5">
               <img src={izayaLogo} alt="" className="h-5 w-auto" />
               <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide leading-none whitespace-nowrap">Early Intervention Simplified</span>
             </div>
-            <h2 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
-              {TAB_TITLES[activeTab] || 'Billing & Invoices'}
-            </h2>
           </div>
+          <h2 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-slate-800 capitalize tracking-tight whitespace-nowrap">
+            {TAB_TITLES[activeTab] || 'Billing & Invoices'}
+          </h2>
           <div className="flex items-center gap-3">
             {adminProfile && (
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
