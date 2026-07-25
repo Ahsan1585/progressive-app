@@ -1140,9 +1140,13 @@ export const BillingManager = () => {
                                         const isReturned = session.billing_status === 'rejected';
                                         const isOnHold = session.billing_status === 'on_hold';
                                         const isProcessing = processingLogId === session.id;
-                                        // Declined/returned logs are locked (excluded from report); NJEIS-issued logs are also locked
+                                        // Declined/returned logs are locked (excluded from report); NJEIS-issued logs are also locked.
+                                        // On-hold logs are explicitly excluded here — they're never part of SEVF/invoice
+                                        // generation (generateNJEISForms only ever selects 'pending'), so a log being On
+                                        // Hold must stay releasable no matter what workflow_status the rest of the
+                                        // practitioner's group has reached.
                                         const isLocked =
-                                          (log.workflow_status === 'njeis_review' && session.billing_status !== 'pending') ||
+                                          (log.workflow_status === 'njeis_review' && session.billing_status !== 'pending' && !isOnHold) ||
                                           isReturned ||
                                           isDeclined;
                                         const reviewBadge = getPendingReviewBadge(session, isLocked, isReturned, logActions);
