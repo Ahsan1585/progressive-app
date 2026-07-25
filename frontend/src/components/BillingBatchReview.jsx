@@ -89,15 +89,42 @@ export const BillingBatchReview = ({
     }
   };
 
-  // Changing the period invalidates every previously-fetched session list —
-  // start clean rather than show a stale period's sessions.
+  // The practitioner list itself also needs to be scoped to the selected
+  // period — otherwise a practitioner whose only pending logs fall outside
+  // this period (e.g. later in the month) still shows up here with an
+  // empty, confusing "No individual logs found" once locked/expanded.
+  // Fetched fresh per period from the same endpoint the legacy table uses,
+  // just with startDate/endDate set to the period's bounds.
+  const [periodPractitioners, setPeriodPractitioners] = useState([]);
+  const [isLoadingPractitioners, setIsLoadingPractitioners] = useState(false);
+
+  const fetchPeriodPractitioners = async () => {
+    if (!selectedPeriod) return;
+    setIsLoadingPractitioners(true);
+    try {
+      const res = await api.get('/api/billing/pending-logs', {
+        params: { startDate: selectedPeriod.start, endDate: selectedPeriod.end }
+      });
+      if (res.data.success) setPeriodPractitioners(res.data.logs);
+    } catch (error) {
+      console.error('Failed to fetch period practitioners', error);
+    } finally {
+      setIsLoadingPractitioners(false);
+    }
+  };
+
+  // Changing the period invalidates every previously-fetched session list
+  // and practitioner list — start clean rather than show stale data.
   useEffect(() => {
     setPeriodLogs({});
+    setPeriodPractitioners([]);
     setExpandedGroups(new Set());
     setDetail(null);
+    fetchPeriodPractitioners();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod]);
 
-  const filteredPractitioners = practitioners.filter(p =>
+  const filteredPractitioners = periodPractitioners.filter(p =>
     `${p.first_name} ${p.last_name}`.toLowerCase().includes(practitionerSearch.toLowerCase()) ||
     p.practitioner_id?.toString().includes(practitionerSearch)
   );
@@ -111,7 +138,7 @@ export const BillingBatchReview = ({
   const autoHandledRef = useRef(new Set());
   useEffect(() => {
     if (!selectedPeriod) return;
-    practitioners.forEach(p => {
+    periodPractitioners.forEach(p => {
       const isLockedByMe = p.locked_by_id && p.locked_by_id === currentUserId;
       const key = `${selectedPeriod.key}:${p.practitioner_id}`;
       if (!isLockedByMe || autoHandledRef.current.has(key)) return;
@@ -120,7 +147,7 @@ export const BillingBatchReview = ({
       fetchPeriodLogs(p.practitioner_id);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [practitioners, selectedPeriod]);
+  }, [periodPractitioners, selectedPeriod]);
 
   const toggleGroup = (practitionerId) => {
     const willExpand = !expandedGroups.has(practitionerId);
@@ -164,13 +191,15 @@ export const BillingBatchReview = ({
     if (!selectedPeriod) return;
     await handleGenerateAndIssue(practitionerId, { startDate: selectedPeriod.start, endDate: selectedPeriod.end });
     await fetchPeriodLogs(practitionerId);
+    await fetchPeriodPractitioners();
   };
   const wrappedSendToCompleted = async (practitionerId) => {
     await handleSendToCompleted(practitionerId);
     await fetchPeriodLogs(practitionerId);
+    await fetchPeriodPractitioners();
   };
 
-  const detailPractitioner = detail ? practitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
+  const detailPractitioner = detail ? periodPractitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
   const detailSessions = detail ? (periodLogs[detail.practitionerId] || []) : [];
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
 
@@ -249,9 +278,11 @@ export const BillingBatchReview = ({
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filteredPractitioners.length === 0 ? (
+          {isLoadingPractitioners ? (
+            <div className="p-6 text-center text-base text-slate-400">Loading practitioners for this period...</div>
+          ) : filteredPractitioners.length === 0 ? (
             <div className="p-6 text-center text-base text-slate-400">
-              {practitioners.length === 0 ? 'No active workflows pending.' : 'No practitioner matches your search.'}
+              {periodPractitioners.length === 0 ? 'No pending logs in this period.' : 'No practitioner matches your search.'}
             </div>
           ) : filteredPractitioners.map(p => (
             <PractitionerGroup
@@ -289,7 +320,7 @@ export const BillingBatchReview = ({
               <MousePointerClick className="size-8" />
             </div>
             <p className="text-xl font-bold text-slate-700">
-              {practitioners.length === 0 ? 'No active workflows pending.' : 'Select a session from the queue on the left'}
+              {periodPractitioners.length === 0 ? 'No pending logs in this period.' : 'Select a session from the queue on the left'}
             </p>
           </div>
         ) : (
