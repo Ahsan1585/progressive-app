@@ -162,7 +162,17 @@ export const BillingBatchReview = ({
   const onLock = async (practitionerId) => {
     await handleLock(practitionerId);
     setExpandedGroups(prev => new Set(prev).add(practitionerId));
+    // handleLock only updates BillingManager's own (unscoped) practitioner
+    // list — periodPractitioners is a separate local copy, so without this
+    // the lock chip here never updates and Lock to Review looks like it did
+    // nothing.
+    await fetchPeriodPractitioners();
     await fetchPeriodLogs(practitionerId);
+  };
+
+  const onRelease = async (practitionerId) => {
+    await handleRelease(practitionerId);
+    await fetchPeriodPractitioners();
   };
 
   const selectSession = (practitionerId, sessionId) => {
@@ -295,7 +305,7 @@ export const BillingBatchReview = ({
               currentUserId={currentUserId}
               isAdmin={isAdmin}
               onLock={() => onLock(p.practitioner_id)}
-              onRelease={() => handleRelease(p.practitioner_id)}
+              onRelease={() => onRelease(p.practitioner_id)}
               logActions={logActions}
               formatTime={formatTime}
               detailSessionId={detail?.practitionerId === p.practitioner_id ? detail.sessionId : null}
