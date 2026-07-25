@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { BillingBatchReview } from '@/components/BillingBatchReview';
 import {
   Search, ChevronRight, ChevronDown, Download, Check, X, Undo2,
   Ban, Clock, Lock, CheckCircle2, CircleAlert, PauseCircle, PlayCircle, MessageSquareText,
@@ -117,6 +118,15 @@ export const BillingManager = () => {
 
   // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history' | 'status'
+
+  // --- PENDING BILLS BETA VIEW TOGGLE ---
+  // Opt-in alternate UI for Pending Bills (master-detail Batch Review), wired
+  // to the exact same endpoints/handlers as the legacy table below — this is
+  // purely a different presentation layer, not a second workflow. Persisted
+  // per-browser so a specialist's choice sticks across reloads without
+  // affecting anyone else or changing any default/prod behavior.
+  const [pendingBetaMode, setPendingBetaMode] = useState(() => localStorage.getItem('billing_pending_beta') === 'true');
+  useEffect(() => { localStorage.setItem('billing_pending_beta', pendingBetaMode ? 'true' : 'false'); }, [pendingBetaMode]);
 
   // --- PENDING QUEUE STATE ---
   const [practitionerLogs, setPractitionerLogs] = useState([]);
@@ -437,36 +447,36 @@ export const BillingManager = () => {
 
   const handleActionSubmit = async () => {
     if (!actionModal || !actionNote.trim()) return;
+    // `sessions` covers bulk (multiple logs, one shared note, e.g. from the
+    // Batch Review beta's bulk toolbar); single-session call sites just pass
+    // `session` and get a one-element array here, unchanged from before.
+    const sessions = actionModal.sessions || [actionModal.session];
+    const newStatus = actionModal.type === 'return' ? 'rejected' : 'declined';
     setIsSubmitting(true);
     try {
-      await api.post('/api/billing/reject-log', {
-        assessmentId: actionModal.session.id,
-        note: actionNote,
-        type: actionModal.type
+      await Promise.all(sessions.map(s =>
+        api.post('/api/billing/reject-log', { assessmentId: s.id, note: actionNote, type: actionModal.type })
+      ));
+      setExpandedLogs(prev => ({
+        ...prev,
+        [actionModal.practitionerId]: (prev[actionModal.practitionerId] || []).map(l =>
+          sessions.some(s => s.id === l.id) ? { ...l, billing_status: newStatus, billing_review: actionModal.type } : l
+        )
+      }));
+      setLogActions(prev => {
+        const next = { ...prev };
+        sessions.forEach(s => { next[s.id] = actionModal.type; });
+        return next;
       });
-      if (actionModal.type === 'return') {
-        // Stay in list as grayed-out "Awaiting Revision" — practitioner must correct and resubmit
-        setExpandedLogs(prev => ({
-          ...prev,
-          [actionModal.practitionerId]: (prev[actionModal.practitionerId] || []).map(l =>
-            l.id === actionModal.session.id ? { ...l, billing_status: 'rejected', billing_review: 'return' } : l
-          )
-        }));
-      } else {
-        // Stay in list as grayed-out "Excluded" — permanently rejected, not included in report
-        setExpandedLogs(prev => ({
-          ...prev,
-          [actionModal.practitionerId]: (prev[actionModal.practitionerId] || []).map(l =>
-            l.id === actionModal.session.id ? { ...l, billing_status: 'declined', billing_review: 'reject' } : l
-          )
-        }));
-      }
-      setLogActions(prev => ({ ...prev, [actionModal.session.id]: actionModal.type }));
       fetchLogs();
       setActionModal(null);
       setActionNote('');
     } catch (error) {
-      setLogActions(prev => ({ ...prev, [actionModal.session.id]: '' }));
+      setLogActions(prev => {
+        const next = { ...prev };
+        sessions.forEach(s => { next[s.id] = ''; });
+        return next;
+      });
       console.error('Failed to process action', error);
     } finally {
       setIsSubmitting(false);
@@ -926,6 +936,27 @@ export const BillingManager = () => {
       {/* TAB 1: PENDING BILLS */}
       {activeTab === 'pending' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          {/* Beta view toggle — additive only, does not touch the filter bar or table below */}
+          <div className="px-7 py-2.5 border-b border-slate-100 bg-violet-50/60 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-violet-700">
+              <span className="font-bold uppercase tracking-wide bg-violet-100 border border-violet-200 rounded-full px-2 py-0.5">Beta</span>
+              <span className="font-medium">Try the new Batch Review layout for this queue — same data, same actions, different view.</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={pendingBetaMode}
+              onClick={() => setPendingBetaMode(v => !v)}
+              className={`cursor-pointer relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+                pendingBetaMode ? 'bg-violet-600' : 'bg-slate-300'
+              }`}
+            >
+              <span className={`inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow transition-transform ${
+                pendingBetaMode ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+
           <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Search Practitioners</Label>
@@ -948,6 +979,33 @@ export const BillingManager = () => {
             </div>
           </div>
 
+          {pendingBetaMode ? (
+            <BillingBatchReview
+              practitioners={filteredLogs}
+              expandedLogs={expandedLogs}
+              loadingExpand={loadingExpand}
+              fetchExpandedLogsFor={fetchExpandedLogsFor}
+              currentUserId={currentUserId}
+              isAdmin={isAdmin}
+              processingLogId={processingLogId}
+              processingId={processingId}
+              logActions={logActions}
+              setLogActions={setLogActions}
+              handleLock={handleLock}
+              handleRelease={handleRelease}
+              handleAccept={handleAccept}
+              handleHold={handleHold}
+              handleReleaseHold={handleReleaseHold}
+              handleReconcile={handleReconcile}
+              setActionModal={setActionModal}
+              setActionNote={setActionNote}
+              openNotesModal={openNotesModal}
+              handleGenerateAndIssue={handleGenerateAndIssue}
+              handleSendToCompleted={handleSendToCompleted}
+              pushToast={pushToast}
+              formatTime={formatTime}
+            />
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse tabular-nums">
               <caption className="sr-only">Pending practitioner billing queue</caption>
@@ -1369,6 +1427,7 @@ export const BillingManager = () => {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
 
@@ -1383,15 +1442,21 @@ export const BillingManager = () => {
           {actionModal && (
             <>
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm space-y-1">
-                <div className="font-semibold text-slate-800">
-                  {actionModal.session.patient_first_name} {actionModal.session.patient_last_name}
-                </div>
-                <div className="text-slate-500 tabular-nums">
-                  {actionModal.session.service_date
-                    ? new Date(actionModal.session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                    : '-'}
-                  {' · '}{actionModal.session.type || '-'}
-                </div>
+                {actionModal.sessions && actionModal.sessions.length > 1 ? (
+                  <div className="font-semibold text-slate-800">{actionModal.sessions.length} logs selected</div>
+                ) : (
+                  <>
+                    <div className="font-semibold text-slate-800">
+                      {actionModal.session.patient_first_name} {actionModal.session.patient_last_name}
+                    </div>
+                    <div className="text-slate-500 tabular-nums">
+                      {actionModal.session.service_date
+                        ? new Date(actionModal.session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                        : '-'}
+                      {' · '}{actionModal.session.type || '-'}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">
