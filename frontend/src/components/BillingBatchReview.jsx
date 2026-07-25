@@ -4,8 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
-  Ban, Clock, MessageSquareText, CheckCircle2, Sparkles,
+  Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
 } from 'lucide-react';
+
+// Matches BillingManager.jsx's own formatMonthLabel — batches are keyed by
+// "YYYY-MM" (batch.start_date sliced), shown here as e.g. "Jun 2026".
+const formatMonthLabel = (monthKey) => {
+  const [y, m] = monthKey.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
 
 // --- Beta "Batch Review" view for Pending Bills: a master-detail layout
 // (a scrollable list of ALL practitioners with pending logs on the left —
@@ -298,6 +305,36 @@ function PractitionerGroup({
                     </div>
                   );
                 })}
+
+                {(practitioner.sevf_documents?.length > 0 || practitioner.invoice_documents?.length > 0) && (
+                  <div className="px-3 py-2.5 bg-slate-50 border-t border-slate-200">
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1.5">Generated documents</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {practitioner.sevf_documents?.map(doc => (
+                        <a
+                          key={`sevf-${doc.month}`}
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                        >
+                          <Download className="size-3" /> SEVF · {formatMonthLabel(doc.month)}
+                        </a>
+                      ))}
+                      {practitioner.invoice_documents?.map(doc => (
+                        <a
+                          key={`inv-${doc.month}`}
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          <Download className="size-3" /> Invoice · {formatMonthLabel(doc.month)}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-800 text-white flex-wrap">
                   <div className="flex gap-3 text-[10px] text-white/60 flex-wrap">
