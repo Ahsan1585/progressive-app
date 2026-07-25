@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -8,11 +8,13 @@ import {
 } from 'lucide-react';
 
 // --- Beta "Batch Review" view for Pending Bills: a master-detail layout
-// (practitioner search + session queue on the left, session detail with
-// one-click actions on the right) over the exact same data/handlers the
-// legacy table already uses — this is a presentation layer, not a second
-// workflow. Every action here calls the same functions passed down from
-// BillingManager, which call the same backend endpoints either way.
+// (a scrollable list of ALL practitioners with pending logs on the left —
+// same as the legacy table, just laid out as collapsible/lockable groups —
+// and session detail with one-click actions on the right) over the exact
+// same data/handlers the legacy table already uses. Every action here calls
+// the same functions passed down from BillingManager, which call the same
+// backend endpoints either way — this is a presentation layer, not a
+// second workflow.
 export const BillingBatchReview = ({
   practitioners, expandedLogs, loadingExpand, fetchExpandedLogsFor,
   currentUserId, isAdmin, processingLogId, processingId,
@@ -22,110 +24,95 @@ export const BillingBatchReview = ({
   handleGenerateAndIssue, handleSendToCompleted, pushToast, formatTime,
 }) => {
   const [practitionerSearch, setPractitionerSearch] = useState('');
-  const [showResults, setShowResults] = useState(false);
-  const [selectedPractitionerId, setSelectedPractitionerId] = useState(null);
-  const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [multiSelected, setMultiSelected] = useState(new Set());
-  const [groupExpanded, setGroupExpanded] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [detail, setDetail] = useState(null); // { practitionerId, sessionId } | null
+  const [multiSelect, setMultiSelect] = useState(null); // { practitionerId, ids: Set } | null
   const [detailTab, setDetailTab] = useState('session'); // 'session' | 'analysis'
-
-  // Keep a valid practitioner selected as the (filtered) list changes.
-  useEffect(() => {
-    if (practitioners.length === 0) { setSelectedPractitionerId(null); return; }
-    if (!practitioners.some(p => p.practitioner_id === selectedPractitionerId)) {
-      setSelectedPractitionerId(practitioners[0].practitioner_id);
-    }
-  }, [practitioners]);
-
-  const selectedPractitioner = practitioners.find(p => p.practitioner_id === selectedPractitionerId) || null;
-  const sessions = selectedPractitionerId ? (expandedLogs[selectedPractitionerId] || []) : [];
-  const isLockedByMe = !!selectedPractitioner?.locked_by_id && selectedPractitioner.locked_by_id === currentUserId;
-  const isLockedByOther = !!selectedPractitioner?.locked_by_id && selectedPractitioner.locked_by_id !== currentUserId;
-  const isLoadingSessions = selectedPractitionerId ? loadingExpand.has(selectedPractitionerId) : false;
-  const readyToComplete = selectedPractitioner?.sevf_documents?.length > 0 && selectedPractitioner?.invoice_documents?.length > 0;
-
-  // The legacy table only ever fetches a practitioner's session queue in
-  // response to a click (Lock or the expand chevron). That leaves a gap
-  // here: if a practitioner is *already* locked to the current user when
-  // this view loads (e.g. a page refresh mid-review, or they lock via the
-  // search result before the effect below runs), nothing ever triggers the
-  // fetch and the queue silently shows "No individual logs found." even
-  // though real sessions exist. Cover that case explicitly.
-  useEffect(() => {
-    if (isLockedByMe && selectedPractitionerId && expandedLogs[selectedPractitionerId] === undefined && !loadingExpand.has(selectedPractitionerId)) {
-      fetchExpandedLogsFor(selectedPractitionerId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLockedByMe, selectedPractitionerId, expandedLogs]);
-
-  // Keep a valid session selected as this practitioner's queue changes.
-  useEffect(() => {
-    setMultiSelected(new Set());
-    if (sessions.length === 0) { setSelectedSessionId(null); return; }
-    if (!sessions.some(s => s.id === selectedSessionId)) setSelectedSessionId(sessions[0].id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPractitionerId, sessions.length]);
-
-  const selectedSession = sessions.find(s => s.id === selectedSessionId) || null;
 
   const filteredPractitioners = practitioners.filter(p =>
     `${p.first_name} ${p.last_name}`.toLowerCase().includes(practitionerSearch.toLowerCase()) ||
     p.practitioner_id?.toString().includes(practitionerSearch)
   );
 
-  const selectPractitioner = (id) => {
-    setSelectedPractitionerId(id);
-    setSelectedSessionId(null);
-    setMultiSelected(new Set());
-    setDetailTab('session');
-    setPractitionerSearch('');
-    setShowResults(false);
-  };
+  // A practitioner already locked to the current user (from a previous
+  // visit, a page refresh mid-review, etc.) should show open and populated
+  // without requiring a manual click — otherwise the queue silently looks
+  // empty even though real sessions exist. Auto-expand + fetch each one
+  // exactly once (autoHandledRef prevents re-forcing a group back open
+  // after the user deliberately collapses it).
+  const autoHandledRef = useRef(new Set());
+  useEffect(() => {
+    practitioners.forEach(p => {
+      const isLockedByMe = p.locked_by_id && p.locked_by_id === currentUserId;
+      if (!isLockedByMe || autoHandledRef.current.has(p.practitioner_id)) return;
+      autoHandledRef.current.add(p.practitioner_id);
+      setExpandedGroups(prev => new Set(prev).add(p.practitioner_id));
+      if (expandedLogs[p.practitioner_id] === undefined && !loadingExpand.has(p.practitioner_id)) {
+        fetchExpandedLogsFor(p.practitioner_id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [practitioners]);
 
-  const toggleMulti = (id) => {
-    setMultiSelected(prev => {
+  const toggleGroup = (practitionerId) => {
+    setExpandedGroups(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(practitionerId) ? next.delete(practitionerId) : next.add(practitionerId);
       return next;
     });
   };
 
-  const selectedSessionObjs = sessions.filter(s => multiSelected.has(s.id));
+  const onLock = async (practitionerId) => {
+    await handleLock(practitionerId);
+    setExpandedGroups(prev => new Set(prev).add(practitionerId));
+  };
+
+  const selectSession = (practitionerId, sessionId) => {
+    setDetail({ practitionerId, sessionId });
+    setDetailTab('session');
+    setMultiSelect(null);
+  };
+
+  const toggleMulti = (practitionerId, sessionId) => {
+    setMultiSelect(prev => {
+      if (!prev || prev.practitionerId !== practitionerId) return { practitionerId, ids: new Set([sessionId]) };
+      const ids = new Set(prev.ids);
+      ids.has(sessionId) ? ids.delete(sessionId) : ids.add(sessionId);
+      return ids.size === 0 ? null : { practitionerId, ids };
+    });
+  };
+
+  const detailPractitioner = detail ? practitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
+  const detailSessions = detail ? (expandedLogs[detail.practitionerId] || []) : [];
+  const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
+
+  const multiSessions = multiSelect ? (expandedLogs[multiSelect.practitionerId] || []).filter(s => multiSelect.ids.has(s.id)) : [];
 
   const bulkHold = async () => {
-    const targets = selectedSessionObjs.filter(s => s.billing_status === 'pending');
-    if (targets.length === 0) return;
-    setMultiSelected(new Set());
+    if (!multiSelect) return;
+    const targets = multiSessions.filter(s => s.billing_status === 'pending');
+    const practitionerId = multiSelect.practitionerId;
+    setMultiSelect(null);
     for (const s of targets) {
       // eslint-disable-next-line no-await-in-loop
-      await handleHold(s, selectedPractitionerId);
+      await handleHold(s, practitionerId);
     }
   };
 
   const bulkOpenActionModal = (type) => {
-    const targets = selectedSessionObjs.filter(s => s.billing_status === 'pending');
+    if (!multiSelect) return;
+    const targets = multiSessions.filter(s => s.billing_status === 'pending');
     if (targets.length === 0) return;
-    setActionModal({ session: targets[0], sessions: targets, practitionerId: selectedPractitionerId, type });
+    setActionModal({ session: targets[0], sessions: targets, practitionerId: multiSelect.practitionerId, type });
     setActionNote('');
-    setMultiSelected(new Set());
+    setMultiSelect(null);
   };
-
-  const allLogsReviewed = sessions.length > 0 &&
-    sessions.some(s => !['rejected', 'declined', 'on_hold'].includes(s.billing_status)) &&
-    sessions.every(s => logActions[s.id] || s.billing_review);
-
-  const routingCounts = sessions.reduce((acc, s) => {
-    if (s.billing_status === 'declined') acc.excluded += 1;
-    else if (s.billing_status === 'rejected' || s.billing_status === 'on_hold') acc.heldReturned += 1;
-    else acc.billable += 1;
-    return acc;
-  }, { billable: 0, heldReturned: 0, excluded: 0 });
 
   return (
     <div className="flex h-[640px] max-h-[70vh]">
-      {/* LEFT: practitioner search + session queue */}
+      {/* LEFT: every practitioner with pending logs, as collapsible/lockable groups */}
       <div className="w-80 flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/40">
-        <div className="p-3 border-b border-slate-200 relative">
+        <div className="p-3 border-b border-slate-200">
           <div className="relative">
             <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -133,137 +120,48 @@ export const BillingBatchReview = ({
               placeholder="Search practitioner..."
               className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
               value={practitionerSearch}
-              onChange={(e) => { setPractitionerSearch(e.target.value); setShowResults(true); }}
-              onFocus={() => setShowResults(true)}
-              onBlur={() => setTimeout(() => setShowResults(false), 150)}
+              onChange={(e) => setPractitionerSearch(e.target.value)}
             />
           </div>
-          {showResults && practitionerSearch && (
-            <div className="absolute left-3 right-3 top-14 z-20 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-              {filteredPractitioners.length === 0 ? (
-                <div className="px-3 py-3 text-xs text-slate-400 text-center">No practitioner matches</div>
-              ) : filteredPractitioners.map(p => (
-                <button
-                  key={p.practitioner_id}
-                  type="button"
-                  onMouseDown={() => selectPractitioner(p.practitioner_id)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between gap-2 cursor-pointer"
-                >
-                  <span className="font-semibold text-slate-800 capitalize">{p.first_name} {p.last_name}</span>
-                  <span className="text-xs text-slate-400">{p.total_interventions} logs</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
-        {!selectedPractitioner ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-slate-400 px-6 text-center">No active workflows pending.</div>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setGroupExpanded(v => !v)}
-              className="flex items-center gap-2.5 px-3 py-3 border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer text-left"
-            >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                {`${selectedPractitioner.first_name?.[0] || ''}${selectedPractitioner.last_name?.[0] || ''}`.toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm text-slate-800 capitalize truncate">{selectedPractitioner.first_name} {selectedPractitioner.last_name}</div>
-                <div className="text-xs text-slate-400">{selectedPractitioner.total_interventions} sessions</div>
-              </div>
-              <ChevronDown className={`size-4 text-slate-400 transition-transform flex-shrink-0 ${groupExpanded ? '' : '-rotate-90'}`} />
-            </button>
-
-            <div className="px-3 py-2.5 border-b border-slate-200 bg-white">
-              {isLockedByOther ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
-                    <Lock className="size-3" /> Locked by {selectedPractitioner.locked_by_name}
-                  </span>
-                  {isAdmin && (
-                    <button onClick={() => handleRelease(selectedPractitionerId)} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Force Release</button>
-                  )}
-                </div>
-              ) : isLockedByMe ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2.5 py-1">
-                    <Lock className="size-3" /> Locked to you
-                  </span>
-                  <button onClick={() => handleRelease(selectedPractitionerId)} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Release</button>
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => handleLock(selectedPractitionerId)} className="w-full gap-1.5 cursor-pointer">
-                  <Lock className="size-3.5" /> Lock to Review
-                </Button>
-              )}
+        <div className="flex-1 overflow-y-auto">
+          {filteredPractitioners.length === 0 ? (
+            <div className="p-6 text-center text-sm text-slate-400">
+              {practitioners.length === 0 ? 'No active workflows pending.' : 'No practitioner matches your search.'}
             </div>
-
-            {isLockedByMe && groupExpanded && (
-              <div className="flex-1 overflow-y-auto">
-                {isLoadingSessions ? (
-                  <div className="p-4 text-center text-xs text-slate-400">Loading sessions...</div>
-                ) : sessions.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-400">No individual logs found.</div>
-                ) : sessions.map(s => {
-                  const isDeclined = s.billing_status === 'declined';
-                  const isReturned = s.billing_status === 'rejected';
-                  const isOnHold = s.billing_status === 'on_hold';
-                  const isApproved = logActions[s.id] === 'accept' || s.billing_review === 'accept' || (s.billing_status === 'pending' && s.billing_review === 'accept');
-                  const dotColor = isDeclined ? 'bg-red-400' : isReturned ? 'bg-amber-400' : isOnHold ? 'bg-violet-400'
-                    : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
-                  const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
-                  const statusLabelClasses = isDeclined ? 'bg-red-50 text-red-600'
-                    : isReturned ? 'bg-amber-50 text-amber-600'
-                    : isOnHold ? 'bg-violet-50 text-violet-600'
-                    : isApproved ? 'bg-emerald-50 text-emerald-600'
-                    : 'bg-slate-100 text-slate-500';
-                  return (
-                    <div
-                      key={s.id}
-                      onClick={() => { setSelectedSessionId(s.id); setDetailTab('session'); }}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 border-b border-slate-100 cursor-pointer transition-colors ${
-                        selectedSessionId === s.id && multiSelected.size === 0 ? 'bg-blue-50' : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={multiSelected.has(s.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => toggleMulti(s.id)}
-                        className="cursor-pointer flex-shrink-0"
-                      />
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-slate-800 truncate">{s.patient_first_name} {s.patient_last_name}</div>
-                        <div className="text-[10px] text-slate-400 flex items-center gap-1 flex-wrap mt-0.5">
-                          {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
-                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Status">S:{s.status || '-'}</span>
-                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Type">{s.type || '-'}</span>
-                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Location">L:{s.location || '-'}</span>
-                          <span className={`font-bold uppercase rounded px-1 ${statusLabelClasses}`}>{statusLabel}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className="text-[10px] font-bold text-slate-500">{formatTime(s.total_time)}</span>
-                        {s.notes_count > 0 && <MessageSquareText className="size-3 text-slate-400" />}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
+          ) : filteredPractitioners.map(p => (
+            <PractitionerGroup
+              key={p.practitioner_id}
+              practitioner={p}
+              isExpanded={expandedGroups.has(p.practitioner_id)}
+              onToggle={() => toggleGroup(p.practitioner_id)}
+              sessions={expandedLogs[p.practitioner_id] || []}
+              isLoadingSessions={loadingExpand.has(p.practitioner_id)}
+              currentUserId={currentUserId}
+              isAdmin={isAdmin}
+              onLock={() => onLock(p.practitioner_id)}
+              onRelease={() => handleRelease(p.practitioner_id)}
+              logActions={logActions}
+              formatTime={formatTime}
+              detailSessionId={detail?.practitionerId === p.practitioner_id ? detail.sessionId : null}
+              multiSelectIds={multiSelect?.practitionerId === p.practitioner_id ? multiSelect.ids : null}
+              onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
+              onToggleMulti={(sessionId) => toggleMulti(p.practitioner_id, sessionId)}
+              processingId={processingId}
+              handleGenerateAndIssue={handleGenerateAndIssue}
+              handleSendToCompleted={handleSendToCompleted}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* RIGHT: detail panel */}
+      {/* RIGHT: detail panel for whichever session was last clicked */}
       <div className="flex-1 flex flex-col min-w-0">
-        {multiSelected.size > 0 ? (
+        {multiSelect && multiSelect.ids.size > 0 ? (
           <div className="flex-1 flex flex-col">
             <div className="flex items-center justify-between gap-3 px-5 py-3 bg-slate-800 text-white">
-              <span className="text-sm font-bold">{multiSelected.size} selected</span>
+              <span className="text-sm font-bold">{multiSelect.ids.size} selected</span>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="outline" onClick={bulkOpenActionModal.bind(null, 'return')} className="cursor-pointer bg-transparent border-white/25 text-white hover:bg-white/10 gap-1.5">
                   <Undo2 className="size-3.5" /> Return
@@ -274,19 +172,17 @@ export const BillingBatchReview = ({
                 <Button size="sm" variant="outline" onClick={bulkHold} className="cursor-pointer bg-transparent border-white/25 text-white hover:bg-white/10 gap-1.5">
                   <Clock className="size-3.5" /> Hold
                 </Button>
-                <button onClick={() => setMultiSelected(new Set())} className="text-xs underline text-white/70 hover:text-white cursor-pointer ml-1">Clear</button>
+                <button onClick={() => setMultiSelect(null)} className="text-xs underline text-white/70 hover:text-white cursor-pointer ml-1">Clear</button>
               </div>
             </div>
             <div className="flex-1 flex items-center justify-center text-sm text-slate-400 px-8 text-center">
               Approve isn't available in bulk — review and approve each log individually from the queue.
             </div>
           </div>
-        ) : !isLockedByMe ? (
+        ) : !detailSession ? (
           <div className="flex-1 flex items-center justify-center text-sm text-slate-400 px-8 text-center">
-            {isLockedByOther ? `Locked by ${selectedPractitioner?.locked_by_name} — wait for them to finish or release it.` : 'Lock this practitioner to begin reviewing their logs.'}
+            {practitioners.length === 0 ? 'No active workflows pending.' : 'Select a session from the queue on the left.'}
           </div>
-        ) : !selectedSession ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-slate-400 px-8 text-center">Select a session from the queue.</div>
         ) : (
           <div className="flex-1 overflow-y-auto p-6">
             <div className="flex gap-1 border-b border-slate-200 mb-5">
@@ -309,11 +205,11 @@ export const BillingBatchReview = ({
             </div>
 
             {detailTab === 'analysis' ? (
-              <ComplianceAnalysisPreview sessions={sessions} practitioner={selectedPractitioner} />
+              <ComplianceAnalysisPreview sessions={detailSessions} practitioner={detailPractitioner} />
             ) : (
               <SessionDetailPanel
-                session={selectedSession}
-                practitionerId={selectedPractitionerId}
+                session={detailSession}
+                practitionerId={detail.practitionerId}
                 logActions={logActions}
                 setLogActions={setLogActions}
                 processingLogId={processingLogId}
@@ -329,39 +225,169 @@ export const BillingBatchReview = ({
             )}
           </div>
         )}
-
-        {isLockedByMe && sessions.length > 0 && (
-          <div className="flex items-center justify-between gap-4 px-5 py-3 border-t border-slate-200 bg-slate-800 text-white flex-wrap">
-            <div className="flex gap-4 text-[11px] text-white/60 flex-wrap">
-              <span><b className="text-white">{routingCounts.billable}</b> billable → Completed Bills</span>
-              <span><b className="text-white">{routingCounts.heldReturned}</b> held/returned → stays in Pending</span>
-              <span><b className="text-white">{routingCounts.excluded}</b> excluded (rejected)</span>
-            </div>
-            {readyToComplete ? (
-              <Button
-                size="sm"
-                onClick={() => handleSendToCompleted(selectedPractitionerId)}
-                disabled={processingId === selectedPractitionerId}
-                className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-              >
-                <CheckCircle2 className="size-4" /> {processingId === selectedPractitionerId ? 'Sending...' : 'Send to Completed Bills'}
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => handleGenerateAndIssue(selectedPractitionerId)}
-                disabled={!allLogsReviewed || processingId === selectedPractitionerId}
-                className={`cursor-pointer gap-1.5 ${allLogsReviewed ? 'bg-white text-slate-800 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
-              >
-                {processingId === selectedPractitionerId ? 'Generating...' : 'Generate & Issue'}
-              </Button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
 };
+
+// --- One practitioner's group in the left list: header (avatar/name/count),
+// lock state, and — once locked to you and expanded — its session queue
+// plus a per-practitioner Generate & Issue / Send to Completed Bills bar,
+// mirroring the legacy table's per-row action column. ---
+function PractitionerGroup({
+  practitioner, isExpanded, onToggle, sessions, isLoadingSessions,
+  currentUserId, isAdmin, onLock, onRelease, logActions, formatTime,
+  detailSessionId, multiSelectIds, onSelectSession, onToggleMulti,
+  processingId, handleGenerateAndIssue, handleSendToCompleted,
+}) {
+  const isLockedByMe = !!practitioner.locked_by_id && practitioner.locked_by_id === currentUserId;
+  const isLockedByOther = !!practitioner.locked_by_id && practitioner.locked_by_id !== currentUserId;
+  const readyToComplete = practitioner.sevf_documents?.length > 0 && practitioner.invoice_documents?.length > 0;
+  const allLogsReviewed = sessions.length > 0 &&
+    sessions.some(s => !['rejected', 'declined', 'on_hold'].includes(s.billing_status)) &&
+    sessions.every(s => logActions[s.id] || s.billing_review);
+  const routingCounts = sessions.reduce((acc, s) => {
+    if (s.billing_status === 'declined') acc.excluded += 1;
+    else if (s.billing_status === 'rejected' || s.billing_status === 'on_hold') acc.heldReturned += 1;
+    else acc.billable += 1;
+    return acc;
+  }, { billable: 0, heldReturned: 0, excluded: 0 });
+
+  return (
+    <div className="border-b border-slate-200">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-2.5 px-3 py-3 bg-white hover:bg-slate-50 transition-colors cursor-pointer text-left"
+      >
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+          {`${practitioner.first_name?.[0] || ''}${practitioner.last_name?.[0] || ''}`.toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-sm text-slate-800 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
+          <div className="text-xs text-slate-400">{practitioner.total_interventions} sessions</div>
+        </div>
+        {isLockedByMe && <Lock className="size-3 text-teal-500 flex-shrink-0" />}
+        {isLockedByOther && <Lock className="size-3 text-amber-500 flex-shrink-0" />}
+        <ChevronDown className={`size-4 text-slate-400 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
+      </button>
+
+      {isExpanded && (
+        <>
+          <div className="px-3 py-2.5 bg-white border-t border-slate-100">
+            {isLockedByOther ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                  <Lock className="size-3" /> Locked by {practitioner.locked_by_name}
+                </span>
+                {isAdmin && (
+                  <button onClick={onRelease} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Force Release</button>
+                )}
+              </div>
+            ) : isLockedByMe ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2.5 py-1">
+                  <Lock className="size-3" /> Locked to you
+                </span>
+                <button onClick={onRelease} className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Release</button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" onClick={onLock} className="w-full gap-1.5 cursor-pointer">
+                <Lock className="size-3.5" /> Lock to Review
+              </Button>
+            )}
+          </div>
+
+          {isLockedByMe && (
+            isLoadingSessions ? (
+              <div className="p-4 text-center text-xs text-slate-400">Loading sessions...</div>
+            ) : sessions.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400">No individual logs found.</div>
+            ) : (
+              <>
+                {sessions.map(s => {
+                  const isDeclined = s.billing_status === 'declined';
+                  const isReturned = s.billing_status === 'rejected';
+                  const isOnHold = s.billing_status === 'on_hold';
+                  const isApproved = logActions[s.id] === 'accept' || s.billing_review === 'accept';
+                  const dotColor = isDeclined ? 'bg-red-400' : isReturned ? 'bg-amber-400' : isOnHold ? 'bg-violet-400'
+                    : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
+                  const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
+                  const statusLabelClasses = isDeclined ? 'bg-red-50 text-red-600'
+                    : isReturned ? 'bg-amber-50 text-amber-600'
+                    : isOnHold ? 'bg-violet-50 text-violet-600'
+                    : isApproved ? 'bg-emerald-50 text-emerald-600'
+                    : 'bg-slate-100 text-slate-500';
+                  const isSelected = detailSessionId === s.id;
+                  const isMultiSelected = !!multiSelectIds?.has(s.id);
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => onSelectSession(s.id)}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 border-t border-slate-100 cursor-pointer transition-colors ${
+                        isSelected && !isMultiSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isMultiSelected}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => onToggleMulti(s.id)}
+                        className="cursor-pointer flex-shrink-0"
+                      />
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-slate-800 truncate">{s.patient_first_name} {s.patient_last_name}</div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1 flex-wrap mt-0.5">
+                          {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
+                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Status">S:{s.status || '-'}</span>
+                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Type">{s.type || '-'}</span>
+                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Location">L:{s.location || '-'}</span>
+                          <span className={`font-bold uppercase rounded px-1 ${statusLabelClasses}`}>{statusLabel}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[10px] font-bold text-slate-500">{formatTime(s.total_time)}</span>
+                        {s.notes_count > 0 && <MessageSquareText className="size-3 text-slate-400" />}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-800 text-white flex-wrap">
+                  <div className="flex gap-3 text-[10px] text-white/60 flex-wrap">
+                    <span><b className="text-white">{routingCounts.billable}</b> billable</span>
+                    <span><b className="text-white">{routingCounts.heldReturned}</b> held/returned</span>
+                    <span><b className="text-white">{routingCounts.excluded}</b> excluded</span>
+                  </div>
+                  {readyToComplete ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleSendToCompleted(practitioner.practitioner_id)}
+                      disabled={processingId === practitioner.practitioner_id}
+                      className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    >
+                      <CheckCircle2 className="size-3.5" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => handleGenerateAndIssue(practitioner.practitioner_id)}
+                      disabled={!allLogsReviewed || processingId === practitioner.practitioner_id}
+                      className={`cursor-pointer gap-1.5 ${allLogsReviewed ? 'bg-white text-slate-800 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
+                    >
+                      {processingId === practitioner.practitioner_id ? 'Generating...' : 'Generate & Issue'}
+                    </Button>
+                  )}
+                </div>
+              </>
+            )
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 // --- Session Detail: fields + one-click actions, same status logic as the
 // legacy table's expanded row (isDeclined/isReturned/isOnHold/isLocked). ---
