@@ -3,7 +3,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
-  Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
+  Search, ChevronDown, Lock, PlayCircle, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles,
 } from 'lucide-react';
 
@@ -26,7 +26,6 @@ export const BillingBatchReview = ({
   const [practitionerSearch, setPractitionerSearch] = useState('');
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [detail, setDetail] = useState(null); // { practitionerId, sessionId } | null
-  const [multiSelect, setMultiSelect] = useState(null); // { practitionerId, ids: Set } | null
   const [detailTab, setDetailTab] = useState('session'); // 'session' | 'analysis'
 
   const filteredPractitioners = practitioners.filter(p =>
@@ -70,43 +69,11 @@ export const BillingBatchReview = ({
   const selectSession = (practitionerId, sessionId) => {
     setDetail({ practitionerId, sessionId });
     setDetailTab('session');
-    setMultiSelect(null);
-  };
-
-  const toggleMulti = (practitionerId, sessionId) => {
-    setMultiSelect(prev => {
-      if (!prev || prev.practitionerId !== practitionerId) return { practitionerId, ids: new Set([sessionId]) };
-      const ids = new Set(prev.ids);
-      ids.has(sessionId) ? ids.delete(sessionId) : ids.add(sessionId);
-      return ids.size === 0 ? null : { practitionerId, ids };
-    });
   };
 
   const detailPractitioner = detail ? practitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
   const detailSessions = detail ? (expandedLogs[detail.practitionerId] || []) : [];
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
-
-  const multiSessions = multiSelect ? (expandedLogs[multiSelect.practitionerId] || []).filter(s => multiSelect.ids.has(s.id)) : [];
-
-  const bulkHold = async () => {
-    if (!multiSelect) return;
-    const targets = multiSessions.filter(s => s.billing_status === 'pending');
-    const practitionerId = multiSelect.practitionerId;
-    setMultiSelect(null);
-    for (const s of targets) {
-      // eslint-disable-next-line no-await-in-loop
-      await handleHold(s, practitionerId);
-    }
-  };
-
-  const bulkOpenActionModal = (type) => {
-    if (!multiSelect) return;
-    const targets = multiSessions.filter(s => s.billing_status === 'pending');
-    if (targets.length === 0) return;
-    setActionModal({ session: targets[0], sessions: targets, practitionerId: multiSelect.practitionerId, type });
-    setActionNote('');
-    setMultiSelect(null);
-  };
 
   return (
     <div className="flex h-[640px] max-h-[70vh]">
@@ -145,9 +112,7 @@ export const BillingBatchReview = ({
               logActions={logActions}
               formatTime={formatTime}
               detailSessionId={detail?.practitionerId === p.practitioner_id ? detail.sessionId : null}
-              multiSelectIds={multiSelect?.practitionerId === p.practitioner_id ? multiSelect.ids : null}
               onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
-              onToggleMulti={(sessionId) => toggleMulti(p.practitioner_id, sessionId)}
               processingId={processingId}
               handleGenerateAndIssue={handleGenerateAndIssue}
               handleSendToCompleted={handleSendToCompleted}
@@ -158,28 +123,7 @@ export const BillingBatchReview = ({
 
       {/* RIGHT: detail panel for whichever session was last clicked */}
       <div className="flex-1 flex flex-col min-w-0">
-        {multiSelect && multiSelect.ids.size > 0 ? (
-          <div className="flex-1 flex flex-col">
-            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-slate-800 text-white">
-              <span className="text-sm font-bold">{multiSelect.ids.size} selected</span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={bulkOpenActionModal.bind(null, 'return')} className="cursor-pointer bg-transparent border-white/25 text-white hover:bg-white/10 gap-1.5">
-                  <Undo2 className="size-3.5" /> Return
-                </Button>
-                <Button size="sm" variant="outline" onClick={bulkOpenActionModal.bind(null, 'reject')} className="cursor-pointer bg-transparent border-white/25 text-white hover:bg-white/10 gap-1.5">
-                  <X className="size-3.5" /> Reject
-                </Button>
-                <Button size="sm" variant="outline" onClick={bulkHold} className="cursor-pointer bg-transparent border-white/25 text-white hover:bg-white/10 gap-1.5">
-                  <Clock className="size-3.5" /> Hold
-                </Button>
-                <button onClick={() => setMultiSelect(null)} className="text-xs underline text-white/70 hover:text-white cursor-pointer ml-1">Clear</button>
-              </div>
-            </div>
-            <div className="flex-1 flex items-center justify-center text-sm text-slate-400 px-8 text-center">
-              Approve isn't available in bulk — review and approve each log individually from the queue.
-            </div>
-          </div>
-        ) : !detailSession ? (
+        {!detailSession ? (
           <div className="flex-1 flex items-center justify-center text-sm text-slate-400 px-8 text-center">
             {practitioners.length === 0 ? 'No active workflows pending.' : 'Select a session from the queue on the left.'}
           </div>
@@ -237,7 +181,7 @@ export const BillingBatchReview = ({
 function PractitionerGroup({
   practitioner, isExpanded, onToggle, sessions, isLoadingSessions,
   currentUserId, isAdmin, onLock, onRelease, logActions, formatTime,
-  detailSessionId, multiSelectIds, onSelectSession, onToggleMulti,
+  detailSessionId, onSelectSession,
   processingId, handleGenerateAndIssue, handleSendToCompleted,
 }) {
   const isLockedByMe = !!practitioner.locked_by_id && practitioner.locked_by_id === currentUserId;
@@ -319,34 +263,35 @@ function PractitionerGroup({
                     : isApproved ? 'bg-emerald-50 text-emerald-600'
                     : 'bg-slate-100 text-slate-500';
                   const isSelected = detailSessionId === s.id;
-                  const isMultiSelected = !!multiSelectIds?.has(s.id);
                   return (
                     <div
                       key={s.id}
                       onClick={() => onSelectSession(s.id)}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 border-t border-slate-100 cursor-pointer transition-colors ${
-                        isSelected && !isMultiSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
+                      className={`grid grid-cols-[1fr_auto_auto] items-center gap-3 px-3 py-2.5 border-t border-slate-100 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
                       }`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isMultiSelected}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => onToggleMulti(s.id)}
-                        className="cursor-pointer flex-shrink-0"
-                      />
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-slate-800 truncate">{s.patient_first_name} {s.patient_last_name}</div>
-                        <div className="text-[10px] text-slate-400 flex items-center gap-1 flex-wrap mt-0.5">
-                          {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
-                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Status">S:{s.status || '-'}</span>
-                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Type">{s.type || '-'}</span>
-                          <span className="font-mono bg-slate-100 border border-slate-200 rounded px-1" title="Service Location">L:{s.location || '-'}</span>
-                          <span className={`font-bold uppercase rounded px-1 ${statusLabelClasses}`}>{statusLabel}</span>
+                      {/* Column 1: patient + date */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-800 truncate">{s.patient_first_name} {s.patient_last_name}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+
+                      {/* Column 2: service codes */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className="font-mono text-[10px] bg-slate-100 border border-slate-200 rounded px-1" title="Service Status">S:{s.status || '-'}</span>
+                        <span className="font-mono text-[10px] bg-slate-100 border border-slate-200 rounded px-1" title="Service Type">{s.type || '-'}</span>
+                        <span className="font-mono text-[10px] bg-slate-100 border border-slate-200 rounded px-1" title="Service Location">L:{s.location || '-'}</span>
+                      </div>
+
+                      {/* Column 3: status + duration, same line */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap">
+                        <span className={`text-[10px] font-bold uppercase rounded px-1 ${statusLabelClasses}`}>{statusLabel}</span>
                         <span className="text-[10px] font-bold text-slate-500">{formatTime(s.total_time)}</span>
                         {s.notes_count > 0 && <MessageSquareText className="size-3 text-slate-400" />}
                       </div>
@@ -478,12 +423,7 @@ function SessionDetailPanel({
           <PlayCircle className="size-4" /> Release from Hold
         </Button>
       ) : (
-        <div className="grid grid-cols-4 gap-2.5 mb-4">
-          <ActionButton
-            label="Approve" active={logActions[session.id] === 'accept'} tone="emerald"
-            icon={<Check className="size-4" />}
-            onClick={() => { setLogActions(prev => ({ ...prev, [session.id]: 'accept' })); handleAccept(session, practitionerId); }}
-          />
+        <div className="grid grid-cols-3 gap-2.5 mb-4">
           <ActionButton
             label="Return" active={logActions[session.id] === 'return'} tone="blue"
             icon={<Undo2 className="size-4" />}
