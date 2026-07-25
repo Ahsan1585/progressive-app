@@ -172,9 +172,13 @@ const getAuditLogs = async (req, res) => {
       SELECT a.id, a.service_date, a.status, a.type, a.location, a.start_time, a.end_time, a.total_time,
              a.billing_status, a.billing_review, a.patient_first_name, a.patient_last_name, a.patient_id,
              a.practitioner_id, a.acknowledged_at, a.practitioner_response, a.responded_at, a.rejection_count,
+             COALESCE(an.notes_count, 0) AS notes_count,
              jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name, 'position_title', p.position_title) AS practitioners
       FROM assessments a
       JOIN practitioners p ON p.id = a.practitioner_id
+      LEFT JOIN (
+        SELECT assessment_id, COUNT(*) AS notes_count FROM assessment_notes GROUP BY assessment_id
+      ) an ON an.assessment_id = a.id
       WHERE 1=1
     `;
 

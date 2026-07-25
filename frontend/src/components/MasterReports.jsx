@@ -786,9 +786,9 @@ export const MasterReports = () => {
                               <button
                                 type="button"
                                 onClick={() => openNotesModal(log)}
-                                title={log.rejection_count > 0 ? 'View billing/practitioner notes' : 'No notes recorded yet'}
+                                title={log.notes_count > 0 ? 'View billing/practitioner notes' : 'No notes recorded yet'}
                                 className={`print:hidden shrink-0 transition-colors cursor-pointer ${
-                                  log.rejection_count > 0 ? 'text-slate-500 hover:text-slate-700' : 'text-slate-300 hover:text-slate-400'
+                                  log.notes_count > 0 ? 'text-slate-500 hover:text-slate-700' : 'text-slate-300 hover:text-slate-400'
                                 }`}
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>

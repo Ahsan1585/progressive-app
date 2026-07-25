@@ -1217,7 +1217,7 @@ export const BillingManager = () => {
                                                       type="button"
                                                       onClick={() => openNotesModal(session)}
                                                       className={`cursor-pointer transition-colors ${
-                                                        session.rejection_count > 0
+                                                        session.notes_count > 0
                                                           ? 'text-slate-500 hover:text-slate-700'
                                                           : 'text-slate-300 hover:text-slate-400'
                                                       }`}
@@ -1225,7 +1225,7 @@ export const BillingManager = () => {
                                                       <MessageSquareText className="size-3.5" />
                                                     </button>
                                                   </TooltipTrigger>
-                                                  <TooltipContent>{session.rejection_count > 0 ? 'View return/resubmit notes' : 'No notes recorded yet'}</TooltipContent>
+                                                  <TooltipContent>{session.notes_count > 0 ? 'View return/resubmit notes' : 'No notes recorded yet'}</TooltipContent>
                                                 </Tooltip>
                                               </div>
                                             </td>

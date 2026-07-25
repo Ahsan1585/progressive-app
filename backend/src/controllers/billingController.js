@@ -647,9 +647,13 @@ const getPractitionerLogs = async (req, res) => {
     // here too and only reachable via Master Reports.
     const params = [practitionerId, ['pending', 'njeis_review', 'on_hold', 'rejected', 'declined']];
     let sql = `
-      SELECT id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
-             total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at
+      SELECT assessments.id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
+             total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at,
+             COALESCE(an.notes_count, 0) AS notes_count
       FROM assessments
+      LEFT JOIN (
+        SELECT assessment_id, COUNT(*) AS notes_count FROM assessment_notes GROUP BY assessment_id
+      ) an ON an.assessment_id = assessments.id
       WHERE practitioner_id = $1 AND billing_status = ANY($2::text[])
         AND NOT (
           billing_status IN ('rejected', 'declined')
