@@ -44,6 +44,20 @@ export const BillingBatchReview = ({
   const isLoadingSessions = selectedPractitionerId ? loadingExpand.has(selectedPractitionerId) : false;
   const readyToComplete = selectedPractitioner?.sevf_documents?.length > 0 && selectedPractitioner?.invoice_documents?.length > 0;
 
+  // The legacy table only ever fetches a practitioner's session queue in
+  // response to a click (Lock or the expand chevron). That leaves a gap
+  // here: if a practitioner is *already* locked to the current user when
+  // this view loads (e.g. a page refresh mid-review, or they lock via the
+  // search result before the effect below runs), nothing ever triggers the
+  // fetch and the queue silently shows "No individual logs found." even
+  // though real sessions exist. Cover that case explicitly.
+  useEffect(() => {
+    if (isLockedByMe && selectedPractitionerId && expandedLogs[selectedPractitionerId] === undefined && !loadingExpand.has(selectedPractitionerId)) {
+      fetchExpandedLogsFor(selectedPractitionerId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLockedByMe, selectedPractitionerId, expandedLogs]);
+
   // Keep a valid session selected as this practitioner's queue changes.
   useEffect(() => {
     setMultiSelected(new Set());
@@ -282,15 +296,7 @@ export const BillingBatchReview = ({
             </div>
 
             {detailTab === 'analysis' ? (
-              <div className="max-w-lg mx-auto text-center py-10">
-                <div className="w-12 h-12 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="size-6" />
-                </div>
-                <h3 className="text-base font-bold text-slate-800 mb-2">Compliance Analysis — coming soon</h3>
-                <p className="text-sm text-slate-500">
-                  This will compare each session against state-required reference documents (uploaded from Company Information) field by field — service date, type, times, location, child name, service status, practitioner name, county, and child ID. That document upload capability hasn't been built yet, so there's nothing to compare against here.
-                </p>
-              </div>
+              <ComplianceAnalysisPreview sessions={sessions} practitioner={selectedPractitioner} />
             ) : (
               <SessionDetailPanel
                 session={selectedSession}
@@ -477,5 +483,87 @@ function ActionButton({ label, icon, onClick, active, tone }) {
       {icon}
       <span className="text-xs font-bold">{label}</span>
     </button>
+  );
+}
+
+// --- Compliance Analysis preview: shows the intended side-by-side layout
+// using this practitioner's REAL logged sessions on the left, but the
+// state-document upload feature doesn't exist yet (Company Information has
+// no document storage), so there is nothing real to compare against on the
+// right. Rather than fabricating "state required" values that would look
+// like a genuine pass/fail check on real patient billing data, every right-
+// hand cell is an explicit "no document on file" placeholder and no
+// match/mismatch verdict is computed — this previews the intended UI shape
+// without ever asserting a false compliance result.
+const COMPARISON_FIELDS = [
+  { key: 'service_date', label: 'Service Date', format: (s) => s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-' },
+  { key: 'type', label: 'Service Type', format: (s) => s.type || '-' },
+  { key: 'start_time', label: 'Start Time', format: (s) => s.start_time ? formatTime12h(s.start_time) : '-' },
+  { key: 'end_time', label: 'End Time', format: (s) => s.end_time ? formatTime12h(s.end_time) : '-' },
+  { key: 'location', label: 'Location', format: (s) => s.location || '-' },
+  { key: 'patient', label: 'Child Name', format: (s) => `${s.patient_first_name || ''} ${s.patient_last_name || ''}`.trim() || '-' },
+  { key: 'status', label: 'Service Status', format: (s) => s.status || '-' },
+];
+
+function ComplianceAnalysisPreview({ sessions, practitioner }) {
+  const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
+
+  return (
+    <div>
+      <div className="flex items-start gap-3 bg-gradient-to-br from-slate-50 to-violet-50 border border-slate-200 rounded-xl p-4 mb-5">
+        <div className="w-9 h-9 rounded-lg bg-slate-800 text-white flex items-center justify-center flex-shrink-0">
+          <Sparkles className="size-4" />
+        </div>
+        <div>
+          <div className="text-sm font-bold text-slate-800 mb-1">Compliance Analysis — preview</div>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            This will lay every session's Service Date, Type, Start/End Time, Location, Child Name, Service Status, and Practitioner Name side by side against state-required documents, field by field. Document upload isn't built yet (coming to Company Information), so the "State Req." column below is a placeholder — no comparison has actually run and nothing here reflects a real compliance result.
+          </p>
+        </div>
+      </div>
+
+      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Reference documents (from Company Information)</div>
+      <div className="text-xs text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-3 py-2.5 mb-5">
+        No state documents on file yet — this feature isn't available in Company Information yet.
+      </div>
+
+      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">
+        Side-by-side preview &middot; {practitionerName}
+      </div>
+      <div className="space-y-2.5">
+        {sessions.length === 0 ? (
+          <div className="text-xs text-slate-400 text-center py-6">No sessions to preview.</div>
+        ) : sessions.map(s => (
+          <div key={s.id} className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between bg-slate-50 px-3 py-2 border-b border-slate-200">
+              <span className="text-xs font-bold text-slate-700">{s.patient_first_name} {s.patient_last_name}</span>
+              <span className="text-[10px] text-slate-400">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
+            </div>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[9px] font-bold uppercase text-slate-400">
+                  <th className="text-left px-3 py-1.5 w-1/3"></th>
+                  <th className="px-3 py-1.5">
+                    <span className="text-sky-600 bg-sky-50 rounded px-1.5 py-0.5">Practitioner</span>
+                  </th>
+                  <th className="px-3 py-1.5">
+                    <span className="text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">State Req.</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON_FIELDS.map(f => (
+                  <tr key={f.key} className="border-t border-slate-100">
+                    <td className="px-3 py-1.5 font-semibold text-slate-500">{f.label}</td>
+                    <td className="px-3 py-1.5 text-center font-mono font-bold text-slate-700">{f.format(s)}</td>
+                    <td className="px-3 py-1.5 text-center text-slate-300 italic">no document</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
