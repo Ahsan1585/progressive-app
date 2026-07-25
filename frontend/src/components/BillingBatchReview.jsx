@@ -3,7 +3,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
-  Search, ChevronDown, Lock, PlayCircle, X, Undo2,
+  Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles,
 } from 'lucide-react';
 
@@ -423,7 +423,12 @@ function SessionDetailPanel({
           <PlayCircle className="size-4" /> Release from Hold
         </Button>
       ) : (
-        <div className="grid grid-cols-3 gap-2.5 mb-4">
+        <div className="grid grid-cols-4 gap-2.5 mb-4">
+          <ActionButton
+            label="Approve" active={logActions[session.id] === 'accept'} tone="emerald"
+            icon={<Check className="size-4" />}
+            onClick={() => { setLogActions(prev => ({ ...prev, [session.id]: 'accept' })); handleAccept(session, practitionerId); }}
+          />
           <ActionButton
             label="Return" active={logActions[session.id] === 'return'} tone="blue"
             icon={<Undo2 className="size-4" />}
