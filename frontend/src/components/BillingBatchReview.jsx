@@ -5,6 +5,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
+  Users, ClipboardList, MousePointerClick,
 } from 'lucide-react';
 
 // Matches BillingManager.jsx's own formatMonthLabel — batches are keyed by
@@ -83,9 +84,13 @@ export const BillingBatchReview = ({
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
 
   return (
-    <div className="flex h-[80vh] min-h-[720px]">
+    <div className="flex h-[80vh] min-h-[720px] shadow-inner bg-slate-100">
       {/* LEFT: every practitioner with pending logs, as collapsible/lockable groups */}
-      <div className="w-[480px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/40">
+      <div className="w-[480px] flex-shrink-0 border-r-2 border-slate-300 flex flex-col bg-slate-50/40 shadow-[4px_0_12px_-6px_rgba(15,23,42,0.15)] z-10">
+        <div className="flex items-center gap-2 px-4 py-3 bg-slate-800 text-white">
+          <Users className="size-4" />
+          <span className="text-sm font-bold uppercase tracking-wide">Practitioner Queue</span>
+        </div>
         <div className="p-4 border-b border-slate-200">
           <div className="relative">
             <Search className="size-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -129,10 +134,19 @@ export const BillingBatchReview = ({
       </div>
 
       {/* RIGHT: detail panel for whichever session was last clicked */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-white">
+        <div className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white">
+          <ClipboardList className="size-4" />
+          <span className="text-sm font-bold uppercase tracking-wide">Review Panel</span>
+        </div>
         {!detailSession ? (
-          <div className="flex-1 flex items-center justify-center text-base text-slate-500 px-8 text-center">
-            {practitioners.length === 0 ? 'No active workflows pending.' : 'Select a session from the queue on the left.'}
+          <div className="flex-1 flex flex-col items-center gap-4 pt-20 px-8 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
+              <MousePointerClick className="size-8" />
+            </div>
+            <p className="text-xl font-bold text-slate-700">
+              {practitioners.length === 0 ? 'No active workflows pending.' : 'Select a session from the queue on the left'}
+            </p>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-8">
