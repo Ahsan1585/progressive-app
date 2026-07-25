@@ -601,7 +601,7 @@ function SessionDetailPanel({
             {isDeclined ? 'Permanently rejected — excluded from report' : 'Returned to practitioner — awaiting resubmission'}
           </span>
           <Button size="sm" variant="outline" onClick={() => handleReconcile(session, practitionerId)} className="cursor-pointer gap-1 flex-shrink-0">
-            Reconcile
+            Store Log
           </Button>
         </div>
       ) : isLocked ? (
