@@ -90,6 +90,7 @@ const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear
       const baseDims = embeddedImage.scaleToFit(rect.width, rect.height);
 
       // 🌟 2. Set up variables for final placement
+      let finalX = rect.x;
       let finalYPosition = rect.y;
       let finalWidth = baseDims.width;
       let finalHeight = baseDims.height;
@@ -97,20 +98,27 @@ const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear
       // 🌟 3. Apply targeted tweaks to the Practitioner Signature
       if (fieldName.includes('Practitioner')) {
         // ⬆️ POSITION: Changed from -15 to -3 to bring it back up to the line
-        finalYPosition = rect.y - 3; 
-        
+        finalYPosition = rect.y - 3;
+
         // 🔎 SIZE: Multiply the width and height to make it larger! (1.5 = 50% bigger)
         // If it is still too small, change 1.5 to 1.8 or 2.0
         finalWidth = baseDims.width * 1.5;
         finalHeight = baseDims.height * 1.5;
       } else {
-        // Parent signatures remain safely tucked in their rows
-        finalYPosition = rect.y + 2;  
+        // Parent signature source images are mostly blank canvas around a small
+        // stroke, so a tight fit-to-box scale still reads as tiny — enlarge
+        // beyond that too, re-centered on the same cell so it grows evenly
+        // instead of drifting from the bottom-left anchor.
+        const enlarged = 1.5;
+        finalWidth = baseDims.width * enlarged;
+        finalHeight = baseDims.height * enlarged;
+        finalX = rect.x + (rect.width - finalWidth) / 2;
+        finalYPosition = rect.y + 2 + (baseDims.height - finalHeight) / 2;
       }
 
       // 🌟 4. Draw the perfectly proportioned, resized image in its final position
       page.drawImage(embeddedImage, {
-        x: rect.x,
+        x: finalX,
         y: finalYPosition,
         width: finalWidth,
         height: finalHeight,

@@ -271,7 +271,11 @@ const generateNJEISForms = async (req, res) => {
               const padding = 2;
               const maxW = rect.width - padding * 2;
               const maxH = rect.height - padding * 2;
-              const scale = Math.min(maxW / parentSigImage.width, maxH / parentSigImage.height);
+              // Signature source images are mostly blank canvas around a small
+              // stroke, so a tight fit-to-box scale still reads as tiny — enlarge
+              // beyond that and let it bleed slightly into the row's padding
+              // (still centered on the same cell), same as real ink overflowing a line.
+              const scale = Math.min(maxW / parentSigImage.width, maxH / parentSigImage.height) * 1.5;
               const imgW = parentSigImage.width * scale;
               const imgH = parentSigImage.height * scale;
               const drawX = rect.x + (rect.width - imgW) / 2;
