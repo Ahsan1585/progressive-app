@@ -15,6 +15,7 @@ const {
   updateLogStatus,
   rejectLog,
   reconcileLog,
+  addLogComment,
   getVaultLogs,
   getBillingBatches,
   revertBillingBatch,
@@ -39,6 +40,7 @@ router.get('/log-notes',         ...billingGuard, getLogNotes);
 router.patch('/log-status',      ...billingGuard, updateLogStatus);
 router.post('/reject-log',       ...billingGuard, rejectLog);
 router.post('/reconcile-log',    ...billingGuard, reconcileLog);
+router.post('/log-comment',      ...billingGuard, addLogComment);
 router.post('/generate-njeis',   ...billingGuard, generateNJEISForms);
 router.post('/generate-invoice', ...billingGuard, generateFinancialInvoice);
 router.post('/complete-billing',  ...billingGuard, completeBilling);

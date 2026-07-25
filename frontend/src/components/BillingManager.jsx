@@ -445,6 +445,33 @@ export const BillingManager = () => {
     setActionNote('');
   };
 
+  // Batch Review beta's inline version of return/reject: no modal — the note
+  // comes from the inline comment thread's input instead. Same endpoint and
+  // state updates as handleActionSubmit above, just invoked directly with
+  // an already-typed note rather than through actionModal/actionNote state.
+  const handleInlineReturnReject = async (session, practitionerId, type, note) => {
+    if (!note?.trim()) return;
+    const newStatus = type === 'return' ? 'rejected' : 'declined';
+    setProcessingLogId(session.id);
+    try {
+      await api.post('/api/billing/reject-log', { assessmentId: session.id, note, type });
+      setExpandedLogs(prev => ({
+        ...prev,
+        [practitionerId]: (prev[practitionerId] || []).map(l =>
+          l.id === session.id ? { ...l, billing_status: newStatus, billing_review: type } : l
+        )
+      }));
+      setLogActions(prev => ({ ...prev, [session.id]: type }));
+      fetchLogs();
+      pushToast('success', type === 'return' ? 'Log returned to practitioner.' : 'Log rejected.');
+    } catch (error) {
+      pushToast('error', 'Failed to process action.');
+      console.error('Failed to process inline return/reject', error);
+    } finally {
+      setProcessingLogId(null);
+    }
+  };
+
   const handleActionSubmit = async () => {
     if (!actionModal || !actionNote.trim()) return;
     // `sessions` covers bulk (multiple logs, one shared note, e.g. from the
@@ -999,9 +1026,7 @@ export const BillingManager = () => {
               handleHold={handleHold}
               handleReleaseHold={handleReleaseHold}
               handleReconcile={handleReconcile}
-              setActionModal={setActionModal}
-              setActionNote={setActionNote}
-              openNotesModal={openNotesModal}
+              handleInlineReturnReject={handleInlineReturnReject}
               handleGenerateAndIssue={handleGenerateAndIssue}
               handleSendToCompleted={handleSendToCompleted}
               pushToast={pushToast}

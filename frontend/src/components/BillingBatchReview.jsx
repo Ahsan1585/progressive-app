@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import api from '@/api/axiosInstance';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
@@ -28,7 +28,7 @@ export const BillingBatchReview = ({
   currentUserId, isAdmin, processingLogId, processingId,
   logActions, setLogActions,
   handleLock, handleRelease, handleAccept, handleHold, handleReleaseHold, handleReconcile,
-  setActionModal, setActionNote, openNotesModal,
+  handleInlineReturnReject,
   handleGenerateAndIssue, handleSendToCompleted, pushToast, formatTime,
 }) => {
   const [practitionerSearch, setPractitionerSearch] = useState('');
@@ -175,6 +175,7 @@ export const BillingBatchReview = ({
               <SessionDetailPanel
                 session={detailSession}
                 practitionerId={detail.practitionerId}
+                practitionerName={detailPractitioner ? `${detailPractitioner.first_name} ${detailPractitioner.last_name}` : ''}
                 logActions={logActions}
                 setLogActions={setLogActions}
                 processingLogId={processingLogId}
@@ -182,9 +183,7 @@ export const BillingBatchReview = ({
                 handleHold={handleHold}
                 handleReleaseHold={handleReleaseHold}
                 handleReconcile={handleReconcile}
-                setActionModal={setActionModal}
-                setActionNote={setActionNote}
-                openNotesModal={openNotesModal}
+                handleInlineReturnReject={handleInlineReturnReject}
                 formatTime={formatTime}
               />
             )}
@@ -396,9 +395,8 @@ function PractitionerGroup({
 // --- Session Detail: fields + one-click actions, same status logic as the
 // legacy table's expanded row (isDeclined/isReturned/isOnHold/isLocked). ---
 function SessionDetailPanel({
-  session, practitionerId, logActions, setLogActions, processingLogId,
-  handleAccept, handleHold, handleReleaseHold, handleReconcile,
-  setActionModal, setActionNote, openNotesModal, formatTime,
+  session, practitionerId, practitionerName, logActions, setLogActions, processingLogId,
+  handleAccept, handleHold, handleReleaseHold, handleReconcile, handleInlineReturnReject, formatTime,
 }) {
   const isDeclined = session.billing_status === 'declined';
   const isReturned = session.billing_status === 'rejected';
@@ -406,10 +404,8 @@ function SessionDetailPanel({
   const isProcessing = processingLogId === session.id;
   const isLocked = session.billing_status === 'njeis_review';
 
-  const openModal = (type) => {
-    setActionModal({ session, practitionerId, type });
-    setActionNote('');
-  };
+  const [pendingAction, setPendingAction] = useState(null); // 'return' | 'reject' | null
+  useEffect(() => { setPendingAction(null); }, [session.id]);
 
   return (
     <div className="max-w-2xl">
@@ -417,17 +413,7 @@ function SessionDetailPanel({
         {session.service_date ? new Date(session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '-'}
       </div>
       <h2 className="text-2xl font-bold text-slate-900 mb-1.5">{session.patient_first_name} {session.patient_last_name}</h2>
-      <div className="flex items-center gap-2 mb-6">
-        <p className="text-base text-slate-600">{session.type || '-'} session</p>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button type="button" onClick={() => openNotesModal(session)} className={`cursor-pointer ${session.notes_count > 0 ? 'text-slate-500 hover:text-slate-700' : 'text-slate-300 hover:text-slate-400'}`}>
-              <MessageSquareText className="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{session.notes_count > 0 ? 'View return/resubmit notes' : 'No notes recorded yet'}</TooltipContent>
-        </Tooltip>
-      </div>
+      <p className="text-base text-slate-600 mb-6">{session.type || '-'} session</p>
 
       <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2.5">Service Codes</div>
       <div className="grid grid-cols-3 gap-3 mb-5">
@@ -489,14 +475,14 @@ function SessionDetailPanel({
             onClick={() => { setLogActions(prev => ({ ...prev, [session.id]: 'accept' })); handleAccept(session, practitionerId); }}
           />
           <ActionButton
-            label="Return" active={logActions[session.id] === 'return'} tone="blue"
+            label="Return" active={pendingAction === 'return'} tone="blue"
             icon={<Undo2 className="size-4" />}
-            onClick={() => openModal('return')}
+            onClick={() => setPendingAction(prev => prev === 'return' ? null : 'return')}
           />
           <ActionButton
-            label="Reject" active={logActions[session.id] === 'reject'} tone="red"
+            label="Reject" active={pendingAction === 'reject'} tone="red"
             icon={<X className="size-4" />}
-            onClick={() => openModal('reject')}
+            onClick={() => setPendingAction(prev => prev === 'reject' ? null : 'reject')}
           />
           <ActionButton
             label="Hold" active={false} tone="orange"
@@ -505,6 +491,131 @@ function SessionDetailPanel({
           />
         </div>
       )}
+
+      <CommentThread
+        key={session.id}
+        session={session}
+        practitionerId={practitionerId}
+        practitionerName={practitionerName}
+        pendingAction={pendingAction}
+        setPendingAction={setPendingAction}
+        handleInlineReturnReject={handleInlineReturnReject}
+      />
+    </div>
+  );
+}
+
+// --- Inline comment thread, replacing the old Return/Reject popup modal.
+// Always visible for the selected session — shows the full note history
+// (assessment_notes, same data the legacy table's notes-history Dialog
+// used) and lets billing add a plain comment at any time via the new
+// /api/billing/log-comment endpoint. When a Return/Reject action is
+// pending (set by the buttons above), the same input instead requires a
+// note and submits through /api/billing/reject-log via
+// handleInlineReturnReject — so the required "why" for a status change
+// and a free-form comment share one inline box instead of a popup. ---
+function CommentThread({ session, practitionerId, practitionerName, pendingAction, setPendingAction, handleInlineReturnReject }) {
+  const [notes, setNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchNotes = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/api/billing/log-notes', { params: { assessmentId: session.id } });
+      if (res.data.success) setNotes(res.data.notes);
+    } catch (error) {
+      console.error('Failed to fetch log notes', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchNotes(); }, [session.id]);
+
+  const handleSend = async () => {
+    if (!text.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (pendingAction) {
+        await handleInlineReturnReject(session, practitionerId, pendingAction, text);
+        setPendingAction(null);
+      } else {
+        await api.post('/api/billing/log-comment', { assessmentId: session.id, note: text });
+      }
+      setText('');
+      await fetchNotes();
+    } catch (error) {
+      console.error('Failed to send comment', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="border border-slate-200 rounded-xl overflow-hidden mt-2">
+      <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200">
+        <MessageSquareText className="size-4 text-slate-500" />
+        <span className="text-sm font-bold text-slate-700">Comment thread{practitionerName ? ` with ${practitionerName}` : ''}</span>
+      </div>
+
+      <div className="max-h-64 overflow-y-auto px-4 py-3 space-y-3 bg-white">
+        {isLoading ? (
+          <div className="text-sm text-slate-400 text-center py-3">Loading comments...</div>
+        ) : notes.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-3">No comments yet — add one below.</div>
+        ) : notes.map((n, i) => {
+          const isBilling = n.author_role !== 'practitioner';
+          return (
+            <div key={i} className={`flex ${isBilling ? '' : 'justify-end'}`}>
+              <div className={`max-w-[80%] rounded-xl px-3.5 py-2.5 border text-sm ${
+                isBilling ? 'bg-blue-50 border-blue-200' : 'bg-violet-50 border-violet-200'
+              }`}>
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <span className={`font-bold text-xs ${isBilling ? 'text-blue-700' : 'text-violet-700'}`}>
+                    {isBilling ? 'Billing' : 'Practitioner'}{n.first_name ? ` · ${n.first_name} ${n.last_name}` : ''}
+                  </span>
+                  <span className="text-[11px] text-slate-400 whitespace-nowrap">
+                    {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-slate-700 whitespace-pre-wrap">{n.note}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {pendingAction && (
+        <div className={`flex items-center justify-between gap-2 px-4 py-2 text-xs font-semibold ${
+          pendingAction === 'return' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'
+        }`}>
+          <span>{pendingAction === 'return' ? 'Returning this log — describe what needs to be corrected below.' : 'Rejecting this log — explain why below.'}</span>
+          <button type="button" onClick={() => setPendingAction(null)} className="underline cursor-pointer">Cancel</button>
+        </div>
+      )}
+
+      <div className="flex gap-2 px-4 py-3 border-t border-slate-200 bg-white">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+          placeholder={pendingAction === 'return' ? 'Describe what needs to be corrected...' : pendingAction === 'reject' ? 'Explain the reason for rejection...' : 'Add a note for the practitioner...'}
+          className={`flex-1 text-sm rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+            pendingAction ? 'border-red-300 focus:ring-red-500/30' : 'border-slate-300 focus:ring-blue-500/30'
+          }`}
+        />
+        <Button
+          size="sm"
+          onClick={handleSend}
+          disabled={!text.trim() || isSubmitting}
+          className={`cursor-pointer text-sm ${pendingAction ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'} text-white`}
+        >
+          {isSubmitting ? 'Sending...' : pendingAction === 'return' ? 'Confirm Return' : pendingAction === 'reject' ? 'Confirm Reject' : 'Send'}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -632,6 +632,28 @@ const reconcileLog = async (req, res) => {
   }
 };
 
+// --- 8c. Add a plain comment to a log's thread, independent of any status
+// change. Return/reject already record a note via rejectLog above — this
+// covers the general case (the Batch Review beta's inline comment thread),
+// where billing wants to leave a note without touching billing_status. ---
+const addLogComment = async (req, res) => {
+  const { assessmentId, note } = req.body;
+  if (!assessmentId || !note?.trim()) {
+    return res.status(400).json({ error: 'assessmentId and note are required' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+       VALUES ($1, $2, $3, $4)`,
+      [assessmentId, req.practitioner.practitionerId, req.practitioner.role, note.trim()]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding log comment:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+};
+
 // --- 9. Fetch Individual Logs for a Practitioner ---
 const getPractitionerLogs = async (req, res) => {
   const { practitionerId, startDate, endDate } = req.query;
@@ -1001,6 +1023,7 @@ module.exports = {
   updateLogStatus,
   rejectLog,
   reconcileLog,
+  addLogComment,
   getVaultLogs,
   getBillingBatches,
   revertBillingBatch,
