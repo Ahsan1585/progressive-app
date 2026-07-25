@@ -468,7 +468,7 @@ function SessionDetailPanel({
           <PlayCircle className="size-4" /> Release from Hold
         </Button>
       ) : (
-        <div className="grid grid-cols-4 gap-2.5 mb-4">
+        <div className="grid grid-cols-4 gap-4 mb-6">
           <ActionButton
             label="Approve" active={logActions[session.id] === 'accept'} tone="emerald"
             icon={<Check className="size-4" />}
@@ -632,7 +632,7 @@ function ActionButton({ label, icon, onClick, active, tone }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-2 py-4 px-2 rounded-xl border-1.5 bg-white cursor-pointer transition-colors ${toneClasses}`}
+      className={`flex flex-col items-center gap-2.5 py-6 px-3 rounded-xl border-1.5 bg-white cursor-pointer transition-colors ${toneClasses}`}
     >
       {icon}
       <span className="text-sm font-bold">{label}</span>
