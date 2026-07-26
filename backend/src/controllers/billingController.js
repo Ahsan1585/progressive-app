@@ -797,10 +797,12 @@ const getComplianceAnalysis = async (req, res) => {
     );
 
     // Group state rows by patient_id + service_date so each session can be
-    // matched against only its same-day candidates.
+    // matched against only its same-day candidates. `date` columns come back
+    // as plain 'YYYY-MM-DD' strings, not JS Date objects — see the DATE type
+    // parser override in config/db.js — so these are compared as strings.
     const stateByKey = new Map();
     for (const log of stateLogs) {
-      const key = `${log.patient_id}:${log.service_date.toISOString().slice(0, 10)}`;
+      const key = `${log.patient_id}:${log.service_date}`;
       if (!stateByKey.has(key)) stateByKey.set(key, []);
       stateByKey.get(key).push(log);
     }
@@ -808,7 +810,7 @@ const getComplianceAnalysis = async (req, res) => {
     const usedStateLogIds = new Set();
     const results = {};
     for (const session of sessions) {
-      const key = `${session.patient_id}:${session.service_date instanceof Date ? session.service_date.toISOString().slice(0, 10) : session.service_date}`;
+      const key = `${session.patient_id}:${session.service_date}`;
       const candidates = (stateByKey.get(key) || []).filter((l) => !usedStateLogIds.has(l.id));
       let match = null;
       if (candidates.length === 1) {
@@ -841,8 +843,10 @@ const getComplianceAnalysis = async (req, res) => {
           (n) => n && statePractitionerName.toLowerCase().includes(n.toLowerCase())
         );
 
+      // completed_at is a timestamptz (real JS Date from pg), logged_date is
+      // a plain date column (already a 'YYYY-MM-DD' string, see above).
       const ourLoggedDate = session.completed_at ? new Date(session.completed_at).toISOString().slice(0, 10) : null;
-      const stateLoggedDate = match?.logged_date ? new Date(match.logged_date).toISOString().slice(0, 10) : null;
+      const stateLoggedDate = match?.logged_date || null;
 
       const fields = match ? [
         {
@@ -863,7 +867,7 @@ const getComplianceAnalysis = async (req, res) => {
         },
         {
           key: 'service_date', label: 'Service Date',
-          ours: session.service_date, state: match.service_date ? new Date(match.service_date).toISOString().slice(0, 10) : null,
+          ours: session.service_date, state: match.service_date,
           match: true, // this is the join key — always equal by construction
         },
         {
