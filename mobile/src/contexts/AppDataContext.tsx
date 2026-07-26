@@ -16,7 +16,7 @@ interface AppDataContextValue {
   rejectedLogs: RejectedLog[];
   rejectedLoading: boolean;
   rejectedError: string | null;
-  fetchRejectedLogs: () => Promise<void>;
+  fetchRejectedLogs: (opts?: { silent?: boolean }) => Promise<void>;
 
   stats: PractitionerStats | null;
   statsLoading: boolean;
@@ -90,16 +90,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const fetchRejectedLogs = React.useCallback(async () => {
-    setRejectedLoading(true);
+  const fetchRejectedLogs = React.useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) setRejectedLoading(true);
     setRejectedError(null);
     try {
       const res = await api.get<{ success: boolean; logs: RejectedLog[] }>("/api/patients/rejected-logs");
       setRejectedLogs(res.data.logs || []);
     } catch {
-      setRejectedError("Couldn't load your rejected/returned logs.");
+      if (!silent) setRejectedError("Couldn't load your rejected/returned logs.");
     } finally {
-      setRejectedLoading(false);
+      if (!silent) setRejectedLoading(false);
     }
   }, []);
 
@@ -149,6 +149,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     fetchUnreadMessageCount();
     fetchUpcomingSessions();
   }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions]);
+
+  // Keep Inbox live — a log billing just returned should appear without the
+  // practitioner having to leave the app and come back. Mirrors the admin
+  // portal's 20s silent poll on Pending Bills.
+  React.useEffect(() => {
+    const interval = setInterval(() => fetchRejectedLogs({ silent: true }), 20000);
+    return () => clearInterval(interval);
+  }, [fetchRejectedLogs]);
 
   const setSavedSignature = React.useCallback((base64: string | null) => {
     setProfile((prev) => (prev ? { ...prev, signature: base64, saved_signature: base64 } : prev));
