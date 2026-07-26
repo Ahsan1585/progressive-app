@@ -1170,12 +1170,10 @@ function ComplianceAnalysisPreview({
           // biller's own judgment call (not just a field-level mismatch),
           // so they get a bolder, distinctly-colored rectangle around the
           // whole card to stand out from a routine flagged field mismatch.
-          const cardBorderClass = isDuplicate ? 'border-2 border-violet-400'
-            : isMissing ? 'border-2 border-orange-400'
+          const cardBorderClass = (isDuplicate || isMissing) ? 'border-2 border-orange-400'
             : flagged ? 'border border-red-200'
             : 'border border-slate-200';
-          const cardHeaderClass = isDuplicate ? 'bg-violet-50 border-violet-300'
-            : isMissing ? 'bg-orange-50 border-orange-300'
+          const cardHeaderClass = (isDuplicate || isMissing) ? 'bg-orange-50 border-orange-300'
             : flagged ? 'bg-red-50 border-red-200'
             : 'bg-slate-50 border-slate-200';
 
@@ -1197,7 +1195,7 @@ function ComplianceAnalysisPreview({
                         </span>
                       )
                     ) : isDuplicate ? (
-                      <span className="flex items-center gap-1 text-xs font-bold text-violet-700">
+                      <span className="flex items-center gap-1 text-xs font-bold text-orange-700">
                         <Copy className="size-3.5" /> Duplicate log
                       </span>
                     ) : (
@@ -1266,7 +1264,7 @@ function ComplianceAnalysisPreview({
                     </tr>
                   ) : isDuplicate ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-violet-700 text-xs font-semibold" colSpan={3}>Duplicate of another log for this patient on this date/time — only one can match the state's single record for it</td>
+                      <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={3}>Duplicate of another log for this patient on this date/time — only one can match the state's single record for it</td>
                     </tr>
                   ) : !sessionResult?.matched ? (
                     <tr>
