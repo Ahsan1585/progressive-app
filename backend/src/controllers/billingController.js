@@ -273,8 +273,28 @@ const generateNJEISForms = async (req, res) => {
         const firstPage = pages[0];
 
         if (pData.practitioner_signature) {
-          const practSigImage = await tempDoc.embedPng(pData.practitioner_signature);
-          firstPage.drawImage(practSigImage, { x: 40, y: 302, width: practSigImage.scale(0.25).width, height: practSigImage.scale(0.25).height });
+          try {
+            // Scaled relative to the "Practitioner Signature" field's own box
+            // (same approach as the parent-signature loop below) rather than a
+            // fixed fraction of the source image's raw pixel size — the mobile
+            // app's signature pad captures at devicePixelRatio resolution
+            // (2-3x on most phones), so a fixed scale made mobile-drawn
+            // signatures come out several times too large and spill into the
+            // surrounding form text.
+            const pracSigField = form.getTextField('Practitioner Signature');
+            const rect = pracSigField.acroField.getWidgets()[0].getRectangle();
+            const practSigImage = await tempDoc.embedPng(pData.practitioner_signature);
+            const padding = 2;
+            const maxW = rect.width - padding * 2;
+            const maxH = rect.height - padding * 2;
+            const scale = Math.min(maxW / practSigImage.width, maxH / practSigImage.height) * 1.5;
+            const imgW = practSigImage.width * scale;
+            const imgH = practSigImage.height * scale;
+            const drawX = rect.x + (rect.width - imgW) / 2;
+            const drawY = rect.y + (rect.height - imgH) / 2;
+            firstPage.drawImage(practSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
+            firstPage.drawImage(practSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
+          } catch (e) { /* field not found */ }
         }
         for (let index = 0; index < chunk.length; index++) {
           const rowNum = index + 1;
