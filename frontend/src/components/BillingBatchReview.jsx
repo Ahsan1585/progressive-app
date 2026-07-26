@@ -1138,6 +1138,7 @@ function ComplianceAnalysisPreview({
           const sessionResult = analysis?.results?.[s.id];
           const compareFields = sessionResult?.fields || [];
           const isDuplicate = !!sessionResult?.duplicateOfSessionId;
+          const isMissing = documentReady && !!sessionResult && !sessionResult.matched && !isDuplicate;
           const flagged = documentReady && !!sessionResult && ((sessionResult.matched && sessionResult.flagged) || isDuplicate);
           const flaggedFieldCount = compareFields.filter(f => f.match === false).length;
 
@@ -1165,9 +1166,22 @@ function ComplianceAnalysisPreview({
           // fresh, informed call now that they can see it's a duplicate.
           const currentStatusValue = isOnHold ? 'hold' : (isApproved && !isDuplicate) ? 'accept' : 'pending';
 
+          // Duplicate / Missing in EIMS are special cases that need a
+          // biller's own judgment call (not just a field-level mismatch),
+          // so they get a bolder, distinctly-colored rectangle around the
+          // whole card to stand out from a routine flagged field mismatch.
+          const cardBorderClass = isDuplicate ? 'border-2 border-violet-400'
+            : isMissing ? 'border-2 border-orange-400'
+            : flagged ? 'border border-red-200'
+            : 'border border-slate-200';
+          const cardHeaderClass = isDuplicate ? 'bg-violet-50 border-violet-300'
+            : isMissing ? 'bg-orange-50 border-orange-300'
+            : flagged ? 'bg-red-50 border-red-200'
+            : 'bg-slate-50 border-slate-200';
+
           return (
-            <div key={s.id} className={`border rounded-xl overflow-hidden ${isDuplicate ? 'border-violet-200' : flagged ? 'border-red-200' : 'border-slate-200'}`}>
-              <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isDuplicate ? 'bg-violet-50 border-violet-200' : flagged ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+            <div key={s.id} className={`rounded-xl overflow-hidden ${cardBorderClass}`}>
+              <div className={`flex items-center justify-between px-4 py-2.5 border-b ${cardHeaderClass}`}>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
                   <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
@@ -1193,7 +1207,7 @@ function ComplianceAnalysisPreview({
                     )
                   )}
                 </div>
-                {documentReady && (sessionResult?.matched || isDuplicate) && (
+                {documentReady && !!sessionResult && (
                   canChangeStatus ? (
                     <select
                       className={`text-xs font-bold uppercase border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60 ${statusBadgeClasses}`}
