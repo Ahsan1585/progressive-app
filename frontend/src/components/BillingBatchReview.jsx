@@ -670,9 +670,11 @@ function SessionDetailPanel({
             {isDeclined ? <Ban className="size-4" /> : <Clock className="size-4" />}
             {isDeclined ? 'Permanently rejected — excluded from report' : 'Returned to practitioner — awaiting resubmission'}
           </span>
-          <Button size="sm" variant="outline" onClick={() => handleReconcile(session, practitionerId)} className="cursor-pointer gap-1 flex-shrink-0">
-            Store Log
-          </Button>
+          {isDeclined && (
+            <Button size="sm" variant="outline" onClick={() => handleReconcile(session, practitionerId)} className="cursor-pointer gap-1 flex-shrink-0">
+              Store Log
+            </Button>
+          )}
         </div>
       ) : isLocked ? (
         <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 mb-4">
