@@ -1158,7 +1158,12 @@ function ComplianceAnalysisPreview({
           // Once Returned/Declined, action only happens via the practitioner's
           // resubmission or Session Detail's Store Log — same rule as there.
           const canChangeStatus = !isDeclined && !isReturned && !isLockedStatus;
-          const currentStatusValue = isOnHold ? 'hold' : isApproved ? 'accept' : 'pending';
+          // A duplicate may already carry a stale "Approved" from before it
+          // was known to be a duplicate (e.g. it briefly matched cleanly on
+          // an earlier run). Once flagged as a duplicate, don't pre-select
+          // that inherited status — show Pending so the biller makes a
+          // fresh, informed call now that they can see it's a duplicate.
+          const currentStatusValue = isOnHold ? 'hold' : (isApproved && !isDuplicate) ? 'accept' : 'pending';
 
           return (
             <div key={s.id} className={`border rounded-xl overflow-hidden ${isDuplicate ? 'border-violet-200' : flagged ? 'border-red-200' : 'border-slate-200'}`}>
