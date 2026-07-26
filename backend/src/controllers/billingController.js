@@ -844,7 +844,7 @@ const getComplianceAnalysis = async (req, res) => {
     `);
 
     const patientIds = [...new Set(sessions.map((s) => s.patient_id).filter(Boolean))];
-    const { rows: stateLogs } = await pool.query(
+    const { rows: rawStateLogs } = await pool.query(
       `SELECT * FROM compliance_state_logs
        WHERE patient_id = ANY($1::int[])
          AND ($2::date IS NULL OR service_date >= $2)
@@ -852,6 +852,22 @@ const getComplianceAnalysis = async (req, res) => {
        ORDER BY service_date ASC`,
       [patientIds, startDate || null, endDate || null]
     );
+
+    // A patient can be seen by more than one practitioner — a state row for
+    // that patient only belongs to THIS practitioner's Compliance Analysis
+    // if the state record's own practitioner name is actually them (same
+    // token-wise name comparison used per-field below), not just "same
+    // patient." Without this, another practitioner's sessions for a shared
+    // patient showed up here as if this practitioner failed to log them.
+    const practitionerFirstName = sessions[0]?.practitioner_first_name;
+    const practitionerLastName = sessions[0]?.practitioner_last_name;
+    const stateLogs = rawStateLogs.filter((log) => {
+      const stateName = (log.practitioner_name || '').toLowerCase();
+      if (!stateName) return false;
+      return [practitionerFirstName, practitionerLastName].every(
+        (n) => n && stateName.includes(n.toLowerCase())
+      );
+    });
 
     // Group state rows by patient_id + service_date so each session can be
     // matched against only its same-day candidates. `date` columns come back
