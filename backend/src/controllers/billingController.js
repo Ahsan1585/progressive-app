@@ -775,7 +775,7 @@ const getComplianceAnalysis = async (req, res) => {
              practitioner_first_name, practitioner_last_name, completed_at, patients.child_id
       FROM assessments
       LEFT JOIN patients ON patients.id = assessments.patient_id
-      WHERE practitioner_id = $1 AND billing_status != 'declined'
+      WHERE assessments.practitioner_id = $1 AND billing_status != 'declined'
     `;
     if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND service_date <= $${params.length}`; }

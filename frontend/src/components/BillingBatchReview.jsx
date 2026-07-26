@@ -874,6 +874,7 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
   const [analysis, setAnalysis] = useState(null); // { documentOnFile, results, unmatchedStateLogs } | null
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
+  const [analysisError, setAnalysisError] = useState(null);
 
   useEffect(() => {
     api.get('/api/company')
@@ -891,9 +892,10 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
   useEffect(() => {
     if (!practitionerId || !periodStart || !periodEnd) { setIsLoadingAnalysis(false); return; }
     setIsLoadingAnalysis(true);
+    setAnalysisError(null);
     api.get('/api/billing/compliance-analysis', { params: { practitionerId, startDate: periodStart, endDate: periodEnd } })
       .then(res => setAnalysis(res.data))
-      .catch(() => setAnalysis(null))
+      .catch(error => { setAnalysis(null); setAnalysisError(error.response?.data?.error || 'Failed to load compliance comparison.'); })
       .finally(() => setIsLoadingAnalysis(false));
   }, [practitionerId, periodStart, periodEnd]);
 
@@ -938,7 +940,13 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
         </div>
       )}
 
-      {!isLoadingDoc && complianceDoc && !isLoadingAnalysis && !documentReady && (
+      {!isLoadingAnalysis && analysisError && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6">
+          Couldn't load the comparison: {analysisError}
+        </div>
+      )}
+
+      {!isLoadingDoc && complianceDoc && !isLoadingAnalysis && !analysisError && !documentReady && (
         <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
           A document is attached but its column matching hasn't been confirmed yet — finish that on the Company Information page before this runs.
         </div>
