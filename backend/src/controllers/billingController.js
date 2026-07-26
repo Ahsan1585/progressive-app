@@ -1023,6 +1023,9 @@ const getBillingBatches = async (req, res) => {
     const { rows } = await pool.query(`
       SELECT b.id, b.njeis_path, b.invoice_path, b.start_date, b.end_date, b.practitioner_id,
              b.printed_at, b.paid_at, b.stamped_invoice_path,
+             EXISTS (
+               SELECT 1 FROM assessments a WHERE a.billing_batch_id = b.id AND a.billing_status = 'invoiced'
+             ) AS completed,
              jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name) AS practitioners
       FROM billing_batches b
       JOIN practitioners p ON p.id = b.practitioner_id

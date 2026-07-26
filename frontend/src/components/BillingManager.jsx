@@ -170,6 +170,7 @@ export const BillingManager = () => {
   const [historySearch, setHistorySearch] = useState('');
   const [historyDate, setHistoryDate] = useState({ start: '', end: '' });
   const [batchMap, setBatchMap] = useState({}); // njeis_path → batch_id
+  const [completedBatchIds, setCompletedBatchIds] = useState(new Set()); // batch_id set — only these are actually in Completed Bills
   const [vaultSort, setVaultSort] = useState({ field: 'month', dir: 'desc' }); // matches prior fixed default
 
   // --- VAULT EXPAND STATE ---
@@ -635,13 +636,16 @@ export const BillingManager = () => {
       }
       if (batchResult.status === 'fulfilled' && batchResult.value.data.success) {
         const map = {};
+        const completed = new Set();
         batchResult.value.data.batches.forEach(b => {
           if (b.njeis_path) {
             map[b.njeis_path] = b.id;
             map[b.njeis_path.split('/').pop()] = b.id;
           }
+          if (b.completed) completed.add(b.id);
         });
         setBatchMap(map);
+        setCompletedBatchIds(completed);
       } else if (batchResult.status === 'rejected') {
         console.warn('billing/batches fetch failed (non-fatal):', batchResult.reason?.message);
       }
@@ -865,6 +869,11 @@ export const BillingManager = () => {
       const batchId = n?.file?.name
         ? (batchMap[n.file.name] || batchMap[n.file.name.split('/').pop()] || null)
         : null;
+      // Documents existing (NJEIS + Invoice generated) doesn't mean the batch
+      // is actually in Completed Bills — that only happens once the specialist
+      // clicks "Send to Completed Bills", which flips billing_status to
+      // 'invoiced'. Skip anything still just sitting generated-but-not-sent.
+      if (batchId && !completedBatchIds.has(batchId)) continue;
       vaultRows.push({
         id: `${meta.practFolder}|${meta.minDate}|${meta.maxDate}|${i}`,
         dateRange: meta.dateRange,
