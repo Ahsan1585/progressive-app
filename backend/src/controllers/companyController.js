@@ -296,10 +296,16 @@ const applyComplianceDocMapping = async (req, res) => {
     }
     // Extra state-side-only fields the user added beyond the fixed 11 —
     // stored per row in compliance_state_logs.extra_fields, shown in
-    // Compliance Analysis as informational (no "our side" to compare
-    // against, so never a match/mismatch verdict — see getComplianceAnalysis).
+    // Compliance Analysis as informational by default. Optionally tied to
+    // one of our real comparable fields (compareTo) to get a genuine
+    // match/mismatch verdict instead — see getComplianceAnalysis.
+    const VALID_CUSTOM_FIELD_COMPARE_TO = ['service_type', 'location', 'group_size'];
     const customFields = Array.isArray(rawCustomFields)
-      ? rawCustomFields.filter((cf) => cf && cf.label && cf.header).map((cf) => ({ label: String(cf.label).trim(), header: String(cf.header) }))
+      ? rawCustomFields.filter((cf) => cf && cf.label && cf.header).map((cf) => ({
+          label: String(cf.label).trim(),
+          header: String(cf.header),
+          compareTo: VALID_CUSTOM_FIELD_COMPARE_TO.includes(cf.compareTo) ? cf.compareTo : null,
+        }))
       : [];
 
     const { rows: settingsRows } = await pool.query('SELECT compliance_doc_path FROM company_settings WHERE id = 1');

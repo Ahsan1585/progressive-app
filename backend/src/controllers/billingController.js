@@ -12,7 +12,10 @@ const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { getDisciplineCode } = require('../utils/disciplineCodes');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
-const { serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel } = require('../constants/njeis');
+const {
+  serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel,
+  mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode,
+} = require('../constants/njeis');
 const { logAudit } = require('../utils/auditLog');
 const path = require('path');
 
@@ -778,9 +781,16 @@ const getComplianceAnalysis = async (req, res) => {
 
   try {
     const { rows: docRows } = await pool.query(
-      'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path FROM company_settings WHERE id = 1'
+      'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path, compliance_doc_custom_fields FROM company_settings WHERE id = 1'
     );
     const doc = docRows[0];
+    // Custom fields are informational-only by default (no equivalent on our
+    // side), but a custom field can optionally be tied to one of our real
+    // comparable fields (compareTo) to get a real match/mismatch verdict
+    // instead — see the custom-fields loop below.
+    const customFieldsByLabel = new Map(
+      (doc?.compliance_doc_custom_fields || []).map((cf) => [cf.label, cf])
+    );
     // compliance_doc_applied_path only matches compliance_doc_path once THIS
     // exact uploaded file has actually had its mapping confirmed — a
     // replacement file keeps the old mapping around (so a same-layout
@@ -982,13 +992,43 @@ const getComplianceAnalysis = async (req, res) => {
           match: null, // we don't track this field at all — informational only
         },
         // User-added custom fields (Company Information's "Add custom field")
-        // — state-side only, same as IFSP Event ID: no equivalent on our
-        // side to compare against, so always informational, never a verdict.
-        ...Object.entries(match.extra_fields || {}).map(([label, value]) => ({
-          key: `custom:${label}`, label,
-          ours: null, state: value,
-          match: null,
-        })),
+        // are state-side only by default — no equivalent on our side, so
+        // always informational. A custom field can optionally be tied to one
+        // of our real comparable fields (compareTo, set on the mapping
+        // screen), which turns it into a genuine match/mismatch verdict
+        // using the same label->code mapping the primary Service Type/
+        // Location/Group Size rows use.
+        ...Object.entries(match.extra_fields || {}).map(([label, value]) => {
+          const compareTo = customFieldsByLabel.get(label)?.compareTo;
+          if (compareTo === 'service_type') {
+            const stateCode = mapServiceLabelToCode(value);
+            return {
+              key: `custom:${label}`, label,
+              ours: session.type ? serviceCodeLabel(session.type) : null,
+              state: stateCode ? serviceCodeLabel(stateCode) : value,
+              match: !!session.type && !!stateCode && session.type === stateCode,
+            };
+          }
+          if (compareTo === 'location') {
+            const stateCode = mapLocationLabelToCode(value);
+            return {
+              key: `custom:${label}`, label,
+              ours: session.location ? locationCodeLabel(session.location) : null,
+              state: stateCode ? locationCodeLabel(stateCode) : value,
+              match: !!session.location && !!stateCode && session.location === stateCode,
+            };
+          }
+          if (compareTo === 'group_size') {
+            const stateCode = mapGroupSizeLabelToCode(value);
+            return {
+              key: `custom:${label}`, label,
+              ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
+              state: stateCode ? groupSizeCodeLabel(stateCode) : value,
+              match: !!session.group_size_category && !!stateCode && session.group_size_category === stateCode,
+            };
+          }
+          return { key: `custom:${label}`, label, ours: null, state: value, match: null };
+        }),
       ].filter((f) => f.key.startsWith('custom:') || mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key])) : [];
 
       const flagged = fields.some((f) => f.match === false);

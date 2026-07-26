@@ -202,7 +202,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
   };
 
   const handleAddCustomField = () => {
-    setCustomFields((prev) => [...prev, { label: '', header: '' }]);
+    setCustomFields((prev) => [...prev, { label: '', header: '', compareTo: '' }]);
   };
 
   const handleCustomFieldChange = (index, key, value) => {
@@ -503,34 +503,49 @@ export const CompanySettings = ({ onSettingsChange }) => {
               <div>
                 <h4 className="text-sm font-bold text-slate-800">Custom fields</h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Track additional columns from the file beyond the fields above. Shown in Compliance Analysis as state-only reference info (no match/mismatch check, since there's nothing on our side to compare it to).
+                  Track additional columns from the file beyond the fields above. By default shown in Compliance Analysis as state-only reference info — optionally tie one to a real field on our side (Service Type, Location, or Group Size Category) to get an actual match/mismatch check instead.
                 </p>
               </div>
               {customFields.map((cf, index) => (
-                <div key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-                  <Input
-                    placeholder="Field name (e.g. Comments)"
-                    value={cf.label}
-                    onChange={(e) => handleCustomFieldChange(index, 'label', e.target.value)}
-                    className="w-48 flex-shrink-0 h-9"
-                  />
-                  <select
-                    className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
-                    value={cf.header}
-                    onChange={(e) => handleCustomFieldChange(index, 'header', e.target.value)}
-                  >
-                    <option value="">Select a column...</option>
-                    {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCustomField(index)}
-                    title="Remove this custom field"
-                    aria-label={`Remove custom field ${cf.label || index + 1}`}
-                    className="flex-shrink-0 w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
+                <div key={index} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Input
+                      placeholder="Field name (e.g. Comments)"
+                      value={cf.label}
+                      onChange={(e) => handleCustomFieldChange(index, 'label', e.target.value)}
+                      className="w-48 flex-shrink-0 h-9"
+                    />
+                    <select
+                      className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
+                      value={cf.header}
+                      onChange={(e) => handleCustomFieldChange(index, 'header', e.target.value)}
+                    >
+                      <option value="">Select a column...</option>
+                      {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCustomField(index)}
+                      title="Remove this custom field"
+                      aria-label={`Remove custom field ${cf.label || index + 1}`}
+                      className="flex-shrink-0 w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 pl-0.5">
+                    <span className="text-xs font-semibold text-slate-500 flex-shrink-0">Compare against</span>
+                    <select
+                      className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs"
+                      value={cf.compareTo || ''}
+                      onChange={(e) => handleCustomFieldChange(index, 'compareTo', e.target.value)}
+                    >
+                      <option value="">— Informational only —</option>
+                      <option value="service_type">Our Service Type</option>
+                      <option value="location">Our Location</option>
+                      <option value="group_size">Our Group Size Category</option>
+                    </select>
+                  </div>
                 </div>
               ))}
               <button
