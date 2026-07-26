@@ -216,7 +216,10 @@ const forgotPassword = async (req, res) => {
           [tokenHash, expiresAt, user.id]
         );
 
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        // The app is served under the /eis base path (see frontend/vite.config.js's
+        // `base: "/eis/"`), so FRONTEND_URL must include it — e.g.
+        // https://izayaedge.com/eis, not just https://izayaedge.com.
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
         const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
 
         try {
