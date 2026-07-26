@@ -1188,7 +1188,7 @@ function ComplianceAnalysisPreview({
                     )
                   )}
                 </div>
-                {documentReady && sessionResult?.matched && (
+                {documentReady && (sessionResult?.matched || isDuplicate) && (
                   canChangeStatus ? (
                     <select
                       className={`text-xs font-bold uppercase border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60 ${statusBadgeClasses}`}
