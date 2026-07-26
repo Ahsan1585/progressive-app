@@ -74,9 +74,9 @@ export const BillingBatchReview = ({
   const [periodLogs, setPeriodLogs] = useState({}); // { [practitionerId]: sessions[] }
   const [periodLoading, setPeriodLoading] = useState(new Set());
 
-  const fetchPeriodLogs = async (practitionerId) => {
+  const fetchPeriodLogs = async (practitionerId, { silent = false } = {}) => {
     if (!selectedPeriod) return;
-    setPeriodLoading(prev => new Set(prev).add(practitionerId));
+    if (!silent) setPeriodLoading(prev => new Set(prev).add(practitionerId));
     try {
       const res = await api.get('/api/billing/practitioner-logs', {
         params: { practitionerId, startDate: selectedPeriod.start, endDate: selectedPeriod.end }
@@ -85,7 +85,7 @@ export const BillingBatchReview = ({
     } catch (error) {
       console.error('Failed to fetch period logs', error);
     } finally {
-      setPeriodLoading(prev => { const n = new Set(prev); n.delete(practitionerId); return n; });
+      if (!silent) setPeriodLoading(prev => { const n = new Set(prev); n.delete(practitionerId); return n; });
     }
   };
 
@@ -98,9 +98,9 @@ export const BillingBatchReview = ({
   const [periodPractitioners, setPeriodPractitioners] = useState([]);
   const [isLoadingPractitioners, setIsLoadingPractitioners] = useState(false);
 
-  const fetchPeriodPractitioners = async () => {
+  const fetchPeriodPractitioners = async ({ silent = false } = {}) => {
     if (!selectedPeriod) return;
-    setIsLoadingPractitioners(true);
+    if (!silent) setIsLoadingPractitioners(true);
     try {
       const res = await api.get('/api/billing/pending-logs', {
         params: { startDate: selectedPeriod.start, endDate: selectedPeriod.end }
@@ -109,7 +109,7 @@ export const BillingBatchReview = ({
     } catch (error) {
       console.error('Failed to fetch period practitioners', error);
     } finally {
-      setIsLoadingPractitioners(false);
+      if (!silent) setIsLoadingPractitioners(false);
     }
   };
 
@@ -148,6 +148,23 @@ export const BillingBatchReview = ({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodPractitioners, selectedPeriod]);
+
+  // Keep the queue live — e.g. a practitioner resubmitting a returned log
+  // from the mobile app should show up here without the biller having to
+  // leave and re-enter the tab. Mirrors the legacy table's 20s silent poll.
+  // expandedGroupsRef avoids resubscribing the interval every time a group
+  // is expanded/collapsed, which would otherwise reset the timer.
+  const expandedGroupsRef = useRef(expandedGroups);
+  useEffect(() => { expandedGroupsRef.current = expandedGroups; }, [expandedGroups]);
+  useEffect(() => {
+    if (!selectedPeriod) return;
+    const interval = setInterval(() => {
+      fetchPeriodPractitioners({ silent: true });
+      expandedGroupsRef.current.forEach(practitionerId => fetchPeriodLogs(practitionerId, { silent: true }));
+    }, 20000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPeriod]);
 
   const toggleGroup = (practitionerId) => {
     const willExpand = !expandedGroups.has(practitionerId);
