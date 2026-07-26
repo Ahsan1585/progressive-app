@@ -383,10 +383,24 @@ const applyComplianceDocMapping = async (req, res) => {
       ]);
     }
 
+    // Uploads happen roughly monthly, and a biller may still be reviewing an
+    // older still-open billing period — so a new upload must ADD its
+    // coverage rather than wiping the whole table. Only this file's own
+    // date range gets cleared (avoids duplicates if the same month is
+    // re-uploaded), then anything older than the 60-day retention floor is
+    // purged. This purge is scoped to compliance_state_logs only — never
+    // touches assessments/patients/billing data, which are retained forever.
+    const serviceDates = parsedRows.map((r) => r[8]).filter(Boolean);
+    const minDate = serviceDates.length ? serviceDates.reduce((a, b) => (a < b ? a : b)) : null;
+    const maxDate = serviceDates.length ? serviceDates.reduce((a, b) => (a > b ? a : b)) : null;
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('DELETE FROM compliance_state_logs');
+      if (minDate && maxDate) {
+        await client.query('DELETE FROM compliance_state_logs WHERE service_date BETWEEN $1 AND $2', [minDate, maxDate]);
+      }
+      await client.query("DELETE FROM compliance_state_logs WHERE service_date < CURRENT_DATE - INTERVAL '60 days'");
       for (const row of parsedRows) {
         await client.query(
           `INSERT INTO compliance_state_logs

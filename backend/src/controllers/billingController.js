@@ -808,6 +808,11 @@ const getComplianceAnalysis = async (req, res) => {
       return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, results: {}, unmatchedStateLogs: [] });
     }
 
+    // Lazy sweep: state reference data older than 60 days ages out on its
+    // own even if no new file has been uploaded since. Scoped strictly to
+    // compliance_state_logs — never touches assessments/patients/billing data.
+    await pool.query("DELETE FROM compliance_state_logs WHERE service_date < CURRENT_DATE - INTERVAL '60 days'");
+
     const patientIds = [...new Set(sessions.map((s) => s.patient_id).filter(Boolean))];
     const { rows: stateLogs } = await pool.query(
       `SELECT * FROM compliance_state_logs
