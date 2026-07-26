@@ -767,6 +767,18 @@ const getComplianceAnalysis = async (req, res) => {
     );
     const doc = docRows[0];
     const documentOnFile = !!(doc?.compliance_doc_filename && doc?.compliance_doc_column_mapping);
+    // Fields removed on the Company Information mapping screen have no
+    // column mapped for them anymore — skip their comparison row entirely
+    // rather than showing an always-empty "-" vs "-" row.
+    const mappedKeys = new Set(
+      Object.entries(doc?.compliance_doc_column_mapping || {}).filter(([, header]) => header).map(([key]) => key)
+    );
+    const FIELD_TO_MAPPING_KEY = {
+      child_id: 'child_id', child_name: 'child_name', practitioner_name: 'practitioner_name',
+      service_date: 'service_date', start_time: 'start_time', end_time: 'end_time',
+      service_type: 'service_label', location: 'location_label', group_size: 'group_size_label',
+      logged_date: 'logged_date', ifsp_event_id: 'ifsp_event_id',
+    };
 
     const params = [practitionerId];
     let sql = `
@@ -916,7 +928,7 @@ const getComplianceAnalysis = async (req, res) => {
           ours: null, state: value,
           match: null,
         })),
-      ] : [];
+      ].filter((f) => f.key.startsWith('custom:') || mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key])) : [];
 
       const flagged = fields.some((f) => f.match === false);
 
