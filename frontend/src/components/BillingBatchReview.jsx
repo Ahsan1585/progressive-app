@@ -1064,7 +1064,7 @@ function ComplianceAnalysisPreview({
           >
             <div className="text-2xl font-black text-slate-900">{sessions.length}</div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
-              {statFilter === 'all' ? 'Sessions Checked — showing all' : 'Sessions Checked — click to show all'}
+              Sessions Checked
             </div>
           </button>
           <button
@@ -1074,7 +1074,7 @@ function ComplianceAnalysisPreview({
           >
             <div className="text-2xl font-black text-emerald-600">{matchedCount}</div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
-              {statFilter === 'matched' ? 'Match State Codes — showing only these' : 'Match State Codes — click to filter'}
+              Match with State
             </div>
           </button>
           <button
@@ -1084,7 +1084,7 @@ function ComplianceAnalysisPreview({
           >
             <div className="text-2xl font-black text-red-600">{flaggedCount}</div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
-              {statFilter === 'flagged' ? 'Flagged — showing only these' : 'Flagged — click to filter'}
+              Flagged
             </div>
           </button>
           <button
@@ -1094,7 +1094,7 @@ function ComplianceAnalysisPreview({
           >
             <div className="text-2xl font-black text-orange-600">{missingCount}</div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
-              {statFilter === 'missing' ? 'Missing in EIMS — showing only these' : 'Missing in EIMS — click to filter'}
+              Missing in EIMS
             </div>
           </button>
         </div>
