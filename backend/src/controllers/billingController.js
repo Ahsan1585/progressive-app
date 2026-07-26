@@ -828,6 +828,21 @@ const getComplianceAnalysis = async (req, res) => {
     // compliance_state_logs — never touches assessments/patients/billing data.
     await pool.query("DELETE FROM compliance_state_logs WHERE service_date < CURRENT_DATE - INTERVAL '60 days'");
 
+    // Lazy backfill: Child ID -> patient_id is normally resolved once, at
+    // upload-confirm time (companyController.applyComplianceDocMapping). A
+    // patient added AFTER that point has no link yet — their state rows sit
+    // with patient_id NULL until the doc is re-confirmed. Re-resolving any
+    // still-unlinked rows on every analysis run means a newly-added patient
+    // starts matching immediately, without requiring a manual re-confirm.
+    await pool.query(`
+      UPDATE compliance_state_logs
+      SET patient_id = patients.id
+      FROM patients
+      WHERE compliance_state_logs.patient_id IS NULL
+        AND UPPER(REGEXP_REPLACE(compliance_state_logs.child_id, '\\s+', '', 'g'))
+          = UPPER(REGEXP_REPLACE(patients.child_id, '\\s+', '', 'g'))
+    `);
+
     const patientIds = [...new Set(sessions.map((s) => s.patient_id).filter(Boolean))];
     const { rows: stateLogs } = await pool.query(
       `SELECT * FROM compliance_state_logs
