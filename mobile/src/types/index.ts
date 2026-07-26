@@ -105,6 +105,7 @@ export interface RejectedLog {
   end_time: string;
   total_time: number;
   status: string;
+  group_size_category: string | null;
   rejection_note: string | null;
   rejected_at: string | null;
   rejection_count: number;

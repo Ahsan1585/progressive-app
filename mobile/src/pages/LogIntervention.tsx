@@ -14,7 +14,7 @@ import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes } from "@/utils/time";
-import { SERVICE_TYPE_OPTIONS, STATUS_CODE_OPTIONS, LOCATION_CODE_OPTIONS } from "@/constants/njeis";
+import { SERVICE_TYPE_OPTIONS, STATUS_CODE_OPTIONS, LOCATION_CODE_OPTIONS, GROUP_SIZE_OPTIONS } from "@/constants/njeis";
 import { cn } from "@/lib/utils";
 import type { ApiErrorBody } from "@/types";
 
@@ -25,6 +25,7 @@ interface FormState {
   status: string;
   type: string;
   location: string;
+  groupSizeCategory: string;
 }
 
 const todayIso = () => new Date().toISOString().split("T")[0];
@@ -57,6 +58,7 @@ export default function LogIntervention() {
     status: "",
     type: "",
     location: "",
+    groupSizeCategory: "individual",
   });
   const [parentSig, setParentSig] = React.useState<string | null>(null);
   const [practitionerSig, setPractitionerSig] = React.useState<string | null>(null);
@@ -156,6 +158,7 @@ export default function LogIntervention() {
         status: form.status,
         type: form.type,
         location: form.location,
+        groupSizeCategory: form.groupSizeCategory,
         totalTime: totalMinutes,
         total_time: totalMinutes,
         parentSignatureBase64: parentSig,
@@ -254,6 +257,13 @@ export default function LogIntervention() {
             options={LOCATION_CODE_OPTIONS}
             onChange={(v) => setField("location", v)}
             error={attemptedSubmit && !form.location ? "Location is required." : null}
+          />
+          <Picker
+            id="groupSizeCategory"
+            label="Group size category"
+            value={form.groupSizeCategory}
+            options={GROUP_SIZE_OPTIONS}
+            onChange={(v) => setField("groupSizeCategory", v)}
           />
         </div>
 

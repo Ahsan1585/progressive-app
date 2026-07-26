@@ -7,6 +7,8 @@ const {
   updateCompanySettings,
   updateCompanyLogo,
   uploadComplianceDoc,
+  getComplianceDocMapping,
+  applyComplianceDocMapping,
   removeComplianceDoc,
   getComplianceDocDownloadUrl,
 } = require('../controllers/companyController');
@@ -22,6 +24,8 @@ router.get('/', ...readGuard, getCompanySettings);
 router.put('/', ...writeGuard, updateCompanySettings);
 router.put('/logo', ...writeGuard, updateCompanyLogo);
 router.put('/compliance-doc', ...writeGuard, uploadComplianceDoc);
+router.get('/compliance-doc/mapping', ...writeGuard, getComplianceDocMapping);
+router.post('/compliance-doc/apply-mapping', ...writeGuard, applyComplianceDocMapping);
 router.delete('/compliance-doc', ...writeGuard, removeComplianceDoc);
 // Read-guarded (not write) — Billing needs to download/view the reference
 // document from the Compliance Analysis preview, not just Admin.

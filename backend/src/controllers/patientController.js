@@ -174,7 +174,7 @@ const getRejectedLogs = async (req, res) => {
   try {
     const { rows: logs } = await pool.query(
       `SELECT id, patient_first_name, patient_last_name, patient_id, service_date, type, location,
-              start_time, end_time, total_time, status, rejection_note, rejected_at, rejection_count,
+              start_time, end_time, total_time, status, group_size_category, rejection_note, rejected_at, rejection_count,
               parent_signature, billing_status, acknowledged_at
        FROM assessments
        WHERE practitioner_id = $1
@@ -228,7 +228,7 @@ const acknowledgeLog = async (req, res) => {
 
 const resubmitLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
-  const { assessmentId, type, location, start_time, end_time, total_time, status, note } = req.body;
+  const { assessmentId, type, location, start_time, end_time, total_time, status, note, group_size_category } = req.body;
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
   try {
@@ -252,10 +252,10 @@ const resubmitLog = async (req, res) => {
     await pool.query(
       `UPDATE assessments
        SET billing_status = 'pending', billing_review = NULL, type = $1, location = $2,
-           start_time = $3, end_time = $4, total_time = $5, status = $6,
+           start_time = $3, end_time = $4, total_time = $5, status = $6, group_size_category = $7,
            rejection_note = NULL, rejected_at = NULL
-       WHERE id = $7`,
-      [type, location, start_time, end_time, total_time, status, assessmentId]
+       WHERE id = $8`,
+      [type, location, start_time, end_time, total_time, status, group_size_category || null, assessmentId]
     );
 
     // Optional — the practitioner's note on why/how they revised the log,

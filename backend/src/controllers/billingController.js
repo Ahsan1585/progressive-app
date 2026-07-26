@@ -12,6 +12,7 @@ const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { getDisciplineCode } = require('../utils/disciplineCodes');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
+const { serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel } = require('../constants/njeis');
 const path = require('path');
 
 // --- 1. NEW Standardized Path Helper ---
@@ -729,6 +730,138 @@ const getLogNotes = async (req, res) => {
   }
 };
 
+// --- 9c. Compliance Analysis — compare a practitioner's logged sessions in
+// a period against the state reference document (compliance_state_logs,
+// populated from Company Information's uploaded Excel). Match key: same
+// patient (via compliance_state_logs.patient_id, resolved from the state's
+// Child ID at upload time) + same service_date, then closest start_time
+// when a patient has more than one session that day — see
+// companyController.applyComplianceDocMapping for how state rows get here.
+const getComplianceAnalysis = async (req, res) => {
+  const { practitionerId, startDate, endDate } = req.query;
+  if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
+
+  try {
+    const { rows: docRows } = await pool.query(
+      'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping FROM company_settings WHERE id = 1'
+    );
+    const doc = docRows[0];
+    const documentOnFile = !!(doc?.compliance_doc_filename && doc?.compliance_doc_column_mapping);
+
+    const params = [practitionerId];
+    let sql = `
+      SELECT id, patient_id, service_date, start_time, end_time, total_time, type, location,
+             group_size_category, patient_first_name, patient_last_name
+      FROM assessments
+      WHERE practitioner_id = $1 AND billing_status != 'declined'
+    `;
+    if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND service_date <= $${params.length}`; }
+    sql += ' ORDER BY patient_first_name ASC, service_date ASC';
+    const { rows: sessions } = await pool.query(sql, params);
+
+    if (!documentOnFile || sessions.length === 0) {
+      return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, results: {}, unmatchedStateLogs: [] });
+    }
+
+    const patientIds = [...new Set(sessions.map((s) => s.patient_id).filter(Boolean))];
+    const { rows: stateLogs } = await pool.query(
+      `SELECT * FROM compliance_state_logs
+       WHERE patient_id = ANY($1::int[])
+         AND ($2::date IS NULL OR service_date >= $2)
+         AND ($3::date IS NULL OR service_date <= $3)
+       ORDER BY service_date ASC`,
+      [patientIds, startDate || null, endDate || null]
+    );
+
+    // Group state rows by patient_id + service_date so each session can be
+    // matched against only its same-day candidates.
+    const stateByKey = new Map();
+    for (const log of stateLogs) {
+      const key = `${log.patient_id}:${log.service_date.toISOString().slice(0, 10)}`;
+      if (!stateByKey.has(key)) stateByKey.set(key, []);
+      stateByKey.get(key).push(log);
+    }
+
+    const usedStateLogIds = new Set();
+    const results = {};
+    for (const session of sessions) {
+      const key = `${session.patient_id}:${session.service_date instanceof Date ? session.service_date.toISOString().slice(0, 10) : session.service_date}`;
+      const candidates = (stateByKey.get(key) || []).filter((l) => !usedStateLogIds.has(l.id));
+      let match = null;
+      if (candidates.length === 1) {
+        match = candidates[0];
+      } else if (candidates.length > 1) {
+        // Multiple same-day sessions for this patient — pick the candidate
+        // whose start_time is closest to ours.
+        const toMinutes = (hhmm) => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+        const ourMinutes = toMinutes(session.start_time);
+        match = candidates.reduce((best, c) => {
+          if (ourMinutes == null) return best;
+          const cMinutes = toMinutes(c.start_time);
+          if (cMinutes == null) return best;
+          const diff = Math.abs(cMinutes - ourMinutes);
+          const bestDiff = best ? Math.abs(toMinutes(best.start_time) - ourMinutes) : Infinity;
+          return diff < bestDiff ? c : best;
+        }, candidates[0]);
+      }
+      if (match) usedStateLogIds.add(match.id);
+
+      const fields = match ? [
+        {
+          key: 'service_type', label: 'Service Type',
+          ours: session.type ? serviceCodeLabel(session.type) : null,
+          state: match.mapped_service_code ? serviceCodeLabel(match.mapped_service_code) : match.service_label,
+          match: !!session.type && !!match.mapped_service_code && session.type === match.mapped_service_code,
+        },
+        {
+          key: 'location', label: 'Location',
+          ours: session.location ? locationCodeLabel(session.location) : null,
+          state: match.mapped_location_code ? locationCodeLabel(match.mapped_location_code) : match.location_label,
+          match: !!session.location && !!match.mapped_location_code && session.location === match.mapped_location_code,
+        },
+        {
+          key: 'group_size', label: 'Group Size Category',
+          ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
+          state: match.mapped_group_size_code ? groupSizeCodeLabel(match.mapped_group_size_code) : match.group_size_label,
+          match: !!session.group_size_category && !!match.mapped_group_size_code && session.group_size_category === match.mapped_group_size_code,
+        },
+        {
+          key: 'start_time', label: 'Start Time',
+          ours: session.start_time, state: match.start_time,
+          match: !!session.start_time && !!match.start_time && session.start_time === match.start_time,
+        },
+        {
+          key: 'end_time', label: 'End Time',
+          ours: session.end_time, state: match.end_time,
+          match: !!session.end_time && !!match.end_time && session.end_time === match.end_time,
+        },
+      ] : [];
+
+      results[session.id] = {
+        matched: !!match,
+        stateLog: match ? {
+          child_name: match.child_name,
+          practitioner_name: match.practitioner_name,
+          logged_date: match.logged_date,
+          ifsp_event_id: match.ifsp_event_id,
+        } : null,
+        fields,
+      };
+    }
+
+    const unmatchedStateLogs = stateLogs.filter((l) => !usedStateLogIds.has(l.id)).map((l) => ({
+      id: l.id, child_name: l.child_name, service_date: l.service_date, start_time: l.start_time,
+      service_label: l.service_label,
+    }));
+
+    res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, results, unmatchedStateLogs });
+  } catch (error) {
+    console.error('Error running compliance analysis:', error);
+    res.status(500).json({ error: 'Failed to run compliance analysis' });
+  }
+};
+
 // --- 10. Fetch logs for a completed vault entry (by practitioner name + date range) ---
 const getVaultLogs = async (req, res) => {
   const { practitionerFolder, startDate, endDate, isOverride, batchId } = req.query;
@@ -1025,6 +1158,7 @@ module.exports = {
   getInvoiceDownloadUrl,
   getPractitionerLogs,
   getLogNotes,
+  getComplianceAnalysis,
   updateLogStatus,
   rejectLog,
   reconcileLog,

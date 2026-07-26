@@ -117,10 +117,12 @@ CREATE TABLE assessments (
   hold_note text,
   held_at timestamp with time zone,
   reconciled_at timestamp with time zone,
+  group_size_category text,
   PRIMARY KEY (id),
   FOREIGN KEY (patient_id) REFERENCES patients(id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
-  CONSTRAINT assessments_billing_review_check CHECK (billing_review = ANY (ARRAY['accept'::text, 'reject'::text, 'return'::text, 'hold'::text]))
+  CONSTRAINT assessments_billing_review_check CHECK (billing_review = ANY (ARRAY['accept'::text, 'reject'::text, 'return'::text, 'hold'::text])),
+  CONSTRAINT assessments_group_size_category_check CHECK (group_size_category IS NULL OR group_size_category = ANY (ARRAY['individual'::text, 'consultation'::text]))
 );
 ALTER SEQUENCE assessments_id_seq OWNED BY assessments.id;
 
@@ -295,7 +297,45 @@ CREATE TABLE company_settings (
   compliance_doc_filename text,
   compliance_doc_size integer,
   compliance_doc_uploaded_at timestamp with time zone,
+  compliance_doc_column_mapping jsonb,
   updated_at timestamp with time zone DEFAULT now()
 );
 INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)
 VALUES (1, 'Progressive Steps NJ', 'Progressive Steps Early Intervention, LLC', 'New Jersey', 'Eastern (ET)', '14 Route 9 South, Old Bridge, NJ 08857', '(732) 555-0148', 'billing@progressivestepsnj.com');
+
+-- compliance_state_logs: FK -> patients. Parsed rows from the single
+-- attached compliance_doc Excel (backend/src/constants/njeis.js maps the
+-- state's free-text Service/Location/Group Size columns to our codes at
+-- parse time). Re-uploading a document wipes and re-inserts this table
+-- entirely — there's only ever one active reference document (see
+-- company_settings.compliance_doc_*), not a version history. patient_id is
+-- resolved at parse time via patients.child_id (nullable — a state row for
+-- a child not in our system still gets stored, surfaced as unmatched).
+CREATE SEQUENCE compliance_state_logs_id_seq;
+CREATE TABLE compliance_state_logs (
+  id integer NOT NULL DEFAULT nextval('compliance_state_logs_id_seq'::regclass),
+  patient_id integer,
+  child_id text NOT NULL,
+  child_name text,
+  practitioner_name text,
+  service_label text,
+  service_type_label text,
+  group_size_label text,
+  location_label text,
+  service_date date,
+  start_time text,
+  end_time text,
+  service_minutes integer,
+  logged_date date,
+  ifsp_event_id text,
+  mapped_service_code text,
+  mapped_location_code text,
+  mapped_group_size_code text,
+  period_start date,
+  period_end date,
+  uploaded_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (id),
+  FOREIGN KEY (patient_id) REFERENCES patients(id)
+);
+ALTER SEQUENCE compliance_state_logs_id_seq OWNED BY compliance_state_logs.id;
+CREATE INDEX compliance_state_logs_patient_date_idx ON compliance_state_logs (patient_id, service_date);

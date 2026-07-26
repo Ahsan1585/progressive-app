@@ -30,6 +30,14 @@ const ALL_SERVICE_TYPES = [
   { code: 'TPC', label: 'TPC - Transition Planning Conference' },
 ];
 
+// Mirrors mobile/src/constants/njeis.ts GROUP_SIZE_OPTIONS exactly. Labels
+// match the state's own "Group Size" export column text verbatim so
+// Compliance Analysis can compare them directly, no fuzzy mapping needed.
+const GROUP_SIZE_OPTIONS = [
+  { code: 'individual', label: 'Direct Child Service - Individual' },
+  { code: 'consultation', label: 'Consultation/Facilitation with Others' },
+];
+
 // --- Custom Signature Pad Sub-Component ---
 const SignaturePad = ({ label, subtext, onUpdate, onSave }) => {
   const canvasRef = useRef(null);
@@ -154,7 +162,8 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
     endTime: '',
     status: '1',
     type: 'DI',
-    location: '1'
+    location: '1',
+    groupSizeCategory: 'individual'
   });
 
   const [parentSig, setParentSig] = useState(null);
@@ -195,7 +204,8 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
         endTime: '',
         status: '1',
         type: 'DI',
-        location: '1'
+        location: '1',
+        groupSizeCategory: 'individual'
       });
     }
   }, [isOpen]);
@@ -294,7 +304,7 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
             <div className="space-y-2">
               <Label>Service Status</Label>
               <select className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
@@ -324,6 +334,14 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
                 <option value="6">6 - EC Program Inclusive</option>
                 <option value="7">7 - DCP&P Office</option>
                 <option value="8">8 - Phone/Video Conferencing</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Group Size Category</Label>
+              <select className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm" value={formData.groupSizeCategory} onChange={(e) => setFormData({...formData, groupSizeCategory: e.target.value})}>
+                {GROUP_SIZE_OPTIONS.map(opt => (
+                  <option key={opt.code} value={opt.code}>{opt.label}</option>
+                ))}
               </select>
             </div>
           </div>

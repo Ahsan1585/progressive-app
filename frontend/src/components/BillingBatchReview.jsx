@@ -372,7 +372,13 @@ export const BillingBatchReview = ({
             </div>
 
             {detailTab === 'analysis' ? (
-              <ComplianceAnalysisPreview sessions={detailSessions} practitioner={detailPractitioner} />
+              <ComplianceAnalysisPreview
+                sessions={detailSessions}
+                practitioner={detailPractitioner}
+                practitionerId={detail.practitionerId}
+                periodStart={selectedPeriod?.start}
+                periodEnd={selectedPeriod?.end}
+              />
             ) : (
               <SessionDetailPanel
                 session={detailSession}
@@ -856,29 +862,23 @@ function ActionButton({ label, icon, onClick, active, tone }) {
   );
 }
 
-// --- Compliance Analysis preview: shows the intended side-by-side layout
-// using this practitioner's REAL logged sessions on the left, but the
-// state-document upload feature doesn't exist yet (Company Information has
-// no document storage), so there is nothing real to compare against on the
-// right. Rather than fabricating "state required" values that would look
-// like a genuine pass/fail check on real patient billing data, every right-
-// hand cell is an explicit "no document on file" placeholder and no
-// match/mismatch verdict is computed — this previews the intended UI shape
-// without ever asserting a false compliance result.
-const COMPARISON_FIELDS = [
+// --- Compliance Analysis: compares this practitioner's logged sessions
+// against the state reference document (parsed on Company Information into
+// compliance_state_logs, matched by patient + service date — see
+// backend/src/controllers/billingController.js getComplianceAnalysis).
+// Falls back to an explicit "no document on file" state rather than ever
+// fabricating a comparison when nothing real exists to compare against.
+const ALWAYS_SHOWN_FIELDS = [
   { key: 'service_date', label: 'Service Date', format: (s) => s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-' },
-  { key: 'type', label: 'Service Type', format: (s) => s.type || '-' },
-  { key: 'start_time', label: 'Start Time', format: (s) => s.start_time ? formatTime12h(s.start_time) : '-' },
-  { key: 'end_time', label: 'End Time', format: (s) => s.end_time ? formatTime12h(s.end_time) : '-' },
-  { key: 'location', label: 'Location', format: (s) => s.location || '-' },
   { key: 'patient', label: 'Child Name', format: (s) => `${s.patient_first_name || ''} ${s.patient_last_name || ''}`.trim() || '-' },
-  { key: 'status', label: 'Service Status', format: (s) => s.status || '-' },
 ];
 
-function ComplianceAnalysisPreview({ sessions, practitioner }) {
+function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, periodStart, periodEnd }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, uploaded_at } | null
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
+  const [analysis, setAnalysis] = useState(null); // { documentOnFile, results, unmatchedStateLogs } | null
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
 
   useEffect(() => {
     api.get('/api/company')
@@ -893,11 +893,22 @@ function ComplianceAnalysisPreview({ sessions, practitioner }) {
       .finally(() => setIsLoadingDoc(false));
   }, []);
 
+  useEffect(() => {
+    if (!practitionerId || !periodStart || !periodEnd) { setIsLoadingAnalysis(false); return; }
+    setIsLoadingAnalysis(true);
+    api.get('/api/billing/compliance-analysis', { params: { practitionerId, startDate: periodStart, endDate: periodEnd } })
+      .then(res => setAnalysis(res.data))
+      .catch(() => setAnalysis(null))
+      .finally(() => setIsLoadingAnalysis(false));
+  }, [practitionerId, periodStart, periodEnd]);
+
   const openComplianceDoc = () => {
     api.get('/api/company/compliance-doc/download')
       .then(res => window.open(res.data.url, '_blank', 'noopener'))
       .catch(() => {});
   };
+
+  const documentReady = analysis?.documentOnFile;
 
   return (
     <div>
@@ -906,9 +917,9 @@ function ComplianceAnalysisPreview({ sessions, practitioner }) {
           <Sparkles className="size-5" />
         </div>
         <div>
-          <div className="text-base font-bold text-slate-900 mb-1.5">Compliance Analysis — preview</div>
+          <div className="text-base font-bold text-slate-900 mb-1.5">Compliance Analysis</div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            This will lay every session's Service Date, Type, Start/End Time, Location, Child Name, Service Status, and Practitioner Name side by side against the state reference document, field by field. Automatic field-matching isn't built yet, so the "State Req." column below is still a placeholder — no comparison has actually run and nothing here reflects a real compliance result.
+            Each session below is matched to the state's reference document by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time.
           </p>
         </div>
       </div>
@@ -932,42 +943,84 @@ function ComplianceAnalysisPreview({ sessions, practitioner }) {
         </div>
       )}
 
+      {!isLoadingDoc && complianceDoc && !isLoadingAnalysis && !documentReady && (
+        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
+          A document is attached but its column matching hasn't been confirmed yet — finish that on the Company Information page before this runs.
+        </div>
+      )}
+
+      {analysis?.unmatchedStateLogs?.length > 0 && (
+        <div className="text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 mb-6">
+          <div className="font-bold text-orange-800 mb-1">{analysis.unmatchedStateLogs.length} session{analysis.unmatchedStateLogs.length === 1 ? '' : 's'} in the state document for this practitioner's patients aren't reflected in this period's logs</div>
+          <ul className="text-orange-700 text-xs space-y-0.5">
+            {analysis.unmatchedStateLogs.map(l => (
+              <li key={l.id}>{l.child_name || 'Unknown child'} — {l.service_date ? new Date(l.service_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit', timeZone: 'UTC' }) : '-'} {l.service_label ? `(${l.service_label})` : ''}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-        Side-by-side preview &middot; {practitionerName}
+        Side-by-side comparison &middot; {practitionerName}
       </div>
       <div className="space-y-3">
         {sessions.length === 0 ? (
-          <div className="text-sm text-slate-500 text-center py-6">No sessions to preview.</div>
-        ) : sessions.map(s => (
-          <div key={s.id} className="border border-slate-200 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 border-b border-slate-200">
-              <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
-              <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
-            </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[11px] font-bold uppercase text-slate-500">
-                  <th className="text-left px-4 py-2 w-1/3"></th>
-                  <th className="px-4 py-2">
-                    <span className="text-sky-700 bg-sky-50 rounded px-2 py-0.5">Practitioner</span>
-                  </th>
-                  <th className="px-4 py-2">
-                    <span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">State Req.</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARISON_FIELDS.map(f => (
-                  <tr key={f.key} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-semibold text-slate-600">{f.label}</td>
-                    <td className="px-4 py-2 text-center font-mono font-bold text-slate-800">{f.format(s)}</td>
-                    <td className="px-4 py-2 text-center text-slate-400 italic">no document</td>
+          <div className="text-sm text-slate-500 text-center py-6">No sessions to compare.</div>
+        ) : sessions.map(s => {
+          const sessionResult = analysis?.results?.[s.id];
+          const compareFields = sessionResult?.fields || [];
+          return (
+            <div key={s.id} className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
+                <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[11px] font-bold uppercase text-slate-500">
+                    <th className="text-left px-4 py-2 w-1/3"></th>
+                    <th className="px-4 py-2">
+                      <span className="text-sky-700 bg-sky-50 rounded px-2 py-0.5">Our Log</span>
+                    </th>
+                    <th className="px-4 py-2">
+                      <span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">State Record</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
+                </thead>
+                <tbody>
+                  {ALWAYS_SHOWN_FIELDS.map(f => (
+                    <tr key={f.key} className="border-t border-slate-100">
+                      <td className="px-4 py-2 font-semibold text-slate-600">{f.label}</td>
+                      <td className="px-4 py-2 text-center font-mono font-bold text-slate-800" colSpan={2}>{f.format(s)}</td>
+                    </tr>
+                  ))}
+                  {isLoadingAnalysis ? (
+                    <tr className="border-t border-slate-100">
+                      <td className="px-4 py-3 text-center text-slate-400 text-xs" colSpan={3}>Loading comparison…</td>
+                    </tr>
+                  ) : !documentReady ? (
+                    <tr className="border-t border-slate-100">
+                      <td className="px-4 py-3 text-center text-slate-400 text-xs italic" colSpan={3}>No confirmed state document to compare against</td>
+                    </tr>
+                  ) : !sessionResult?.matched ? (
+                    <tr className="border-t border-slate-100">
+                      <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={3}>No matching record found in the state document for this session</td>
+                    </tr>
+                  ) : compareFields.map(f => (
+                    <tr key={f.key} className={`border-t border-slate-100 ${f.match ? '' : 'bg-red-50/60'}`}>
+                      <td className="px-4 py-2 font-semibold text-slate-600 flex items-center gap-1.5">
+                        {f.match ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <X className="size-3.5 text-red-500" />}
+                        {f.label}
+                      </td>
+                      <td className="px-4 py-2 text-center font-mono font-bold text-slate-800">{f.ours || '-'}</td>
+                      <td className={`px-4 py-2 text-center font-mono font-bold ${f.match ? 'text-slate-800' : 'text-red-700'}`}>{f.state || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

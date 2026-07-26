@@ -14,7 +14,7 @@ import { Picker } from "@/components/Picker";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { calculateTotalMinutes, formatSafeDate } from "@/utils/time";
-import { SERVICE_TYPE_OPTIONS, STATUS_CODE_OPTIONS, LOCATION_CODE_OPTIONS } from "@/constants/njeis";
+import { SERVICE_TYPE_OPTIONS, STATUS_CODE_OPTIONS, LOCATION_CODE_OPTIONS, GROUP_SIZE_OPTIONS } from "@/constants/njeis";
 import type { ApiErrorBody } from "@/types";
 
 // Signatures are not re-collected here — the resubmit payload only carries
@@ -39,6 +39,7 @@ export default function ResubmitLog() {
     start_time: log?.start_time ?? "",
     end_time: log?.end_time ?? "",
     status: log?.status ?? "",
+    group_size_category: log?.group_size_category ?? "individual",
     note: "",
   });
   const [submitting, setSubmitting] = React.useState(false);
@@ -126,6 +127,13 @@ export default function ResubmitLog() {
           value={form.location}
           options={LOCATION_CODE_OPTIONS}
           onChange={(v) => setForm((f) => ({ ...f, location: v }))}
+        />
+        <Picker
+          id="group_size_category"
+          label="Group size category"
+          value={form.group_size_category}
+          options={GROUP_SIZE_OPTIONS}
+          onChange={(v) => setForm((f) => ({ ...f, group_size_category: v }))}
         />
         <div className="grid grid-cols-2 gap-3">
           <Field id="start_time" label="Start time">

@@ -44,6 +44,14 @@ export const LOCATION_CODE_OPTIONS: { code: string; label: string }[] = [
   { code: "8", label: "Phone/Video Conferencing (8)" },
 ];
 
+// Labels match the state's own "Group Size" export column text verbatim
+// (minus our parenthetical code suffix) so Compliance Analysis can compare
+// them directly, no fuzzy mapping needed.
+export const GROUP_SIZE_OPTIONS: { code: string; label: string }[] = [
+  { code: "individual", label: "Direct Child Service - Individual" },
+  { code: "consultation", label: "Consultation/Facilitation with Others" },
+];
+
 export const serviceTypeMap: Record<string, string> = Object.fromEntries(
   SERVICE_TYPE_OPTIONS.map((o) => [o.code, o.label])
 );

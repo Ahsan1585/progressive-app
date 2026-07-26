@@ -87,18 +87,19 @@ app.post('/api/interventions', protect, async (req, res) => {
       practitioner_discipline,
       
       // Encounter Details
-      date, 
-      startTime, 
-      endTime, 
-      status, 
-      type, 
-      location, 
-      totalTime, 
+      date,
+      startTime,
+      endTime,
+      status,
+      type,
+      location,
+      totalTime,
       total_time,
-      
+      groupSizeCategory,
+
       // Signatures
-      parentSignatureBase64, 
-      practitionerSignatureBase64 
+      parentSignatureBase64,
+      practitionerSignatureBase64
     } = req.body;
 
     const finalTotalTime = total_time || totalTime || 0;
@@ -128,14 +129,14 @@ app.post('/api/interventions', protect, async (req, res) => {
       `INSERT INTO assessments
          (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
           practitioner_first_name, practitioner_last_name, practitioner_discipline,
-          service_date, start_time, end_time, total_time, status, type, location,
+          service_date, start_time, end_time, total_time, status, type, location, group_size_category,
           parent_signature, practitioner_signature, form_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
        RETURNING *`,
       [
         patientId, trustedPractitionerId, patient_first_name, patient_last_name, patient_dob, patient_county,
         practitioner_first_name, practitioner_last_name, practitioner_discipline,
-        date, startTime, endTime, finalTotalTime, status, type, location,
+        date, startTime, endTime, finalTotalTime, status, type, location, groupSizeCategory || null,
         parentSignatureBase64, practitionerSignatureBase64, JSON.stringify({})
       ]
     );

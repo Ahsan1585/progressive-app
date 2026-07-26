@@ -1,5 +1,8 @@
+const ExcelJS = require('exceljs');
 const { pool } = require('../config/db');
-const { NJEIS_FORMS_BUCKET, uploadFile, getSignedUrl, removeFiles } = require('../config/storage');
+const { NJEIS_FORMS_BUCKET, uploadFile, downloadFile, getSignedUrl, removeFiles } = require('../config/storage');
+const { TARGET_FIELDS, suggestMapping, norm } = require('../constants/complianceMapping');
+const { mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode } = require('../constants/njeis');
 
 // A resized/compressed PNG data URL comfortably fits well under this — this
 // mainly guards against a client sending an uncompressed original by mistake.
@@ -71,6 +74,95 @@ const updateCompanyLogo = async (req, res) => {
   }
 };
 
+// --- Compliance document parsing helpers -----------------------------------
+// The state's NJEIS "Service Log Report" export has a few metadata rows
+// before the real header row (title, date range, generated-by, generated-
+// date), so the header row's position isn't fixed — locate it by content
+// (must contain a "Service Date" column) rather than a hardcoded row number.
+function findHeaderRow(sheet) {
+  const maxScan = Math.min(sheet.rowCount, 20);
+  for (let r = 1; r <= maxScan; r++) {
+    const row = sheet.getRow(r);
+    const values = [];
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      const v = cell.value;
+      if (typeof v === 'string' && v.trim()) values.push(v.trim());
+    });
+    if (values.some((v) => norm(v) === 'service date')) {
+      return { rowNumber: r, headers: values };
+    }
+  }
+  return null;
+}
+
+// Excel time-only cells (no real calendar date) round-trip through ExcelJS
+// as a UTC-anchored Date whose UTC hour/minute IS the literal spreadsheet
+// value (verified against a real export: Start Time 07:05/End Time 08:05
+// round-trip with a 1-hour Service Time duration only when read via
+// getUTCHours/getUTCMinutes — reading via local-timezone getters shifts the
+// value by the runtime's UTC offset and silently corrupts every time).
+function excelTimeToHHMM(value) {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    return `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  return null;
+}
+
+function excelDateToISO(value) {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+  }
+  return null;
+}
+
+function cellToText(value) {
+  if (value == null) return null;
+  if (value instanceof Date) return null;
+  if (typeof value === 'object' && value.richText) return value.richText.map((t) => t.text).join('').trim() || null;
+  const s = String(value).trim();
+  return s || null;
+}
+
+// Reads the "Begin and End Dates: MM/DD/YYYY - MM/DD/YYYY" line the state
+// puts near the top of the export, if present — purely informational
+// (stored alongside each parsed row), parsing never depends on it.
+function extractPeriod(sheet) {
+  for (let r = 1; r <= Math.min(sheet.rowCount, 5); r++) {
+    const text = cellToText(sheet.getRow(r).getCell(1).value);
+    const match = text && text.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);
+    if (match) {
+      const toIso = (mdY) => { const [m, d, y] = mdY.split('/'); return `${y}-${m}-${d}`; };
+      return { periodStart: toIso(match[1]), periodEnd: toIso(match[2]) };
+    }
+  }
+  return { periodStart: null, periodEnd: null };
+}
+
+async function readWorkbookFromBuffer(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  return workbook.worksheets[0];
+}
+
+async function buildMappingResponse(buffer, previousMapping) {
+  const sheet = await readWorkbookFromBuffer(buffer);
+  const found = findHeaderRow(sheet);
+  if (!found) {
+    return { error: 'Could not find a header row containing "Service Date" in this file.' };
+  }
+  const { rowNumber, headers } = found;
+  const suggestedMapping = suggestMapping(headers);
+  return {
+    headers,
+    targetFields: TARGET_FIELDS,
+    suggestedMapping,
+    previousMapping: previousMapping || null,
+    rowCount: sheet.rowCount - rowNumber,
+  };
+}
+
 const uploadComplianceDoc = async (req, res) => {
   const { filename, fileBase64 } = req.body;
   try {
@@ -90,16 +182,25 @@ const uploadComplianceDoc = async (req, res) => {
 
     const base64Data = fileBase64.slice(fileBase64.indexOf(',') + 1);
     const buffer = Buffer.from(base64Data, 'base64');
+
+    const mappingInfo = await buildMappingResponse(buffer, null);
+    if (mappingInfo.error) return res.status(400).json(mappingInfo);
+
     const path = `${COMPLIANCE_DOC_PREFIX}${Date.now()}-${filename}`;
     const contentType = ext === '.xlsx'
       ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       : 'application/vnd.ms-excel';
 
-    const { rows: existing } = await pool.query('SELECT compliance_doc_path FROM company_settings WHERE id = 1');
+    const { rows: existing } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping FROM company_settings WHERE id = 1');
     const previousPath = existing[0]?.compliance_doc_path;
+    const previousMapping = existing[0]?.compliance_doc_column_mapping || null;
 
     await uploadFile(NJEIS_FORMS_BUCKET, path, buffer, contentType);
 
+    // Column mapping and compliance_state_logs are deliberately left alone
+    // here — they only get (re)written once the user confirms the mapping
+    // via applyComplianceDocMapping, so an in-progress upload never leaves
+    // Compliance Analysis pointing at a half-parsed document.
     const { rows } = await pool.query(
       `INSERT INTO company_settings (id, compliance_doc_path, compliance_doc_filename, compliance_doc_size, compliance_doc_uploaded_at, updated_at)
        VALUES (1, $1, $2, $3, now(), now())
@@ -117,10 +218,150 @@ const uploadComplianceDoc = async (req, res) => {
       await removeFiles(NJEIS_FORMS_BUCKET, [previousPath]).catch(() => {});
     }
 
-    res.json({ success: true, settings: rows[0] });
+    res.json({ success: true, settings: rows[0], ...mappingInfo, previousMapping });
   } catch (error) {
     console.error('Error uploading compliance document:', error);
     res.status(500).json({ error: 'Failed to upload compliance document' });
+  }
+};
+
+// Re-reads the currently-stored file's headers without re-uploading — lets
+// Company Information reopen the mapping screen later (e.g. to fix a field
+// that was left unmapped, or to re-check after the state changes their
+// export layout) without requiring a fresh upload.
+const getComplianceDocMapping = async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping FROM company_settings WHERE id = 1');
+    const path = rows[0]?.compliance_doc_path;
+    if (!path) return res.status(404).json({ error: 'No compliance document on file' });
+
+    const buffer = await downloadFile(NJEIS_FORMS_BUCKET, path);
+    const mappingInfo = await buildMappingResponse(buffer, rows[0]?.compliance_doc_column_mapping || null);
+    if (mappingInfo.error) return res.status(400).json(mappingInfo);
+
+    res.json({ success: true, ...mappingInfo });
+  } catch (error) {
+    console.error('Error reading compliance document mapping:', error);
+    res.status(500).json({ error: 'Failed to read compliance document' });
+  }
+};
+
+// Applies a confirmed column mapping: re-parses the whole file with it,
+// replaces compliance_state_logs entirely (single active document, no
+// history — see schema.sql), and saves the mapping so next upload's
+// suggested/previous-mapping diff can flag anything that changed.
+const applyComplianceDocMapping = async (req, res) => {
+  const { mapping } = req.body;
+  try {
+    if (!mapping || typeof mapping !== 'object') {
+      return res.status(400).json({ error: 'mapping is required' });
+    }
+    const requiredMissing = TARGET_FIELDS.filter((f) => f.required && !mapping[f.key]);
+    if (requiredMissing.length > 0) {
+      return res.status(400).json({ error: `Missing required field mapping(s): ${requiredMissing.map((f) => f.label).join(', ')}` });
+    }
+
+    const { rows: settingsRows } = await pool.query('SELECT compliance_doc_path FROM company_settings WHERE id = 1');
+    const path = settingsRows[0]?.compliance_doc_path;
+    if (!path) return res.status(404).json({ error: 'No compliance document on file' });
+
+    const buffer = await downloadFile(NJEIS_FORMS_BUCKET, path);
+    const sheet = await readWorkbookFromBuffer(buffer);
+    const found = findHeaderRow(sheet);
+    if (!found) return res.status(400).json({ error: 'Could not find a header row containing "Service Date" in this file.' });
+    const { rowNumber: headerRow, headers } = found;
+    const { periodStart, periodEnd } = extractPeriod(sheet);
+
+    const colIndex = {};
+    for (const field of TARGET_FIELDS) {
+      const header = mapping[field.key];
+      colIndex[field.key] = header ? headers.indexOf(header) + 1 : 0; // 0 = not mapped
+    }
+
+    // Resolve every referenced Child ID to our patients table in one query,
+    // instead of one lookup per row.
+    const childIds = new Set();
+    for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
+      const v = colIndex.child_id ? cellToText(sheet.getRow(r).getCell(colIndex.child_id).value) : null;
+      if (v) childIds.add(v);
+    }
+    const { rows: patientRows } = childIds.size
+      ? await pool.query('SELECT id, child_id FROM patients WHERE child_id = ANY($1)', [[...childIds]])
+      : { rows: [] };
+    const patientIdByChildId = new Map(patientRows.map((p) => [p.child_id, p.id]));
+
+    const parsedRows = [];
+    for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
+      const row = sheet.getRow(r);
+      const get = (key) => (colIndex[key] ? row.getCell(colIndex[key]).value : null);
+      const childId = colIndex.child_id ? cellToText(get('child_id')) : null;
+      const serviceDate = colIndex.service_date ? excelDateToISO(get('service_date')) : null;
+      if (!childId || !serviceDate) continue; // rows missing either required field aren't usable for matching
+
+      const serviceLabel = cellToText(get('service_label'));
+      const locationLabel = cellToText(get('location_label'));
+      const groupSizeLabel = cellToText(get('group_size_label'));
+
+      parsedRows.push([
+        patientIdByChildId.get(childId) || null,
+        childId,
+        cellToText(get('child_name')),
+        cellToText(get('practitioner_name')),
+        serviceLabel,
+        null, // service_type_label — reserved, not separately mapped today
+        groupSizeLabel,
+        locationLabel,
+        serviceDate,
+        excelTimeToHHMM(get('start_time')),
+        excelTimeToHHMM(get('end_time')),
+        null, // service_minutes — derivable from start/end, not separately stored today
+        colIndex.logged_date ? excelDateToISO(get('logged_date')) : null,
+        cellToText(get('ifsp_event_id')),
+        mapServiceLabelToCode(serviceLabel),
+        mapLocationLabelToCode(locationLabel),
+        mapGroupSizeLabelToCode(groupSizeLabel),
+        periodStart,
+        periodEnd,
+      ]);
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM compliance_state_logs');
+      for (const row of parsedRows) {
+        await client.query(
+          `INSERT INTO compliance_state_logs
+             (patient_id, child_id, child_name, practitioner_name, service_label, service_type_label,
+              group_size_label, location_label, service_date, start_time, end_time, service_minutes,
+              logged_date, ifsp_event_id, mapped_service_code, mapped_location_code, mapped_group_size_code,
+              period_start, period_end)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+          row
+        );
+      }
+      await client.query(
+        `UPDATE company_settings SET compliance_doc_column_mapping = $1, updated_at = now() WHERE id = 1`,
+        [JSON.stringify(mapping)]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    const matchedPatients = parsedRows.filter((r) => r[0] !== null).length;
+    res.json({
+      success: true,
+      rowsParsed: parsedRows.length,
+      matchedPatients,
+      unmatchedCount: parsedRows.length - matchedPatients,
+    });
+  } catch (error) {
+    console.error('Error applying compliance document mapping:', error);
+    res.status(500).json({ error: 'Failed to apply column mapping' });
   }
 };
 
@@ -135,12 +376,14 @@ const removeComplianceDoc = async (req, res) => {
          compliance_doc_filename = NULL,
          compliance_doc_size = NULL,
          compliance_doc_uploaded_at = NULL,
+         compliance_doc_column_mapping = NULL,
          updated_at = now()
        WHERE id = 1
        RETURNING *`
     );
 
     if (path) await removeFiles(NJEIS_FORMS_BUCKET, [path]).catch(() => {});
+    await pool.query('DELETE FROM compliance_state_logs');
 
     res.json({ success: true, settings: rows[0] });
   } catch (error) {
@@ -168,6 +411,8 @@ module.exports = {
   updateCompanySettings,
   updateCompanyLogo,
   uploadComplianceDoc,
+  getComplianceDocMapping,
+  applyComplianceDocMapping,
   removeComplianceDoc,
   getComplianceDocDownloadUrl,
 };

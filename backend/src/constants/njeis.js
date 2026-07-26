@@ -1,0 +1,91 @@
+// Mirrors mobile/src/constants/njeis.ts and frontend/src/components/LogInterventionModal.jsx's
+// ALL_SERVICE_TYPES exactly — same 20 NJEIS service-type codes, 5 status
+// codes, 8 location codes. Used server-side to map the state's plain-text
+// Excel export back to the codes our app stores on assessments.
+const SERVICE_TYPE_OPTIONS = [
+  { code: 'EV', label: 'Evaluation' },
+  { code: 'AS', label: 'Assessment' },
+  { code: 'IFSP', label: 'IFSP Meeting' },
+  { code: 'AU', label: 'Audiology' },
+  { code: 'DI', label: 'Developmental Intervention' },
+  { code: 'FT', label: 'Family Training' },
+  { code: 'HS', label: 'Health Service' },
+  { code: 'MS', label: 'Medical Service' },
+  { code: 'NU', label: 'Nursing' },
+  { code: 'NT', label: 'Nutrition' },
+  { code: 'OT', label: 'Occupational Therapy' },
+  { code: 'PT', label: 'Physical Therapy' },
+  { code: 'PSY', label: 'Psychological' },
+  { code: 'SLP', label: 'Speech Language Therapy' },
+  { code: 'SW', label: 'Social Work' },
+  { code: 'VI', label: 'Vision' },
+  { code: 'CC', label: 'Childcare/Respite' },
+  { code: 'I/T', label: 'Interpreter/Translator' },
+  { code: 'ES', label: 'Escort/Security' },
+  { code: 'TPC', label: 'Transition Planning Conference' },
+];
+
+const LOCATION_CODE_OPTIONS = [
+  { code: '1', label: 'Home' },
+  { code: '2', label: 'Residential Facility' },
+  { code: '3', label: 'Service Provider Clinic/Office' },
+  { code: '4', label: 'Hospital (Inpatient)' },
+  { code: '5', label: 'EC Program - Children with Disabilities' },
+  { code: '6', label: 'EC Program - Inclusive Community' },
+  { code: '7', label: 'DCP&P Office' },
+  { code: '8', label: 'Phone/Video Conferencing' },
+];
+
+const GROUP_SIZE_OPTIONS = [
+  { code: 'individual', label: 'Direct Child Service - Individual' },
+  { code: 'consultation', label: 'Consultation/Facilitation with Others' },
+];
+
+// The state's "Service" column doesn't always literally match one of our 20
+// labels (confirmed against a real export: it says "Foreign Language
+// Interpreter" where our code is I/T "Interpreter/Translator"). Per the
+// user, any state Service label containing "Interpreter" maps to I/T.
+const SERVICE_LABEL_OVERRIDES = [
+  { test: (label) => /interpreter/i.test(label), code: 'I/T' },
+];
+
+const norm = (s) => (s || '').trim().toLowerCase();
+
+function mapServiceLabelToCode(label) {
+  if (!label) return null;
+  const n = norm(label);
+  const exact = SERVICE_TYPE_OPTIONS.find((o) => norm(o.label) === n);
+  if (exact) return exact.code;
+  const override = SERVICE_LABEL_OVERRIDES.find((o) => o.test(label));
+  return override ? override.code : null;
+}
+
+function mapLocationLabelToCode(label) {
+  if (!label) return null;
+  const n = norm(label);
+  const exact = LOCATION_CODE_OPTIONS.find((o) => norm(o.label) === n);
+  return exact ? exact.code : null;
+}
+
+function mapGroupSizeLabelToCode(label) {
+  if (!label) return null;
+  const n = norm(label);
+  const exact = GROUP_SIZE_OPTIONS.find((o) => norm(o.label) === n);
+  return exact ? exact.code : null;
+}
+
+const serviceCodeLabel = (code) => SERVICE_TYPE_OPTIONS.find((o) => o.code === code)?.label || code;
+const locationCodeLabel = (code) => LOCATION_CODE_OPTIONS.find((o) => o.code === code)?.label || code;
+const groupSizeCodeLabel = (code) => GROUP_SIZE_OPTIONS.find((o) => o.code === code)?.label || code;
+
+module.exports = {
+  SERVICE_TYPE_OPTIONS,
+  LOCATION_CODE_OPTIONS,
+  GROUP_SIZE_OPTIONS,
+  mapServiceLabelToCode,
+  mapLocationLabelToCode,
+  mapGroupSizeLabelToCode,
+  serviceCodeLabel,
+  locationCodeLabel,
+  groupSizeCodeLabel,
+};

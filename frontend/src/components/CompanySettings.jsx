@@ -25,13 +25,21 @@ const EMPTY_FORM = {
 export const CompanySettings = ({ onSettingsChange }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [logo, setLogo] = useState(null);
-  const [complianceDoc, setComplianceDoc] = useState(null); // { filename, size, uploaded_at } | null
+  const [complianceDoc, setComplianceDoc] = useState(null); // { filename, size, uploaded_at, hasMapping } | null
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingComplianceDoc, setIsUploadingComplianceDoc] = useState(false);
   const [isRemovingComplianceDoc, setIsRemovingComplianceDoc] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
+
+  // Column-mapping screen: shown right after an upload (or reopened via
+  // "Review column mapping") so the user confirms which Excel header feeds
+  // each field before we parse the whole file into compliance_state_logs.
+  const [mappingInfo, setMappingInfo] = useState(null); // { headers, targetFields, suggestedMapping, previousMapping } | null
+  const [mapping, setMapping] = useState({});
+  const [isLoadingMapping, setIsLoadingMapping] = useState(false);
+  const [isApplyingMapping, setIsApplyingMapping] = useState(false);
 
   const applySettings = (settings) => {
     if (!settings) return;
@@ -49,6 +57,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
       filename: settings.compliance_doc_filename,
       size: settings.compliance_doc_size,
       uploaded_at: settings.compliance_doc_uploaded_at,
+      hasMapping: !!settings.compliance_doc_column_mapping,
     } : null);
   };
 
@@ -128,7 +137,8 @@ export const CompanySettings = ({ onSettingsChange }) => {
       try {
         const response = await api.put('/api/company/compliance-doc', { filename: file.name, fileBase64: dataUrl });
         applySettings(response.data.settings);
-        setToast({ type: 'success', message: 'State compliance document attached.' });
+        openMappingScreen(response.data);
+        setToast({ type: 'success', message: 'File uploaded — review the column matching below before it’s used in Compliance Analysis.' });
       } catch (error) {
         setToast({ type: 'error', message: error.response?.data?.error || 'Failed to upload document.' });
       } finally {
@@ -144,11 +154,56 @@ export const CompanySettings = ({ onSettingsChange }) => {
     try {
       const response = await api.delete('/api/company/compliance-doc');
       applySettings(response.data.settings);
+      setMappingInfo(null);
       setToast({ type: 'success', message: 'Compliance document removed.' });
     } catch (error) {
       setToast({ type: 'error', message: error.response?.data?.error || 'Failed to remove document.' });
     } finally {
       setIsRemovingComplianceDoc(false);
+    }
+  };
+
+  // Pre-fills each target field with: this upload's auto-detected header,
+  // else the header that was confirmed last time, else blank — so an
+  // unchanged file needs zero edits and a changed one only highlights what moved.
+  const openMappingScreen = (data) => {
+    setMappingInfo(data);
+    const initial = {};
+    for (const field of data.targetFields) {
+      initial[field.key] = data.suggestedMapping[field.key] || data.previousMapping?.[field.key] || '';
+    }
+    setMapping(initial);
+  };
+
+  const handleReviewMapping = async () => {
+    setIsLoadingMapping(true);
+    setToast(null);
+    try {
+      const response = await api.get('/api/company/compliance-doc/mapping');
+      openMappingScreen(response.data);
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to read the document.' });
+    } finally {
+      setIsLoadingMapping(false);
+    }
+  };
+
+  const handleApplyMapping = async () => {
+    setIsApplyingMapping(true);
+    setToast(null);
+    try {
+      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping });
+      const { rowsParsed, matchedPatients, unmatchedCount } = response.data;
+      setToast({
+        type: 'success',
+        message: `Compliance data updated: ${rowsParsed} state row${rowsParsed === 1 ? '' : 's'} parsed, ${matchedPatients} matched to a patient in our system${unmatchedCount > 0 ? `, ${unmatchedCount} unmatched (Child ID not found)` : ''}.`,
+      });
+      setMappingInfo(null);
+      fetchSettings();
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to apply column mapping.' });
+    } finally {
+      setIsApplyingMapping(false);
     }
   };
 
@@ -282,11 +337,17 @@ export const CompanySettings = ({ onSettingsChange }) => {
                   {formatFileSize(complianceDoc.size)}
                   {complianceDoc.uploaded_at && ` · Uploaded ${new Date(complianceDoc.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
                 </p>
+                {!complianceDoc.hasMapping && !mappingInfo && (
+                  <p className="text-xs font-semibold text-amber-600 mt-0.5">Column matching not confirmed yet — not used in Compliance Analysis</p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Button onClick={handleComplianceDocDownload} variant="outline" size="sm" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold">
                 Download
+              </Button>
+              <Button onClick={handleReviewMapping} disabled={isLoadingMapping} variant="outline" size="sm" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold">
+                {isLoadingMapping ? 'Loading...' : 'Review column matching'}
               </Button>
               <label className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-2 rounded-lg cursor-pointer hover:bg-teal-100 transition-colors">
                 {isUploadingComplianceDoc ? 'Uploading...' : 'Replace'}
@@ -304,6 +365,62 @@ export const CompanySettings = ({ onSettingsChange }) => {
             <span className="text-xs text-slate-400">.xlsx or .xls, up to 5MB</span>
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleComplianceDocSelect} disabled={isUploadingComplianceDoc} />
           </label>
+        )}
+
+        {mappingInfo && (
+          <div className="border-t border-slate-100 pt-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Match columns</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Confirm which column in the Excel file feeds each field below. We pre-fill these from the file's headers — review anything highlighted before confirming.
+              </p>
+            </div>
+
+            <div className="space-y-2.5">
+              {mappingInfo.targetFields.map((field) => {
+                const suggested = mappingInfo.suggestedMapping[field.key];
+                const previous = mappingInfo.previousMapping?.[field.key];
+                const needsInput = field.required && !suggested;
+                const changed = !needsInput && previous && suggested && previous !== suggested;
+                const status = needsInput
+                  ? { text: 'Not found in this file — pick manually', className: 'text-red-600 bg-red-50 border-red-200' }
+                  : changed
+                  ? { text: `Changed since last upload (was "${previous}")`, className: 'text-amber-700 bg-amber-50 border-amber-200' }
+                  : suggested
+                  ? { text: 'Auto-detected', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
+                  : { text: 'Not in this file', className: 'text-slate-500 bg-slate-50 border-slate-200' };
+
+                return (
+                  <div key={field.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${needsInput ? 'border-red-200 bg-red-50/40' : changed ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-white'}`}>
+                    <div className="w-48 flex-shrink-0">
+                      <p className="text-sm font-semibold text-slate-800">{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
+                      <span className={`inline-block mt-0.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
+                    </div>
+                    <select
+                      className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
+                      value={mapping[field.key] || ''}
+                      onChange={(e) => setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    >
+                      <option value="">— Not in this file —</option>
+                      {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <p className="text-xs text-slate-400">{mappingInfo.rowCount} data row{mappingInfo.rowCount === 1 ? '' : 's'} found in this file.</p>
+              <div className="flex gap-2">
+                <Button onClick={() => setMappingInfo(null)} variant="outline" size="sm" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold">
+                  Cancel
+                </Button>
+                <Button onClick={handleApplyMapping} disabled={isApplyingMapping} size="sm" className="cursor-pointer bg-teal-700 hover:bg-teal-800 text-white font-semibold">
+                  {isApplyingMapping ? 'Applying...' : 'Confirm & Run Analysis'}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
