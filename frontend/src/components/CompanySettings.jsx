@@ -23,6 +23,7 @@ const EMPTY_FORM = {
 // row (company_settings.id = 1). onSettingsChange lets AdminDashboard keep
 // the sidebar's logo/name in sync without a second fetch.
 export const CompanySettings = ({ onSettingsChange }) => {
+  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'compliance'
   const [form, setForm] = useState(EMPTY_FORM);
   const [logo, setLogo] = useState(null);
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, size, uploaded_at, hasMapping } | null
@@ -265,8 +266,31 @@ export const CompanySettings = ({ onSettingsChange }) => {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Company Information</h1>
         <p className="text-sm text-slate-500 mt-1">
-          This is the one place your practice details live. Update it here and it flows everywhere else — the dashboard header, generated forms, and every new practitioner you add in Staff Directory.
+          {activeTab === 'info'
+            ? 'This is the one place your practice details live. Update it here and it flows everywhere else — the dashboard header, generated forms, and every new practitioner you add in Staff Directory.'
+            : "Attach and manage the state's required-documentation Excel file used to run Compliance Analysis against practitioner-logged sessions."}
         </p>
+      </div>
+
+      <div className="flex gap-1 border-b border-slate-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab('info')}
+          className={`px-4 py-2.5 text-sm font-semibold cursor-pointer border-b-2 -mb-px transition-colors ${
+            activeTab === 'info' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Company Information
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('compliance')}
+          className={`px-4 py-2.5 text-sm font-semibold cursor-pointer border-b-2 -mb-px transition-colors ${
+            activeTab === 'compliance' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          State Compliance Reference
+        </button>
       </div>
 
       {toast && (
@@ -279,6 +303,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
         </div>
       )}
 
+      {activeTab === 'info' && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7 space-y-6">
         <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
           {logo ? (
@@ -350,7 +375,9 @@ export const CompanySettings = ({ onSettingsChange }) => {
           </Button>
         </div>
       </div>
+      )}
 
+      {activeTab === 'compliance' && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7 space-y-4">
         <div>
           <h2 className="text-base font-bold text-slate-800">State Compliance Reference</h2>
@@ -510,6 +537,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

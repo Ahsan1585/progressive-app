@@ -894,7 +894,7 @@ function ComplianceAnalysisPreview({
   const [analysis, setAnalysis] = useState(null); // { documentOnFile, results, unmatchedStateLogs } | null
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState(null);
-  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged'
 
   useEffect(() => {
     api.get('/api/company')
@@ -971,7 +971,28 @@ function ComplianceAnalysisPreview({
   };
   const flaggedCount = documentReady ? sessions.filter(isSessionFlagged).length : 0;
   const matchedCount = documentReady ? sessions.length - flaggedCount : 0;
-  const visibleSessions = showFlaggedOnly ? sessions.filter(isSessionFlagged) : sessions;
+  const visibleSessions = statFilter === 'flagged' ? sessions.filter(isSessionFlagged)
+    : statFilter === 'matched' ? sessions.filter(s => !isSessionFlagged(s))
+    : sessions;
+
+  // Once a session's fields match the state record cleanly (matched, not
+  // flagged), there's nothing left for a biller to review — auto-approve it
+  // so it moves straight to Approved / awaiting report generation, same as
+  // if the biller had clicked Approve themselves.
+  useEffect(() => {
+    if (!analysis?.documentOnFile) return;
+    sessions.forEach(s => {
+      const r = analysis.results?.[s.id];
+      if (!r?.matched || r.flagged) return;
+      const isDeclined = s.billing_status === 'declined';
+      const isReturned = s.billing_status === 'rejected';
+      const isOnHold = s.billing_status === 'on_hold';
+      const isLockedStatus = s.billing_status === 'njeis_review';
+      const isApproved = logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
+      if (isDeclined || isReturned || isOnHold || isLockedStatus || isApproved) return;
+      handleAccept(s, practitionerId);
+    });
+  }, [analysis]);
 
   return (
     <div>
@@ -1030,22 +1051,34 @@ function ComplianceAnalysisPreview({
 
       {documentReady && sessions.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="border border-slate-200 rounded-xl px-3 py-3 text-center">
-            <div className="text-2xl font-black text-slate-900">{sessions.length}</div>
-            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">Sessions Checked</div>
-          </div>
-          <div className="border border-slate-200 rounded-xl px-3 py-3 text-center">
-            <div className="text-2xl font-black text-emerald-600">{matchedCount}</div>
-            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">Match State Codes</div>
-          </div>
           <button
             type="button"
-            onClick={() => setShowFlaggedOnly(v => !v)}
-            className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${showFlaggedOnly ? 'border-red-400 bg-red-50' : 'border-slate-200 hover:border-red-200 hover:bg-red-50/40'}`}
+            onClick={() => setStatFilter('all')}
+            className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'all' ? 'border-slate-400 bg-slate-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'}`}
+          >
+            <div className="text-2xl font-black text-slate-900">{sessions.length}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
+              {statFilter === 'all' ? 'Sessions Checked — showing all' : 'Sessions Checked — click to show all'}
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatFilter(v => v === 'matched' ? 'all' : 'matched')}
+            className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'matched' ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:border-emerald-200 hover:bg-emerald-50/40'}`}
+          >
+            <div className="text-2xl font-black text-emerald-600">{matchedCount}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
+              {statFilter === 'matched' ? 'Match State Codes — showing only these' : 'Match State Codes — click to filter'}
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatFilter(v => v === 'flagged' ? 'all' : 'flagged')}
+            className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'flagged' ? 'border-red-400 bg-red-50' : 'border-slate-200 hover:border-red-200 hover:bg-red-50/40'}`}
           >
             <div className="text-2xl font-black text-red-600">{flaggedCount}</div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
-              {showFlaggedOnly ? 'Flagged — showing only these' : 'Flagged — click to filter'}
+              {statFilter === 'flagged' ? 'Flagged — showing only these' : 'Flagged — click to filter'}
             </div>
           </button>
         </div>
@@ -1066,15 +1099,15 @@ function ComplianceAnalysisPreview({
         <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
           Side-by-side comparison &middot; {practitionerName}
         </div>
-        {showFlaggedOnly && (
-          <button type="button" onClick={() => setShowFlaggedOnly(false)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-            Showing {visibleSessions.length} flagged only · Show all {sessions.length} &rarr;
+        {statFilter !== 'all' && (
+          <button type="button" onClick={() => setStatFilter('all')} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+            Showing {visibleSessions.length} {statFilter} only · Show all {sessions.length} &rarr;
           </button>
         )}
       </div>
       <div className="space-y-3">
         {visibleSessions.length === 0 ? (
-          <div className="text-sm text-slate-500 text-center py-6">{showFlaggedOnly ? 'No flagged sessions.' : 'No sessions to compare.'}</div>
+          <div className="text-sm text-slate-500 text-center py-6">{statFilter === 'flagged' ? 'No flagged sessions.' : statFilter === 'matched' ? 'No matched sessions.' : 'No sessions to compare.'}</div>
         ) : visibleSessions.map(s => {
           const sessionResult = analysis?.results?.[s.id];
           const compareFields = sessionResult?.fields || [];
@@ -1103,57 +1136,60 @@ function ComplianceAnalysisPreview({
           return (
             <div key={s.id} className={`border rounded-xl overflow-hidden ${flagged ? 'border-red-200' : 'border-slate-200'}`}>
               <div className={`flex items-center justify-between px-4 py-2.5 border-b ${flagged ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
-                  <span className="text-xs text-slate-500 ml-2">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
-                </div>
-                {documentReady && sessionResult && (
-                  sessionResult.matched ? (
-                    flagged ? (
-                      <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
+                  {documentReady && sessionResult && (
+                    sessionResult.matched ? (
+                      flagged ? (
                         <span className="flex items-center gap-1 text-xs font-bold text-red-700">
                           <X className="size-3.5" /> {flaggedFieldCount} field{flaggedFieldCount === 1 ? '' : 's'} flagged
                         </span>
-                        {canChangeStatus ? (
-                          <select
-                            className={`text-xs font-bold uppercase border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60 ${statusBadgeClasses}`}
-                            value={currentStatusValue}
-                            disabled={statusChangingId === s.id}
-                            onChange={(e) => { if (e.target.value !== currentStatusValue) handleStatusChange(s, e.target.value); }}
-                          >
-                            {currentStatusValue === 'hold' ? (
-                              <>
-                                <option value="hold">On Hold</option>
-                                <option value="pending">Release to Pending</option>
-                              </>
-                            ) : currentStatusValue === 'accept' ? (
-                              <>
-                                <option value="accept">Approved</option>
-                                <option value="pending">Reset to Pending</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="pending">Pending</option>
-                                <option value="accept">Approve</option>
-                                <option value="return">Return...</option>
-                                <option value="reject">Reject...</option>
-                                <option value="hold">Hold</option>
-                              </>
-                            )}
-                          </select>
-                        ) : (
-                          <span className={`text-xs font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
-                        )}
-                      </div>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
+                          <CheckCircle2 className="size-3.5" /> Match
+                        </span>
+                      )
                     ) : (
-                      <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
-                        <CheckCircle2 className="size-3.5" /> Match
+                      <span className="flex items-center gap-1 text-xs font-bold text-orange-600">
+                        <X className="size-3.5" /> Not found
                       </span>
                     )
+                  )}
+                </div>
+                {documentReady && sessionResult?.matched && (
+                  canChangeStatus ? (
+                    <select
+                      className={`text-xs font-bold uppercase border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60 ${statusBadgeClasses}`}
+                      value={currentStatusValue}
+                      disabled={statusChangingId === s.id}
+                      onChange={(e) => { if (e.target.value !== currentStatusValue) handleStatusChange(s, e.target.value); }}
+                    >
+                      {currentStatusValue === 'hold' ? (
+                        <>
+                          <option value="hold">On Hold</option>
+                          <option value="pending">Release to Pending</option>
+                        </>
+                      ) : currentStatusValue === 'accept' ? (
+                        <>
+                          <option value="accept">Approved</option>
+                          <option value="pending">Reset to Pending</option>
+                          <option value="return">Return...</option>
+                          <option value="reject">Reject...</option>
+                          <option value="hold">Hold</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="pending">Pending</option>
+                          <option value="accept">Approve</option>
+                          <option value="return">Return...</option>
+                          <option value="reject">Reject...</option>
+                          <option value="hold">Hold</option>
+                        </>
+                      )}
+                    </select>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs font-bold text-orange-600">
-                      <X className="size-3.5" /> Not found
-                    </span>
+                    <span className={`text-xs font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
                   )
                 )}
               </div>
