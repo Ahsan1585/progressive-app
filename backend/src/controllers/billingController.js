@@ -1006,6 +1006,31 @@ const getComplianceAnalysis = async (req, res) => {
       };
     }
 
+    // A duplicate log (same patient/date/time/type/location submitted
+    // twice) only ever has ONE state record to match against — whichever
+    // session the loop above reaches first claims it via usedStateLogIds,
+    // leaving the other with no candidate left. That's not genuinely
+    // "missing from the state," it's our own duplicate, so flag it as such
+    // instead of implying the state never recorded the session at all.
+    for (const session of sessions) {
+      const result = results[session.id];
+      if (result.matched) continue;
+      const duplicateOf = sessions.find((other) =>
+        other.id !== session.id
+        && other.patient_id === session.patient_id
+        && other.service_date === session.service_date
+        && other.start_time === session.start_time
+        && other.end_time === session.end_time
+        && other.type === session.type
+        && other.location === session.location
+        && results[other.id]?.matched
+      );
+      if (duplicateOf) {
+        result.duplicateOfSessionId = duplicateOf.id;
+        result.flagged = true;
+      }
+    }
+
     res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, results });
   } catch (error) {
     console.error('Error running compliance analysis:', error);

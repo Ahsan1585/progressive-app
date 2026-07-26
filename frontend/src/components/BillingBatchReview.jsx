@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
-  Users, ClipboardList, MousePointerClick, CalendarDays, RefreshCw,
+  Users, ClipboardList, MousePointerClick, CalendarDays, RefreshCw, Copy,
 } from 'lucide-react';
 
 // Matches BillingManager.jsx's own formatMonthLabel — batches are keyed by
@@ -977,16 +977,20 @@ function ComplianceAnalysisPreview({
 
   const documentReady = analysis?.documentOnFile;
 
-  // "Missing in EIMS" (no matching state record at all) and "Flagged" (a
-  // matched record with real field mismatches) are different problems with
+  // "Missing in EIMS" (no matching state record at all), "Flagged" (a real
+  // field mismatch OR a duplicate log competing for the same single state
+  // record), and duplicates specifically are different problems with
   // different fixes, so they're tracked and counted separately.
+  const isSessionDuplicate = (s) => !!analysis?.results?.[s.id]?.duplicateOfSessionId;
   const isSessionMissing = (s) => {
     const r = analysis?.results?.[s.id];
-    return !!r && !r.matched;
+    return !!r && !r.matched && !isSessionDuplicate(s);
   };
   const isSessionFlagged = (s) => {
     const r = analysis?.results?.[s.id];
-    return !!r && r.matched && !!r.flagged;
+    if (!r) return false;
+    if (isSessionDuplicate(s)) return true;
+    return r.matched && !!r.flagged;
   };
   const missingCount = documentReady ? sessions.filter(isSessionMissing).length : 0;
   const flaggedCount = documentReady ? sessions.filter(isSessionFlagged).length : 0;
@@ -1133,7 +1137,8 @@ function ComplianceAnalysisPreview({
         ) : visibleSessions.map(s => {
           const sessionResult = analysis?.results?.[s.id];
           const compareFields = sessionResult?.fields || [];
-          const flagged = documentReady && sessionResult?.matched && sessionResult.flagged;
+          const isDuplicate = !!sessionResult?.duplicateOfSessionId;
+          const flagged = documentReady && !!sessionResult && ((sessionResult.matched && sessionResult.flagged) || isDuplicate);
           const flaggedFieldCount = compareFields.filter(f => f.match === false).length;
 
           // Same status computation as the practitioner queue rows — the
@@ -1156,8 +1161,8 @@ function ComplianceAnalysisPreview({
           const currentStatusValue = isOnHold ? 'hold' : isApproved ? 'accept' : 'pending';
 
           return (
-            <div key={s.id} className={`border rounded-xl overflow-hidden ${flagged ? 'border-red-200' : 'border-slate-200'}`}>
-              <div className={`flex items-center justify-between px-4 py-2.5 border-b ${flagged ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+            <div key={s.id} className={`border rounded-xl overflow-hidden ${isDuplicate ? 'border-violet-200' : flagged ? 'border-red-200' : 'border-slate-200'}`}>
+              <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isDuplicate ? 'bg-violet-50 border-violet-200' : flagged ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
                   <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
@@ -1172,6 +1177,10 @@ function ComplianceAnalysisPreview({
                           <CheckCircle2 className="size-3.5" /> Match
                         </span>
                       )
+                    ) : isDuplicate ? (
+                      <span className="flex items-center gap-1 text-xs font-bold text-violet-700">
+                        <Copy className="size-3.5" /> Duplicate log
+                      </span>
                     ) : (
                       <span className="flex items-center gap-1 text-xs font-bold text-orange-600">
                         <X className="size-3.5" /> Missing in EIMS
@@ -1235,6 +1244,10 @@ function ComplianceAnalysisPreview({
                   ) : !documentReady ? (
                     <tr>
                       <td className="px-4 py-3 text-center text-slate-400 text-xs italic" colSpan={3}>No confirmed state document to compare against</td>
+                    </tr>
+                  ) : isDuplicate ? (
+                    <tr>
+                      <td className="px-4 py-3 text-center text-violet-700 text-xs font-semibold" colSpan={3}>Duplicate of another log for this patient on this date/time — only one can match the state's single record for it</td>
                     </tr>
                   ) : !sessionResult?.matched ? (
                     <tr>
