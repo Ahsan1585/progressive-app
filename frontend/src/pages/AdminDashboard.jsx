@@ -6,6 +6,7 @@ import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
 import { CompanySettings } from '@/components/CompanySettings';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
+import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
@@ -45,6 +46,12 @@ const AdminDashboard = () => {
   const [companySettings, setCompanySettings] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile hamburger toggle
   const [desktopNavOpen, setDesktopNavOpen] = useState(false); // desktop hover-triggered flyout nav
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    navigate('/');
+  };
 
   const toggleSidebar = () => {
     setSidebarOpen(o => !o);
@@ -280,11 +287,7 @@ const AdminDashboard = () => {
               </div>
             )}
             <button
-              onClick={() => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('role');
-                navigate('/');
-              }}
+              onClick={handleLogout}
               className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
               title="Sign Out"
             >
@@ -301,6 +304,7 @@ const AdminDashboard = () => {
         </div>
       </main>
 
+      <IdleTimeoutWarning onLogout={handleLogout} />
     </div>
   );
 };
