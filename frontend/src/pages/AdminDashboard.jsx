@@ -189,7 +189,11 @@ const AdminDashboard = () => {
             </button>
           )}
 
-          {visibleTabs.includes('company') && (
+        </nav>
+
+        {visibleTabs.includes('company') && (
+          <div className="p-4 border-t border-slate-100">
+            <p className="px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Useful Links</p>
             <button
               onClick={() => { setActiveTab('company'); setSidebarOpen(false); setDesktopNavOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
@@ -203,9 +207,8 @@ const AdminDashboard = () => {
               </svg>
               Company Information
             </button>
-          )}
-
-        </nav>
+          </div>
+        )}
 
         <div className="p-4 border-t border-slate-100 flex flex-col items-center">
           <img src={izayaLogo} alt="Izaya" className="h-5 w-auto mb-1.5" />
