@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
@@ -1210,11 +1210,11 @@ function ComplianceAnalysisPreview({
           <DialogHeader>
             <DialogTitle>{pendingNoteAction?.type === 'reject' ? 'Reject' : 'Return'} this log</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-500 -mt-2">
+          <DialogDescription className="text-sm text-slate-500 -mt-2">
             {pendingNoteAction?.type === 'reject'
               ? 'This log will be permanently excluded from billing. A note is required.'
               : 'This log will go back to the practitioner for revision. A note is required.'}
-          </p>
+          </DialogDescription>
           <Textarea
             autoFocus
             placeholder="Explain what needs to change..."
