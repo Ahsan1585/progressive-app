@@ -298,6 +298,7 @@ CREATE TABLE company_settings (
   compliance_doc_size integer,
   compliance_doc_uploaded_at timestamp with time zone,
   compliance_doc_column_mapping jsonb,
+  compliance_doc_custom_fields jsonb DEFAULT '[]',
   updated_at timestamp with time zone DEFAULT now()
 );
 INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)
@@ -333,6 +334,7 @@ CREATE TABLE compliance_state_logs (
   mapped_group_size_code text,
   period_start date,
   period_end date,
+  extra_fields jsonb,
   uploaded_at timestamp with time zone DEFAULT now(),
   PRIMARY KEY (id),
   FOREIGN KEY (patient_id) REFERENCES patients(id)

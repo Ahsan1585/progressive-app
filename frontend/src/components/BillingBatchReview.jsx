@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
@@ -379,6 +381,11 @@ export const BillingBatchReview = ({
                 periodStart={selectedPeriod?.start}
                 periodEnd={selectedPeriod?.end}
                 logActions={logActions}
+                handleAccept={wrappedAccept}
+                handleResetToPending={wrappedResetToPending}
+                handleHold={wrappedHold}
+                handleReleaseHold={wrappedReleaseHold}
+                handleInlineReturnReject={wrappedInlineReturnReject}
               />
             ) : (
               <SessionDetailPanel
@@ -871,8 +878,17 @@ function ActionButton({ label, icon, onClick, active, tone }) {
 // backend/src/controllers/billingController.js getComplianceAnalysis).
 // Falls back to an explicit "no document on file" state rather than ever
 // fabricating a comparison when nothing real exists to compare against.
-function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, periodStart, periodEnd, logActions }) {
+function ComplianceAnalysisPreview({
+  sessions, practitioner, practitionerId, periodStart, periodEnd, logActions,
+  handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleInlineReturnReject,
+}) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
+  // { session, practitionerId, type: 'return'|'reject' } | null — the popup
+  // for entering the required note before a Return/Reject goes through.
+  const [pendingNoteAction, setPendingNoteAction] = useState(null);
+  const [noteText, setNoteText] = useState('');
+  const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+  const [statusChangingId, setStatusChangingId] = useState(null);
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, uploaded_at } | null
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
   const [analysis, setAnalysis] = useState(null); // { documentOnFile, results, unmatchedStateLogs } | null
@@ -909,6 +925,39 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
     api.get('/api/company/compliance-doc/download')
       .then(res => window.open(res.data.url, '_blank', 'noopener'))
       .catch(() => {});
+  };
+
+  // Return/Reject need a note, collected via the popup below — everything
+  // else (Approve, reset to Pending, Hold, Release Hold) applies immediately.
+  const handleStatusChange = async (session, value) => {
+    if (value === 'return' || value === 'reject') {
+      setPendingNoteAction({ session, practitionerId, type: value });
+      setNoteText('');
+      return;
+    }
+    setStatusChangingId(session.id);
+    try {
+      if (value === 'accept') await handleAccept(session, practitionerId);
+      else if (value === 'pending') {
+        const isApproved = logActions?.[session.id] === 'accept' || session.billing_review === 'accept';
+        if (isApproved) await handleResetToPending(session, practitionerId);
+        else await handleReleaseHold(session, practitionerId);
+      } else if (value === 'hold') await handleHold(session, practitionerId);
+    } finally {
+      setStatusChangingId(null);
+    }
+  };
+
+  const submitNoteAction = async () => {
+    if (!pendingNoteAction || !noteText.trim()) return;
+    setIsSubmittingNote(true);
+    try {
+      await handleInlineReturnReject(pendingNoteAction.session, pendingNoteAction.practitionerId, pendingNoteAction.type, noteText.trim());
+      setPendingNoteAction(null);
+      setNoteText('');
+    } finally {
+      setIsSubmittingNote(false);
+    }
   };
 
   const documentReady = analysis?.documentOnFile;
@@ -1038,6 +1087,7 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
           const isDeclined = s.billing_status === 'declined';
           const isReturned = s.billing_status === 'rejected';
           const isOnHold = s.billing_status === 'on_hold';
+          const isLockedStatus = s.billing_status === 'njeis_review';
           const isApproved = logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
           const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
           const statusBadgeClasses = isDeclined ? 'text-red-600'
@@ -1045,6 +1095,10 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
             : isOnHold ? 'text-violet-600'
             : isApproved ? 'text-emerald-600'
             : 'text-slate-500';
+          // Once Returned/Declined, action only happens via the practitioner's
+          // resubmission or Session Detail's Store Log — same rule as there.
+          const canChangeStatus = !isDeclined && !isReturned && !isLockedStatus;
+          const currentStatusValue = isOnHold ? 'hold' : isApproved ? 'accept' : 'pending';
 
           return (
             <div key={s.id} className={`border rounded-xl overflow-hidden ${flagged ? 'border-red-200' : 'border-slate-200'}`}>
@@ -1060,7 +1114,36 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
                         <span className="flex items-center gap-1 text-xs font-bold text-red-700">
                           <X className="size-3.5" /> {flaggedFieldCount} field{flaggedFieldCount === 1 ? '' : 's'} flagged
                         </span>
-                        <span className={`text-xs font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
+                        {canChangeStatus ? (
+                          <select
+                            className={`text-xs font-bold uppercase border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60 ${statusBadgeClasses}`}
+                            value={currentStatusValue}
+                            disabled={statusChangingId === s.id}
+                            onChange={(e) => { if (e.target.value !== currentStatusValue) handleStatusChange(s, e.target.value); }}
+                          >
+                            {currentStatusValue === 'hold' ? (
+                              <>
+                                <option value="hold">On Hold</option>
+                                <option value="pending">Release to Pending</option>
+                              </>
+                            ) : currentStatusValue === 'accept' ? (
+                              <>
+                                <option value="accept">Approved</option>
+                                <option value="pending">Reset to Pending</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="pending">Pending</option>
+                                <option value="accept">Approve</option>
+                                <option value="return">Return...</option>
+                                <option value="reject">Reject...</option>
+                                <option value="hold">Hold</option>
+                              </>
+                            )}
+                          </select>
+                        ) : (
+                          <span className={`text-xs font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
+                        )}
                       </div>
                     ) : (
                       <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
@@ -1121,6 +1204,39 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
           );
         })}
       </div>
+
+      <Dialog open={!!pendingNoteAction} onOpenChange={(open) => { if (!open) setPendingNoteAction(null); }}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>{pendingNoteAction?.type === 'reject' ? 'Reject' : 'Return'} this log</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500 -mt-2">
+            {pendingNoteAction?.type === 'reject'
+              ? 'This log will be permanently excluded from billing. A note is required.'
+              : 'This log will go back to the practitioner for revision. A note is required.'}
+          </p>
+          <Textarea
+            autoFocus
+            placeholder="Explain what needs to change..."
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            className="min-h-[100px]"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setPendingNoteAction(null)} className="cursor-pointer">
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={submitNoteAction}
+              disabled={!noteText.trim() || isSubmittingNote}
+              className={`cursor-pointer text-white ${pendingNoteAction?.type === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+            >
+              {isSubmittingNote ? 'Submitting...' : pendingNoteAction?.type === 'reject' ? 'Reject Log' : 'Return Log'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

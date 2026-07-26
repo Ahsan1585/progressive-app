@@ -146,7 +146,7 @@ async function readWorkbookFromBuffer(buffer) {
   return workbook.worksheets[0];
 }
 
-async function buildMappingResponse(buffer, previousMapping) {
+async function buildMappingResponse(buffer, previousMapping, previousCustomFields) {
   const sheet = await readWorkbookFromBuffer(buffer);
   const found = findHeaderRow(sheet);
   if (!found) {
@@ -154,11 +154,16 @@ async function buildMappingResponse(buffer, previousMapping) {
   }
   const { rowNumber, headers } = found;
   const suggestedMapping = suggestMapping(headers);
+  // Custom fields the user added previously are only carried forward if
+  // their chosen header still exists in this file — same "don't silently
+  // mis-map" principle as the fixed fields' changed/needs-input flagging.
+  const carriedCustomFields = (previousCustomFields || []).filter((cf) => headers.includes(cf.header));
   return {
     headers,
     targetFields: TARGET_FIELDS,
     suggestedMapping,
     previousMapping: previousMapping || null,
+    previousCustomFields: carriedCustomFields,
     rowCount: sheet.rowCount - rowNumber,
   };
 }
@@ -183,7 +188,11 @@ const uploadComplianceDoc = async (req, res) => {
     const base64Data = fileBase64.slice(fileBase64.indexOf(',') + 1);
     const buffer = Buffer.from(base64Data, 'base64');
 
-    const mappingInfo = await buildMappingResponse(buffer, null);
+    const { rows: existingBeforeUpload } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping, compliance_doc_custom_fields FROM company_settings WHERE id = 1');
+    const previousMapping = existingBeforeUpload[0]?.compliance_doc_column_mapping || null;
+    const previousCustomFields = existingBeforeUpload[0]?.compliance_doc_custom_fields || [];
+
+    const mappingInfo = await buildMappingResponse(buffer, previousMapping, previousCustomFields);
     if (mappingInfo.error) return res.status(400).json(mappingInfo);
 
     const path = `${COMPLIANCE_DOC_PREFIX}${Date.now()}-${filename}`;
@@ -191,9 +200,7 @@ const uploadComplianceDoc = async (req, res) => {
       ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       : 'application/vnd.ms-excel';
 
-    const { rows: existing } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping FROM company_settings WHERE id = 1');
-    const previousPath = existing[0]?.compliance_doc_path;
-    const previousMapping = existing[0]?.compliance_doc_column_mapping || null;
+    const previousPath = existingBeforeUpload[0]?.compliance_doc_path;
 
     await uploadFile(NJEIS_FORMS_BUCKET, path, buffer, contentType);
 
@@ -218,7 +225,7 @@ const uploadComplianceDoc = async (req, res) => {
       await removeFiles(NJEIS_FORMS_BUCKET, [previousPath]).catch(() => {});
     }
 
-    res.json({ success: true, settings: rows[0], ...mappingInfo, previousMapping });
+    res.json({ success: true, settings: rows[0], ...mappingInfo });
   } catch (error) {
     console.error('Error uploading compliance document:', error);
     res.status(500).json({ error: 'Failed to upload compliance document' });
@@ -231,12 +238,12 @@ const uploadComplianceDoc = async (req, res) => {
 // export layout) without requiring a fresh upload.
 const getComplianceDocMapping = async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping FROM company_settings WHERE id = 1');
+    const { rows } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping, compliance_doc_custom_fields FROM company_settings WHERE id = 1');
     const path = rows[0]?.compliance_doc_path;
     if (!path) return res.status(404).json({ error: 'No compliance document on file' });
 
     const buffer = await downloadFile(NJEIS_FORMS_BUCKET, path);
-    const mappingInfo = await buildMappingResponse(buffer, rows[0]?.compliance_doc_column_mapping || null);
+    const mappingInfo = await buildMappingResponse(buffer, rows[0]?.compliance_doc_column_mapping || null, rows[0]?.compliance_doc_custom_fields || []);
     if (mappingInfo.error) return res.status(400).json(mappingInfo);
 
     res.json({ success: true, ...mappingInfo });
@@ -251,7 +258,7 @@ const getComplianceDocMapping = async (req, res) => {
 // history — see schema.sql), and saves the mapping so next upload's
 // suggested/previous-mapping diff can flag anything that changed.
 const applyComplianceDocMapping = async (req, res) => {
-  const { mapping } = req.body;
+  const { mapping, customFields: rawCustomFields } = req.body;
   try {
     if (!mapping || typeof mapping !== 'object') {
       return res.status(400).json({ error: 'mapping is required' });
@@ -260,6 +267,13 @@ const applyComplianceDocMapping = async (req, res) => {
     if (requiredMissing.length > 0) {
       return res.status(400).json({ error: `Missing required field mapping(s): ${requiredMissing.map((f) => f.label).join(', ')}` });
     }
+    // Extra state-side-only fields the user added beyond the fixed 11 —
+    // stored per row in compliance_state_logs.extra_fields, shown in
+    // Compliance Analysis as informational (no "our side" to compare
+    // against, so never a match/mismatch verdict — see getComplianceAnalysis).
+    const customFields = Array.isArray(rawCustomFields)
+      ? rawCustomFields.filter((cf) => cf && cf.label && cf.header).map((cf) => ({ label: String(cf.label).trim(), header: String(cf.header) }))
+      : [];
 
     const { rows: settingsRows } = await pool.query('SELECT compliance_doc_path FROM company_settings WHERE id = 1');
     const path = settingsRows[0]?.compliance_doc_path;
@@ -277,6 +291,7 @@ const applyComplianceDocMapping = async (req, res) => {
       const header = mapping[field.key];
       colIndex[field.key] = header ? headers.indexOf(header) + 1 : 0; // 0 = not mapped
     }
+    const customColIndex = customFields.map((cf) => ({ label: cf.label, col: headers.indexOf(cf.header) + 1 }));
 
     // Resolve every referenced Child ID to our patients table in one query,
     // instead of one lookup per row.
@@ -302,6 +317,15 @@ const applyComplianceDocMapping = async (req, res) => {
       const locationLabel = cellToText(get('location_label'));
       const groupSizeLabel = cellToText(get('group_size_label'));
 
+      let extraFields = null;
+      if (customColIndex.length > 0) {
+        const obj = {};
+        for (const cf of customColIndex) {
+          if (cf.col) obj[cf.label] = cellToText(row.getCell(cf.col).value);
+        }
+        extraFields = Object.keys(obj).length > 0 ? obj : null;
+      }
+
       parsedRows.push([
         patientIdByChildId.get(childId) || null,
         childId,
@@ -322,6 +346,7 @@ const applyComplianceDocMapping = async (req, res) => {
         mapGroupSizeLabelToCode(groupSizeLabel),
         periodStart,
         periodEnd,
+        extraFields ? JSON.stringify(extraFields) : null,
       ]);
     }
 
@@ -335,14 +360,14 @@ const applyComplianceDocMapping = async (req, res) => {
              (patient_id, child_id, child_name, practitioner_name, service_label, service_type_label,
               group_size_label, location_label, service_date, start_time, end_time, service_minutes,
               logged_date, ifsp_event_id, mapped_service_code, mapped_location_code, mapped_group_size_code,
-              period_start, period_end)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+              period_start, period_end, extra_fields)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
           row
         );
       }
       await client.query(
-        `UPDATE company_settings SET compliance_doc_column_mapping = $1, updated_at = now() WHERE id = 1`,
-        [JSON.stringify(mapping)]
+        `UPDATE company_settings SET compliance_doc_column_mapping = $1, compliance_doc_custom_fields = $2, updated_at = now() WHERE id = 1`,
+        [JSON.stringify(mapping), JSON.stringify(customFields)]
       );
       await client.query('COMMIT');
     } catch (err) {

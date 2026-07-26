@@ -38,6 +38,8 @@ export const CompanySettings = ({ onSettingsChange }) => {
   // each field before we parse the whole file into compliance_state_logs.
   const [mappingInfo, setMappingInfo] = useState(null); // { headers, targetFields, suggestedMapping, previousMapping } | null
   const [mapping, setMapping] = useState({});
+  const [removedFields, setRemovedFields] = useState(new Set());
+  const [customFields, setCustomFields] = useState([]); // [{ label, header }] — state-only extra fields beyond the fixed 11
   const [isLoadingMapping, setIsLoadingMapping] = useState(false);
   const [isApplyingMapping, setIsApplyingMapping] = useState(false);
 
@@ -173,6 +175,32 @@ export const CompanySettings = ({ onSettingsChange }) => {
       initial[field.key] = data.suggestedMapping[field.key] || data.previousMapping?.[field.key] || '';
     }
     setMapping(initial);
+    setRemovedFields(new Set());
+    setCustomFields((data.previousCustomFields || []).map((cf) => ({ ...cf })));
+  };
+
+  const handleRemoveField = (field) => {
+    if (field.required) {
+      window.alert(`${field.label} is required for Compliance Analysis and can't be removed.`);
+      return;
+    }
+    if (!window.confirm(`Remove "${field.label}" from column matching? It won't be compared in Compliance Analysis until you reopen this screen.`)) {
+      return;
+    }
+    setRemovedFields((prev) => new Set(prev).add(field.key));
+    setMapping((prev) => ({ ...prev, [field.key]: '' }));
+  };
+
+  const handleAddCustomField = () => {
+    setCustomFields((prev) => [...prev, { label: '', header: '' }]);
+  };
+
+  const handleCustomFieldChange = (index, key, value) => {
+    setCustomFields((prev) => prev.map((cf, i) => (i === index ? { ...cf, [key]: value } : cf)));
+  };
+
+  const handleRemoveCustomField = (index) => {
+    setCustomFields((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleReviewMapping = async () => {
@@ -189,10 +217,16 @@ export const CompanySettings = ({ onSettingsChange }) => {
   };
 
   const handleApplyMapping = async () => {
+    const incompleteCustom = customFields.some((cf) => (cf.label && !cf.header) || (!cf.label && cf.header));
+    if (incompleteCustom) {
+      setToast({ type: 'error', message: 'Every custom field needs both a name and a column — remove any unfinished ones before confirming.' });
+      return;
+    }
     setIsApplyingMapping(true);
     setToast(null);
     try {
-      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping });
+      const cleanCustomFields = customFields.filter((cf) => cf.label && cf.header);
+      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping, customFields: cleanCustomFields });
       const { rowsParsed, matchedPatients, unmatchedCount } = response.data;
       setToast({
         type: 'success',
@@ -377,7 +411,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
             </div>
 
             <div className="space-y-2.5">
-              {mappingInfo.targetFields.map((field) => {
+              {mappingInfo.targetFields.filter((field) => !removedFields.has(field.key)).map((field) => {
                 const suggested = mappingInfo.suggestedMapping[field.key];
                 const previous = mappingInfo.previousMapping?.[field.key];
                 const needsInput = field.required && !suggested;
@@ -406,8 +440,8 @@ export const CompanySettings = ({ onSettingsChange }) => {
                     </select>
                     <button
                       type="button"
-                      onClick={() => setMapping((prev) => ({ ...prev, [field.key]: '' }))}
-                      title="Remove this column match"
+                      onClick={() => handleRemoveField(field)}
+                      title="Remove this field from column matching"
                       aria-label={`Remove column match for ${field.label}`}
                       className="flex-shrink-0 w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
                     >
@@ -416,6 +450,50 @@ export const CompanySettings = ({ onSettingsChange }) => {
                   </div>
                 );
               })}
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 space-y-2.5">
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Custom fields</h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Track additional columns from the file beyond the fields above. Shown in Compliance Analysis as state-only reference info (no match/mismatch check, since there's nothing on our side to compare it to).
+                </p>
+              </div>
+              {customFields.map((cf, index) => (
+                <div key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+                  <Input
+                    placeholder="Field name (e.g. Comments)"
+                    value={cf.label}
+                    onChange={(e) => handleCustomFieldChange(index, 'label', e.target.value)}
+                    className="w-48 flex-shrink-0 h-9"
+                  />
+                  <select
+                    className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
+                    value={cf.header}
+                    onChange={(e) => handleCustomFieldChange(index, 'header', e.target.value)}
+                  >
+                    <option value="">Select a column...</option>
+                    {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCustomField(index)}
+                    title="Remove this custom field"
+                    aria-label={`Remove custom field ${cf.label || index + 1}`}
+                    className="flex-shrink-0 w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={handleAddCustomField}
+                className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold text-teal-700 border border-dashed border-teal-200 rounded-lg py-2 hover:bg-teal-50/40 cursor-pointer transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Add custom field
+              </button>
             </div>
 
             <div className="flex items-center justify-between gap-3 pt-1">

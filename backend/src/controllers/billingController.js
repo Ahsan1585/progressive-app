@@ -908,6 +908,14 @@ const getComplianceAnalysis = async (req, res) => {
           ours: null, state: match.ifsp_event_id,
           match: null, // we don't track this field at all — informational only
         },
+        // User-added custom fields (Company Information's "Add custom field")
+        // — state-side only, same as IFSP Event ID: no equivalent on our
+        // side to compare against, so always informational, never a verdict.
+        ...Object.entries(match.extra_fields || {}).map(([label, value]) => ({
+          key: `custom:${label}`, label,
+          ours: null, state: value,
+          match: null,
+        })),
       ] : [];
 
       const flagged = fields.some((f) => f.match === false);
