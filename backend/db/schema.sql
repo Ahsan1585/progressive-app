@@ -274,6 +274,13 @@ CREATE INDEX idx_assessment_notes_assessment_id ON assessment_notes(assessment_i
 -- only. logo is a base64 data URL stored inline, same pattern as
 -- practitioners.profile_picture/saved_signature — small branding image, no
 -- object storage needed.
+-- compliance_doc_*: the state-issued Excel reference (e.g. NJEIS required
+-- documentation checklist) uploaded on the Company Information page. The
+-- file itself lives in the njeis-forms GCS bucket under
+-- company/compliance-reference/ (same object-storage pattern as generated
+-- PDFs) — only its path/metadata are stored here. Consumed by Batch
+-- Review's Compliance Analysis preview to know whether a reference
+-- document is on file.
 CREATE TABLE company_settings (
   id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   display_name text,
@@ -284,6 +291,10 @@ CREATE TABLE company_settings (
   phone text,
   billing_email text,
   logo text,
+  compliance_doc_path text,
+  compliance_doc_filename text,
+  compliance_doc_size integer,
+  compliance_doc_uploaded_at timestamp with time zone,
   updated_at timestamp with time zone DEFAULT now()
 );
 INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)

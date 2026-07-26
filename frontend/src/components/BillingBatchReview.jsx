@@ -877,6 +877,27 @@ const COMPARISON_FIELDS = [
 
 function ComplianceAnalysisPreview({ sessions, practitioner }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
+  const [complianceDoc, setComplianceDoc] = useState(null); // { filename, uploaded_at } | null
+  const [isLoadingDoc, setIsLoadingDoc] = useState(true);
+
+  useEffect(() => {
+    api.get('/api/company')
+      .then(res => {
+        const settings = res.data?.settings;
+        setComplianceDoc(settings?.compliance_doc_filename ? {
+          filename: settings.compliance_doc_filename,
+          uploaded_at: settings.compliance_doc_uploaded_at,
+        } : null);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingDoc(false));
+  }, []);
+
+  const openComplianceDoc = () => {
+    api.get('/api/company/compliance-doc/download')
+      .then(res => window.open(res.data.url, '_blank', 'noopener'))
+      .catch(() => {});
+  };
 
   return (
     <div>
@@ -887,15 +908,29 @@ function ComplianceAnalysisPreview({ sessions, practitioner }) {
         <div>
           <div className="text-base font-bold text-slate-900 mb-1.5">Compliance Analysis — preview</div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            This will lay every session's Service Date, Type, Start/End Time, Location, Child Name, Service Status, and Practitioner Name side by side against state-required documents, field by field. Document upload isn't built yet (coming to Company Information), so the "State Req." column below is a placeholder — no comparison has actually run and nothing here reflects a real compliance result.
+            This will lay every session's Service Date, Type, Start/End Time, Location, Child Name, Service Status, and Practitioner Name side by side against the state reference document, field by field. Automatic field-matching isn't built yet, so the "State Req." column below is still a placeholder — no comparison has actually run and nothing here reflects a real compliance result.
           </p>
         </div>
       </div>
 
-      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Reference documents (from Company Information)</div>
-      <div className="text-sm text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-4 py-3 mb-6">
-        No state documents on file yet — this feature isn't available in Company Information yet.
-      </div>
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Reference document (from Company Information)</div>
+      {isLoadingDoc ? (
+        <div className="text-sm text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-4 py-3 mb-6">Checking…</div>
+      ) : complianceDoc ? (
+        <button
+          type="button"
+          onClick={openComplianceDoc}
+          className="w-full flex items-center gap-3 text-left text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-6 cursor-pointer hover:bg-emerald-100 transition-colors"
+        >
+          <Download className="size-4 text-emerald-700 flex-shrink-0" />
+          <span className="text-emerald-800 font-semibold">{complianceDoc.filename}</span>
+          <span className="text-emerald-600 text-xs">on file — click to download</span>
+        </button>
+      ) : (
+        <div className="text-sm text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-4 py-3 mb-6">
+          No state document on file yet — attach one on the Company Information page.
+        </div>
+      )}
 
       <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
         Side-by-side preview &middot; {practitionerName}
