@@ -945,6 +945,10 @@ function ComplianceAnalysisPreview({
   // Return/Reject need a note, collected via the popup below — everything
   // else (Approve, reset to Pending, Hold, Release Hold) applies immediately.
   const handleStatusChange = async (session, value) => {
+    if (value === 'accept' && analysis?.results?.[session.id]?.duplicateOfSessionId) {
+      window.alert("This is a duplicate log — it can't be approved for billing. Return or Reject it instead so only the original stays billable.");
+      return;
+    }
     if (value === 'return' || value === 'reject') {
       setPendingNoteAction({ session, practitionerId, type: value });
       setNoteText('');
