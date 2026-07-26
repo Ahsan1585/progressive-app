@@ -9,6 +9,7 @@ const { generateNjeisPDF } = require('../utils/njeisGenerator');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const ExcelJS = require('exceljs');
+const { logAudit } = require('../utils/auditLog');
 
 // Converts a 24-hour "HH:MM" string into 12-hour AM/PM format for report display.
 const formatTime12h = (timeStr) => {
@@ -119,6 +120,7 @@ const generateMasterReport = async (req, res) => {
       createdReports.push(newReport);
     }
 
+    logAudit({ req, action: 'master_report_generate', resourceType: 'master_report', resourceId: parsedPractitionerId, details: { targetMonth, targetYear, count: createdReports.length } });
     res.status(201).json({ success: true, message: `Generated ${createdReports.length} reports.`, reports: createdReports });
   } catch (error) {
     console.error('Master Report Error:', error);
@@ -246,6 +248,7 @@ const getAllPatients = async (req, res) => {
     sql += ' ORDER BY pt.created_at DESC LIMIT 2000';
 
     const { rows: patients } = await pool.query(sql, params);
+    logAudit({ req, action: 'patients_bulk_view', resourceType: 'patient', details: { count: patients.length, practitionerSearch, patientSearch, status } });
     res.json({ success: true, patients: patients || [] });
   } catch (error) {
     console.error('getAllPatients error:', error);
@@ -361,6 +364,7 @@ const generateAuditNJEIS = async (req, res) => {
 
     const signedUrl = await getSignedUrl(NJEIS_FORMS_BUCKET, fileName, 3600);
 
+    logAudit({ req, action: 'audit_njeis_pdf_generate', resourceType: 'audit_report', resourceId: fileName, details: { practitionerSearch, patientSearch, startDate, endDate, billingStatus } });
     res.json({ success: true, downloadUrl: signedUrl, pageCount: mergedDoc.getPageCount() });
   } catch (error) {
     console.error('generateAuditNJEIS error:', error);
@@ -527,6 +531,7 @@ const generateAuditReportPDF = async (req, res) => {
 
   const pdfBytes = await pdfDoc.save();
 
+  logAudit({ req, action: 'audit_report_pdf_download', resourceType: 'audit_report', details: { filters, logCount: logs.length } });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="audit-report-${ts()}.pdf"`);
   res.send(Buffer.from(pdfBytes));
@@ -630,6 +635,7 @@ const generateAuditReportExcel = async (req, res) => {
 
     sheet.views = [{ state: 'frozen', ySplit: headerRowNumber }];
 
+    logAudit({ req, action: 'audit_report_excel_download', resourceType: 'audit_report', details: { filters, logCount: logs.length } });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="audit-report-${ts()}.xlsx"`);
     await workbook.xlsx.write(res);
@@ -735,6 +741,7 @@ const issueInvoiceOverride = async (req, res) => {
       }
     }
 
+    logAudit({ req, action: 'invoice_override_issue', resourceType: 'assessment', details: { assessmentIds } });
     res.json({ success: true, updated: assessmentIds.length, downloadUrls });
   } catch (error) {
     console.error('issueInvoiceOverride error:', error);

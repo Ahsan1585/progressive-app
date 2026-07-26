@@ -13,6 +13,7 @@ const { getDisciplineCode } = require('../utils/disciplineCodes');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const { serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel } = require('../constants/njeis');
+const { logAudit } = require('../utils/auditLog');
 const path = require('path');
 
 // --- 1. NEW Standardized Path Helper ---
@@ -394,8 +395,15 @@ const generateNJEISForms = async (req, res) => {
       await pool.query("UPDATE assessments SET billing_status = 'njeis_review' WHERE id = ANY($1::int[])", [idsToAdvance]);
     }
 
+    logAudit({
+      req, action: 'njeis_pdf_generate', resourceType: 'billing_batch', resourceId: batchRow?.id || null,
+      details: { practitionerId, assessmentCount: allAssessmentIds.length },
+    });
     res.json({ success: true, downloadUrl: signedUrl, batchId: batchRow?.id || null, message: 'SEVF Forms generated successfully!' });
-  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+  } catch (error) {
+    console.error('Error generating NJEIS forms:', error);
+    res.status(500).json({ success: false, error: 'Failed to generate NJEIS forms' });
+  }
 };
 
 // --- 4. STEP 2: Issue Financial Invoice ---
@@ -471,8 +479,15 @@ const generateFinancialInvoice = async (req, res) => {
     // billing specialist explicitly confirms via "Send to Completed Bills"
     // (see completeBilling below), even though both documents already exist.
 
+    logAudit({
+      req, action: 'invoice_pdf_generate', resourceType: 'billing_batch', resourceId: batchId || null,
+      details: { practitionerId, assessmentCount: assessments.length },
+    });
     res.json({ success: true, downloadUrl: signedUrl, message: 'Invoice issued successfully!' });
-  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+  } catch (error) {
+    console.error('Error generating financial invoice:', error);
+    res.status(500).json({ success: false, error: 'Failed to generate invoice' });
+  }
 };
 
 // --- 4b. STEP 3: Move a practitioner's fully-generated logs to Completed Bills ---
@@ -1191,7 +1206,7 @@ const revertBillingBatch = async (req, res) => {
     });
   } catch (error) {
     console.error('revertBillingBatch error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to revert batch' });
   }
 };
 

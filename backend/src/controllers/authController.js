@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { sendPasswordResetEmail } = require('../utils/emailClient');
+const { logAudit } = require('../utils/auditLog');
 
 // --- Helper: Enforce Password Strength ---
 const isPasswordStrong = (password) => {
@@ -119,10 +120,12 @@ const loginPractitioner = async (req, res) => {
     const isMatch = await bcrypt.compare(password || '', user ? user.password_hash : DUMMY_HASH);
 
     if (!user || !isMatch) {
+      logAudit({ req, actorEmail: String(email || '').trim().toLowerCase(), action: 'login_failed', resourceType: 'auth' });
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
     if (!user.is_active) {
+      logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'login_blocked_deactivated', resourceType: 'auth' });
       return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
     }
 
@@ -132,6 +135,8 @@ const loginPractitioner = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'login_success', resourceType: 'auth' });
 
     // SEND BOTH THE TOKEN AND THE FLAG TO THE FRONTEND
     res.json({

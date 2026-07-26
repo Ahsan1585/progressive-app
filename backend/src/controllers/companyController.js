@@ -3,6 +3,7 @@ const { pool } = require('../config/db');
 const { NJEIS_FORMS_BUCKET, uploadFile, downloadFile, getSignedUrl, removeFiles } = require('../config/storage');
 const { TARGET_FIELDS, suggestMapping, norm } = require('../constants/complianceMapping');
 const { mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode } = require('../constants/njeis');
+const { logAudit } = require('../utils/auditLog');
 
 // A resized/compressed PNG data URL comfortably fits well under this — this
 // mainly guards against a client sending an uncompressed original by mistake.
@@ -239,6 +240,7 @@ const uploadComplianceDoc = async (req, res) => {
       await removeFiles(NJEIS_FORMS_BUCKET, [previousPath]).catch(() => {});
     }
 
+    logAudit({ req, action: 'compliance_doc_upload', resourceType: 'compliance_doc', resourceId: path, details: { filename } });
     res.json({ success: true, settings: rows[0], ...mappingInfo });
   } catch (error) {
     console.error('Error uploading compliance document:', error);
@@ -425,6 +427,10 @@ const applyComplianceDocMapping = async (req, res) => {
     }
 
     const matchedPatients = parsedRows.filter((r) => r[0] !== null).length;
+    logAudit({
+      req, action: 'compliance_doc_apply_mapping', resourceType: 'compliance_doc', resourceId: path,
+      details: { rowsParsed: parsedRows.length, matchedPatients },
+    });
     res.json({
       success: true,
       rowsParsed: parsedRows.length,
@@ -460,6 +466,7 @@ const removeComplianceDoc = async (req, res) => {
     if (path) await removeFiles(NJEIS_FORMS_BUCKET, [path]).catch(() => {});
     await pool.query('DELETE FROM compliance_state_logs');
 
+    logAudit({ req, action: 'compliance_doc_remove', resourceType: 'compliance_doc', resourceId: path || null });
     res.json({ success: true, settings: rows[0] });
   } catch (error) {
     console.error('Error removing compliance document:', error);
@@ -474,6 +481,7 @@ const getComplianceDocDownloadUrl = async (req, res) => {
     if (!path) return res.status(404).json({ error: 'No compliance document on file' });
 
     const signedUrl = await getSignedUrl(NJEIS_FORMS_BUCKET, path, 300); // short-lived, single-click download
+    logAudit({ req, action: 'compliance_doc_download', resourceType: 'compliance_doc', resourceId: path });
     res.json({ success: true, url: signedUrl });
   } catch (error) {
     console.error('Error generating compliance document download URL:', error);

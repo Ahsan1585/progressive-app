@@ -1,5 +1,6 @@
 const { patientSchema } = require('../utils/patientSchema');
 const { pool } = require('../config/db');
+const { logAudit } = require('../utils/auditLog');
 
 const VALID_PATIENT_STATUSES = ['active', 'inactive'];
 
@@ -37,6 +38,7 @@ const registerPatient = async (req, res) => {
     );
 
     // 4. Send success response
+    logAudit({ req, action: 'patient_create', resourceType: 'patient', resourceId: rows[0].id });
     res.status(201).json({
       message: "Patient registered successfully",
       data: rows[0]
@@ -49,8 +51,9 @@ const registerPatient = async (req, res) => {
     if (error.errors) {
         return res.status(400).json({ error: error.errors });
     }
+    if (error.code === '23505') return res.status(409).json({ error: 'Child ID is already in use' });
 
-    res.status(500).json({ error: "Internal server error: " + error.message });
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -105,6 +108,7 @@ const updatePatient = async (req, res) => {
       ]
     );
 
+    logAudit({ req, action: 'patient_update', resourceType: 'patient', resourceId: id });
     res.json({ message: 'Patient updated successfully', data: rows[0] });
   } catch (error) {
     console.error('Error updating patient:', error);
@@ -135,6 +139,7 @@ const updatePatientStatus = async (req, res) => {
       [status, id]
     );
 
+    logAudit({ req, action: 'patient_status_update', resourceType: 'patient', resourceId: id, details: { status } });
     res.json({ message: 'Patient status updated', data: rows[0] });
   } catch (error) {
     console.error('Error updating patient status:', error);
@@ -161,6 +166,7 @@ const getPatientAssessments = async (req, res) => {
       [patientId, practitionerId]
     );
 
+    logAudit({ req, action: 'patient_assessments_view', resourceType: 'patient', resourceId: patientId, details: { count: assessments.length } });
     res.status(200).json(assessments);
 
   } catch (error) {
@@ -298,6 +304,7 @@ const deleteLog = async (req, res) => {
     // first so a returned log's revision-history rows don't block the delete.
     await pool.query('DELETE FROM assessment_notes WHERE assessment_id = $1', [id]);
     await pool.query('DELETE FROM assessments WHERE id = $1', [id]);
+    logAudit({ req, action: 'log_delete', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting log:', error);
@@ -316,6 +323,7 @@ const deletePatient = async (req, res) => {
     if (!patientRows[0]) return res.status(404).json({ error: 'Patient not found' });
 
     await pool.query('DELETE FROM patients WHERE id = $1', [id]);
+    logAudit({ req, action: 'patient_delete', resourceType: 'patient', resourceId: id });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting patient:', error);

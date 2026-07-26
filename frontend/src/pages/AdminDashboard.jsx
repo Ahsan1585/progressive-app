@@ -5,6 +5,7 @@ import { MasterReports } from '@/components/MasterReports';
 import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
 import { CompanySettings } from '@/components/CompanySettings';
+import { AuditLogViewer } from '@/components/AuditLogViewer';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
@@ -12,6 +13,7 @@ const TAB_ACCESS = {
   reports:       ['ceo'],
   billing:       ['ceo', 'billing', 'account_specialist'],
   company:       ['ceo'],
+  auditLog:      ['ceo'],
 };
 
 const TAB_TITLES = {
@@ -19,6 +21,7 @@ const TAB_TITLES = {
   reports:       'Master Reports',
   billing:       'Billing & Invoices',
   company:       'Company Information',
+  auditLog:      'Audit Log',
 };
 
 const ROLE_LABELS = {
@@ -85,6 +88,12 @@ const AdminDashboard = () => {
         return (
           <div className="max-w-5xl mx-auto w-full">
             <CompanySettings onSettingsChange={setCompanySettings} />
+          </div>
+        );
+      case 'auditLog':
+        return (
+          <div className="max-w-6xl mx-auto w-full">
+            <AuditLogViewer />
           </div>
         );
       default:
@@ -207,6 +216,21 @@ const AdminDashboard = () => {
               </svg>
               Company Information
             </button>
+            {visibleTabs.includes('auditLog') && (
+              <button
+                onClick={() => { setActiveTab('auditLog'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                  activeTab === 'auditLog'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Audit Log
+              </button>
+            )}
           </div>
         )}
 

@@ -312,14 +312,16 @@ CREATE TABLE company_settings (
 INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)
 VALUES (1, 'Progressive Steps NJ', 'Progressive Steps Early Intervention, LLC', 'New Jersey', 'Eastern (ET)', '14 Route 9 South, Old Bridge, NJ 08857', '(732) 555-0148', 'billing@progressivestepsnj.com');
 
--- compliance_state_logs: FK -> patients. Parsed rows from the single
+-- compliance_state_logs: FK -> patients. Parsed rows from the currently
 -- attached compliance_doc Excel (backend/src/constants/njeis.js maps the
 -- state's free-text Service/Location/Group Size columns to our codes at
--- parse time). Re-uploading a document wipes and re-inserts this table
--- entirely — there's only ever one active reference document (see
--- company_settings.compliance_doc_*), not a version history. patient_id is
--- resolved at parse time via patients.child_id (nullable — a state row for
--- a child not in our system still gets stored, surfaced as unmatched).
+-- parse time). Holds a rolling 60-day window keyed off service_date, not a
+-- single-file snapshot — each monthly upload only replaces its own covered
+-- date range (company/companyController.js applyComplianceDocMapping), and
+-- rows older than 60 days are purged automatically on every upload and on
+-- every Compliance Analysis read (billingController.js getComplianceAnalysis).
+-- patient_id is resolved at parse time via patients.child_id (nullable — a
+-- state row for a child not in our system still gets stored, surfaced as unmatched).
 CREATE SEQUENCE compliance_state_logs_id_seq;
 CREATE TABLE compliance_state_logs (
   id integer NOT NULL DEFAULT nextval('compliance_state_logs_id_seq'::regclass),
@@ -349,3 +351,31 @@ CREATE TABLE compliance_state_logs (
 );
 ALTER SEQUENCE compliance_state_logs_id_seq OWNED BY compliance_state_logs.id;
 CREATE INDEX compliance_state_logs_patient_date_idx ON compliance_state_logs (patient_id, service_date);
+
+-- audit_logs: FK -> practitioners (nullable — actor_email/actor_role are
+-- captured redundantly at write time so history reads correctly even if the
+-- practitioner is later deactivated or, in principle, removed). HIPAA
+-- Security Rule audit-controls requirement (45 CFR 164.312(b)) — records who
+-- touched PHI (patient records, compliance doc, generated NJEIS/invoice/audit
+-- PDFs) and when. Written via backend/src/utils/auditLog.js's logAudit()
+-- helper, fire-and-forget so a logging hiccup never blocks the real request.
+-- Append-only from the app's perspective — no UPDATE/DELETE code path exists.
+CREATE SEQUENCE audit_logs_id_seq;
+CREATE TABLE audit_logs (
+  id integer NOT NULL DEFAULT nextval('audit_logs_id_seq'::regclass),
+  actor_id integer,
+  actor_email text,
+  actor_role text,
+  action text NOT NULL,
+  resource_type text NOT NULL,
+  resource_id text,
+  details jsonb,
+  ip_address text,
+  created_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (id),
+  FOREIGN KEY (actor_id) REFERENCES practitioners(id) ON DELETE SET NULL
+);
+ALTER SEQUENCE audit_logs_id_seq OWNED BY audit_logs.id;
+CREATE INDEX audit_logs_created_at_idx ON audit_logs (created_at DESC);
+CREATE INDEX audit_logs_actor_id_idx ON audit_logs (actor_id);
+CREATE INDEX audit_logs_resource_idx ON audit_logs (resource_type, resource_id);

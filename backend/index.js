@@ -23,6 +23,7 @@ const billingRoutes = require('./src/routes/billingRoutes'); // 🌟 NEW: Import
 const messageRoutes = require('./src/routes/messageRoutes');
 const scheduleRoutes = require('./src/routes/scheduleRoutes');
 const companyRoutes = require('./src/routes/companyRoutes');
+const auditLogRoutes = require('./src/routes/auditLogRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -62,6 +63,7 @@ app.use('/api/billing', billingRoutes); // 🌟 NEW: Mounted billing routes to f
 app.use('/api/messages', messageRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/company', companyRoutes);
+app.use('/api/audit-log', auditLogRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).
