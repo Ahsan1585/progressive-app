@@ -894,7 +894,7 @@ function ComplianceAnalysisPreview({
   const [analysis, setAnalysis] = useState(null); // { documentOnFile, results, unmatchedStateLogs } | null
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState(null);
-  const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged'
+  const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged' | 'missing'
 
   useEffect(() => {
     api.get('/api/company')
@@ -962,17 +962,23 @@ function ComplianceAnalysisPreview({
 
   const documentReady = analysis?.documentOnFile;
 
-  // "Flagged" covers both a real field mismatch and no state record found
-  // at all — both need a biller's eyes, just for different reasons.
+  // "Missing in EIMS" (no matching state record at all) and "Flagged" (a
+  // matched record with real field mismatches) are different problems with
+  // different fixes, so they're tracked and counted separately.
+  const isSessionMissing = (s) => {
+    const r = analysis?.results?.[s.id];
+    return !!r && !r.matched;
+  };
   const isSessionFlagged = (s) => {
     const r = analysis?.results?.[s.id];
-    if (!r) return false;
-    return !r.matched || r.flagged;
+    return !!r && r.matched && !!r.flagged;
   };
+  const missingCount = documentReady ? sessions.filter(isSessionMissing).length : 0;
   const flaggedCount = documentReady ? sessions.filter(isSessionFlagged).length : 0;
-  const matchedCount = documentReady ? sessions.length - flaggedCount : 0;
+  const matchedCount = documentReady ? sessions.length - flaggedCount - missingCount : 0;
   const visibleSessions = statFilter === 'flagged' ? sessions.filter(isSessionFlagged)
-    : statFilter === 'matched' ? sessions.filter(s => !isSessionFlagged(s))
+    : statFilter === 'missing' ? sessions.filter(isSessionMissing)
+    : statFilter === 'matched' ? sessions.filter(s => !isSessionFlagged(s) && !isSessionMissing(s))
     : sessions;
 
   // Once a session's fields match the state record cleanly (matched, not
@@ -1050,7 +1056,7 @@ function ComplianceAnalysisPreview({
       )}
 
       {documentReady && sessions.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <button
             type="button"
             onClick={() => setStatFilter('all')}
@@ -1081,6 +1087,16 @@ function ComplianceAnalysisPreview({
               {statFilter === 'flagged' ? 'Flagged — showing only these' : 'Flagged — click to filter'}
             </div>
           </button>
+          <button
+            type="button"
+            onClick={() => setStatFilter(v => v === 'missing' ? 'all' : 'missing')}
+            className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'missing' ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-orange-200 hover:bg-orange-50/40'}`}
+          >
+            <div className="text-2xl font-black text-orange-600">{missingCount}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
+              {statFilter === 'missing' ? 'Missing in EIMS — showing only these' : 'Missing in EIMS — click to filter'}
+            </div>
+          </button>
         </div>
       )}
 
@@ -1101,13 +1117,15 @@ function ComplianceAnalysisPreview({
         </div>
         {statFilter !== 'all' && (
           <button type="button" onClick={() => setStatFilter('all')} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-            Showing {visibleSessions.length} {statFilter} only · Show all {sessions.length} &rarr;
+            Showing {visibleSessions.length} {statFilter === 'missing' ? 'missing in EIMS' : statFilter} only · Show all {sessions.length} &rarr;
           </button>
         )}
       </div>
       <div className="space-y-3">
         {visibleSessions.length === 0 ? (
-          <div className="text-sm text-slate-500 text-center py-6">{statFilter === 'flagged' ? 'No flagged sessions.' : statFilter === 'matched' ? 'No matched sessions.' : 'No sessions to compare.'}</div>
+          <div className="text-sm text-slate-500 text-center py-6">
+            {statFilter === 'flagged' ? 'No flagged sessions.' : statFilter === 'matched' ? 'No matched sessions.' : statFilter === 'missing' ? 'No sessions missing in EIMS.' : 'No sessions to compare.'}
+          </div>
         ) : visibleSessions.map(s => {
           const sessionResult = analysis?.results?.[s.id];
           const compareFields = sessionResult?.fields || [];
@@ -1152,7 +1170,7 @@ function ComplianceAnalysisPreview({
                       )
                     ) : (
                       <span className="flex items-center gap-1 text-xs font-bold text-orange-600">
-                        <X className="size-3.5" /> Not found
+                        <X className="size-3.5" /> Missing in EIMS
                       </span>
                     )
                   )}
