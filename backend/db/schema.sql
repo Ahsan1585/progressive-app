@@ -300,6 +300,13 @@ CREATE TABLE company_settings (
   compliance_doc_column_mapping jsonb,
   compliance_doc_custom_fields jsonb DEFAULT '[]',
   compliance_doc_removed_fields jsonb DEFAULT '[]',
+  -- Set to compliance_doc_path only once THAT exact uploaded file has had its
+  -- mapping confirmed (applyComplianceDocMapping). Replacing the file leaves
+  -- compliance_doc_column_mapping in place (so a same-layout replacement can
+  -- reuse it without friction) but this stays pointed at the old path — so
+  -- "confirmed" status and Compliance Analysis correctly reflect that the
+  -- newly-uploaded file hasn't actually been re-applied yet.
+  compliance_doc_applied_path text,
   updated_at timestamp with time zone DEFAULT now()
 );
 INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)

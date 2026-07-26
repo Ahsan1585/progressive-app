@@ -60,7 +60,13 @@ export const CompanySettings = ({ onSettingsChange }) => {
       filename: settings.compliance_doc_filename,
       size: settings.compliance_doc_size,
       uploaded_at: settings.compliance_doc_uploaded_at,
-      hasMapping: !!settings.compliance_doc_column_mapping,
+      // Only "confirmed" once THIS exact uploaded file has had its mapping
+      // applied — a replacement file keeps the old mapping around to prefill
+      // the review screen, but isn't actually feeding Compliance Analysis
+      // until Confirm & Run Analysis is clicked again for it.
+      hasMapping: !!settings.compliance_doc_column_mapping
+        && !!settings.compliance_doc_applied_path
+        && settings.compliance_doc_applied_path === settings.compliance_doc_path,
     } : null);
   };
 

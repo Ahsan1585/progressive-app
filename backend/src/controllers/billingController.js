@@ -763,10 +763,20 @@ const getComplianceAnalysis = async (req, res) => {
 
   try {
     const { rows: docRows } = await pool.query(
-      'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping FROM company_settings WHERE id = 1'
+      'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path FROM company_settings WHERE id = 1'
     );
     const doc = docRows[0];
-    const documentOnFile = !!(doc?.compliance_doc_filename && doc?.compliance_doc_column_mapping);
+    // compliance_doc_applied_path only matches compliance_doc_path once THIS
+    // exact uploaded file has actually had its mapping confirmed — a
+    // replacement file keeps the old mapping around (so a same-layout
+    // replacement doesn't need re-confirming) but compliance_state_logs
+    // still reflects whatever was last applied until that happens.
+    const documentOnFile = !!(
+      doc?.compliance_doc_filename
+      && doc?.compliance_doc_column_mapping
+      && doc?.compliance_doc_applied_path
+      && doc.compliance_doc_applied_path === doc.compliance_doc_path
+    );
     // Fields removed on the Company Information mapping screen have no
     // column mapped for them anymore — skip their comparison row entirely
     // rather than showing an always-empty "-" vs "-" row.

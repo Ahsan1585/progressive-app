@@ -117,6 +117,13 @@ function excelDateToISO(value) {
   return null;
 }
 
+// State exports don't guarantee identical Child ID formatting run to run
+// (case, stray leading/trailing/internal whitespace) — normalize before
+// comparing so a cosmetic difference doesn't silently zero out every match.
+function normalizeChildId(value) {
+  return (value || '').toString().trim().toUpperCase().replace(/\s+/g, '');
+}
+
 function cellToText(value) {
   if (value == null) return null;
   if (value instanceof Date) return null;
@@ -312,16 +319,24 @@ const applyComplianceDocMapping = async (req, res) => {
     const customColIndex = customFields.map((cf) => ({ label: cf.label, col: headers.indexOf(cf.header) + 1 }));
 
     // Resolve every referenced Child ID to our patients table in one query,
-    // instead of one lookup per row.
+    // instead of one lookup per row. Matched on a normalized form (case +
+    // stray whitespace stripped) rather than exact equality — a new state
+    // export can format the same ID slightly differently (e.g. "nj12345 "
+    // vs "NJ12345") from month to month, and an exact-string match would
+    // silently break every row when that happens.
     const childIds = new Set();
     for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
       const v = colIndex.child_id ? cellToText(sheet.getRow(r).getCell(colIndex.child_id).value) : null;
-      if (v) childIds.add(v);
+      if (v) childIds.add(normalizeChildId(v));
     }
     const { rows: patientRows } = childIds.size
-      ? await pool.query('SELECT id, child_id FROM patients WHERE child_id = ANY($1)', [[...childIds]])
+      ? await pool.query(
+          `SELECT id, child_id, UPPER(REGEXP_REPLACE(child_id, '\\s+', '', 'g')) AS norm_child_id
+           FROM patients WHERE UPPER(REGEXP_REPLACE(child_id, '\\s+', '', 'g')) = ANY($1)`,
+          [[...childIds]]
+        )
       : { rows: [] };
-    const patientIdByChildId = new Map(patientRows.map((p) => [p.child_id, p.id]));
+    const patientIdByChildId = new Map(patientRows.map((p) => [p.norm_child_id, p.id]));
 
     const parsedRows = [];
     for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
@@ -345,7 +360,7 @@ const applyComplianceDocMapping = async (req, res) => {
       }
 
       parsedRows.push([
-        patientIdByChildId.get(childId) || null,
+        patientIdByChildId.get(normalizeChildId(childId)) || null,
         childId,
         cellToText(get('child_name')),
         cellToText(get('practitioner_name')),
@@ -384,8 +399,8 @@ const applyComplianceDocMapping = async (req, res) => {
         );
       }
       await client.query(
-        `UPDATE company_settings SET compliance_doc_column_mapping = $1, compliance_doc_custom_fields = $2, compliance_doc_removed_fields = $3, updated_at = now() WHERE id = 1`,
-        [JSON.stringify(mapping), JSON.stringify(customFields), JSON.stringify(removedFields)]
+        `UPDATE company_settings SET compliance_doc_column_mapping = $1, compliance_doc_custom_fields = $2, compliance_doc_removed_fields = $3, compliance_doc_applied_path = $4, updated_at = now() WHERE id = 1`,
+        [JSON.stringify(mapping), JSON.stringify(customFields), JSON.stringify(removedFields), path]
       );
       await client.query('COMMIT');
     } catch (err) {
@@ -422,6 +437,7 @@ const removeComplianceDoc = async (req, res) => {
          compliance_doc_column_mapping = NULL,
          compliance_doc_custom_fields = '[]',
          compliance_doc_removed_fields = '[]',
+         compliance_doc_applied_path = NULL,
          updated_at = now()
        WHERE id = 1
        RETURNING *`
