@@ -191,6 +191,10 @@ export const BillingBatchReview = ({
 
   const onRelease = async (practitionerId) => {
     await handleRelease(practitionerId);
+    // The review panel on the right isn't gated by lock ownership on its
+    // own — close it here so a released session can't keep sitting open
+    // (and editable) after the biller no longer holds the lock on it.
+    setDetail(prev => (prev?.practitionerId === practitionerId ? null : prev));
     await fetchPeriodPractitioners();
   };
 
@@ -231,6 +235,17 @@ export const BillingBatchReview = ({
   const detailPractitioner = detail ? periodPractitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
   const detailSessions = detail ? (periodLogs[detail.practitionerId] || []) : [];
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
+
+  // Belt-and-suspenders: if the lock on the open session's practitioner is
+  // lost any other way (force-released by an admin, released from another
+  // tab, the 20s poll catching a stale lock), close the panel too — not
+  // just on the direct Release click above.
+  useEffect(() => {
+    if (!detail) return;
+    const stillLockedByMe = detailPractitioner?.locked_by_id === currentUserId;
+    if (!stillLockedByMe) setDetail(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodPractitioners]);
 
   return (
     <div className="flex flex-col">
