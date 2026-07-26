@@ -378,6 +378,7 @@ export const BillingBatchReview = ({
                 practitionerId={detail.practitionerId}
                 periodStart={selectedPeriod?.start}
                 periodEnd={selectedPeriod?.end}
+                logActions={logActions}
               />
             ) : (
               <SessionDetailPanel
@@ -868,7 +869,7 @@ function ActionButton({ label, icon, onClick, active, tone }) {
 // backend/src/controllers/billingController.js getComplianceAnalysis).
 // Falls back to an explicit "no document on file" state rather than ever
 // fabricating a comparison when nothing real exists to compare against.
-function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, periodStart, periodEnd }) {
+function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, periodStart, periodEnd, logActions }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, uploaded_at } | null
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
@@ -876,7 +877,6 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState(null);
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
-  const [updatingReviewId, setUpdatingReviewId] = useState(null);
 
   useEffect(() => {
     api.get('/api/company')
@@ -907,21 +907,6 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
     api.get('/api/company/compliance-doc/download')
       .then(res => window.open(res.data.url, '_blank', 'noopener'))
       .catch(() => {});
-  };
-
-  const handleReviewStatusChange = async (assessmentId, status) => {
-    setUpdatingReviewId(assessmentId);
-    try {
-      await api.patch('/api/billing/compliance-review-status', { assessmentId, status });
-      setAnalysis(prev => prev ? {
-        ...prev,
-        results: { ...prev.results, [assessmentId]: { ...prev.results[assessmentId], reviewStatus: status } },
-      } : prev);
-    } catch (error) {
-      // Leave the dropdown as-is on failure — no optimistic update to roll back.
-    } finally {
-      setUpdatingReviewId(null);
-    }
   };
 
   const documentReady = analysis?.documentOnFile;
@@ -1045,6 +1030,20 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
           const flagged = documentReady && sessionResult?.matched && sessionResult.flagged;
           const flaggedFieldCount = compareFields.filter(f => f.match === false).length;
 
+          // Same status computation as the practitioner queue rows — the
+          // flagged badge here reflects this session's REAL billing status
+          // (Approve/Return/Reject/Hold), not a separate review concept.
+          const isDeclined = s.billing_status === 'declined';
+          const isReturned = s.billing_status === 'rejected';
+          const isOnHold = s.billing_status === 'on_hold';
+          const isApproved = logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
+          const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
+          const statusBadgeClasses = isDeclined ? 'text-red-600'
+            : isReturned ? 'text-amber-600'
+            : isOnHold ? 'text-violet-600'
+            : isApproved ? 'text-emerald-600'
+            : 'text-slate-500';
+
           return (
             <div key={s.id} className={`border rounded-xl overflow-hidden ${flagged ? 'border-red-200' : 'border-slate-200'}`}>
               <div className={`flex items-center justify-between px-4 py-2.5 border-b ${flagged ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
@@ -1059,15 +1058,7 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
                         <span className="flex items-center gap-1 text-xs font-bold text-red-700">
                           <X className="size-3.5" /> {flaggedFieldCount} field{flaggedFieldCount === 1 ? '' : 's'} flagged
                         </span>
-                        <select
-                          className="text-xs font-semibold border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60"
-                          value={sessionResult.reviewStatus || 'awaiting_review'}
-                          disabled={updatingReviewId === s.id}
-                          onChange={(e) => handleReviewStatusChange(s.id, e.target.value)}
-                        >
-                          <option value="awaiting_review">Awaiting review</option>
-                          <option value="reviewed">Reviewed</option>
-                        </select>
+                        <span className={`text-xs font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
                       </div>
                     ) : (
                       <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">

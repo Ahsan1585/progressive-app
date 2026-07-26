@@ -13,7 +13,6 @@ const {
   getPractitionerLogs,
   getLogNotes,
   getComplianceAnalysis,
-  setComplianceReviewStatus,
   updateLogStatus,
   rejectLog,
   reconcileLog,
@@ -40,7 +39,6 @@ router.get('/pending-logs',      ...billingGuard, getPendingLogs);
 router.get('/practitioner-logs', ...billingGuard, getPractitionerLogs);
 router.get('/log-notes',         ...billingGuard, getLogNotes);
 router.get('/compliance-analysis', ...billingGuard, getComplianceAnalysis);
-router.patch('/compliance-review-status', ...billingGuard, setComplianceReviewStatus);
 router.patch('/log-status',      ...billingGuard, updateLogStatus);
 router.post('/reject-log',       ...billingGuard, rejectLog);
 router.post('/reconcile-log',    ...billingGuard, reconcileLog);
