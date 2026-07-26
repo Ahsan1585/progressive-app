@@ -868,11 +868,6 @@ function ActionButton({ label, icon, onClick, active, tone }) {
 // backend/src/controllers/billingController.js getComplianceAnalysis).
 // Falls back to an explicit "no document on file" state rather than ever
 // fabricating a comparison when nothing real exists to compare against.
-const ALWAYS_SHOWN_FIELDS = [
-  { key: 'service_date', label: 'Service Date', format: (s) => s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-' },
-  { key: 'patient', label: 'Child Name', format: (s) => `${s.patient_first_name || ''} ${s.patient_last_name || ''}`.trim() || '-' },
-];
-
 function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, periodStart, periodEnd }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, uploaded_at } | null
@@ -988,34 +983,34 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
                   </tr>
                 </thead>
                 <tbody>
-                  {ALWAYS_SHOWN_FIELDS.map(f => (
-                    <tr key={f.key} className="border-t border-slate-100">
-                      <td className="px-4 py-2 font-semibold text-slate-600">{f.label}</td>
-                      <td className="px-4 py-2 text-center font-mono font-bold text-slate-800" colSpan={2}>{f.format(s)}</td>
-                    </tr>
-                  ))}
                   {isLoadingAnalysis ? (
-                    <tr className="border-t border-slate-100">
+                    <tr>
                       <td className="px-4 py-3 text-center text-slate-400 text-xs" colSpan={3}>Loading comparison…</td>
                     </tr>
                   ) : !documentReady ? (
-                    <tr className="border-t border-slate-100">
+                    <tr>
                       <td className="px-4 py-3 text-center text-slate-400 text-xs italic" colSpan={3}>No confirmed state document to compare against</td>
                     </tr>
                   ) : !sessionResult?.matched ? (
-                    <tr className="border-t border-slate-100">
+                    <tr>
                       <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={3}>No matching record found in the state document for this session</td>
                     </tr>
-                  ) : compareFields.map(f => (
-                    <tr key={f.key} className={`border-t border-slate-100 ${f.match ? '' : 'bg-red-50/60'}`}>
-                      <td className="px-4 py-2 font-semibold text-slate-600 flex items-center gap-1.5">
-                        {f.match ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <X className="size-3.5 text-red-500" />}
-                        {f.label}
-                      </td>
-                      <td className="px-4 py-2 text-center font-mono font-bold text-slate-800">{f.ours || '-'}</td>
-                      <td className={`px-4 py-2 text-center font-mono font-bold ${f.match ? 'text-slate-800' : 'text-red-700'}`}>{f.state || '-'}</td>
-                    </tr>
-                  ))}
+                  ) : compareFields.map(f => {
+                    const rowClass = f.match === false ? 'bg-red-50/60' : '';
+                    const icon = f.match === true ? <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      : f.match === false ? <X className="size-3.5 text-red-500" /> : null;
+                    const stateColor = f.match === false ? 'text-red-700' : 'text-slate-800';
+                    return (
+                      <tr key={f.key} className={`border-t border-slate-100 ${rowClass}`}>
+                        <td className="px-4 py-2 font-semibold text-slate-600 flex items-center gap-1.5">
+                          {icon}
+                          {f.label}
+                        </td>
+                        <td className="px-4 py-2 text-center font-mono font-bold text-slate-800">{f.ours || '-'}</td>
+                        <td className={`px-4 py-2 text-center font-mono font-bold ${stateColor}`}>{f.state || '-'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -750,9 +750,11 @@ const getComplianceAnalysis = async (req, res) => {
 
     const params = [practitionerId];
     let sql = `
-      SELECT id, patient_id, service_date, start_time, end_time, total_time, type, location,
-             group_size_category, patient_first_name, patient_last_name
+      SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
+             group_size_category, patient_first_name, patient_last_name,
+             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id
       FROM assessments
+      LEFT JOIN patients ON patients.id = assessments.patient_id
       WHERE practitioner_id = $1 AND billing_status != 'declined'
     `;
     if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
@@ -807,7 +809,53 @@ const getComplianceAnalysis = async (req, res) => {
       }
       if (match) usedStateLogIds.add(match.id);
 
+      // Practitioner names: state export format ("First Last") vs our
+      // separate first/last columns aren't guaranteed identical casing or
+      // spacing, so compare token-wise rather than requiring an exact
+      // string match — both our first and last name must appear in the
+      // state's practitioner_name text.
+      const ourPractitionerName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
+      const statePractitionerName = match?.practitioner_name || '';
+      const practitionerMatch = !!ourPractitionerName && !!statePractitionerName
+        && [session.practitioner_first_name, session.practitioner_last_name].every(
+          (n) => n && statePractitionerName.toLowerCase().includes(n.toLowerCase())
+        );
+
+      const ourLoggedDate = session.completed_at ? new Date(session.completed_at).toISOString().slice(0, 10) : null;
+      const stateLoggedDate = match?.logged_date ? new Date(match.logged_date).toISOString().slice(0, 10) : null;
+
       const fields = match ? [
+        {
+          key: 'child_id', label: 'Child ID',
+          ours: session.child_id, state: match.child_id,
+          match: !!session.child_id && !!match.child_id && session.child_id === match.child_id,
+        },
+        {
+          key: 'child_name', label: 'Child Name',
+          ours: `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim() || null,
+          state: match.child_name,
+          match: null, // informational — different name formats ("Last, First" vs "First Last"), not a reliable auto-check
+        },
+        {
+          key: 'practitioner_name', label: 'Practitioner',
+          ours: ourPractitionerName || null, state: statePractitionerName || null,
+          match: practitionerMatch,
+        },
+        {
+          key: 'service_date', label: 'Service Date',
+          ours: session.service_date, state: match.service_date ? new Date(match.service_date).toISOString().slice(0, 10) : null,
+          match: true, // this is the join key — always equal by construction
+        },
+        {
+          key: 'start_time', label: 'Start Time',
+          ours: session.start_time, state: match.start_time,
+          match: !!session.start_time && !!match.start_time && session.start_time === match.start_time,
+        },
+        {
+          key: 'end_time', label: 'End Time',
+          ours: session.end_time, state: match.end_time,
+          match: !!session.end_time && !!match.end_time && session.end_time === match.end_time,
+        },
         {
           key: 'service_type', label: 'Service Type',
           ours: session.type ? serviceCodeLabel(session.type) : null,
@@ -827,14 +875,14 @@ const getComplianceAnalysis = async (req, res) => {
           match: !!session.group_size_category && !!match.mapped_group_size_code && session.group_size_category === match.mapped_group_size_code,
         },
         {
-          key: 'start_time', label: 'Start Time',
-          ours: session.start_time, state: match.start_time,
-          match: !!session.start_time && !!match.start_time && session.start_time === match.start_time,
+          key: 'logged_date', label: 'Logged Date',
+          ours: ourLoggedDate, state: stateLoggedDate,
+          match: !!ourLoggedDate && !!stateLoggedDate && ourLoggedDate === stateLoggedDate,
         },
         {
-          key: 'end_time', label: 'End Time',
-          ours: session.end_time, state: match.end_time,
-          match: !!session.end_time && !!match.end_time && session.end_time === match.end_time,
+          key: 'ifsp_event_id', label: 'IFSP Event ID',
+          ours: null, state: match.ifsp_event_id,
+          match: null, // we don't track this field at all — informational only
         },
       ] : [];
 
