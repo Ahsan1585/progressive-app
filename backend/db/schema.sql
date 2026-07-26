@@ -339,3 +339,16 @@ CREATE TABLE compliance_state_logs (
 );
 ALTER SEQUENCE compliance_state_logs_id_seq OWNED BY compliance_state_logs.id;
 CREATE INDEX compliance_state_logs_patient_date_idx ON compliance_state_logs (patient_id, service_date);
+
+-- compliance_review_status: FK -> assessments, practitioners. A row only
+-- exists once a biller has explicitly touched a flagged session's status
+-- in Compliance Analysis — sessions with a mismatched field default to
+-- "awaiting_review" in the API response even with no row here, so this
+-- table only needs to record deviations from that default (mainly
+-- "reviewed"), not every flagged session.
+CREATE TABLE compliance_review_status (
+  assessment_id integer PRIMARY KEY REFERENCES assessments(id),
+  status text NOT NULL DEFAULT 'awaiting_review' CHECK (status = ANY (ARRAY['awaiting_review'::text, 'reviewed'::text])),
+  reviewed_by integer REFERENCES practitioners(id),
+  updated_at timestamp with time zone DEFAULT now()
+);

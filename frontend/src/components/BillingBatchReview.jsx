@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
-  Users, ClipboardList, MousePointerClick, CalendarDays,
+  Users, ClipboardList, MousePointerClick, CalendarDays, RefreshCw,
 } from 'lucide-react';
 
 // Matches BillingManager.jsx's own formatMonthLabel — batches are keyed by
@@ -875,6 +875,8 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
   const [analysis, setAnalysis] = useState(null); // { documentOnFile, results, unmatchedStateLogs } | null
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState(null);
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  const [updatingReviewId, setUpdatingReviewId] = useState(null);
 
   useEffect(() => {
     api.get('/api/company')
@@ -889,15 +891,17 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
       .finally(() => setIsLoadingDoc(false));
   }, []);
 
-  useEffect(() => {
+  const fetchAnalysis = () => {
     if (!practitionerId || !periodStart || !periodEnd) { setIsLoadingAnalysis(false); return; }
     setIsLoadingAnalysis(true);
     setAnalysisError(null);
-    api.get('/api/billing/compliance-analysis', { params: { practitionerId, startDate: periodStart, endDate: periodEnd } })
+    return api.get('/api/billing/compliance-analysis', { params: { practitionerId, startDate: periodStart, endDate: periodEnd } })
       .then(res => setAnalysis(res.data))
       .catch(error => { setAnalysis(null); setAnalysisError(error.response?.data?.error || 'Failed to load compliance comparison.'); })
       .finally(() => setIsLoadingAnalysis(false));
-  }, [practitionerId, periodStart, periodEnd]);
+  };
+
+  useEffect(() => { fetchAnalysis(); }, [practitionerId, periodStart, periodEnd]);
 
   const openComplianceDoc = () => {
     api.get('/api/company/compliance-doc/download')
@@ -905,7 +909,33 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
       .catch(() => {});
   };
 
+  const handleReviewStatusChange = async (assessmentId, status) => {
+    setUpdatingReviewId(assessmentId);
+    try {
+      await api.patch('/api/billing/compliance-review-status', { assessmentId, status });
+      setAnalysis(prev => prev ? {
+        ...prev,
+        results: { ...prev.results, [assessmentId]: { ...prev.results[assessmentId], reviewStatus: status } },
+      } : prev);
+    } catch (error) {
+      // Leave the dropdown as-is on failure — no optimistic update to roll back.
+    } finally {
+      setUpdatingReviewId(null);
+    }
+  };
+
   const documentReady = analysis?.documentOnFile;
+
+  // "Flagged" covers both a real field mismatch and no state record found
+  // at all — both need a biller's eyes, just for different reasons.
+  const isSessionFlagged = (s) => {
+    const r = analysis?.results?.[s.id];
+    if (!r) return false;
+    return !r.matched || r.flagged;
+  };
+  const flaggedCount = documentReady ? sessions.filter(isSessionFlagged).length : 0;
+  const matchedCount = documentReady ? sessions.length - flaggedCount : 0;
+  const visibleSessions = showFlaggedOnly ? sessions.filter(isSessionFlagged) : sessions;
 
   return (
     <div>
@@ -940,6 +970,16 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
         </div>
       )}
 
+      <button
+        type="button"
+        onClick={fetchAnalysis}
+        disabled={isLoadingAnalysis}
+        className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-bold rounded-lg px-4 py-2.5 mb-6 cursor-pointer transition-colors"
+      >
+        <RefreshCw className={`size-3.5 ${isLoadingAnalysis ? 'animate-spin' : ''}`} />
+        Re-run analysis
+      </button>
+
       {!isLoadingAnalysis && analysisError && (
         <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6">
           Couldn't load the comparison: {analysisError}
@@ -949,6 +989,29 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
       {!isLoadingDoc && complianceDoc && !isLoadingAnalysis && !analysisError && !documentReady && (
         <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
           A document is attached but its column matching hasn't been confirmed yet — finish that on the Company Information page before this runs.
+        </div>
+      )}
+
+      {documentReady && sessions.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="border border-slate-200 rounded-xl px-3 py-3 text-center">
+            <div className="text-2xl font-black text-slate-900">{sessions.length}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">Sessions Checked</div>
+          </div>
+          <div className="border border-slate-200 rounded-xl px-3 py-3 text-center">
+            <div className="text-2xl font-black text-emerald-600">{matchedCount}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">Match State Codes</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFlaggedOnly(v => !v)}
+            className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${showFlaggedOnly ? 'border-red-400 bg-red-50' : 'border-slate-200 hover:border-red-200 hover:bg-red-50/40'}`}
+          >
+            <div className="text-2xl font-black text-red-600">{flaggedCount}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
+              {showFlaggedOnly ? 'Flagged — showing only these' : 'Flagged — click to filter'}
+            </div>
+          </button>
         </div>
       )}
 
@@ -963,20 +1026,60 @@ function ComplianceAnalysisPreview({ sessions, practitioner, practitionerId, per
         </div>
       )}
 
-      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-        Side-by-side comparison &middot; {practitionerName}
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          Side-by-side comparison &middot; {practitionerName}
+        </div>
+        {showFlaggedOnly && (
+          <button type="button" onClick={() => setShowFlaggedOnly(false)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+            Showing {visibleSessions.length} flagged only · Show all {sessions.length} &rarr;
+          </button>
+        )}
       </div>
       <div className="space-y-3">
-        {sessions.length === 0 ? (
-          <div className="text-sm text-slate-500 text-center py-6">No sessions to compare.</div>
-        ) : sessions.map(s => {
+        {visibleSessions.length === 0 ? (
+          <div className="text-sm text-slate-500 text-center py-6">{showFlaggedOnly ? 'No flagged sessions.' : 'No sessions to compare.'}</div>
+        ) : visibleSessions.map(s => {
           const sessionResult = analysis?.results?.[s.id];
           const compareFields = sessionResult?.fields || [];
+          const flagged = documentReady && sessionResult?.matched && sessionResult.flagged;
+          const flaggedFieldCount = compareFields.filter(f => f.match === false).length;
+
           return (
-            <div key={s.id} className="border border-slate-200 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 border-b border-slate-200">
-                <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
-                <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
+            <div key={s.id} className={`border rounded-xl overflow-hidden ${flagged ? 'border-red-200' : 'border-slate-200'}`}>
+              <div className={`flex items-center justify-between px-4 py-2.5 border-b ${flagged ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                <div>
+                  <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
+                  <span className="text-xs text-slate-500 ml-2">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
+                </div>
+                {documentReady && sessionResult && (
+                  sessionResult.matched ? (
+                    flagged ? (
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-xs font-bold text-red-700">
+                          <X className="size-3.5" /> {flaggedFieldCount} field{flaggedFieldCount === 1 ? '' : 's'} flagged
+                        </span>
+                        <select
+                          className="text-xs font-semibold border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60"
+                          value={sessionResult.reviewStatus || 'awaiting_review'}
+                          disabled={updatingReviewId === s.id}
+                          onChange={(e) => handleReviewStatusChange(s.id, e.target.value)}
+                        >
+                          <option value="awaiting_review">Awaiting review</option>
+                          <option value="reviewed">Reviewed</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
+                        <CheckCircle2 className="size-3.5" /> Match
+                      </span>
+                    )
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs font-bold text-orange-600">
+                      <X className="size-3.5" /> Not found
+                    </span>
+                  )
+                )}
               </div>
               <table className="w-full text-sm">
                 <thead>

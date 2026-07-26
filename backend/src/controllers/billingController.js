@@ -772,9 +772,11 @@ const getComplianceAnalysis = async (req, res) => {
     let sql = `
       SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
              group_size_category, patient_first_name, patient_last_name,
-             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id
+             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
+             crs.status AS review_status
       FROM assessments
       LEFT JOIN patients ON patients.id = assessments.patient_id
+      LEFT JOIN compliance_review_status crs ON crs.assessment_id = assessments.id
       WHERE assessments.practitioner_id = $1 AND billing_status != 'declined'
     `;
     if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
@@ -910,8 +912,15 @@ const getComplianceAnalysis = async (req, res) => {
         },
       ] : [];
 
+      const flagged = fields.some((f) => f.match === false);
+
       results[session.id] = {
         matched: !!match,
+        flagged,
+        // Sessions with no mismatched field don't need a review workflow at
+        // all — reviewStatus is only meaningful (and only ever null vs
+        // 'awaiting_review'/'reviewed') when flagged is true.
+        reviewStatus: flagged ? (session.review_status || 'awaiting_review') : null,
         stateLog: match ? {
           child_name: match.child_name,
           practitioner_name: match.practitioner_name,
@@ -931,6 +940,31 @@ const getComplianceAnalysis = async (req, res) => {
   } catch (error) {
     console.error('Error running compliance analysis:', error);
     res.status(500).json({ error: 'Failed to run compliance analysis' });
+  }
+};
+
+// --- 9d. Mark a flagged Compliance Analysis session as reviewed/awaiting
+// review. Only ever called for sessions with a mismatched field — see
+// getComplianceAnalysis's `flagged` computation.
+const setComplianceReviewStatus = async (req, res) => {
+  const { assessmentId, status } = req.body;
+  if (!assessmentId || !['awaiting_review', 'reviewed'].includes(status)) {
+    return res.status(400).json({ error: 'assessmentId and a valid status are required' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO compliance_review_status (assessment_id, status, reviewed_by, updated_at)
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT (assessment_id) DO UPDATE SET
+         status = EXCLUDED.status,
+         reviewed_by = EXCLUDED.reviewed_by,
+         updated_at = now()`,
+      [assessmentId, status, req.practitioner.practitionerId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating compliance review status:', error);
+    res.status(500).json({ error: 'Failed to update review status' });
   }
 };
 
@@ -1231,6 +1265,7 @@ module.exports = {
   getPractitionerLogs,
   getLogNotes,
   getComplianceAnalysis,
+  setComplianceReviewStatus,
   updateLogStatus,
   rejectLog,
   reconcileLog,
