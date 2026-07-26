@@ -906,7 +906,7 @@ function ComplianceAnalysisPreview({
   const [statusChangingId, setStatusChangingId] = useState(null);
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, uploaded_at } | null
   const [isLoadingDoc, setIsLoadingDoc] = useState(true);
-  const [analysis, setAnalysis] = useState(null); // { documentOnFile, results, unmatchedStateLogs } | null
+  const [analysis, setAnalysis] = useState(null); // { documentOnFile, results } | null
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState(null);
   const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged' | 'missing'
@@ -1112,17 +1112,6 @@ function ComplianceAnalysisPreview({
               Missing in EIMS
             </div>
           </button>
-        </div>
-      )}
-
-      {analysis?.unmatchedStateLogs?.length > 0 && (
-        <div className="text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 mb-6">
-          <div className="font-bold text-orange-800 mb-1">{analysis.unmatchedStateLogs.length} session{analysis.unmatchedStateLogs.length === 1 ? '' : 's'} in the state document for this practitioner's patients aren't reflected in this period's logs</div>
-          <ul className="text-orange-700 text-xs space-y-0.5">
-            {analysis.unmatchedStateLogs.map(l => (
-              <li key={l.id}>{l.child_name || 'Unknown child'} — {l.service_date ? new Date(l.service_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit', timeZone: 'UTC' }) : '-'} {l.service_label ? `(${l.service_label})` : ''}</li>
-            ))}
-          </ul>
         </div>
       )}
 

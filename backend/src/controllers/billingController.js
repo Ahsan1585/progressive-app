@@ -820,7 +820,7 @@ const getComplianceAnalysis = async (req, res) => {
     const { rows: sessions } = await pool.query(sql, params);
 
     if (!documentOnFile || sessions.length === 0) {
-      return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, results: {}, unmatchedStateLogs: [] });
+      return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, results: {} });
     }
 
     // Lazy sweep: state reference data older than 60 days ages out on its
@@ -1006,12 +1006,7 @@ const getComplianceAnalysis = async (req, res) => {
       };
     }
 
-    const unmatchedStateLogs = stateLogs.filter((l) => !usedStateLogIds.has(l.id)).map((l) => ({
-      id: l.id, child_name: l.child_name, service_date: l.service_date, start_time: l.start_time,
-      service_label: l.service_label,
-    }));
-
-    res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, results, unmatchedStateLogs });
+    res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, results });
   } catch (error) {
     console.error('Error running compliance analysis:', error);
     res.status(500).json({ error: 'Failed to run compliance analysis' });
