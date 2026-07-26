@@ -19,7 +19,7 @@ function IdleLogout() {
       if (localStorage.getItem('token')) {
         localStorage.removeItem('token');
         localStorage.removeItem('role');
-        window.location.assign('/');
+        window.location.assign(import.meta.env.BASE_URL); // '/eis/' — this app is served under that base path, not the domain root
       }
     };
     const reset = () => {
