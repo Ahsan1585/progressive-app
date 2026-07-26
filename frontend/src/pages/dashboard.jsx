@@ -66,6 +66,9 @@ const Dashboard = () => {
     declined:     { label: 'Declined',   cls: 'bg-red-50 text-red-700 border-red-200' },
   };
   const locationCodeMap = { '1': 'Home (1)', '2': 'Residential Facility (2)', '3': 'Service Provider Clinic/Office (3)', '4': 'Hospital (Inpatient) (4)', '5': 'EC Program- Children with Disabilities (5)', '6': 'EC Program- Inclusive Community (6)', '7': 'DCP&P Office (7)', '8': 'Phone/Video Conferencing (8)' };
+  // Labels match the state's own "Group Size" export column text verbatim
+  // (minus the parenthetical) — mirrors mobile/src/constants/njeis.ts GROUP_SIZE_OPTIONS.
+  const groupSizeMap = { individual: 'Direct Child Service - Individual', consultation: 'Consultation/Facilitation with Others' };
 
   const fetchPatients = async () => {
     try {
@@ -152,7 +155,8 @@ const Dashboard = () => {
       start_time: log.start_time || '',
       end_time: log.end_time || '',
       total_time: log.total_time || '',
-      status: log.status || ''
+      status: log.status || '',
+      group_size_category: log.group_size_category || 'individual'
     });
   };
 
@@ -1035,6 +1039,18 @@ const Dashboard = () => {
                   onChange={e => setResubmitForm(f => ({ ...f, status: e.target.value }))}
                 >
                   {Object.entries(statusCodeMap).map(([code, label]) => (
+                    <option key={code} value={code}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2 space-y-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Group Size Category</label>
+                <select
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                  value={resubmitForm.group_size_category}
+                  onChange={e => setResubmitForm(f => ({ ...f, group_size_category: e.target.value }))}
+                >
+                  {Object.entries(groupSizeMap).map(([code, label]) => (
                     <option key={code} value={code}>{label}</option>
                   ))}
                 </select>
