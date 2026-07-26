@@ -299,6 +299,7 @@ CREATE TABLE company_settings (
   compliance_doc_uploaded_at timestamp with time zone,
   compliance_doc_column_mapping jsonb,
   compliance_doc_custom_fields jsonb DEFAULT '[]',
+  compliance_doc_removed_fields jsonb DEFAULT '[]',
   updated_at timestamp with time zone DEFAULT now()
 );
 INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)

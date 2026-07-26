@@ -175,7 +175,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
       initial[field.key] = data.suggestedMapping[field.key] || data.previousMapping?.[field.key] || '';
     }
     setMapping(initial);
-    setRemovedFields(new Set());
+    setRemovedFields(new Set(data.removedFields || []));
     setCustomFields((data.previousCustomFields || []).map((cf) => ({ ...cf })));
   };
 
@@ -184,7 +184,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
       window.alert(`${field.label} is required for Compliance Analysis and can't be removed.`);
       return;
     }
-    if (!window.confirm(`Remove "${field.label}" from column matching? It won't be compared in Compliance Analysis until you reopen this screen.`)) {
+    if (!window.confirm(`Remove "${field.label}" from column matching? It won't be compared in Compliance Analysis, and stays removed until you add it back (e.g. as a custom field).`)) {
       return;
     }
     setRemovedFields((prev) => new Set(prev).add(field.key));
@@ -226,7 +226,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
     setToast(null);
     try {
       const cleanCustomFields = customFields.filter((cf) => cf.label && cf.header);
-      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping, customFields: cleanCustomFields });
+      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping, customFields: cleanCustomFields, removedFields: [...removedFields] });
       const { rowsParsed, matchedPatients, unmatchedCount } = response.data;
       setToast({
         type: 'success',
