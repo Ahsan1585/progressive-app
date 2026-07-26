@@ -10,9 +10,9 @@ const { mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode }
 const MAX_LOGO_BASE64_LENGTH = 2_000_000; // ~1.5MB decoded
 
 // Excel reference documents are larger than a logo but still bounded by
-// express.json's 10mb body limit (index.js) — this leaves headroom for the
-// base64 inflation (~33%) on top of the JSON envelope.
-const MAX_COMPLIANCE_DOC_BASE64_LENGTH = 7_000_000; // ~5.2MB decoded
+// express.json's 20mb body limit (index.js) — this leaves headroom for the
+// base64 inflation (~33%) on top of the JSON envelope for a 10MB file.
+const MAX_COMPLIANCE_DOC_BASE64_LENGTH = 14_500_000; // ~10.5MB decoded
 const COMPLIANCE_DOC_PREFIX = 'company/compliance-reference/';
 const COMPLIANCE_DOC_EXTENSIONS = ['.xlsx', '.xls'];
 
@@ -177,7 +177,7 @@ const uploadComplianceDoc = async (req, res) => {
       return res.status(400).json({ error: 'fileBase64 must be a data: URL' });
     }
     if (fileBase64.length > MAX_COMPLIANCE_DOC_BASE64_LENGTH) {
-      return res.status(400).json({ error: 'File is too large — please use a file under 5MB.' });
+      return res.status(400).json({ error: 'File is too large — please use a file under 10MB.' });
     }
 
     const base64Data = fileBase64.slice(fileBase64.indexOf(',') + 1);

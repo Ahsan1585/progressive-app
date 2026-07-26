@@ -124,8 +124,8 @@ export const CompanySettings = ({ onSettingsChange }) => {
       setToast({ type: 'error', message: 'Please select an Excel file (.xlsx or .xls).' });
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setToast({ type: 'error', message: 'File is too large — please use a file under 5MB.' });
+    if (file.size > 10 * 1024 * 1024) {
+      setToast({ type: 'error', message: 'File is too large — please use a file under 10MB.' });
       return;
     }
 
@@ -362,7 +362,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
           <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl px-4 py-8 cursor-pointer hover:border-teal-300 hover:bg-teal-50/40 transition-colors">
             <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
             <span className="text-sm font-semibold text-teal-700">{isUploadingComplianceDoc ? 'Uploading...' : 'Click to attach an Excel file'}</span>
-            <span className="text-xs text-slate-400">.xlsx or .xls, up to 5MB</span>
+            <span className="text-xs text-slate-400">.xlsx or .xls, up to 10MB</span>
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleComplianceDocSelect} disabled={isUploadingComplianceDoc} />
           </label>
         )}
