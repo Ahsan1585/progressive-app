@@ -1024,6 +1024,29 @@ function ComplianceAnalysisPreview({
     });
   }, [analysis]);
 
+  // A duplicate log can carry a stale "Approved" from before it was known
+  // to be a duplicate (e.g. it briefly matched cleanly on an earlier run,
+  // or the biller approved it before its twin showed up). The dropdown
+  // already forces Pending in its display for a duplicate — but that was
+  // only cosmetic: the real stored status stayed Approved underneath, so
+  // the practitioner queue on the left (which reads the real status) kept
+  // showing "APPROVED" while this panel showed "PENDING". Actually reset
+  // it here so both sides agree, and it stays out of billing until a
+  // biller explicitly Returns/Rejects it.
+  useEffect(() => {
+    if (!analysis?.documentOnFile) return;
+    sessions.forEach(s => {
+      const r = analysis.results?.[s.id];
+      if (!r?.duplicateOfSessionId) return;
+      const isDeclined = s.billing_status === 'declined';
+      const isReturned = s.billing_status === 'rejected';
+      const isLockedStatus = s.billing_status === 'njeis_review';
+      const isApproved = logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
+      if (isDeclined || isReturned || isLockedStatus || !isApproved) return;
+      handleResetToPending(s, practitionerId);
+    });
+  }, [analysis]);
+
   return (
     <div>
       <div className="flex items-start gap-4 bg-gradient-to-br from-slate-50 to-violet-50 border border-slate-200 rounded-xl p-5 mb-6">
