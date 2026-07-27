@@ -1030,6 +1030,12 @@ export const BillingManager = () => {
             </button>
           </div>
 
+          {/* Search Practitioners / Start-End Date / Reset / Refresh only
+              ever fed the legacy table's filteredLogs — BillingBatchReview
+              destructures a practitioners prop but never uses it, fetching
+              its own data via its own search box and period picker instead.
+              Hidden in beta mode since none of these controls do anything there. */}
+          {!pendingBetaMode && (
           <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Search Practitioners</Label>
@@ -1051,6 +1057,7 @@ export const BillingManager = () => {
               <Button onClick={fetchLogs} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Refresh</Button>
             </div>
           </div>
+          )}
 
           {pendingBetaMode ? (
             <BillingBatchReview
