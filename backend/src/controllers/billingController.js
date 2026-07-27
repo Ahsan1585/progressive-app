@@ -843,7 +843,8 @@ const getComplianceAnalysis = async (req, res) => {
     let sql = `
       SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
              group_size_category, patient_first_name, patient_last_name,
-             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id
+             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
+             assessments.status, practitioner_discipline, patient_dob, patient_county
       FROM assessments
       LEFT JOIN patients ON patients.id = assessments.patient_id
       WHERE assessments.practitioner_id = $1 AND billing_status != 'declined'
