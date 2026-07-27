@@ -341,7 +341,8 @@ const updateStaffProfile = async (req, res) => {
       service_types,
       payRate,
       address,
-      phone_number
+      phone_number,
+      ssn
     } = req.body;
 
     const { rows: targetRows } = await pool.query('SELECT id, role FROM practitioners WHERE id = $1', [id]);
@@ -364,6 +365,10 @@ const updateStaffProfile = async (req, res) => {
     if (position_title !== undefined) addSet('position_title', position_title);
     if (address !== undefined) addSet('address', address.trim());
     if (phone_number !== undefined) addSet('phone_number', phone_number.trim());
+    // Write-only: getAllStaff never returns ssn, so the edit form always
+    // starts blank — only touch the stored value when the admin actually
+    // types a new one, an empty submission leaves the existing SSN/EIN alone.
+    if (ssn) addSet('ssn', ssn.trim());
 
     if (payRate !== undefined && payRate !== '') {
       if (isNaN(payRate)) return res.status(400).json({ error: 'A valid hourly pay rate is required.' });

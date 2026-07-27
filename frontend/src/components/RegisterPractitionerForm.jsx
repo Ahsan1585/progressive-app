@@ -179,7 +179,11 @@ export const RegisterPractitionerForm = () => {
       serviceTypes: member.service_types || [],
       payRate: member.pay_rate != null ? String(member.pay_rate) : '',
       address: member.address || '',
-      phoneNumber: member.phone_number || ''
+      phoneNumber: member.phone_number || '',
+      // Write-only — the staff list never returns the existing SSN/EIN
+      // (security), so this always starts blank. Left blank on save, the
+      // stored value is untouched; typing a new one replaces it.
+      ssn: ''
     });
   };
 
@@ -213,6 +217,9 @@ export const RegisterPractitionerForm = () => {
         address: editForm.address.trim(),
         phone_number: editForm.phoneNumber.trim()
       };
+      // Only send ssn if the admin actually typed a new one — an empty
+      // field must leave the existing stored value untouched, not wipe it.
+      if (editForm.ssn.trim()) payload.ssn = editForm.ssn.trim();
       const response = await api.patch(`/api/auth/staff/${editingMember.id}`, payload);
       const updated = response.data.staff;
       setStaffList(prev => prev.map(s => s.id === editingMember.id ? { ...s, ...updated } : s));
@@ -1000,6 +1007,17 @@ export const RegisterPractitionerForm = () => {
                   />
                 </div>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">SSN / EIN (optional)</Label>
+                <PasswordInput
+                  inputMode="numeric"
+                  value={editForm.ssn}
+                  onChange={(e) => setEditForm({...editForm, ssn: formatSSN(e.target.value)})}
+                  placeholder="Leave blank to keep the current value"
+                  maxLength={11}
+                />
               </div>
 
               <div className="flex gap-3 pt-2">
