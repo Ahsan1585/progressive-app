@@ -9,12 +9,12 @@ const {
 } = require('../config/storage');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { stampInvoicePaid } = require('../utils/invoiceStamper');
-const { getDisciplineCode } = require('../utils/disciplineCodes');
+const { getDisciplineCode, mapDisciplineToCode } = require('../utils/disciplineCodes');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const {
-  serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel,
-  mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode,
+  serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel, statusCodeLabel,
+  mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode, mapStatusLabelToCode,
 } = require('../constants/njeis');
 const { logAudit } = require('../utils/auditLog');
 const path = require('path');
@@ -768,6 +768,30 @@ const getLogNotes = async (req, res) => {
   }
 };
 
+// Parses a Total Time custom field's raw stored value (either "H:MM" text —
+// see companyController.js's cellToDurationText — or a plain number) into
+// total minutes, so it can be compared against our own session.total_time
+// (already an int). Returns null if unparseable.
+function parseDurationMinutes(value) {
+  if (value == null) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  const hm = s.match(/^(\d+):(\d{2})$/);
+  if (hm) return parseInt(hm[1], 10) * 60 + parseInt(hm[2], 10);
+  const num = parseFloat(s);
+  return Number.isNaN(num) ? null : Math.round(num);
+}
+
+// Mirrors the frontend's formatTime() (e.g. BillingManager.jsx) so the
+// "ours" side of a Total Time comparison reads the same way as everywhere
+// else in the app instead of a bare minute count.
+function formatMinutesLabel(minutes) {
+  if (!minutes) return null;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
 // --- 9c. Compliance Analysis — compare a practitioner's logged sessions in
 // a period against the state reference document (compliance_state_logs,
 // populated from Company Information's uploaded Excel). Match key: same
@@ -1025,6 +1049,55 @@ const getComplianceAnalysis = async (req, res) => {
               ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
               state: stateCode ? groupSizeCodeLabel(stateCode) : value,
               match: !!session.group_size_category && !!stateCode && session.group_size_category === stateCode,
+            };
+          }
+          if (compareTo === 'service_status') {
+            const stateCode = mapStatusLabelToCode(value);
+            return {
+              key: `custom:${label}`, label,
+              ours: session.status ? statusCodeLabel(session.status) : null,
+              state: stateCode ? statusCodeLabel(stateCode) : value,
+              match: !!session.status && !!stateCode && session.status === stateCode,
+            };
+          }
+          if (compareTo === 'practitioner_discipline') {
+            const ourCode = mapDisciplineToCode(session.practitioner_discipline);
+            const stateCode = mapDisciplineToCode(value);
+            return {
+              key: `custom:${label}`, label,
+              ours: session.practitioner_discipline || null,
+              state: value,
+              match: !!ourCode && !!stateCode && ourCode === stateCode,
+            };
+          }
+          if (compareTo === 'patient_county') {
+            const norm = (s) => (s || '').trim().toLowerCase();
+            return {
+              key: `custom:${label}`, label,
+              ours: session.patient_county || null,
+              state: value,
+              match: !!session.patient_county && !!value && norm(session.patient_county) === norm(value),
+            };
+          }
+          if (compareTo === 'patient_dob') {
+            // Both sides are already 'YYYY-MM-DD' — session.patient_dob per
+            // the DB's date-type-parser override, value per companyController's
+            // excelDateToISO extraction for this compareTo (see there).
+            return {
+              key: `custom:${label}`, label,
+              ours: session.patient_dob || null,
+              state: value,
+              match: !!session.patient_dob && !!value && session.patient_dob === value,
+            };
+          }
+          if (compareTo === 'total_time') {
+            const ourMinutes = session.total_time || null;
+            const stateMinutes = parseDurationMinutes(value);
+            return {
+              key: `custom:${label}`, label,
+              ours: formatMinutesLabel(session.total_time),
+              state: value,
+              match: ourMinutes != null && stateMinutes != null && ourMinutes === stateMinutes,
             };
           }
           return { key: `custom:${label}`, label, ours: null, state: value, match: null };

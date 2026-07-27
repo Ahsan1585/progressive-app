@@ -16,4 +16,16 @@ const getDisciplineCode = (positionTitle) => {
   return DISCIPLINE_CODE_MAP[positionTitle] || positionTitle;
 };
 
-module.exports = { DISCIPLINE_CODE_MAP, getDisciplineCode };
+// Normalizes either a full discipline name OR a short code to the same code
+// space, for comparing our stored practitioner_discipline (a full name)
+// against a state export's discipline column (which might use either form).
+const mapDisciplineToCode = (value) => {
+  if (!value) return null;
+  const n = String(value).trim().toLowerCase();
+  const byLabel = Object.entries(DISCIPLINE_CODE_MAP).find(([label]) => label.toLowerCase() === n);
+  if (byLabel) return byLabel[1];
+  const byCode = Object.values(DISCIPLINE_CODE_MAP).find((code) => code.toLowerCase() === n);
+  return byCode || null;
+};
+
+module.exports = { DISCIPLINE_CODE_MAP, getDisciplineCode, mapDisciplineToCode };

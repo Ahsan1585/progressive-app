@@ -133,6 +133,17 @@ function cellToText(value) {
   return s || null;
 }
 
+// Like cellToText, but for a Total Time-style custom field: a duration cell
+// can round-trip through ExcelJS as a UTC-anchored Date the same way a
+// time-of-day cell does (see excelTimeToHHMM above), which cellToText would
+// otherwise null out. Formats it as "H:MM" text so it survives storage and
+// parseDurationMinutes (billingController.js) can parse it back out later.
+function cellToDurationText(value) {
+  if (value == null) return null;
+  if (value instanceof Date) return `${value.getUTCHours()}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
+  return cellToText(value);
+}
+
 // Reads the "Begin and End Dates: MM/DD/YYYY - MM/DD/YYYY" line the state
 // puts near the top of the export, if present — purely informational
 // (stored alongside each parsed row), parsing never depends on it.
@@ -299,7 +310,10 @@ const applyComplianceDocMapping = async (req, res) => {
     // Compliance Analysis as informational by default. Optionally tied to
     // one of our real comparable fields (compareTo) to get a genuine
     // match/mismatch verdict instead — see getComplianceAnalysis.
-    const VALID_CUSTOM_FIELD_COMPARE_TO = ['service_type', 'location', 'group_size'];
+    const VALID_CUSTOM_FIELD_COMPARE_TO = [
+      'service_type', 'location', 'group_size',
+      'service_status', 'total_time', 'practitioner_discipline', 'patient_dob', 'patient_county',
+    ];
     const customFields = Array.isArray(rawCustomFields)
       ? rawCustomFields.filter((cf) => cf && cf.label && cf.header).map((cf) => ({
           label: String(cf.label).trim(),
@@ -324,7 +338,7 @@ const applyComplianceDocMapping = async (req, res) => {
       const header = mapping[field.key];
       colIndex[field.key] = header ? headers.indexOf(header) + 1 : 0; // 0 = not mapped
     }
-    const customColIndex = customFields.map((cf) => ({ label: cf.label, col: headers.indexOf(cf.header) + 1 }));
+    const customColIndex = customFields.map((cf) => ({ label: cf.label, col: headers.indexOf(cf.header) + 1, compareTo: cf.compareTo || null }));
 
     // Resolve every referenced Child ID to our patients table in one query,
     // instead of one lookup per row. Matched on a normalized form (case +
@@ -362,7 +376,15 @@ const applyComplianceDocMapping = async (req, res) => {
       if (customColIndex.length > 0) {
         const obj = {};
         for (const cf of customColIndex) {
-          if (cf.col) obj[cf.label] = cellToText(row.getCell(cf.col).value);
+          if (!cf.col) continue;
+          const cellValue = row.getCell(cf.col).value;
+          // Most compareTo types are plain text/codes — cellToText is fine.
+          // Two need special extraction because their raw Excel cell type
+          // (a real date, or a duration cell round-tripping as a Date the
+          // same way time-of-day cells do) would otherwise get nulled out.
+          if (cf.compareTo === 'patient_dob') obj[cf.label] = excelDateToISO(cellValue);
+          else if (cf.compareTo === 'total_time') obj[cf.label] = cellToDurationText(cellValue);
+          else obj[cf.label] = cellToText(cellValue);
         }
         extraFields = Object.keys(obj).length > 0 ? obj : null;
       }

@@ -503,51 +503,77 @@ export const CompanySettings = ({ onSettingsChange }) => {
               <div>
                 <h4 className="text-sm font-bold text-slate-800">Custom fields</h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Track additional columns from the file beyond the fields above. By default shown in Compliance Analysis as state-only reference info — optionally tie one to a real field on our side (Service Type, Location, or Group Size Category) to get an actual match/mismatch check instead.
+                  Track additional data points beyond the fields above. Tie a category to a real state document column to get an actual match/mismatch check in Compliance Analysis — or leave it as informational-only to just display the state's value.
                 </p>
               </div>
-              {customFields.map((cf, index) => (
-                <div key={index} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <Input
-                      placeholder="Field name (e.g. Comments)"
-                      value={cf.label}
-                      onChange={(e) => handleCustomFieldChange(index, 'label', e.target.value)}
-                      className="w-48 flex-shrink-0 h-9"
-                    />
-                    <select
-                      className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
-                      value={cf.header}
-                      onChange={(e) => handleCustomFieldChange(index, 'header', e.target.value)}
-                    >
-                      <option value="">Select a column...</option>
-                      {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveCustomField(index)}
-                      title="Remove this custom field"
-                      aria-label={`Remove custom field ${cf.label || index + 1}`}
-                      className="flex-shrink-0 w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 pl-0.5">
-                    <span className="text-xs font-semibold text-slate-500 flex-shrink-0">Compare against</span>
-                    <select
-                      className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs"
-                      value={cf.compareTo || ''}
-                      onChange={(e) => handleCustomFieldChange(index, 'compareTo', e.target.value)}
-                    >
-                      <option value="">— Informational only —</option>
-                      <option value="service_type">Our Service Type</option>
-                      <option value="location">Our Location</option>
-                      <option value="group_size">Our Group Size Category</option>
-                    </select>
-                  </div>
+              {customFields.length > 0 && (
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        <th className="text-left px-3 py-2">Category Name</th>
+                        <th className="text-left px-3 py-2">Our Data Point</th>
+                        <th className="text-left px-3 py-2">State Document Column</th>
+                        <th className="px-3 py-2 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customFields.map((cf, index) => (
+                        <tr key={index} className="border-t border-slate-200 bg-white">
+                          <td className="px-3 py-2">
+                            <Input
+                              placeholder="e.g. Comments"
+                              value={cf.label}
+                              onChange={(e) => handleCustomFieldChange(index, 'label', e.target.value)}
+                              className="h-9 min-w-[10rem]"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <select
+                              className="w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
+                              value={cf.compareTo || ''}
+                              onChange={(e) => handleCustomFieldChange(index, 'compareTo', e.target.value)}
+                            >
+                              <option value="">— Informational only —</option>
+                              <optgroup label="Categories">
+                                <option value="service_type">Service Type</option>
+                                <option value="location">Location</option>
+                                <option value="group_size">Group Size Category</option>
+                                <option value="service_status">Service Status</option>
+                                <option value="total_time">Total Time</option>
+                                <option value="practitioner_discipline">Practitioner Discipline</option>
+                                <option value="patient_dob">Patient DOB</option>
+                                <option value="patient_county">Patient County</option>
+                              </optgroup>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <select
+                              className="w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
+                              value={cf.header}
+                              onChange={(e) => handleCustomFieldChange(index, 'header', e.target.value)}
+                            >
+                              <option value="">Select a column...</option>
+                              {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCustomField(index)}
+                              title="Remove this custom field"
+                              aria-label={`Remove custom field ${cf.label || index + 1}`}
+                              className="w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
+              )}
               <button
                 type="button"
                 onClick={handleAddCustomField}

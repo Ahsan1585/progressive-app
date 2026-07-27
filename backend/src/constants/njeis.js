@@ -41,6 +41,16 @@ const GROUP_SIZE_OPTIONS = [
   { code: 'consultation', label: 'Consultation/Facilitation with Others' },
 ];
 
+// Mirrors mobile/src/constants/njeis.ts's STATUS_CODE_OPTIONS (codes only,
+// without the "(1)"-style suffix mobile appends for its own dropdown).
+const STATUS_CODE_OPTIONS = [
+  { code: '1', label: 'Ongoing IFSP Service' },
+  { code: '2', label: 'Practitioner Missed/Cancelled' },
+  { code: '3', label: 'Family Missed/Cancelled' },
+  { code: '4', label: 'Make-up Service Provided' },
+  { code: '5', label: 'Compensatory Service Provided' },
+];
+
 // The state's "Service" column doesn't always literally match one of our 20
 // labels (confirmed against a real export: it says "Foreign Language
 // Interpreter" where our code is I/T "Interpreter/Translator"). Per the
@@ -74,18 +84,29 @@ function mapGroupSizeLabelToCode(label) {
   return exact ? exact.code : null;
 }
 
+function mapStatusLabelToCode(label) {
+  if (!label) return null;
+  const n = norm(label);
+  const exact = STATUS_CODE_OPTIONS.find((o) => norm(o.label) === n || o.code === String(label).trim());
+  return exact ? exact.code : null;
+}
+
 const serviceCodeLabel = (code) => SERVICE_TYPE_OPTIONS.find((o) => o.code === code)?.label || code;
 const locationCodeLabel = (code) => LOCATION_CODE_OPTIONS.find((o) => o.code === code)?.label || code;
 const groupSizeCodeLabel = (code) => GROUP_SIZE_OPTIONS.find((o) => o.code === code)?.label || code;
+const statusCodeLabel = (code) => STATUS_CODE_OPTIONS.find((o) => o.code === code)?.label || code;
 
 module.exports = {
   SERVICE_TYPE_OPTIONS,
   LOCATION_CODE_OPTIONS,
   GROUP_SIZE_OPTIONS,
+  STATUS_CODE_OPTIONS,
   mapServiceLabelToCode,
   mapLocationLabelToCode,
   mapGroupSizeLabelToCode,
+  mapStatusLabelToCode,
   serviceCodeLabel,
   locationCodeLabel,
   groupSizeCodeLabel,
+  statusCodeLabel,
 };
