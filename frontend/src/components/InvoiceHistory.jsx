@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
+import { showAlert } from '@/utils/dialogStore';
 
 export const InvoiceHistory = () => {
   const [invoices, setInvoices] = useState([]);
@@ -48,7 +49,7 @@ export const InvoiceHistory = () => {
       }
     } catch (error) {
       console.error("Failed to download PDF", error);
-      alert("Could not retrieve the invoice file.");
+      showAlert("Could not retrieve the invoice file.");
     }
   };
 

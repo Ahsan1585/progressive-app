@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import api from '@/api/axiosInstance';
+import { showAlert } from '@/utils/dialogStore';
 
 // Mirrors mobile/src/constants/njeis.ts SERVICE_TYPE_OPTIONS exactly.
 const ALL_SERVICE_TYPES = [
@@ -223,7 +224,7 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
     e.preventDefault();
 
     if (!practitionerSig) {
-      alert("Please provide the Practitioner Signature before saving.");
+      showAlert("Please provide the Practitioner Signature before saving.");
       return;
     }
 
@@ -250,11 +251,11 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
 
     try {
       await api.post('/api/interventions', payload);
-      alert("Success! Encounter has been securely saved to the database.");
+      await showAlert("Success! Encounter has been securely saved to the database.");
       if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
-      alert("There was an error saving the encounter.");
+      showAlert("There was an error saving the encounter.");
     }
   };
 

@@ -3,6 +3,7 @@ import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { showAlert } from '@/utils/dialogStore';
 
 export const AdminReportFetcher = () => {
   const [searchType, setSearchType] = useState('practitioner_id');
@@ -11,7 +12,7 @@ export const AdminReportFetcher = () => {
 
   const handleGenerateMasterReport = async () => {
     if (!searchValue) {
-      alert("Please enter an ID to generate the report for.");
+      showAlert("Please enter an ID to generate the report for.");
       return;
     }
 
@@ -26,14 +27,14 @@ export const AdminReportFetcher = () => {
       });
 
       if (response.data.success) {
-        alert(`${response.data.message || "Reports generated successfully!"}`);
+        await showAlert(`${response.data.message || "Reports generated successfully!"}`);
         // Refresh the page or trigger a state update here to show the new items in the Billing Manager
-        window.location.reload(); 
+        window.location.reload();
       }
-      
+
     } catch (error) {
       console.error("Failed to generate master reports", error);
-      alert(error.response?.data?.error || "Failed to generate report. Please try again.");
+      showAlert(error.response?.data?.error || "Failed to generate report. Please try again.");
     } finally {
       setIsLoading(false);
     }

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { showAlert } from '@/utils/dialogStore';
 
 const MODULES = [
   { id: 'practitioner', title: 'Practitioner Logs',  desc: 'Audit hours & submissions'    },
@@ -134,7 +135,7 @@ export const MasterReports = () => {
       setLogs(response.data.logs || []);
     } catch (error) {
       console.error('Failed to fetch report', error);
-      alert('Failed to fetch report: ' + (error.response?.data?.error || error.message));
+      showAlert('Failed to fetch report: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +160,7 @@ export const MasterReports = () => {
       }
     } catch (error) {
       console.error('Failed to generate audit NJEIS', error);
-      alert('SEVF generation failed: ' + (error.response?.data?.error || error.message));
+      showAlert('SEVF generation failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsGeneratingNJEIS(false);
     }
@@ -187,7 +188,7 @@ export const MasterReports = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to generate report PDF', error);
-      alert('PDF generation failed: ' + (error.response?.data?.error || error.message));
+      showAlert('PDF generation failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -216,7 +217,7 @@ export const MasterReports = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to generate report Excel', error);
-      alert('Excel generation failed: ' + (error.response?.data?.error || error.message));
+      showAlert('Excel generation failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsGeneratingExcel(false);
     }
@@ -294,7 +295,7 @@ export const MasterReports = () => {
       setLogs(prev => prev.map(l => selectedIds.has(l.id) ? { ...l, billing_status: 'invoiced', billing_review: 'accept' } : l));
       setSelectedIds(new Set());
     } catch (error) {
-      alert('Failed to issue invoice: ' + (error.response?.data?.error || error.message));
+      showAlert('Failed to issue invoice: ' + (error.response?.data?.error || error.message));
     } finally {
       setIsIssuing(false);
     }

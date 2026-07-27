@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { showAlert } from "@/utils/dialogStore";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -88,7 +89,7 @@ export function AddPatientModal({
       setOpen(false);
     } catch (error) {
       console.error("Submission failed:", error);
-      alert(`Failed to ${isEditMode ? "update" : "register"} patient. Check console for details.`);
+      showAlert(`Failed to ${isEditMode ? "update" : "register"} patient. Check console for details.`);
     }
   };
 

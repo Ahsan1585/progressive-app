@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { showAlert, showConfirm } from '@/utils/dialogStore';
 
 const STATE_OPTIONS = ['New Jersey', 'New York', 'Pennsylvania', 'Connecticut'];
 const TIMEZONE_OPTIONS = ['Eastern (ET)', 'Central (CT)', 'Mountain (MT)', 'Pacific (PT)'];
@@ -189,12 +190,12 @@ export const CompanySettings = ({ onSettingsChange }) => {
     setCustomFields((data.previousCustomFields || []).map((cf) => ({ ...cf })));
   };
 
-  const handleRemoveField = (field) => {
+  const handleRemoveField = async (field) => {
     if (field.required) {
-      window.alert(`${field.label} is required for Compliance Analysis and can't be removed.`);
+      showAlert(`${field.label} is required for Compliance Analysis and can't be removed.`);
       return;
     }
-    if (!window.confirm(`Remove "${field.label}" from column matching? It won't be compared in Compliance Analysis, and stays removed until you add it back (e.g. as a custom field).`)) {
+    if (!(await showConfirm(`Remove "${field.label}" from column matching? It won't be compared in Compliance Analysis, and stays removed until you add it back (e.g. as a custom field).`))) {
       return;
     }
     setRemovedFields((prev) => new Set(prev).add(field.key));

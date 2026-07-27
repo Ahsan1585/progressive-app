@@ -7,6 +7,7 @@ import { MessagesPanel } from '@/components/MessagesPanel';
 import { Button } from '@/components/ui/button';
 import SignaturePad from '@/components/SignaturePad';
 import { formatTime12h } from '@/utils/formatTime';
+import { showAlert, showConfirm } from '@/utils/dialogStore';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const Dashboard = () => {
@@ -169,21 +170,21 @@ const Dashboard = () => {
       setResubmitModal(null);
     } catch (error) {
       console.error('Failed to resubmit log', error);
-      alert('Failed to resubmit. Please try again.');
+      showAlert('Failed to resubmit. Please try again.');
     } finally {
       setIsResubmitting(false);
     }
   };
 
   const handleDeletePatient = async (patient) => {
-    if (!window.confirm(`Remove ${patient.first_name} ${patient.last_name} from your patient list?`)) return;
+    if (!(await showConfirm(`Remove ${patient.first_name} ${patient.last_name} from your patient list?`))) return;
     setDeletingPatientId(patient.id);
     try {
       await api.delete(`/api/patients/${patient.id}`);
       if (selectedPatient?.id === patient.id) setSelectedPatient(null);
       setPatients(prev => prev.filter(p => p.id !== patient.id));
     } catch (err) {
-      alert('Failed to delete patient. Please try again.');
+      showAlert('Failed to delete patient. Please try again.');
     } finally {
       setDeletingPatientId(null);
     }
@@ -192,14 +193,14 @@ const Dashboard = () => {
   // Allowed for logs still 'pending' or returned ('rejected') — the backend
   // re-validates this itself, this is just the confirm-before-destructive-action UX.
   const handleDeleteLog = async (logId) => {
-    if (!window.confirm('Delete this log? This cannot be undone.')) return;
+    if (!(await showConfirm('Delete this log? This cannot be undone.'))) return;
     setDeletingLogId(logId);
     try {
       await api.delete(`/api/patients/logs/${logId}`);
       setInterventions(prev => prev.filter(l => l.id !== logId));
       setRejectedLogs(prev => prev.filter(l => l.id !== logId));
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete log. Please try again.');
+      showAlert(err.response?.data?.error || 'Failed to delete log. Please try again.');
     } finally {
       setDeletingLogId(null);
     }
@@ -215,7 +216,7 @@ const Dashboard = () => {
       setSelectedPatient(prev => (prev?.id === patient.id ? updated : prev));
     } catch (err) {
       console.error('Failed to update patient status', err);
-      alert('Failed to update patient status. Please try again.');
+      showAlert('Failed to update patient status. Please try again.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -243,7 +244,7 @@ const Dashboard = () => {
       });
     } catch (err) {
       console.error('Failed to acknowledge log', err);
-      alert('Failed to acknowledge. Please try again.');
+      showAlert('Failed to acknowledge. Please try again.');
     } finally {
       setIsAcknowledging(null);
     }
@@ -254,9 +255,9 @@ const Dashboard = () => {
       await api.post('/api/practitioner/signature', { signature: base64Sig });
       setSavedSignature(base64Sig);
       setIsUpdatingSignature(false);
-      alert("Master signature saved successfully!");
+      showAlert("Master signature saved successfully!");
     } catch (err) {
-      alert("Failed to save signature.");
+      showAlert("Failed to save signature.");
     }
   };
 

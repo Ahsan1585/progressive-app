@@ -6,6 +6,7 @@ import ChangePassword from './components/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/AdminDashboard';
+import { DialogHost } from './components/DialogHost';
 
 const ADMIN_ROLES = ['staff_director', 'billing', 'ceo', 'account_specialist'];
 
@@ -56,6 +57,7 @@ function App() {
   return (
     <Router basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <IdleLogout />
+      <DialogHost />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/change-password" element={<ChangePassword />} />

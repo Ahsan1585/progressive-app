@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StaffChatPopover } from '@/components/StaffChatPopover';
+import { showAlert } from '@/utils/dialogStore';
 
 const MESSAGE_THREADS_POLL_MS = 5000;
 
@@ -196,7 +197,7 @@ export const RegisterPractitionerForm = () => {
     if (!editingMember) return;
 
     if (editingMember.role === 'practitioner' && editForm.positionTitle !== 'Office Staff' && editForm.serviceTypes.length === 0) {
-      alert('Select at least one service type.');
+      showAlert('Select at least one service type.');
       return;
     }
 
@@ -218,7 +219,7 @@ export const RegisterPractitionerForm = () => {
       setEditingMember(null);
       setEditForm(null);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update profile.');
+      showAlert(err.response?.data?.error || 'Failed to update profile.');
     } finally {
       setIsSavingEdit(false);
     }
@@ -232,7 +233,7 @@ export const RegisterPractitionerForm = () => {
       setStaffList(prev => prev.map(s => s.id === confirmDelete.id ? { ...s, is_active: false } : s));
       setConfirmDelete(null);
     } catch {
-      alert('Failed to deactivate user. Please try again.');
+      showAlert('Failed to deactivate user. Please try again.');
     } finally {
       setDeletingId(null);
     }
@@ -244,7 +245,7 @@ export const RegisterPractitionerForm = () => {
       await api.patch(`/api/auth/staff/${id}/reactivate`);
       setStaffList(prev => prev.map(s => s.id === id ? { ...s, is_active: true } : s));
     } catch {
-      alert('Failed to reactivate user. Please try again.');
+      showAlert('Failed to reactivate user. Please try again.');
     } finally {
       setReactivatingId(null);
     }
@@ -256,7 +257,7 @@ export const RegisterPractitionerForm = () => {
       await api.patch(`/api/auth/staff/${id}/role`, { role: newRole });
       setStaffList(prev => prev.map(s => s.id === id ? { ...s, role: newRole } : s));
     } catch {
-      alert('Failed to update role.');
+      showAlert('Failed to update role.');
     } finally {
       setUpdatingId(null);
     }
@@ -280,7 +281,7 @@ export const RegisterPractitionerForm = () => {
       ));
       setReviewingContact(null);
     } catch {
-      alert('Failed to process the contact change. Please try again.');
+      showAlert('Failed to process the contact change. Please try again.');
     } finally {
       setReviewingAction(null);
     }
@@ -300,7 +301,7 @@ export const RegisterPractitionerForm = () => {
 
     const effectiveRole = currentUserRole === 'ceo' ? regForm.role : 'practitioner';
     if (effectiveRole === 'practitioner' && regForm.positionTitle !== 'Office Staff' && regForm.serviceTypes.length === 0) {
-      alert('Select at least one service type.');
+      showAlert('Select at least one service type.');
       return;
     }
 
@@ -324,7 +325,7 @@ export const RegisterPractitionerForm = () => {
       const response = await api.post('/api/auth/register-practitioner', payload);
 
       if (response.data.success || response.status === 201) {
-        alert('Account successfully created!');
+        showAlert('Account successfully created!');
         setRegForm({
           firstName: '', lastName: '', email: '', password: '',
           payRate: '', positionTitle: '', serviceTypes: [], address: '', phoneNumber: '', ssn: '',
@@ -335,7 +336,7 @@ export const RegisterPractitionerForm = () => {
         setActiveTab('roster');
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create account.');
+      showAlert(err.response?.data?.error || 'Failed to create account.');
     } finally {
       setIsRegistering(false);
     }

@@ -4,6 +4,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { showAlert } from '@/utils/dialogStore';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
@@ -946,7 +947,7 @@ function ComplianceAnalysisPreview({
   // else (Approve, reset to Pending, Hold, Release Hold) applies immediately.
   const handleStatusChange = async (session, value) => {
     if (value === 'accept' && analysis?.results?.[session.id]?.duplicateOfSessionId) {
-      window.alert("This is a duplicate log — it can't be approved for billing. Return or Reject it instead so only the original stays billable.");
+      showAlert("This is a duplicate log — it can't be approved for billing. Return or Reject it instead so only the original stays billable.");
       return;
     }
     if (value === 'return' || value === 'reject') {

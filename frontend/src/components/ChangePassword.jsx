@@ -5,6 +5,7 @@ import { AuthLayout } from '@/components/AuthLayout';
 import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { showAlert } from '@/utils/dialogStore';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -20,12 +21,12 @@ const ChangePassword = () => {
     e.preventDefault();
 
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match!");
+      showAlert("Passwords do not match!");
       return;
     }
 
     if (!isPasswordStrong(newPassword)) {
-      alert("Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&).");
+      showAlert("Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&).");
       return;
     }
 
@@ -36,11 +37,11 @@ const ChangePassword = () => {
       const response = await api.post('/api/auth/change-password', { newPassword });
 
       if (response.data.success) {
-        alert("Password updated.");
+        await showAlert("Password updated.");
         navigate('/dashboard');
       }
     } catch {
-      alert("Failed to update password. Please try again.");
+      showAlert("Failed to update password. Please try again.");
     } finally {
       setIsUpdating(false);
     }
