@@ -26,11 +26,11 @@ export const SERVICE_TYPE_OPTIONS: { code: string; label: string }[] = [
 ];
 
 export const STATUS_CODE_OPTIONS: { code: string; label: string }[] = [
-  { code: "1", label: "Ongoing IFSP Service (1)" },
-  { code: "2", label: "Practitioner Missed/Cancelled (2)" },
-  { code: "3", label: "Family Missed/Cancelled (3)" },
-  { code: "4", label: "Make-up Service Provided (4)" },
-  { code: "5", label: "Compensatory Service Provided (5)" },
+  { code: "1", label: "Direct Child Service (1)" },
+  { code: "2", label: "Practitioner Cancelled - inc weather related (2)" },
+  { code: "3", label: "Family Cancelled - inc weather related (3)" },
+  { code: "4", label: "Makeup Direct Child Service (4)" },
+  { code: "5", label: "Family Missed - within 3 hours (5)" },
 ];
 
 export const LOCATION_CODE_OPTIONS: { code: string; label: string }[] = [

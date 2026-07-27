@@ -44,11 +44,11 @@ const GROUP_SIZE_OPTIONS = [
 // Mirrors mobile/src/constants/njeis.ts's STATUS_CODE_OPTIONS (codes only,
 // without the "(1)"-style suffix mobile appends for its own dropdown).
 const STATUS_CODE_OPTIONS = [
-  { code: '1', label: 'Ongoing IFSP Service' },
-  { code: '2', label: 'Practitioner Missed/Cancelled' },
-  { code: '3', label: 'Family Missed/Cancelled' },
-  { code: '4', label: 'Make-up Service Provided' },
-  { code: '5', label: 'Compensatory Service Provided' },
+  { code: '1', label: 'Direct Child Service' },
+  { code: '2', label: 'Practitioner Cancelled (inc weather related)' },
+  { code: '3', label: 'Family Cancelled (inc weather related)' },
+  { code: '4', label: 'Makeup Direct Child Service' },
+  { code: '5', label: 'Family Missed (within 3 hours)' },
 ];
 
 // The state's "Service" column doesn't always literally match one of our 20

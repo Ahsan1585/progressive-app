@@ -308,11 +308,11 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             <div className="space-y-2">
               <Label>Service Status</Label>
               <select className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
-                <option value="1">1 - Ongoing IFSP Service</option>
-                <option value="2">2 - Practitioner Missed/Cancelled</option>
-                <option value="3">3 - Family Missed/Cancelled</option>
-                <option value="4">4 - Make-up Service Provided</option>
-                <option value="5">5 - Compensatory Service Provided</option>
+                <option value="1">1 - Direct Child Service</option>
+                <option value="2">2 - Practitioner Cancelled (inc weather related)</option>
+                <option value="3">3 - Family Cancelled (inc weather related)</option>
+                <option value="4">4 - Makeup Direct Child Service</option>
+                <option value="5">5 - Family Missed (within 3 hours)</option>
               </select>
             </div>
             <div className="space-y-2">
