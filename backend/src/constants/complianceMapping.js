@@ -5,6 +5,8 @@
 // matching and the Company Information mapping screen flags that field for
 // the user to re-point manually (see companyController.uploadComplianceDoc
 // / applyComplianceDocMapping).
+const { normalizeForMatch } = require('../utils/textMatch');
+
 const TARGET_FIELDS = [
   { key: 'child_id', label: 'Child ID', required: true, candidates: ['Child ID'] },
   { key: 'child_name', label: 'Child Name', required: false, candidates: ['Child Name'] },
@@ -19,7 +21,7 @@ const TARGET_FIELDS = [
   { key: 'ifsp_event_id', label: 'IFSP Event ID', required: false, candidates: ['IFSP Event ID'] },
 ];
 
-const norm = (s) => (s || '').toString().trim().toLowerCase();
+const norm = normalizeForMatch;
 
 // Best-effort auto-match: for each target field, find the first sheet
 // header whose normalized text exactly matches one of its candidates.

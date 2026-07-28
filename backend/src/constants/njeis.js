@@ -2,6 +2,8 @@
 // ALL_SERVICE_TYPES exactly — same 20 NJEIS service-type codes, 5 status
 // codes, 8 location codes. Used server-side to map the state's plain-text
 // Excel export back to the codes our app stores on assessments.
+const { normalizeForMatch } = require('../utils/textMatch');
+
 const SERVICE_TYPE_OPTIONS = [
   { code: 'EV', label: 'Evaluation' },
   { code: 'AS', label: 'Assessment' },
@@ -62,7 +64,7 @@ const SERVICE_LABEL_OVERRIDES = [
   { test: (label) => /interpreter/i.test(label), code: 'I/T' },
 ];
 
-const norm = (s) => (s || '').trim().toLowerCase();
+const norm = normalizeForMatch;
 
 function mapServiceLabelToCode(label) {
   if (!label) return null;

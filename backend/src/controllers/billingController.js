@@ -17,6 +17,7 @@ const {
   mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode, mapStatusLabelToCode,
 } = require('../constants/njeis');
 const { logAudit } = require('../utils/auditLog');
+const { normalizeForMatch, namesMatch } = require('../utils/textMatch');
 const path = require('path');
 
 // --- 1. NEW Standardized Path Helper ---
@@ -897,10 +898,10 @@ const getComplianceAnalysis = async (req, res) => {
     const practitionerFirstName = sessions[0]?.practitioner_first_name;
     const practitionerLastName = sessions[0]?.practitioner_last_name;
     const stateLogs = rawStateLogs.filter((log) => {
-      const stateName = (log.practitioner_name || '').toLowerCase();
+      const stateName = normalizeForMatch(log.practitioner_name || '');
       if (!stateName) return false;
       return [practitionerFirstName, practitionerLastName].every(
-        (n) => n && stateName.includes(n.toLowerCase())
+        (n) => n && stateName.includes(normalizeForMatch(n))
       );
     });
 
@@ -946,9 +947,10 @@ const getComplianceAnalysis = async (req, res) => {
       // state's practitioner_name text.
       const ourPractitionerName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
       const statePractitionerName = match?.practitioner_name || '';
+      const normalizedStatePractitionerName = normalizeForMatch(statePractitionerName);
       const practitionerMatch = !!ourPractitionerName && !!statePractitionerName
         && [session.practitioner_first_name, session.practitioner_last_name].every(
-          (n) => n && statePractitionerName.toLowerCase().includes(n.toLowerCase())
+          (n) => n && normalizedStatePractitionerName.includes(normalizeForMatch(n))
         );
 
       // completed_at is a timestamptz (real JS Date from pg), logged_date is
@@ -966,7 +968,12 @@ const getComplianceAnalysis = async (req, res) => {
           key: 'child_name', label: 'Child Name',
           ours: `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim() || null,
           state: match.child_name,
-          match: null, // informational — different name formats ("Last, First" vs "First Last"), not a reliable auto-check
+          // Order-independent word-set comparison handles "Last, First" vs
+          // "First Last" formatting differences between the two sources.
+          match: namesMatch(
+            `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim(),
+            match.child_name
+          ),
         },
         {
           key: 'practitioner_name', label: 'Practitioner',
@@ -1072,12 +1079,11 @@ const getComplianceAnalysis = async (req, res) => {
             };
           }
           if (compareTo === 'patient_county') {
-            const norm = (s) => (s || '').trim().toLowerCase();
             return {
               key: `custom:${label}`, label,
               ours: session.patient_county || null,
               state: value,
-              match: !!session.patient_county && !!value && norm(session.patient_county) === norm(value),
+              match: !!session.patient_county && !!value && normalizeForMatch(session.patient_county) === normalizeForMatch(value),
             };
           }
           if (compareTo === 'patient_dob') {
