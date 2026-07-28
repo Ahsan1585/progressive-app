@@ -675,6 +675,7 @@ export const RegisterPractitionerForm = () => {
               <option value="Social Worker">Social Worker</option>
               <option value="Special Educator">Special Educator</option>
               <option value="Family Therapist">Family Therapist</option>
+              <option value="Foreign Language Interpreter">Foreign Language Interpreter</option>
               <option value="Office Staff">Office Staff</option>
             </select>
           </div>

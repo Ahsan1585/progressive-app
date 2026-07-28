@@ -9,6 +9,7 @@ const DISCIPLINE_CODE_MAP = {
   'Social Worker': 'SW',
   'Special Educator': 'HS',
   'Family Therapist': 'FT',
+  'Foreign Language Interpreter': 'I/T',
 };
 
 const getDisciplineCode = (positionTitle) => {
