@@ -59,7 +59,7 @@ const Dashboard = () => {
     'SW': 'Social Work (SW)', 'VI': 'Vision (VI)', 'CC': 'Childcare/Respite (CC)', 'I/T': 'Interpreter/Translator (I/T)',
     'ES': 'Escort/Security (ES)', 'TPC': 'Transition Planning Conference (TPC)'
   };
-  const statusCodeMap = { '1': 'Direct Child Service (1)', '2': 'Practitioner Cancelled - inc weather related (2)', '3': 'Family Cancelled - inc weather related (3)', '4': 'Makeup Direct Child Service (4)', '5': 'Family Missed - within 3 hours (5)' };
+  const statusCodeMap = { '1': 'Direct Child Service (1)', '2': 'Practitioner Cancelled - inc weather related (2)', '3': 'Family Cancelled - inc weather related (3)', '4': 'Make Up Direct Child Service (4)', '5': 'Family Missed - within 3 hours (5)', 'IFSP': 'Team Mtg – IFSP', 'TPC': 'Transition Planning Conference', 'IT': 'Bilingual Interpretation' };
   const billingStatusConfig = {
     njeis_review: { label: 'In Review',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
     invoiced:     { label: 'Accepted',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },

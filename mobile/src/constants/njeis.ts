@@ -29,8 +29,11 @@ export const STATUS_CODE_OPTIONS: { code: string; label: string }[] = [
   { code: "1", label: "Direct Child Service (1)" },
   { code: "2", label: "Practitioner Cancelled - inc weather related (2)" },
   { code: "3", label: "Family Cancelled - inc weather related (3)" },
-  { code: "4", label: "Makeup Direct Child Service (4)" },
+  { code: "4", label: "Make Up Direct Child Service (4)" },
   { code: "5", label: "Family Missed - within 3 hours (5)" },
+  { code: "IFSP", label: "Team Mtg – IFSP" },
+  { code: "TPC", label: "Transition Planning Conference" },
+  { code: "IT", label: "Bilingual Interpretation" },
 ];
 
 export const LOCATION_CODE_OPTIONS: { code: string; label: string }[] = [

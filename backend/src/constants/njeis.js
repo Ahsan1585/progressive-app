@@ -47,8 +47,11 @@ const STATUS_CODE_OPTIONS = [
   { code: '1', label: 'Direct Child Service' },
   { code: '2', label: 'Practitioner Cancelled (inc weather related)' },
   { code: '3', label: 'Family Cancelled (inc weather related)' },
-  { code: '4', label: 'Makeup Direct Child Service' },
+  { code: '4', label: 'Make Up Direct Child Service' },
   { code: '5', label: 'Family Missed (within 3 hours)' },
+  { code: 'IFSP', label: 'Team Mtg – IFSP' },
+  { code: 'TPC', label: 'Transition Planning Conference' },
+  { code: 'IT', label: 'Bilingual Interpretation' },
 ];
 
 // The state's "Service" column doesn't always literally match one of our 20

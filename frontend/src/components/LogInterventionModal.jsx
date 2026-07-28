@@ -312,8 +312,11 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
                 <option value="1">1 - Direct Child Service</option>
                 <option value="2">2 - Practitioner Cancelled (inc weather related)</option>
                 <option value="3">3 - Family Cancelled (inc weather related)</option>
-                <option value="4">4 - Makeup Direct Child Service</option>
+                <option value="4">4 - Make Up Direct Child Service</option>
                 <option value="5">5 - Family Missed (within 3 hours)</option>
+                <option value="IFSP">IFSP - Team Mtg – IFSP</option>
+                <option value="TPC">TPC - Transition Planning Conference</option>
+                <option value="IT">IT - Bilingual Interpretation</option>
               </select>
             </div>
             <div className="space-y-2">
