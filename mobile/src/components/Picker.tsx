@@ -17,12 +17,27 @@ interface PickerProps {
   onChange: (code: string) => void;
   placeholder?: string;
   error?: string | null;
+  /** Uncontrolled (internal state) by default. Pass both to drive it externally — e.g. auto-opening the next picker in a sequence once this one's onChange fires. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // Touch-sized picker (bottom sheet of rows) for the fixed NJEIS vocabularies —
 // never a dense desktop <select> (anti-slop guardrail, art-direction §5).
-export function Picker({ id, label, value, options, onChange, placeholder = "Select...", error }: PickerProps) {
-  const [open, setOpen] = React.useState(false);
+export function Picker({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+  placeholder = "Select...",
+  error,
+  open: openProp,
+  onOpenChange,
+}: PickerProps) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const selected = options.find((o) => o.code === value);
 
   return (

@@ -5,7 +5,9 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Picker } from "@/components/Picker";
 import { useToast } from "@/components/ui/toast";
+import { formatTime12h } from "@/utils/time";
 import type { ScheduledSession, ApiErrorBody } from "@/types";
 
 interface ScheduleSessionSheetProps {
@@ -27,6 +29,19 @@ const todayIso = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
+// 15-minute increments across the full day. A custom picker (not the native
+// <input type="time">) is used deliberately — mobile browsers only open a
+// native date/time picker on a direct tap, so a value picked here can't
+// reliably auto-open the *next* native picker (showPicker() chaining from
+// another field's onChange is inconsistent across iOS Safari/Android
+// WebViews). This Sheet-based picker is fully our own state, so opening the
+// next one programmatically always works.
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, i) => {
+  const totalMinutes = i * 15;
+  const code = `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+  return { code, label: formatTime12h(code) };
+});
+
 // One sheet handles both scheduling a new session and rescheduling an
 // existing one (mirrors the AddPatient/EditPatient "same form, different
 // verb" pattern already used elsewhere in this app).
@@ -36,6 +51,8 @@ export function ScheduleSessionSheet({ target, patientId, parentEmail, onOpenCha
   const [form, setForm] = React.useState(EMPTY);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [startTimeOpen, setStartTimeOpen] = React.useState(false);
+  const [endTimeOpen, setEndTimeOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (isReschedule) {
@@ -53,30 +70,6 @@ export function ScheduleSessionSheet({ target, patientId, parentEmail, onOpenCha
   }, [target, isReschedule]);
 
   const setField = <K extends keyof typeof EMPTY>(key: K, value: string) => setForm((f) => ({ ...f, [key]: value }));
-
-  const startTimeRef = React.useRef<HTMLInputElement>(null);
-  const endTimeRef = React.useRef<HTMLInputElement>(null);
-
-  // Guides the practitioner straight through Date -> Start time -> End time
-  // as each one is picked, instead of making them hunt for the next field.
-  // Location/Notes are left alone — those two stay tap-to-fill.
-  const focusField = (ref: React.RefObject<HTMLInputElement | null>) => {
-    const el = ref.current;
-    if (!el) return;
-    el.focus();
-    // Reopens the native picker immediately in browsers that support it
-    // (Chrome/Android WebView); silently no-ops elsewhere (e.g. iOS Safari),
-    // where the practitioner just taps the now-focused field.
-    const withPicker = el as HTMLInputElement & { showPicker?: () => void };
-    if (typeof withPicker.showPicker === "function") {
-      try {
-        withPicker.showPicker();
-      } catch {
-        // Some browsers throw if showPicker is called outside a direct user
-        // gesture — focusing the field is still a fine fallback.
-      }
-    }
-  };
 
   const handleSubmit = async () => {
     if (!form.sessionDate || !form.startTime || !form.endTime) {
@@ -128,27 +121,37 @@ export function ScheduleSessionSheet({ target, patientId, parentEmail, onOpenCha
                   value={form.sessionDate}
                   onChange={(e) => {
                     setField("sessionDate", e.target.value);
-                    if (e.target.value) focusField(startTimeRef);
+                    // Guides straight into Start time next — Location/Notes
+                    // are left alone, those two stay tap-to-fill.
+                    if (e.target.value) setStartTimeOpen(true);
                   }}
                   required
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field id="startTime" label="Start time">
-                  <Input
-                    ref={startTimeRef}
-                    type="time"
-                    value={form.startTime}
-                    onChange={(e) => {
-                      setField("startTime", e.target.value);
-                      if (e.target.value) focusField(endTimeRef);
-                    }}
-                    required
-                  />
-                </Field>
-                <Field id="endTime" label="End time">
-                  <Input ref={endTimeRef} type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} required />
-                </Field>
+                <Picker
+                  id="startTime"
+                  label="Start time"
+                  value={form.startTime}
+                  options={TIME_OPTIONS}
+                  open={startTimeOpen}
+                  onOpenChange={setStartTimeOpen}
+                  placeholder="Select time"
+                  onChange={(code) => {
+                    setField("startTime", code);
+                    setEndTimeOpen(true);
+                  }}
+                />
+                <Picker
+                  id="endTime"
+                  label="End time"
+                  value={form.endTime}
+                  options={TIME_OPTIONS}
+                  open={endTimeOpen}
+                  onOpenChange={setEndTimeOpen}
+                  placeholder="Select time"
+                  onChange={(code) => setField("endTime", code)}
+                />
               </div>
               <Field id="location" label="Location" optional>
                 <Input value={form.location} onChange={(e) => setField("location", e.target.value)} />
