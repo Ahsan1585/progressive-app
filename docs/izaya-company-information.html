@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IZAYA — Company Information</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#132A3E; --teal:#0E6E67; --mint:#2FBF9F; --sky:#2E8FC7;
+    --amber:#C8890B; --amber-bg:#FDF3DC; --amber-line:#F0D89A;
+    --paper:#F5F9F8; --card:#FFFFFF; --ink:#1B2B38;
+    --slate:#5C6B73; --slate-light:#8FA0A8; --line:#E4EAE9;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'Inter', sans-serif; background:var(--paper); color:var(--ink); padding-bottom:80px; }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 36px; background:var(--card); border-bottom:1px solid var(--line);
+  }
+  .tb-left{ display:flex; align-items:center; gap:16px; }
+  .tb-left svg{ width:88px; height:auto; }
+  .tb-org{
+    display:flex; align-items:center; gap:10px;
+    padding-left:16px; border-left:1px solid var(--line);
+  }
+  .tb-org-logo{
+    width:30px; height:30px; border-radius:8px;
+    background:linear-gradient(135deg, var(--teal), var(--sky));
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:11px; font-weight:700;
+  }
+  .tb-org-name{ font-size:13.5px; font-weight:700; color:var(--navy); }
+  .tb-org-state{ font-size:11px; color:var(--slate-light); }
+
+  .page{ max-width:1080px; margin:0 auto; padding:32px 36px; }
+  .page-eyebrow{ font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--mint); margin-bottom:8px; }
+  .page h1{ font-family:'Fraunces', serif; font-weight:600; font-size:26px; color:var(--navy); margin-bottom:6px; }
+  .page > p{ font-size:14px; color:var(--slate); max-width:620px; line-height:1.6; margin-bottom:30px; }
+
+  .layout{ display:grid; grid-template-columns:1.5fr 1fr; gap:26px; align-items:start; }
+
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:26px; }
+  .card h2{ font-family:'Fraunces', serif; font-weight:600; font-size:16px; color:var(--navy); margin-bottom:18px; }
+
+  .logo-row{ display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+  .logo-preview{
+    width:64px; height:64px; border-radius:14px;
+    background:linear-gradient(135deg, var(--teal), var(--sky));
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:20px; font-weight:700; flex-shrink:0;
+  }
+  .logo-actions{ display:flex; flex-direction:column; gap:6px; }
+  .btn-upload{
+    font-size:12.5px; font-weight:700; color:var(--teal);
+    background:rgba(47,191,159,0.08); border:1px solid rgba(47,191,159,0.28);
+    padding:7px 13px; border-radius:8px; cursor:pointer; width:fit-content;
+  }
+  .logo-hint{ font-size:11px; color:var(--slate-light); }
+
+  .field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .field{ margin-bottom:16px; }
+  .field.full{ grid-column:1 / -1; }
+  .field label{ display:block; font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:7px; }
+  .field .sub{ font-weight:500; color:var(--slate-light); font-size:11px; margin-left:4px; }
+  input[type="text"], input[type="email"], input[type="tel"], select{
+    width:100%; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px;
+    font-size:13.5px; font-family:'Inter', sans-serif; color:var(--navy); background:#FCFDFD;
+  }
+  input:focus, select:focus{ outline:none; border-color:var(--mint); box-shadow:0 0 0 3px rgba(47,191,159,0.14); }
+
+  .state-note{
+    display:flex; align-items:flex-start; gap:9px; margin-top:10px;
+    padding:11px 13px; background:rgba(46,143,199,0.07); border:1px solid rgba(46,143,199,0.22);
+    border-radius:10px; font-size:11.5px; color:var(--sky); font-weight:600; line-height:1.55;
+  }
+  .state-note svg{ width:14px; height:14px; flex-shrink:0; margin-top:1px; }
+
+  .save-row{ display:flex; justify-content:flex-end; margin-top:6px; }
+  .btn-save{
+    background:linear-gradient(135deg, var(--teal), var(--navy)); color:#fff;
+    font-size:13.5px; font-weight:700; border:none; border-radius:10px;
+    padding:12px 22px; cursor:pointer; box-shadow:0 8px 18px -8px rgba(14,110,103,0.4);
+  }
+
+  /* ============ SIDEBAR: WHERE THIS SHOWS UP ============ */
+  .reflect-card{ background:linear-gradient(155deg, var(--navy), #0C1D2C); border-radius:16px; padding:24px; color:#fff; position:sticky; top:24px; }
+  .reflect-card h3{ font-family:'Fraunces', serif; font-size:15.5px; font-weight:600; margin-bottom:4px; }
+  .reflect-card > p{ font-size:12px; color:rgba(255,255,255,0.6); margin-bottom:20px; line-height:1.55; }
+
+  .reflect-item{ margin-bottom:20px; }
+  .reflect-item:last-child{ margin-bottom:0; }
+  .reflect-label{ font-size:11px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; color:var(--mint); margin-bottom:10px; }
+
+  .mini-topbar-preview{
+    background:#1C3348; border-radius:10px; padding:10px 12px;
+    display:flex; align-items:center; gap:8px; font-size:10.5px; font-weight:700; color:#fff;
+  }
+  .mini-topbar-preview .dot3{ width:20px; height:20px; border-radius:6px; background:linear-gradient(135deg, var(--teal), var(--sky)); flex-shrink:0; }
+
+  .mini-form-preview{
+    background:#1C3348; border-radius:10px; padding:12px;
+    font-size:11px; color:rgba(255,255,255,0.85);
+  }
+  .mini-form-preview .row{ display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.08); }
+  .mini-form-preview .row:last-child{ border-bottom:none; }
+  .mini-form-preview .row span:first-child{ color:rgba(255,255,255,0.5); }
+  .mini-form-preview .row span:last-child{ font-weight:700; }
+  .mini-badge{
+    display:inline-flex; align-items:center; gap:5px; margin-top:8px;
+    font-size:10px; font-weight:700; color:var(--mint);
+    background:rgba(47,191,159,0.14); padding:4px 9px; border-radius:999px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ TOP BAR (now shows real company info) ============ -->
+  <div class="topbar">
+    <div class="tb-left">
+      <svg viewBox="0 0 460 130">
+        <path stroke="#2FBF9F" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M22 32 L60 63 L22 94"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" fill="none" d="M96 28 L96 98"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M130 28 L196 28"/>
+        <path stroke="#2FBF9F" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M196 28 L130 98"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M130 98 L196 98"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M216 98 L248 28 L280 98"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" fill="none" d="M230 74 L266 74"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" fill="none" d="M300 28 L332 64"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" fill="none" d="M364 28 L332 64"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" fill="none" d="M332 64 L332 98"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M384 98 L416 28 L448 98"/>
+        <path stroke="#132A3E" stroke-width="13" stroke-linecap="round" fill="none" d="M398 74 L434 74"/>
+        <circle cx="248" cy="28" r="13" fill="#2FBF9F"/>
+        <circle cx="332" cy="64" r="13" fill="#2FBF9F"/>
+        <circle cx="416" cy="28" r="13" fill="#2FBF9F"/>
+      </svg>
+      <div class="tb-org">
+        <div class="tb-org-logo">PS</div>
+        <div>
+          <div class="tb-org-name">Progressive Steps NJ</div>
+          <div class="tb-org-state">New Jersey · NJEIS</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="page-eyebrow">Admin Settings</div>
+    <h1>Company Information</h1>
+    <p>This is the one place your practice details live. Update it here and it flows everywhere else automatically — the dashboard header, generated forms, and every new practitioner you add in Staff Directory.</p>
+
+    <div class="layout">
+      <!-- ============ FORM ============ -->
+      <div class="card">
+        <div class="logo-row">
+          <div class="logo-preview">PS</div>
+          <div class="logo-actions">
+            <button class="btn-upload">Upload logo</button>
+            <div class="logo-hint">PNG or SVG, shown in your dashboard header and on generated PDFs</div>
+          </div>
+        </div>
+
+        <h2>Practice Details</h2>
+        <div class="field-grid">
+          <div class="field full">
+            <label>Practice / Display Name</label>
+            <input type="text" value="Progressive Steps NJ">
+          </div>
+          <div class="field full">
+            <label>Legal Entity Name <span class="sub">(shown on invoices &amp; state forms)</span></label>
+            <input type="text" value="Progressive Steps Early Intervention, LLC">
+          </div>
+          <div class="field">
+            <label>State</label>
+            <select>
+              <option>New Jersey</option>
+              <option>New York</option>
+              <option>Pennsylvania</option>
+              <option>Connecticut</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Time Zone</label>
+            <select>
+              <option>Eastern (ET)</option>
+              <option>Central (CT)</option>
+              <option>Mountain (MT)</option>
+              <option>Pacific (PT)</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Practice Address</label>
+            <input type="text" value="14 Route 9 South, Old Bridge, NJ 08857">
+          </div>
+          <div class="field">
+            <label>Phone</label>
+            <input type="tel" value="(732) 555-0148">
+          </div>
+          <div class="field">
+            <label>Billing / Support Email</label>
+            <input type="email" value="billing@progressivestepsnj.com">
+          </div>
+        </div>
+
+        <div class="state-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          Your State determines which compliance form and billing codes are used when generating forms — currently New Jersey (NJEIS). This is locked to prevent mid-cycle billing mismatches; contact support to change it.
+        </div>
+
+        <div class="save-row"><button class="btn-save">Save Company Information</button></div>
+      </div>
+
+      <!-- ============ SIDEBAR: WHERE IT REFLECTS ============ -->
+      <div class="reflect-card">
+        <h3>Where this shows up</h3>
+        <p>One record, referenced everywhere — nothing is typed twice.</p>
+
+        <div class="reflect-item">
+          <div class="reflect-label">Dashboard Header</div>
+          <div class="mini-topbar-preview">
+            <div class="dot3"></div>
+            Progressive Steps NJ
+          </div>
+        </div>
+
+        <div class="reflect-item">
+          <div class="reflect-label">Staff Directory — New Practitioner</div>
+          <div class="mini-form-preview">
+            <div class="row"><span>Organization</span><span>Progressive Steps NJ</span></div>
+            <div class="row"><span>Compliance State</span><span>New Jersey</span></div>
+            <div class="row"><span>Form Set</span><span>NJEIS-020</span></div>
+          </div>
+          <div class="mini-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" width="10" height="10"><path d="M4 12l5 5L20 6"/></svg>
+            Auto-filled, not re-entered
+          </div>
+        </div>
+
+        <div class="reflect-item">
+          <div class="reflect-label">Generated PDFs</div>
+          <div class="mini-form-preview">
+            <div class="row"><span>Letterhead</span><span>Legal entity name</span></div>
+            <div class="row"><span>Support contact</span><span>Billing email</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
