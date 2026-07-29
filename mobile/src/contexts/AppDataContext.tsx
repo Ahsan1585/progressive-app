@@ -30,6 +30,9 @@ interface AppDataContextValue {
   upcomingSessionsLoading: boolean;
   fetchUpcomingSessions: () => Promise<void>;
 
+  companyName: string | null;
+  fetchCompanyBranding: () => Promise<void>;
+
   setSavedSignature: (base64: string | null) => void;
 }
 
@@ -59,6 +62,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const [upcomingSessions, setUpcomingSessions] = React.useState<ScheduledSession[]>([]);
   const [upcomingSessionsLoading, setUpcomingSessionsLoading] = React.useState(true);
+
+  const [companyName, setCompanyName] = React.useState<string | null>(null);
 
   const fetchPatients = React.useCallback(async () => {
     setPatientsLoading(true);
@@ -141,6 +146,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchCompanyBranding = React.useCallback(async () => {
+    try {
+      const res = await api.get<{ display_name: string | null }>("/api/company/branding");
+      setCompanyName(res.data.display_name || null);
+    } catch {
+      // Non-critical — the Home header just omits the company name.
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchPatients();
     fetchProfile();
@@ -148,7 +162,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     fetchStats();
     fetchUnreadMessageCount();
     fetchUpcomingSessions();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions]);
+    fetchCompanyBranding();
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding]);
 
   // Keep Inbox live — a log billing just returned should appear without the
   // practitioner having to leave the app and come back. Mirrors the admin
@@ -185,6 +200,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       upcomingSessions,
       upcomingSessionsLoading,
       fetchUpcomingSessions,
+      companyName,
+      fetchCompanyBranding,
       setSavedSignature,
     }),
     [
@@ -209,6 +226,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       upcomingSessions,
       upcomingSessionsLoading,
       fetchUpcomingSessions,
+      companyName,
+      fetchCompanyBranding,
       setSavedSignature,
     ]
   );

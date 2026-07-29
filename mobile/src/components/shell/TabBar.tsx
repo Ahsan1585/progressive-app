@@ -9,7 +9,7 @@ interface TabBarProps {
 
 const TABS = [
   { to: "/home", label: "Home", icon: Home },
-  { to: "/roster", label: "Roster", icon: Users },
+  { to: "/roster", label: "Patients", icon: Users },
   { to: "/inbox", label: "Inbox", icon: Inbox },
   { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/profile", label: "Profile", icon: User },

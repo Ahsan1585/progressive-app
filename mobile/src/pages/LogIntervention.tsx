@@ -299,9 +299,20 @@ export default function LogIntervention() {
             {missing.length} field{missing.length > 1 ? "s" : ""} still missing
           </p>
         )}
-        <Button className="w-full" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting}>
-          Save encounter
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            className="flex-1"
+            size="lg"
+            variant="outline"
+            onClick={handleBack}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button className="flex-1" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting}>
+            Save encounter
+          </Button>
+        </div>
       </div>
 
       <ConfirmDialog

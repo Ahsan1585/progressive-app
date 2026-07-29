@@ -1,6 +1,6 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, Plus, Users, X } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ClipboardList, Search, Plus, Users, X } from "lucide-react";
 import { useAppData } from "@/contexts/AppDataContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
@@ -14,6 +14,12 @@ export default function Roster() {
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const navigate = useNavigate();
+  const location = useLocation();
+  const logIntent = Boolean((location.state as { logIntent?: boolean } | null)?.logIntent);
+
+  const goToPatient = (patientId: string) => {
+    navigate(logIntent ? `/patients/${patientId}/log` : `/patients/${patientId}`);
+  };
 
   const byStatus = statusFilter === "all" ? patients : patients.filter((p) => (p.status || "active") === statusFilter);
   const filtered = filterPatients(byStatus, query);
@@ -30,7 +36,7 @@ export default function Roster() {
       <div className="sticky top-0 z-10 space-y-3 border-b border-border bg-bg px-4 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Roster</h1>
+            <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Patients</h1>
             <p className="mt-0.5 truncate text-xs text-ink-muted">
               Tap + to add a patient · open one to log or schedule a session
             </p>
@@ -44,6 +50,12 @@ export default function Roster() {
             <Plus className="size-5" aria-hidden="true" />
           </button>
         </div>
+        {logIntent && (
+          <div className="flex items-center gap-2 rounded-control border border-primary/30 bg-primary-tint px-3 py-2 text-primary">
+            <ClipboardList className="size-4 shrink-0" aria-hidden="true" />
+            <p className="text-sm font-medium">Select a patient below to log a session</p>
+          </div>
+        )}
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint" aria-hidden="true" />
           <input
@@ -127,7 +139,7 @@ export default function Roster() {
               <li key={p.id}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/patients/${p.id}`)}
+                  onClick={() => goToPatient(p.id)}
                   className="press-scale flex w-full items-center justify-between rounded-card border border-border bg-surface p-3.5 text-left shadow-[var(--elev-rest)]"
                 >
                   <div className="min-w-0">

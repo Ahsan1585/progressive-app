@@ -1,10 +1,11 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronRight, MapPin, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, ChevronRight, ClipboardList, MapPin, RefreshCw, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
 import { StatTile } from "@/components/StatTile";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { Button } from "@/components/ui/button";
 import { formatTime12h } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { ScheduledSession } from "@/types";
@@ -43,6 +44,7 @@ export default function Home() {
     rejectedLogs, rejectedLoading, fetchRejectedLogs,
     patients, patientsLoading, fetchPatients,
     upcomingSessions, upcomingSessionsLoading, fetchUpcomingSessions,
+    companyName,
   } = useAppData();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -86,6 +88,9 @@ export default function Home() {
     <div className="safe-top flex flex-1 flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-bg px-4 pb-3 pt-5">
         <div className="min-w-0">
+          {companyName && (
+            <p className="truncate text-xs font-semibold uppercase tracking-wide text-ink-faint">{companyName}</p>
+          )}
           <p className="text-sm text-ink-muted">Welcome back,</p>
           <h1 className="truncate text-[20px] font-semibold capitalize leading-[26px] text-ink">
             {practitioner ? `${practitioner.firstName} ${practitioner.lastName}` : "Practitioner"}
@@ -128,14 +133,21 @@ export default function Home() {
         </div>
       )}
 
-      {!upcomingSessionsLoading && upcomingSessions.length > 0 && (
+      {!upcomingSessionsLoading && (
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between px-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Your Schedule</p>
-            <p className="tabular text-xs text-ink-faint">
-              {upcomingSessions.length} upcoming
-            </p>
+            {upcomingSessions.length > 0 && (
+              <p className="tabular text-xs text-ink-faint">
+                {upcomingSessions.length} upcoming
+              </p>
+            )}
           </div>
+          {upcomingSessions.length === 0 ? (
+            <div className="rounded-card border border-border bg-surface p-4 text-center">
+              <p className="text-sm text-ink-muted">No scheduled appointments</p>
+            </div>
+          ) : (
           <div className="space-y-4">
             {scheduleGroups.map((group) => (
               <div key={group.label}>
@@ -193,6 +205,7 @@ export default function Home() {
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
 
@@ -239,6 +252,17 @@ export default function Home() {
           <ChevronRight className="size-4 shrink-0 text-danger" aria-hidden="true" />
         </button>
       )}
+      </div>
+
+      <div className="safe-bottom sticky bottom-0 z-10 border-t border-border bg-bg px-4 py-3">
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={() => navigate("/roster", { state: { logIntent: true } })}
+        >
+          <ClipboardList className="size-5" aria-hidden="true" />
+          Log a Session
+        </Button>
       </div>
     </div>
   );
