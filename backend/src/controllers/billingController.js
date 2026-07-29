@@ -1005,23 +1005,29 @@ const getComplianceAnalysis = async (req, res) => {
           ours: session.end_time, state: match.end_time,
           match: !!session.end_time && !!match.end_time && session.end_time === match.end_time,
         },
+        // Service Type/Location/Group Size codes are recomputed from the raw
+        // label here rather than trusting the mapped_*_code columns cached on
+        // upload — those were computed once at import time, so a state log
+        // uploaded before a mapping-logic improvement (new override, subset-
+        // word fallback, etc.) would otherwise keep showing a stale mismatch
+        // forever instead of picking up the fix retroactively.
         {
           key: 'service_type', label: 'Service Type',
           ours: session.type ? serviceCodeLabel(session.type) : null,
-          state: match.mapped_service_code ? serviceCodeLabel(match.mapped_service_code) : match.service_label,
-          match: !!session.type && !!match.mapped_service_code && session.type === match.mapped_service_code,
+          state: (() => { const c = mapServiceLabelToCode(match.service_label); return c ? serviceCodeLabel(c) : match.service_label; })(),
+          match: !!session.type && session.type === mapServiceLabelToCode(match.service_label),
         },
         {
           key: 'location', label: 'Location',
           ours: session.location ? locationCodeLabel(session.location) : null,
-          state: match.mapped_location_code ? locationCodeLabel(match.mapped_location_code) : match.location_label,
-          match: !!session.location && !!match.mapped_location_code && session.location === match.mapped_location_code,
+          state: (() => { const c = mapLocationLabelToCode(match.location_label); return c ? locationCodeLabel(c) : match.location_label; })(),
+          match: !!session.location && session.location === mapLocationLabelToCode(match.location_label),
         },
         {
           key: 'group_size', label: 'Group Size Category',
           ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
-          state: match.mapped_group_size_code ? groupSizeCodeLabel(match.mapped_group_size_code) : match.group_size_label,
-          match: !!session.group_size_category && !!match.mapped_group_size_code && session.group_size_category === match.mapped_group_size_code,
+          state: (() => { const c = mapGroupSizeLabelToCode(match.group_size_label); return c ? groupSizeCodeLabel(c) : match.group_size_label; })(),
+          match: !!session.group_size_category && session.group_size_category === mapGroupSizeLabelToCode(match.group_size_label),
         },
         {
           key: 'logged_date', label: 'Logged Date',
