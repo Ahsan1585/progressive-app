@@ -19,6 +19,14 @@ interface ScheduleSessionSheetProps {
 
 const EMPTY = { sessionDate: "", startTime: "", endTime: "", location: "", notes: "" };
 
+// Local YYYY-MM-DD (not toISOString, which shifts to UTC and can drop to
+// yesterday's date for practitioners west of UTC in the evening) — mirrors
+// AppDataContext's fetchUpcomingSessions.
+const todayIso = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
 // One sheet handles both scheduling a new session and rescheduling an
 // existing one (mirrors the AddPatient/EditPatient "same form, different
 // verb" pattern already used elsewhere in this app).
@@ -46,9 +54,37 @@ export function ScheduleSessionSheet({ target, patientId, parentEmail, onOpenCha
 
   const setField = <K extends keyof typeof EMPTY>(key: K, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
+  const startTimeRef = React.useRef<HTMLInputElement>(null);
+  const endTimeRef = React.useRef<HTMLInputElement>(null);
+
+  // Guides the practitioner straight through Date -> Start time -> End time
+  // as each one is picked, instead of making them hunt for the next field.
+  // Location/Notes are left alone — those two stay tap-to-fill.
+  const focusField = (ref: React.RefObject<HTMLInputElement>) => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    // Reopens the native picker immediately in browsers that support it
+    // (Chrome/Android WebView); silently no-ops elsewhere (e.g. iOS Safari),
+    // where the practitioner just taps the now-focused field.
+    const withPicker = el as HTMLInputElement & { showPicker?: () => void };
+    if (typeof withPicker.showPicker === "function") {
+      try {
+        withPicker.showPicker();
+      } catch {
+        // Some browsers throw if showPicker is called outside a direct user
+        // gesture — focusing the field is still a fine fallback.
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     if (!form.sessionDate || !form.startTime || !form.endTime) {
       setError("Date, start time, and end time are required.");
+      return;
+    }
+    if (form.sessionDate < todayIso()) {
+      setError("Session date can't be in the past.");
       return;
     }
     setSubmitting(true);
@@ -86,14 +122,32 @@ export function ScheduleSessionSheet({ target, patientId, parentEmail, onOpenCha
 
             <div className="mb-4 space-y-3">
               <Field id="sessionDate" label="Date">
-                <Input type="date" value={form.sessionDate} onChange={(e) => setField("sessionDate", e.target.value)} required />
+                <Input
+                  type="date"
+                  min={todayIso()}
+                  value={form.sessionDate}
+                  onChange={(e) => {
+                    setField("sessionDate", e.target.value);
+                    if (e.target.value) focusField(startTimeRef);
+                  }}
+                  required
+                />
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field id="startTime" label="Start time">
-                  <Input type="time" value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} required />
+                  <Input
+                    ref={startTimeRef}
+                    type="time"
+                    value={form.startTime}
+                    onChange={(e) => {
+                      setField("startTime", e.target.value);
+                      if (e.target.value) focusField(endTimeRef);
+                    }}
+                    required
+                  />
                 </Field>
                 <Field id="endTime" label="End time">
-                  <Input type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} required />
+                  <Input ref={endTimeRef} type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} required />
                 </Field>
               </div>
               <Field id="location" label="Location" optional>

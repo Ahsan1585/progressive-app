@@ -36,6 +36,14 @@ const notifyParent = async (session, patient, practitioner, { cancelled = false 
   }
 };
 
+// Server-side backstop for the mobile date picker's min-date restriction —
+// never trust the client alone. 'YYYY-MM-DD' string comparison is safe here
+// since session_date is stored/compared as a plain date, no timezone math.
+const todayIso = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 const loadOwnedPatientAndPractitioner = async (patientId, practitionerId) => {
   const patientResult = await pool.query('SELECT * FROM patients WHERE id = $1 AND practitioner_id = $2', [patientId, practitionerId]);
   if (patientResult.rows.length === 0) return null;
@@ -49,6 +57,9 @@ const createSession = async (req, res) => {
 
   if (!patientId || !sessionDate || !startTime || !endTime) {
     return res.status(400).json({ error: 'patientId, sessionDate, startTime, and endTime are required.' });
+  }
+  if (sessionDate < todayIso()) {
+    return res.status(400).json({ error: "Session date can't be in the past." });
   }
 
   try {
@@ -74,6 +85,10 @@ const updateSession = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
   const { sessionDate, startTime, endTime, location, notes } = req.body;
+
+  if (sessionDate && sessionDate < todayIso()) {
+    return res.status(400).json({ error: "Session date can't be in the past." });
+  }
 
   try {
     const existing = await pool.query('SELECT * FROM scheduled_sessions WHERE id = $1 AND practitioner_id = $2', [id, practitionerId]);
