@@ -66,34 +66,58 @@ const SERVICE_LABEL_OVERRIDES = [
 
 const norm = normalizeForMatch;
 
+// Fallback for when the state abbreviates a label by dropping a word (e.g.
+// exports "Speech Therapy" for our "Speech Language Therapy") rather than
+// just formatting it differently. Matches only when the state's words are
+// ALL present in exactly one option's words — if they're a subset of more
+// than one option (ambiguous) or of none, this intentionally returns null
+// rather than guessing, so a bad guess never silently mislabels a record.
+function subsetWordMatch(label, options) {
+  const tokens = norm(label).split(' ').filter(Boolean);
+  if (tokens.length < 2) return null;
+  const candidates = options.filter((o) => {
+    const optTokens = norm(o.label).split(' ').filter(Boolean);
+    return tokens.every((t) => optTokens.includes(t));
+  });
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 function mapServiceLabelToCode(label) {
   if (!label) return null;
   const n = norm(label);
   const exact = SERVICE_TYPE_OPTIONS.find((o) => norm(o.label) === n);
   if (exact) return exact.code;
   const override = SERVICE_LABEL_OVERRIDES.find((o) => o.test(label));
-  return override ? override.code : null;
+  if (override) return override.code;
+  const subset = subsetWordMatch(label, SERVICE_TYPE_OPTIONS);
+  return subset ? subset.code : null;
 }
 
 function mapLocationLabelToCode(label) {
   if (!label) return null;
   const n = norm(label);
   const exact = LOCATION_CODE_OPTIONS.find((o) => norm(o.label) === n);
-  return exact ? exact.code : null;
+  if (exact) return exact.code;
+  const subset = subsetWordMatch(label, LOCATION_CODE_OPTIONS);
+  return subset ? subset.code : null;
 }
 
 function mapGroupSizeLabelToCode(label) {
   if (!label) return null;
   const n = norm(label);
   const exact = GROUP_SIZE_OPTIONS.find((o) => norm(o.label) === n);
-  return exact ? exact.code : null;
+  if (exact) return exact.code;
+  const subset = subsetWordMatch(label, GROUP_SIZE_OPTIONS);
+  return subset ? subset.code : null;
 }
 
 function mapStatusLabelToCode(label) {
   if (!label) return null;
   const n = norm(label);
   const exact = STATUS_CODE_OPTIONS.find((o) => norm(o.label) === n || o.code === String(label).trim());
-  return exact ? exact.code : null;
+  if (exact) return exact.code;
+  const subset = subsetWordMatch(label, STATUS_CODE_OPTIONS);
+  return subset ? subset.code : null;
 }
 
 const serviceCodeLabel = (code) => SERVICE_TYPE_OPTIONS.find((o) => o.code === code)?.label || code;
