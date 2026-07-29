@@ -349,6 +349,15 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
+  const handleCancelRegister = () => {
+    setRegForm({
+      firstName: '', lastName: '', email: '', password: '',
+      payRate: '', positionTitle: '', serviceTypes: [], address: '', phoneNumber: '', ssn: '',
+      role: 'practitioner'
+    });
+    setActiveTab('roster');
+  };
+
   const visibleStaff = staffList.filter(s => {
     const matchesStatus = statusFilter === 'all' ? true : statusFilter === 'active' ? s.is_active !== false : s.is_active === false;
     const matchesRole = roleFilter === 'all' ? true : s.role === roleFilter;
@@ -780,11 +789,20 @@ export const RegisterPractitionerForm = () => {
             )}
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isRegistering}
+              onClick={handleCancelRegister}
+              className="flex-1 py-6"
+            >
+              Cancel
+            </Button>
             <Button
               type="submit"
               disabled={isRegistering}
-              className="w-full bg-blue-600 text-white hover:bg-blue-700 py-6"
+              className="flex-1 bg-blue-600 text-white hover:bg-blue-700 py-6"
             >
               {isRegistering ? 'Creating Account...' : 'Create Account'}
             </Button>
