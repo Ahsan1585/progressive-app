@@ -14,6 +14,7 @@ const path = require('path');
 
 // --- Database Initialization ---
 const { pool } = require('./src/config/db');
+const { runMigrations } = require('./src/config/runMigrations');
 
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
@@ -24,6 +25,8 @@ const messageRoutes = require('./src/routes/messageRoutes');
 const scheduleRoutes = require('./src/routes/scheduleRoutes');
 const companyRoutes = require('./src/routes/companyRoutes');
 const auditLogRoutes = require('./src/routes/auditLogRoutes');
+const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
+const { stripeWebhook } = require('./src/controllers/subscriptionController');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,6 +52,13 @@ app.use(cors({
   },
 }));
 
+// Stripe webhook signature verification needs the exact raw request body,
+// so this route is mounted with express.raw() BEFORE the app-wide
+// express.json() parser below — any route registered after that parser
+// would only ever see an already-parsed (and therefore re-serialized,
+// signature-mismatching) body.
+app.post('/api/subscription/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
 // 20mb to comfortably fit a 10MB compliance-doc Excel upload after base64
 // inflation (~33%) plus the JSON envelope — smaller uploads (logo,
 // profile picture) still enforce their own tighter limits in application code.
@@ -64,6 +74,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/audit-log', auditLogRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).
@@ -527,6 +538,13 @@ app.get('/api/interventions/:patientId', protect, async (req, res) => {
 app.get('/', (req, res) => { res.send('NJEIS Encounter App Backend is Secure and Active'); });
 app.get('/health', (req, res) => { res.json({ status: 'ok', timestamp: new Date().toISOString() }); });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+runMigrations()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to apply database migrations, refusing to start:', err);
+    process.exit(1);
+  });

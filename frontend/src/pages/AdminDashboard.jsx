@@ -5,6 +5,7 @@ import { MasterReports } from '@/components/MasterReports';
 import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
 import { CompanySettings } from '@/components/CompanySettings';
+import { SubscriptionBilling } from '@/components/SubscriptionBilling';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
 import izayaLogo from '@/assets/izaya-logo.png';
@@ -14,6 +15,7 @@ const TAB_ACCESS = {
   reports:       ['ceo'],
   billing:       ['ceo', 'billing', 'account_specialist'],
   company:       ['ceo'],
+  subscription:  ['ceo'],
   auditLog:      ['ceo'],
 };
 
@@ -22,6 +24,7 @@ const TAB_TITLES = {
   reports:       'Master Reports',
   billing:       'Billing & Invoices',
   company:       'Company Information',
+  subscription:  'Subscription & Billing',
   auditLog:      'Audit Log',
 };
 
@@ -97,6 +100,12 @@ const AdminDashboard = () => {
             <CompanySettings onSettingsChange={setCompanySettings} />
           </div>
         );
+      case 'subscription':
+        return (
+          <div className="max-w-6xl mx-auto w-full">
+            <SubscriptionBilling />
+          </div>
+        );
       case 'auditLog':
         return (
           <div className="max-w-6xl mx-auto w-full">
@@ -148,9 +157,13 @@ const AdminDashboard = () => {
                 className="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-200"
               />
             )}
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight leading-tight truncate">
-              {companySettings?.display_name || 'Progressive Steps'}<br/>
-              <span className="text-sm font-medium text-slate-500">Admin Portal</span>
+            <h1 className="min-w-0 text-lg font-bold text-slate-800 tracking-tight leading-tight">
+              {/* Agency names vary a lot in length — this header has plenty of
+                  vertical room, so let the name wrap freely across as many
+                  lines as it needs rather than ellipsis-truncating it (a
+                  cut-off name reads as broken, not just long). */}
+              <div>{companySettings?.display_name || 'Progressive Steps'}</div>
+              <div className="truncate text-sm font-medium text-slate-500">Admin Portal</div>
             </h1>
           </div>
         </div>
@@ -223,6 +236,21 @@ const AdminDashboard = () => {
               </svg>
               Company Information
             </button>
+            {visibleTabs.includes('subscription') && (
+              <button
+                onClick={() => { setActiveTab('subscription'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                  activeTab === 'subscription'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h2m4 0h4M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                </svg>
+                Subscription &amp; Billing
+              </button>
+            )}
             {visibleTabs.includes('auditLog') && (
               <button
                 onClick={() => { setActiveTab('auditLog'); setSidebarOpen(false); setDesktopNavOpen(false); }}
