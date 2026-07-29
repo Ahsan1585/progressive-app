@@ -926,17 +926,27 @@ const getComplianceAnalysis = async (req, res) => {
         match = candidates[0];
       } else if (candidates.length > 1) {
         // Multiple same-day sessions for this patient — pick the candidate
-        // whose start_time is closest to ours.
+        // whose start_time AND end_time are jointly closest to ours. Two
+        // duplicate sessions can share an identical start_time (e.g. both
+        // logged at 10:00 but ending at different times) — scoring on
+        // start_time alone ties at 0 for every candidate in that case, so
+        // the tie always resolved to the same array slot regardless of
+        // which of our sessions was being matched, silently cross-pairing
+        // the wrong duplicates. End_time breaks that tie.
         const toMinutes = (hhmm) => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
-        const ourMinutes = toMinutes(session.start_time);
-        match = candidates.reduce((best, c) => {
-          if (ourMinutes == null) return best;
-          const cMinutes = toMinutes(c.start_time);
-          if (cMinutes == null) return best;
-          const diff = Math.abs(cMinutes - ourMinutes);
-          const bestDiff = best ? Math.abs(toMinutes(best.start_time) - ourMinutes) : Infinity;
-          return diff < bestDiff ? c : best;
-        }, candidates[0]);
+        const ourStart = toMinutes(session.start_time);
+        const ourEnd = toMinutes(session.end_time);
+        let bestScore = Infinity;
+        for (const c of candidates) {
+          const cStart = toMinutes(c.start_time);
+          const cEnd = toMinutes(c.end_time);
+          let score = 0;
+          let comparable = false;
+          if (ourStart != null && cStart != null) { score += Math.abs(cStart - ourStart); comparable = true; }
+          if (ourEnd != null && cEnd != null) { score += Math.abs(cEnd - ourEnd); comparable = true; }
+          if (comparable && score < bestScore) { bestScore = score; match = c; }
+        }
+        if (!match) match = candidates[0];
       }
       if (match) usedStateLogIds.add(match.id);
 
