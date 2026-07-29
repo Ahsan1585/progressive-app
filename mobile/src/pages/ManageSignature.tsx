@@ -22,6 +22,14 @@ export default function ManageSignature() {
   const [error, setError] = React.useState<string | null>(null);
 
   const handleSave = async () => {
+    // A drawn-but-not-yet-"Done" stroke never reaches `draft` (SignatureCapture
+    // only commits on its own Done button) — without this guard, tapping
+    // Save straight after drawing silently persisted null and wiped out any
+    // existing default signature.
+    if (!draft) {
+      setError("Draw your signature, then tap Done before saving.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {

@@ -207,10 +207,15 @@ export const BillingBatchReview = ({
   // Wrap every session-mutating action so the local period-scoped cache
   // (not just BillingManager's own state) reflects the result — otherwise
   // Approve/Hold/Return/Reject/Reconcile would update the wrong cache and
-  // appear to do nothing here.
+  // appear to do nothing here. Silent: the click already updates logActions
+  // synchronously (see SessionDetailPanel/PractitionerGroup's isApproved),
+  // so the left-hand queue already shows the right status instantly — a
+  // non-silent refetch here would flip isLoadingSessions and replace the
+  // whole session list with "Loading sessions..." for a moment, which reads
+  // as the group collapsing and reopening even though it never actually did.
   const withRefetch = (fn) => async (session, practitionerId, ...rest) => {
     await fn(session, practitionerId, ...rest);
-    await fetchPeriodLogs(practitionerId);
+    await fetchPeriodLogs(practitionerId, { silent: true });
   };
   const wrappedAccept = withRefetch(handleAccept);
   const wrappedResetToPending = withRefetch(handleResetToPending);
@@ -641,6 +646,12 @@ function SessionDetailPanel({
   const isOnHold = session.billing_status === 'on_hold';
   const isProcessing = processingLogId === session.id;
   const isLocked = session.billing_status === 'njeis_review';
+  // Same isApproved pattern used everywhere else in this file (PractitionerGroup,
+  // handleStatusChange) — must fall back to the persisted billing_review, not
+  // just local logActions, or a log that's already Approved on the server
+  // renders as unselected until the FIRST click merely catches logActions up
+  // to reality (a redundant re-approve) and only the second click actually toggles it.
+  const isApproved = logActions[session.id] === 'accept' || session.billing_review === 'accept';
 
   const [pendingAction, setPendingAction] = useState(null); // 'return' | 'reject' | null
   useEffect(() => { setPendingAction(null); }, [session.id]);
@@ -710,10 +721,10 @@ function SessionDetailPanel({
       ) : (
         <div className="grid grid-cols-4 gap-4 mb-6">
           <ActionButton
-            label={logActions[session.id] === 'accept' ? 'Approved' : 'Approve'} active={logActions[session.id] === 'accept'} tone="emerald"
+            label={isApproved ? 'Approved' : 'Approve'} active={isApproved} tone="emerald"
             icon={<Check className="size-4" />}
             onClick={() => {
-              if (logActions[session.id] === 'accept') {
+              if (isApproved) {
                 setLogActions(prev => ({ ...prev, [session.id]: '' }));
                 handleResetToPending(session, practitionerId);
               } else {
