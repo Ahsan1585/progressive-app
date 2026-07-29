@@ -58,6 +58,14 @@ export interface ScheduledSession {
   parent_notified_at: string | null;
 }
 
+export interface Invoice {
+  id: string;
+  start_date: string;
+  end_date: string;
+  paid: boolean;
+  paid_at: string | null;
+}
+
 export type BillingStatus =
   | "pending"
   | "njeis_review"

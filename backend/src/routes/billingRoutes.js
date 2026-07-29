@@ -10,6 +10,8 @@ const {
   completeBilling,
   getInvoiceHistory,
   getInvoiceDownloadUrl,
+  getMyInvoices,
+  getMyInvoiceDownloadUrl,
   getPractitionerLogs,
   getLogNotes,
   getComplianceAnalysis,
@@ -34,6 +36,11 @@ const billingGuard = [protect, requireRole(['ceo', 'billing', 'account_specialis
 // deliberately excluded from the plain "billing" role — Billing Specialists keep
 // Pending Bills + Completed Bills, but not this tab.
 const invoiceStatusWriteGuard = [protect, requireRole(['ceo', 'account_specialist'])];
+
+// Self-service — any authenticated practitioner viewing their own invoices,
+// not gated by the admin/billing-only billingGuard above.
+router.get('/my-invoices',              protect, getMyInvoices);
+router.get('/my-invoices/:id/download', protect, getMyInvoiceDownloadUrl);
 
 router.get('/pending-logs',      ...billingGuard, getPendingLogs);
 router.get('/practitioner-logs', ...billingGuard, getPractitionerLogs);

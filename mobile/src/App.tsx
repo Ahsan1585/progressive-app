@@ -29,6 +29,7 @@ import ResubmitLog from "@/pages/ResubmitLog";
 import ChangePasswordVoluntary from "@/pages/ChangePasswordVoluntary";
 import ManageSignature from "@/pages/ManageSignature";
 import EditContactInfo from "@/pages/EditContactInfo";
+import MyInvoices from "@/pages/MyInvoices";
 
 // Single shared instance of the auth/data/idle providers for every
 // authenticated route (shell tabs and pushed views alike) — mounted once at
@@ -134,6 +135,7 @@ function App() {
               <Route path="/profile/change-password" element={<ChangePasswordVoluntary />} />
               <Route path="/profile/signature" element={<ManageSignature />} />
               <Route path="/profile/contact-info" element={<EditContactInfo />} />
+              <Route path="/profile/invoices" element={<MyInvoices />} />
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />

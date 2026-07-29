@@ -559,6 +559,67 @@ const getInvoiceDownloadUrl = async (req, res) => {
   }
 };
 
+// --- Practitioner self-service: their own approved (issued) invoices,
+// each showing whether it's been paid yet — reuses getBillingBatches'
+// exact "completed" check (at least one of the batch's assessments has
+// billing_status = 'invoiced') so a still-in-progress batch never shows
+// up here as if it were a real invoice.
+const getMyInvoices = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    const { rows } = await pool.query(
+      `SELECT b.id, b.start_date, b.end_date, b.paid_at,
+              EXISTS (
+                SELECT 1 FROM assessments a WHERE a.billing_batch_id = b.id AND a.billing_status = 'invoiced'
+              ) AS approved
+       FROM billing_batches b
+       WHERE b.practitioner_id = $1 AND b.invoice_path IS NOT NULL
+       ORDER BY b.start_date DESC`,
+      [practitionerId]
+    );
+
+    const invoices = rows
+      .filter((b) => b.approved)
+      .map((b) => ({
+        id: b.id,
+        start_date: b.start_date,
+        end_date: b.end_date,
+        paid: !!b.paid_at,
+        paid_at: b.paid_at,
+      }));
+
+    res.json({ success: true, invoices });
+  } catch (error) {
+    console.error('getMyInvoices error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch invoices' });
+  }
+};
+
+// Ownership-scoped by practitioner_id (unlike the admin getInvoiceDownloadUrl
+// above, which trusts an arbitrary bucket path) — a practitioner can only
+// ever get a signed URL for one of their own batches.
+const getMyInvoiceDownloadUrl = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT invoice_path, stamped_invoice_path, paid_at FROM billing_batches WHERE id = $1 AND practitioner_id = $2`,
+      [id, practitionerId]
+    );
+    const batch = rows[0];
+    if (!batch) return res.status(404).json({ success: false, error: 'Invoice not found' });
+
+    const path = batch.paid_at && batch.stamped_invoice_path ? batch.stamped_invoice_path : batch.invoice_path;
+    if (!path) return res.status(404).json({ success: false, error: 'Invoice not found' });
+
+    const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, path, 300);
+    res.json({ success: true, signedUrl });
+  } catch (error) {
+    console.error('getMyInvoiceDownloadUrl error:', error);
+    res.status(500).json({ success: false, error: 'Failed to generate download link' });
+  }
+};
+
 // --- 7. Decline or Restore an Individual Assessment ---
 const updateLogStatus = async (req, res) => {
   const { assessmentId, status, review } = req.body;
@@ -1471,6 +1532,8 @@ module.exports = {
   completeBilling,
   getInvoiceHistory,
   getInvoiceDownloadUrl,
+  getMyInvoices,
+  getMyInvoiceDownloadUrl,
   getPractitionerLogs,
   getLogNotes,
   getComplianceAnalysis,
