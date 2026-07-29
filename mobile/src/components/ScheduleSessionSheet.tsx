@@ -60,7 +60,7 @@ export function ScheduleSessionSheet({ target, patientId, parentEmail, onOpenCha
   // Guides the practitioner straight through Date -> Start time -> End time
   // as each one is picked, instead of making them hunt for the next field.
   // Location/Notes are left alone — those two stay tap-to-fill.
-  const focusField = (ref: React.RefObject<HTMLInputElement>) => {
+  const focusField = (ref: React.RefObject<HTMLInputElement | null>) => {
     const el = ref.current;
     if (!el) return;
     el.focus();
