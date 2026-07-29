@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2 } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -19,6 +19,7 @@ import type { Assessment, ScheduledSession } from "@/types";
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { patients, fetchPatients } = useAppData();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
@@ -48,6 +49,18 @@ export default function PatientDetail() {
   React.useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
+
+  // Arriving here from Home's "Schedule a session" link (via the Patients
+  // tab's scheduleIntent hand-off) opens the sheet immediately instead of
+  // making the practitioner tap Schedule again. Clear the state afterward
+  // so it doesn't reopen if they navigate back to this page later.
+  React.useEffect(() => {
+    if ((location.state as { scheduleIntent?: boolean } | null)?.scheduleIntent) {
+      setScheduleTarget("new");
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCancelSession = async (sessionId: string) => {
     setCancellingId(sessionId);

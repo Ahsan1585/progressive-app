@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronRight, ClipboardList, MapPin, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, MapPin, RefreshCw, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
 import { StatTile } from "@/components/StatTile";
@@ -145,9 +145,18 @@ export default function Home() {
           </div>
           {upcomingSessions.length === 0 ? (
             <div className="rounded-card border border-border bg-surface p-4 text-center">
-              <p className="text-sm text-ink-muted">No scheduled appointments</p>
+              <p className="mb-3 text-sm text-ink-muted">No scheduled appointments</p>
+              <button
+                type="button"
+                onClick={() => navigate("/roster", { state: { scheduleIntent: true } })}
+                className="press-scale inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
+              >
+                <CalendarPlus className="size-4" aria-hidden="true" />
+                Schedule a session
+              </button>
             </div>
           ) : (
+          <>
           <div className="space-y-4">
             {scheduleGroups.map((group) => (
               <div key={group.label}>
@@ -205,6 +214,15 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => navigate("/roster", { state: { scheduleIntent: true } })}
+            className="press-scale mt-3 flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-border-strong p-3 text-sm font-semibold text-primary"
+          >
+            <CalendarPlus className="size-4" aria-hidden="true" />
+            Schedule a session
+          </button>
+          </>
           )}
         </div>
       )}
