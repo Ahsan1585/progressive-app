@@ -133,6 +133,33 @@ export default function Home() {
         </div>
       )}
 
+      {!patientsLoading && patients.length > 0 && (
+        <div className="mb-6">
+          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">Jump back in</p>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {recentPatients.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate(`/patients/${p.id}`)}
+                className="press-scale flex-shrink-0 whitespace-nowrap rounded-full border border-border-strong bg-surface px-4 py-2 text-sm font-semibold capitalize text-ink"
+              >
+                {p.first_name} {p.last_name?.[0]}.
+              </button>
+            ))}
+            {patients.length > 5 && (
+              <button
+                type="button"
+                onClick={() => navigate("/roster")}
+                className="press-scale flex-shrink-0 whitespace-nowrap rounded-full border border-border bg-surface-sunken px-4 py-2 text-sm font-semibold text-ink-muted"
+              >
+                +{patients.length - 5} more
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {!upcomingSessionsLoading && (
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between px-1">
@@ -224,33 +251,6 @@ export default function Home() {
           </button>
           </>
           )}
-        </div>
-      )}
-
-      {!patientsLoading && patients.length > 0 && (
-        <div className="mb-6">
-          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">Jump back in</p>
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-            {recentPatients.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => navigate(`/patients/${p.id}`)}
-                className="press-scale flex-shrink-0 whitespace-nowrap rounded-full border border-border-strong bg-surface px-4 py-2 text-sm font-semibold capitalize text-ink"
-              >
-                {p.first_name} {p.last_name?.[0]}.
-              </button>
-            ))}
-            {patients.length > 5 && (
-              <button
-                type="button"
-                onClick={() => navigate("/roster")}
-                className="press-scale flex-shrink-0 whitespace-nowrap rounded-full border border-border bg-surface-sunken px-4 py-2 text-sm font-semibold text-ink-muted"
-              >
-                +{patients.length - 5} more
-              </button>
-            )}
-          </div>
         </div>
       )}
 
