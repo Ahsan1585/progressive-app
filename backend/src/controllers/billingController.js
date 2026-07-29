@@ -1014,19 +1014,19 @@ const getComplianceAnalysis = async (req, res) => {
         {
           key: 'service_type', label: 'Service Type',
           ours: session.type ? serviceCodeLabel(session.type) : null,
-          state: (() => { const c = mapServiceLabelToCode(match.service_label); return c ? serviceCodeLabel(c) : match.service_label; })(),
+          state: match.service_label,
           match: !!session.type && session.type === mapServiceLabelToCode(match.service_label),
         },
         {
           key: 'location', label: 'Location',
           ours: session.location ? locationCodeLabel(session.location) : null,
-          state: (() => { const c = mapLocationLabelToCode(match.location_label); return c ? locationCodeLabel(c) : match.location_label; })(),
+          state: match.location_label,
           match: !!session.location && session.location === mapLocationLabelToCode(match.location_label),
         },
         {
           key: 'group_size', label: 'Group Size Category',
           ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
-          state: (() => { const c = mapGroupSizeLabelToCode(match.group_size_label); return c ? groupSizeCodeLabel(c) : match.group_size_label; })(),
+          state: match.group_size_label,
           match: !!session.group_size_category && session.group_size_category === mapGroupSizeLabelToCode(match.group_size_label),
         },
         {
