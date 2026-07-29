@@ -13,14 +13,13 @@ import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h } from "@/utils/time";
-import { serviceTypeMap, locationCodeMap, statusCodeMap } from "@/constants/njeis";
 import type { Assessment, ScheduledSession } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { patients, fetchPatients } = useAppData();
+  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap } = useAppData();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
 

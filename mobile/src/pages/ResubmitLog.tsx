@@ -14,7 +14,6 @@ import { Picker } from "@/components/Picker";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { calculateTotalMinutes, formatSafeDate } from "@/utils/time";
-import { SERVICE_TYPE_OPTIONS, STATUS_CODE_OPTIONS, LOCATION_CODE_OPTIONS, GROUP_SIZE_OPTIONS } from "@/constants/njeis";
 import type { ApiErrorBody } from "@/types";
 
 // Signatures are not re-collected here — the resubmit payload only carries
@@ -22,16 +21,16 @@ import type { ApiErrorBody } from "@/types";
 export default function ResubmitLog() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rejectedLogs, fetchRejectedLogs, profile } = useAppData();
+  const { rejectedLogs, fetchRejectedLogs, profile, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions } = useAppData();
   const { showToast } = useToast();
 
   const log = rejectedLogs.find((l) => String(l.id) === id);
 
   const allowedServiceTypeOptions = React.useMemo(() => {
     const allowed = profile?.service_types;
-    if (!allowed || allowed.length === 0) return SERVICE_TYPE_OPTIONS;
-    return SERVICE_TYPE_OPTIONS.filter((opt) => allowed.includes(opt.code));
-  }, [profile]);
+    if (!allowed || allowed.length === 0) return serviceTypeOptions;
+    return serviceTypeOptions.filter((opt) => allowed.includes(opt.code));
+  }, [profile, serviceTypeOptions]);
 
   const [form, setForm] = React.useState({
     type: log?.type ?? "",
@@ -125,14 +124,14 @@ export default function ResubmitLog() {
           id="location"
           label="Location"
           value={form.location}
-          options={LOCATION_CODE_OPTIONS}
+          options={locationOptions}
           onChange={(v) => setForm((f) => ({ ...f, location: v }))}
         />
         <Picker
           id="group_size_category"
           label="Group size category"
           value={form.group_size_category}
-          options={GROUP_SIZE_OPTIONS}
+          options={groupSizeOptions}
           onChange={(v) => setForm((f) => ({ ...f, group_size_category: v }))}
         />
         <div className="grid grid-cols-2 gap-3">
@@ -161,7 +160,7 @@ export default function ResubmitLog() {
           id="status"
           label="Status"
           value={form.status}
-          options={STATUS_CODE_OPTIONS}
+          options={statusOptions}
           onChange={(v) => setForm((f) => ({ ...f, status: v }))}
         />
         <Field id="note" label="Note to billing" optional>

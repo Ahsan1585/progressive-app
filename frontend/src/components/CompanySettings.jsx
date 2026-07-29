@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
+import { DropdownOptionsManager } from '@/components/DropdownOptionsManager';
 
 const STATE_OPTIONS = ['New Jersey', 'New York', 'Pennsylvania', 'Connecticut'];
 const TIMEZONE_OPTIONS = ['Eastern (ET)', 'Central (CT)', 'Mountain (MT)', 'Pacific (PT)'];
@@ -25,7 +26,7 @@ const EMPTY_FORM = {
 // row (company_settings.id = 1). onSettingsChange lets AdminDashboard keep
 // the sidebar's logo/name in sync without a second fetch.
 export const CompanySettings = ({ onSettingsChange }) => {
-  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'compliance'
+  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'compliance' | 'dropdowns'
   const [form, setForm] = useState(EMPTY_FORM);
   const [logo, setLogo] = useState(null);
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, size, uploaded_at, hasMapping } | null
@@ -278,7 +279,9 @@ export const CompanySettings = ({ onSettingsChange }) => {
         <p className="text-sm text-slate-500 mt-1">
           {activeTab === 'info'
             ? 'This is the one place your practice details live. Update it here and it flows everywhere else — the dashboard header, generated forms, and every new practitioner you add in Staff Directory.'
-            : "Attach and manage the state's required-documentation Excel file used to run Compliance Analysis against practitioner-logged sessions."}
+            : activeTab === 'compliance'
+            ? "Attach and manage the state's required-documentation Excel file used to run Compliance Analysis against practitioner-logged sessions."
+            : 'Control the Service Type, Service Status, Location, and Group Size options practitioners choose from when logging a session.'}
         </p>
       </div>
 
@@ -300,6 +303,15 @@ export const CompanySettings = ({ onSettingsChange }) => {
           }`}
         >
           State Compliance Reference
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('dropdowns')}
+          className={`px-4 py-2.5 text-sm font-semibold cursor-pointer border-b-2 -mb-px transition-colors ${
+            activeTab === 'dropdowns' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Dropdown Options
         </button>
       </div>
 
@@ -600,6 +612,8 @@ export const CompanySettings = ({ onSettingsChange }) => {
         )}
       </div>
       )}
+
+      {activeTab === 'dropdowns' && <DropdownOptionsManager />}
 
       <Dialog open={showRemoveConfirm} onOpenChange={setShowRemoveConfirm}>
         <DialogContent className="sm:max-w-md bg-white">

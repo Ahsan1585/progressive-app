@@ -1,6 +1,15 @@
 import * as React from "react";
 import api from "@/api/axiosInstance";
-import type { Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession } from "@/types";
+import type { DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession } from "@/types";
+
+const EMPTY_DROPDOWN_OPTIONS: DropdownOptionsByCategory = { service_type: [], service_status: [], location: [], group_size: [] };
+
+const activeOnly = (list: DropdownOption[]) => list.filter((o) => o.is_active);
+const buildCodeLabelMap = (list: DropdownOption[]): Record<string, string> => {
+  const map: Record<string, string> = {};
+  for (const o of list) map[o.code] = o.label;
+  return map;
+};
 
 interface AppDataContextValue {
   patients: Patient[];
@@ -33,6 +42,22 @@ interface AppDataContextValue {
   companyName: string | null;
   fetchCompanyBranding: () => Promise<void>;
 
+  // Service Type/Status/Location/Group Size vocabularies are admin-configurable
+  // (Company Information > Dropdown Options, web) rather than hardcoded.
+  // serviceTypeOptions/etc. are active-only, for populating a Picker; the
+  // *Map objects are built from ALL rows (active + inactive), for resolving a
+  // code to a label on a historical log even if the option's since been
+  // deactivated.
+  dropdownOptions: DropdownOptionsByCategory;
+  serviceTypeOptions: DropdownOption[];
+  statusOptions: DropdownOption[];
+  locationOptions: DropdownOption[];
+  groupSizeOptions: DropdownOption[];
+  serviceTypeMap: Record<string, string>;
+  statusCodeMap: Record<string, string>;
+  locationCodeMap: Record<string, string>;
+  fetchDropdownOptions: () => Promise<void>;
+
   setSavedSignature: (base64: string | null) => void;
 }
 
@@ -64,6 +89,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [upcomingSessionsLoading, setUpcomingSessionsLoading] = React.useState(true);
 
   const [companyName, setCompanyName] = React.useState<string | null>(null);
+
+  const [dropdownOptions, setDropdownOptions] = React.useState<DropdownOptionsByCategory>(EMPTY_DROPDOWN_OPTIONS);
 
   const fetchPatients = React.useCallback(async () => {
     setPatientsLoading(true);
@@ -155,6 +182,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchDropdownOptions = React.useCallback(async () => {
+    try {
+      const res = await api.get<{ options: DropdownOptionsByCategory }>("/api/dropdown-options");
+      setDropdownOptions(res.data.options);
+    } catch {
+      // Non-critical enough to fail silently — pickers just render empty until retried.
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchPatients();
     fetchProfile();
@@ -163,7 +199,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     fetchUnreadMessageCount();
     fetchUpcomingSessions();
     fetchCompanyBranding();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding]);
+    fetchDropdownOptions();
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions]);
 
   // Keep Inbox live — a log billing just returned should appear without the
   // practitioner having to leave the app and come back. Mirrors the admin
@@ -176,6 +213,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const setSavedSignature = React.useCallback((base64: string | null) => {
     setProfile((prev) => (prev ? { ...prev, signature: base64, saved_signature: base64 } : prev));
   }, []);
+
+  const serviceTypeOptions = React.useMemo(() => activeOnly(dropdownOptions.service_type), [dropdownOptions]);
+  const statusOptions = React.useMemo(() => activeOnly(dropdownOptions.service_status), [dropdownOptions]);
+  const locationOptions = React.useMemo(() => activeOnly(dropdownOptions.location), [dropdownOptions]);
+  const groupSizeOptions = React.useMemo(() => activeOnly(dropdownOptions.group_size), [dropdownOptions]);
+  const serviceTypeMap = React.useMemo(() => buildCodeLabelMap(dropdownOptions.service_type), [dropdownOptions]);
+  const statusCodeMap = React.useMemo(() => buildCodeLabelMap(dropdownOptions.service_status), [dropdownOptions]);
+  const locationCodeMap = React.useMemo(() => buildCodeLabelMap(dropdownOptions.location), [dropdownOptions]);
 
   const value = React.useMemo<AppDataContextValue>(
     () => ({
@@ -202,6 +247,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchUpcomingSessions,
       companyName,
       fetchCompanyBranding,
+      dropdownOptions,
+      serviceTypeOptions,
+      statusOptions,
+      locationOptions,
+      groupSizeOptions,
+      serviceTypeMap,
+      statusCodeMap,
+      locationCodeMap,
+      fetchDropdownOptions,
       setSavedSignature,
     }),
     [
@@ -228,6 +282,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchUpcomingSessions,
       companyName,
       fetchCompanyBranding,
+      dropdownOptions,
+      serviceTypeOptions,
+      statusOptions,
+      locationOptions,
+      groupSizeOptions,
+      serviceTypeMap,
+      statusCodeMap,
+      locationCodeMap,
+      fetchDropdownOptions,
       setSavedSignature,
     ]
   );

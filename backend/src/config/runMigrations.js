@@ -7,7 +7,7 @@ const { pool } = require('./db');
 // not just once, so a migration that isn't safe to re-run doesn't belong
 // here. Lets a migration ship with a deploy instead of requiring a separate
 // manual `psql` step against production.
-const MIGRATIONS = ['add_subscription_billing.sql'];
+const MIGRATIONS = ['add_subscription_billing.sql', 'add_dropdown_options.sql'];
 
 async function runMigrations() {
   for (const file of MIGRATIONS) {

@@ -58,6 +58,22 @@ export interface ScheduledSession {
   parent_notified_at: string | null;
 }
 
+export interface DropdownOption {
+  id: number;
+  category: "service_type" | "service_status" | "location" | "group_size";
+  code: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DropdownOptionsByCategory {
+  service_type: DropdownOption[];
+  service_status: DropdownOption[];
+  location: DropdownOption[];
+  group_size: DropdownOption[];
+}
+
 export interface Invoice {
   id: string;
   start_date: string;

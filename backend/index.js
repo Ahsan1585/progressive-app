@@ -26,7 +26,9 @@ const scheduleRoutes = require('./src/routes/scheduleRoutes');
 const companyRoutes = require('./src/routes/companyRoutes');
 const auditLogRoutes = require('./src/routes/auditLogRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
+const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
+const { loadDropdownOptionsCache } = require('./src/constants/dropdownOptionsCache');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -75,6 +77,7 @@ app.use('/api/schedule', scheduleRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/dropdown-options', dropdownOptionsRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).
@@ -539,6 +542,7 @@ app.get('/', (req, res) => { res.send('NJEIS Encounter App Backend is Secure and
 app.get('/health', (req, res) => { res.json({ status: 'ok', timestamp: new Date().toISOString() }); });
 
 runMigrations()
+  .then(() => loadDropdownOptionsCache())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

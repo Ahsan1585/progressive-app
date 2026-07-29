@@ -14,7 +14,6 @@ import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes } from "@/utils/time";
-import { SERVICE_TYPE_OPTIONS, STATUS_CODE_OPTIONS, LOCATION_CODE_OPTIONS, GROUP_SIZE_OPTIONS } from "@/constants/njeis";
 import { cn } from "@/lib/utils";
 import type { ApiErrorBody } from "@/types";
 
@@ -39,7 +38,7 @@ const SECTIONS = [
 export default function LogIntervention() {
   const { id: patientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { patients, profile, setSavedSignature } = useAppData();
+  const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions } = useAppData();
   const { practitioner } = useAuth();
   const { showToast } = useToast();
 
@@ -47,9 +46,9 @@ export default function LogIntervention() {
 
   const allowedServiceTypeOptions = React.useMemo(() => {
     const allowed = profile?.service_types;
-    if (!allowed || allowed.length === 0) return SERVICE_TYPE_OPTIONS;
-    return SERVICE_TYPE_OPTIONS.filter((opt) => allowed.includes(opt.code));
-  }, [profile]);
+    if (!allowed || allowed.length === 0) return serviceTypeOptions;
+    return serviceTypeOptions.filter((opt) => allowed.includes(opt.code));
+  }, [profile, serviceTypeOptions]);
 
   const [form, setForm] = React.useState<FormState>({
     date: todayIso(),
@@ -246,7 +245,7 @@ export default function LogIntervention() {
             id="status"
             label="Status"
             value={form.status}
-            options={STATUS_CODE_OPTIONS}
+            options={statusOptions}
             onChange={(v) => setField("status", v)}
             error={attemptedSubmit && !form.status ? "Status is required." : null}
           />
@@ -254,7 +253,7 @@ export default function LogIntervention() {
             id="location"
             label="Location"
             value={form.location}
-            options={LOCATION_CODE_OPTIONS}
+            options={locationOptions}
             onChange={(v) => setField("location", v)}
             error={attemptedSubmit && !form.location ? "Location is required." : null}
           />
@@ -262,7 +261,7 @@ export default function LogIntervention() {
             id="groupSizeCategory"
             label="Group size category"
             value={form.groupSizeCategory}
-            options={GROUP_SIZE_OPTIONS}
+            options={groupSizeOptions}
             onChange={(v) => setField("groupSizeCategory", v)}
           />
         </div>

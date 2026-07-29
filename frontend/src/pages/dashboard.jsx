@@ -9,6 +9,7 @@ import SignaturePad from '@/components/SignaturePad';
 import { formatTime12h } from '@/utils/formatTime';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import izayaLogo from '@/assets/izaya-logo.png';
+import { useDropdownOptions, activeOnly, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState([]);
@@ -50,26 +51,26 @@ const Dashboard = () => {
 
   const navigate = useNavigate();
 
-  // Standard NJEIS Code Mappings 
-  const serviceTypeMap = {
-    'EV': 'Evaluation (EV)', 'AS': 'Assessment (AS)', 'IFSP': 'IFSP Meeting', 'AU': 'Audiology (AU)',
-    'DI': 'Developmental Intervention (DI)', 'FT': 'Family Training (FT)', 'HS': 'Health Service (HS)',
-    'MS': 'Medical Service (MS)', 'NU': 'Nursing (NU)', 'NT': 'Nutrition (NT)', 'OT': 'Occupational Therapy (OT)',
-    'PT': 'Physical Therapy (PT)', 'PSY': 'Psychological (PSY)', 'SLP': 'Speech Language Therapy (SLP)',
-    'SW': 'Social Work (SW)', 'VI': 'Vision (VI)', 'CC': 'Childcare/Respite (CC)', 'I/T': 'Interpreter/Translator (I/T)',
-    'ES': 'Escort/Security (ES)', 'TPC': 'Transition Planning Conference (TPC)'
-  };
-  const statusCodeMap = { '1': 'Direct Child Service (1)', '2': 'Practitioner Cancelled - inc weather related (2)', '3': 'Family Cancelled - inc weather related (3)', '4': 'Make Up Direct Child Service (4)', '5': 'Family Missed - within 3 hours (5)', 'IFSP': 'Team Mtg – IFSP', 'TPC': 'Transition Planning Conference', 'IT': 'Bilingual Interpretation' };
+  // Service Type/Status/Location/Group Size vocabularies are admin-configurable
+  // (Company Information > Dropdown Options) rather than hardcoded. The *Map
+  // objects below (built from ALL rows, active + inactive) are for display
+  // label lookups — a deactivated code still resolves to its label on an
+  // existing log. The *Options arrays (active only) populate the edit dropdowns.
+  const { options: dropdownOptions } = useDropdownOptions();
+  const serviceTypeMap = buildCodeLabelMap(dropdownOptions.service_type);
+  const statusCodeMap = buildCodeLabelMap(dropdownOptions.service_status);
+  const locationCodeMap = buildCodeLabelMap(dropdownOptions.location);
+  const groupSizeMap = buildCodeLabelMap(dropdownOptions.group_size);
+  const serviceTypeOptionsActive = activeOnly(dropdownOptions.service_type);
+  const statusOptionsActive = activeOnly(dropdownOptions.service_status);
+  const locationOptionsActive = activeOnly(dropdownOptions.location);
+  const groupSizeOptionsActive = activeOnly(dropdownOptions.group_size);
   const billingStatusConfig = {
     njeis_review: { label: 'In Review',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
     invoiced:     { label: 'Accepted',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     rejected:     { label: 'Returned',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
     declined:     { label: 'Declined',   cls: 'bg-red-50 text-red-700 border-red-200' },
   };
-  const locationCodeMap = { '1': 'Home (1)', '2': 'Residential Facility (2)', '3': 'Service Provider Clinic/Office (3)', '4': 'Hospital (Inpatient) (4)', '5': 'EC Program- Children with Disabilities (5)', '6': 'EC Program- Inclusive Community (6)', '7': 'DCP&P Office (7)', '8': 'Phone/Video Conferencing (8)' };
-  // Labels match the state's own "Group Size" export column text verbatim
-  // (minus the parenthetical) — mirrors mobile/src/constants/njeis.ts GROUP_SIZE_OPTIONS.
-  const groupSizeMap = { individual: 'Direct Child Service - Individual', consultation: 'Consultation/Facilitation with Others' };
 
   const fetchPatients = async () => {
     try {
@@ -986,7 +987,7 @@ const Dashboard = () => {
                   value={resubmitForm.type}
                   onChange={e => setResubmitForm(f => ({ ...f, type: e.target.value }))}
                 >
-                  {Object.entries(serviceTypeMap).map(([code, label]) => (
+                  {serviceTypeOptionsActive.map(({ code, label }) => (
                     <option key={code} value={code}>{label}</option>
                   ))}
                 </select>
@@ -998,7 +999,7 @@ const Dashboard = () => {
                   value={resubmitForm.location}
                   onChange={e => setResubmitForm(f => ({ ...f, location: e.target.value }))}
                 >
-                  {Object.entries(locationCodeMap).map(([code, label]) => (
+                  {locationOptionsActive.map(({ code, label }) => (
                     <option key={code} value={code}>{label}</option>
                   ))}
                 </select>
@@ -1039,7 +1040,7 @@ const Dashboard = () => {
                   value={resubmitForm.status}
                   onChange={e => setResubmitForm(f => ({ ...f, status: e.target.value }))}
                 >
-                  {Object.entries(statusCodeMap).map(([code, label]) => (
+                  {statusOptionsActive.map(({ code, label }) => (
                     <option key={code} value={code}>{label}</option>
                   ))}
                 </select>
@@ -1051,7 +1052,7 @@ const Dashboard = () => {
                   value={resubmitForm.group_size_category}
                   onChange={e => setResubmitForm(f => ({ ...f, group_size_category: e.target.value }))}
                 >
-                  {Object.entries(groupSizeMap).map(([code, label]) => (
+                  {groupSizeOptionsActive.map(({ code, label }) => (
                     <option key={code} value={code}>{label}</option>
                   ))}
                 </select>

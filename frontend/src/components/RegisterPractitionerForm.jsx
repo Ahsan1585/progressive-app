@@ -9,6 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StaffChatPopover } from '@/components/StaffChatPopover';
 import { showAlert } from '@/utils/dialogStore';
+import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
 
 const MESSAGE_THREADS_POLL_MS = 5000;
 
@@ -25,31 +26,6 @@ const formatSSN = (val) => {
   if (d.length <= 5) return `${d.slice(0,3)}-${d.slice(3)}`;
   return `${d.slice(0,3)}-${d.slice(3,5)}-${d.slice(5)}`;
 };
-
-// Service Type Code legend from the NJEIS-020 form — must match
-// frontend/src/pages/dashboard.jsx's serviceTypeMap and mobile/src/constants/njeis.ts
-const SERVICE_TYPE_OPTIONS = [
-  { code: 'EV', label: 'Evaluation (EV)' },
-  { code: 'AS', label: 'Assessment (AS)' },
-  { code: 'IFSP', label: 'IFSP Meeting' },
-  { code: 'AU', label: 'Audiology (AU)' },
-  { code: 'DI', label: 'Developmental Intervention (DI)' },
-  { code: 'FT', label: 'Family Training (FT)' },
-  { code: 'HS', label: 'Health Service (HS)' },
-  { code: 'MS', label: 'Medical Service (MS)' },
-  { code: 'NU', label: 'Nursing (NU)' },
-  { code: 'NT', label: 'Nutrition (NT)' },
-  { code: 'OT', label: 'Occupational Therapy (OT)' },
-  { code: 'PT', label: 'Physical Therapy (PT)' },
-  { code: 'PSY', label: 'Psychological (PSY)' },
-  { code: 'SLP', label: 'Speech Language Therapy (SLP)' },
-  { code: 'SW', label: 'Social Work (SW)' },
-  { code: 'VI', label: 'Vision (VI)' },
-  { code: 'CC', label: 'Childcare/Respite (CC)' },
-  { code: 'I/T', label: 'Interpreter/Translator (I/T)' },
-  { code: 'ES', label: 'Escort/Security (ES)' },
-  { code: 'TPC', label: 'Transition Planning Conference (TPC)' },
-];
 
 const ROLE_LABELS = {
   ceo:                'Admin',
@@ -69,6 +45,8 @@ const ROLE_BADGE_COLORS = {
 
 export const RegisterPractitionerForm = () => {
   const currentUserRole = localStorage.getItem('role');
+  const { options: dropdownOptions } = useDropdownOptions();
+  const SERVICE_TYPE_OPTIONS = activeOnly(dropdownOptions.service_type);
 
   // --- Staff Roster State ---
   const [staffList, setStaffList] = useState([]);

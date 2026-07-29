@@ -6,38 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import api from '@/api/axiosInstance';
 import { showAlert } from '@/utils/dialogStore';
-
-// Mirrors mobile/src/constants/njeis.ts SERVICE_TYPE_OPTIONS exactly.
-const ALL_SERVICE_TYPES = [
-  { code: 'EV', label: 'EV - Evaluation' },
-  { code: 'AS', label: 'AS - Assessment' },
-  { code: 'IFSP', label: 'IFSP - Meeting' },
-  { code: 'AU', label: 'AU - Audiology' },
-  { code: 'DI', label: 'DI - Developmental Intervention' },
-  { code: 'FT', label: 'FT - Family Training' },
-  { code: 'HS', label: 'HS - Health Service' },
-  { code: 'MS', label: 'MS - Medical Service' },
-  { code: 'NU', label: 'NU - Nursing' },
-  { code: 'NT', label: 'NT - Nutrition' },
-  { code: 'OT', label: 'OT - Occupational Therapy' },
-  { code: 'PT', label: 'PT - Physical Therapy' },
-  { code: 'PSY', label: 'PSY - Psychological' },
-  { code: 'SLP', label: 'SLP - Speech Language Therapy' },
-  { code: 'SW', label: 'SW - Social Work' },
-  { code: 'VI', label: 'VI - Vision' },
-  { code: 'CC', label: 'CC - Childcare/Respite' },
-  { code: 'I/T', label: 'I/T - Interpreter/Translator' },
-  { code: 'ES', label: 'ES - Escort/Security' },
-  { code: 'TPC', label: 'TPC - Transition Planning Conference' },
-];
-
-// Mirrors mobile/src/constants/njeis.ts GROUP_SIZE_OPTIONS exactly. Labels
-// match the state's own "Group Size" export column text verbatim so
-// Compliance Analysis can compare them directly, no fuzzy mapping needed.
-const GROUP_SIZE_OPTIONS = [
-  { code: 'individual', label: 'Direct Child Service - Individual' },
-  { code: 'consultation', label: 'Consultation/Facilitation with Others' },
-];
+import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
 
 // --- Custom Signature Pad Sub-Component ---
 const SignaturePad = ({ label, subtext, onUpdate, onSave }) => {
@@ -171,10 +140,15 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
   const [practitionerSig, setPractitionerSig] = useState(null);
   const [masterSignature, setMasterSignature] = useState(null);
   const [practitionerProfile, setPractitionerProfile] = useState(null);
+  const { options: dropdownOptions } = useDropdownOptions();
+  const serviceTypeOptions = activeOnly(dropdownOptions.service_type);
+  const statusOptions = activeOnly(dropdownOptions.service_status);
+  const locationOptions = activeOnly(dropdownOptions.location);
+  const groupSizeOptions = activeOnly(dropdownOptions.group_size);
 
   const allowedServiceTypes = (practitionerProfile?.service_types?.length > 0)
-    ? ALL_SERVICE_TYPES.filter(opt => practitionerProfile.service_types.includes(opt.code))
-    : ALL_SERVICE_TYPES;
+    ? serviceTypeOptions.filter(opt => practitionerProfile.service_types.includes(opt.code))
+    : serviceTypeOptions;
 
   // Fetch Master Signature & Profile when modal opens
   useEffect(() => {
@@ -309,14 +283,9 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             <div className="space-y-2">
               <Label>Service Status</Label>
               <select className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
-                <option value="1">1 - Direct Child Service</option>
-                <option value="2">2 - Practitioner Cancelled (inc weather related)</option>
-                <option value="3">3 - Family Cancelled (inc weather related)</option>
-                <option value="4">4 - Make Up Direct Child Service</option>
-                <option value="5">5 - Family Missed (within 3 hours)</option>
-                <option value="IFSP">IFSP - Team Mtg – IFSP</option>
-                <option value="TPC">TPC - Transition Planning Conference</option>
-                <option value="IT">IT - Bilingual Interpretation</option>
+                {statusOptions.map(opt => (
+                  <option key={opt.code} value={opt.code}>{opt.code} - {opt.label}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">
@@ -330,20 +299,15 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             <div className="space-y-2">
               <Label>Service Location</Label>
               <select className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})}>
-                <option value="1">1 - Home</option>
-                <option value="2">2 - Residential Facility</option>
-                <option value="3">3 - Service Provider Clinic/Office</option>
-                <option value="4">4 - Hospital (Inpatient)</option>
-                <option value="5">5 - EC Program</option>
-                <option value="6">6 - EC Program Inclusive</option>
-                <option value="7">7 - DCP&P Office</option>
-                <option value="8">8 - Phone/Video Conferencing</option>
+                {locationOptions.map(opt => (
+                  <option key={opt.code} value={opt.code}>{opt.code} - {opt.label}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">
               <Label>Group Size Category</Label>
               <select className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm" value={formData.groupSizeCategory} onChange={(e) => setFormData({...formData, groupSizeCategory: e.target.value})}>
-                {GROUP_SIZE_OPTIONS.map(opt => (
+                {groupSizeOptions.map(opt => (
                   <option key={opt.code} value={opt.code}>{opt.label}</option>
                 ))}
               </select>

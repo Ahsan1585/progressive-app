@@ -5,8 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { useAppData } from "@/contexts/AppDataContext";
 import { formatSafeDate, formatTime12h } from "@/utils/time";
-import { serviceTypeMap } from "@/constants/njeis";
 import type { RejectedLog, ApiErrorBody } from "@/types";
 
 interface AcknowledgeDeclineSheetProps {
@@ -19,6 +19,7 @@ interface AcknowledgeDeclineSheetProps {
 // field, no edit fields (design: Acknowledge Decline).
 export function AcknowledgeDeclineSheet({ log, onOpenChange, onSuccess }: AcknowledgeDeclineSheetProps) {
   const { showToast } = useToast();
+  const { serviceTypeMap } = useAppData();
   const [response, setResponse] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);

@@ -8,11 +8,10 @@ import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AcknowledgeDeclineSheet } from "@/components/AcknowledgeDeclineSheet";
 import { formatSafeDate } from "@/utils/time";
-import { serviceTypeMap } from "@/constants/njeis";
 import type { RejectedLog } from "@/types";
 
 export default function Inbox() {
-  const { rejectedLogs, rejectedLoading, rejectedError, fetchRejectedLogs } = useAppData();
+  const { rejectedLogs, rejectedLoading, rejectedError, fetchRejectedLogs, serviceTypeMap } = useAppData();
   const navigate = useNavigate();
   const [acknowledging, setAcknowledging] = React.useState<RejectedLog | null>(null);
 
