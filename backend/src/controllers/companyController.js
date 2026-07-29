@@ -27,6 +27,20 @@ const getCompanySettings = async (req, res) => {
   }
 };
 
+// Explicit allow-list, unlike getCompanySettings above — every authenticated
+// role (including practitioners on the mobile app) can hit this to render
+// the company name/logo in their own header, but has no business seeing
+// legal_entity_name/address/phone/billing_email, so those never leave here.
+const getCompanyBranding = async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT display_name, logo FROM company_settings WHERE id = 1');
+    res.json({ success: true, display_name: rows[0]?.display_name || null, logo: rows[0]?.logo || null });
+  } catch (error) {
+    console.error('Error fetching company branding:', error);
+    res.status(500).json({ error: 'Failed to fetch company branding' });
+  }
+};
+
 const updateCompanySettings = async (req, res) => {
   const { display_name, legal_entity_name, state, timezone, address, phone, billing_email } = req.body;
   try {
@@ -519,6 +533,7 @@ const getComplianceDocDownloadUrl = async (req, res) => {
 
 module.exports = {
   getCompanySettings,
+  getCompanyBranding,
   updateCompanySettings,
   updateCompanyLogo,
   uploadComplianceDoc,

@@ -4,6 +4,7 @@ const router = express.Router();
 const { protect, requireRole } = require('../middleware/authMiddleware');
 const {
   getCompanySettings,
+  getCompanyBranding,
   updateCompanySettings,
   updateCompanyLogo,
   uploadComplianceDoc,
@@ -21,6 +22,9 @@ const readGuard = [protect, requireRole(['ceo', 'staff_director', 'billing', 'ac
 const writeGuard = [protect, requireRole(['ceo'])];
 
 router.get('/', ...readGuard, getCompanySettings);
+// Any authenticated role (practitioners included) — just the display
+// name/logo for the mobile app's Home header, not the full settings above.
+router.get('/branding', protect, getCompanyBranding);
 router.put('/', ...writeGuard, updateCompanySettings);
 router.put('/logo', ...writeGuard, updateCompanyLogo);
 router.put('/compliance-doc', ...writeGuard, uploadComplianceDoc);
