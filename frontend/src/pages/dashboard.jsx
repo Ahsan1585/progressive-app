@@ -13,7 +13,7 @@ import izayaLogo from '@/assets/izaya-logo.png';
 const Dashboard = () => {
   const [patients, setPatients] = useState([]);
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
-  const [patientStatusFilter, setPatientStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
+  const [patientStatusFilter, setPatientStatusFilter] = useState('active'); // 'all' | 'active' | 'inactive'
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [editingPatient, setEditingPatient] = useState(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);

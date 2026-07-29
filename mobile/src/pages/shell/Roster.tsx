@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ClipboardList, Search, Plus, Users, X } from "lucide-react";
+import { CalendarPlus, ClipboardList, Search, Plus, Users, X } from "lucide-react";
 import { useAppData } from "@/contexts/AppDataContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,13 +12,17 @@ type StatusFilter = "all" | "active" | "inactive";
 export default function Roster() {
   const { patients, patientsLoading, patientsError, fetchPatients } = useAppData();
   const [query, setQuery] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("active");
   const navigate = useNavigate();
   const location = useLocation();
-  const logIntent = Boolean((location.state as { logIntent?: boolean } | null)?.logIntent);
+  const state = location.state as { logIntent?: boolean; scheduleIntent?: boolean } | null;
+  const logIntent = Boolean(state?.logIntent);
+  const scheduleIntent = Boolean(state?.scheduleIntent);
 
   const goToPatient = (patientId: string) => {
-    navigate(logIntent ? `/patients/${patientId}/log` : `/patients/${patientId}`);
+    if (logIntent) navigate(`/patients/${patientId}/log`);
+    else if (scheduleIntent) navigate(`/patients/${patientId}`, { state: { scheduleIntent: true } });
+    else navigate(`/patients/${patientId}`);
   };
 
   const byStatus = statusFilter === "all" ? patients : patients.filter((p) => (p.status || "active") === statusFilter);
@@ -50,10 +54,16 @@ export default function Roster() {
             <Plus className="size-5" aria-hidden="true" />
           </button>
         </div>
-        {logIntent && (
+        {(logIntent || scheduleIntent) && (
           <div className="flex items-center gap-2 rounded-control border border-primary/30 bg-primary-tint px-3 py-2 text-primary">
-            <ClipboardList className="size-4 shrink-0" aria-hidden="true" />
-            <p className="text-sm font-medium">Select a patient below to log a session</p>
+            {logIntent ? (
+              <ClipboardList className="size-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <CalendarPlus className="size-4 shrink-0" aria-hidden="true" />
+            )}
+            <p className="text-sm font-medium">
+              {logIntent ? "Select a patient below to log a session" : "Select a patient below to schedule a session"}
+            </p>
           </div>
         )}
         <div className="relative">
