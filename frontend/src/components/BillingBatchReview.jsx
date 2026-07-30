@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import {
@@ -1126,7 +1125,7 @@ function ComplianceAnalysisPreview({
     const isLearnable = LEARNABLE_COMPLIANCE_FIELD_KEYS.includes(field.key) && hasWordOverlap(field.ours, field.state);
     const confirmMessage = isLearnable
       ? `Allow "${field.label}"? Our value "${field.ours || '-'}" will be remembered as matching the state's "${field.state || '-'}" — every future log with this same mismatch will auto-match too, until removed from Compliance Matching.`
-      : `Allow "${field.label}" for this log? This only clears it for this specific log, not future ones.`;
+      : `You are only allowing "${field.label}" as a one-time allow for this log, based on your review — this will not be used to teach the system for future logs.`;
     if (!(await showConfirm(confirmMessage))) return;
 
     const fieldKey = field.key;
@@ -1590,43 +1589,41 @@ function ComplianceAnalysisPreview({
                   })}
                 </tbody>
               </table>
+
+              {pendingNoteAction?.session?.id === s.id && (
+                <div className={`border-t px-4 py-3 space-y-2 ${pendingNoteAction.type === 'reject' ? 'bg-red-50/60 border-red-200' : 'bg-amber-50/60 border-amber-200'}`}>
+                  <p className={`text-xs font-semibold ${pendingNoteAction.type === 'reject' ? 'text-red-700' : 'text-amber-700'}`}>
+                    {pendingNoteAction.type === 'reject'
+                      ? 'Rejecting this log — it will be permanently excluded from billing. Explain why below.'
+                      : 'Returning this log — describe what needs to be corrected below.'}
+                  </p>
+                  <Textarea
+                    autoFocus
+                    placeholder="Explain what needs to change..."
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    className="bg-white min-h-[80px]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={() => setPendingNoteAction(null)} className="cursor-pointer">
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={submitNoteAction}
+                      disabled={!noteText.trim() || isSubmittingNote}
+                      className={`cursor-pointer text-white ${pendingNoteAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                    >
+                      {isSubmittingNote ? 'Sending...' : pendingNoteAction.type === 'reject' ? 'Confirm Reject' : 'Confirm Return'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-
-      <Dialog open={!!pendingNoteAction} onOpenChange={(open) => { if (!open) setPendingNoteAction(null); }}>
-        <DialogContent className="sm:max-w-md bg-white">
-          <DialogHeader>
-            <DialogTitle>{pendingNoteAction?.type === 'reject' ? 'Reject' : 'Return'} this log</DialogTitle>
-          </DialogHeader>
-          <DialogDescription className="text-sm text-slate-500 -mt-2">
-            {pendingNoteAction?.type === 'reject'
-              ? 'This log will be permanently excluded from billing. A note is required.'
-              : 'This log will go back to the practitioner for revision. A note is required.'}
-          </DialogDescription>
-          <Textarea
-            autoFocus
-            placeholder="Explain what needs to change..."
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            className="min-h-[100px]"
-          />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setPendingNoteAction(null)} className="cursor-pointer">
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={submitNoteAction}
-              disabled={!noteText.trim() || isSubmittingNote}
-              className={`cursor-pointer text-white ${pendingNoteAction?.type === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
-            >
-              {isSubmittingNote ? 'Submitting...' : pendingNoteAction?.type === 'reject' ? 'Reject Log' : 'Return Log'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
