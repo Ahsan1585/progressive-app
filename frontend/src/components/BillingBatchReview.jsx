@@ -550,8 +550,8 @@ function PractitionerGroup({
                 <div
                   key={s.id}
                   onClick={() => onSelectSession(s.id)}
-                  className={`grid grid-cols-3 items-center gap-3 px-4 py-3.5 border-t border-slate-100 cursor-pointer transition-colors ${
-                    isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
+                  className={`grid grid-cols-3 items-center gap-3 pl-3 pr-4 py-3.5 border-t border-slate-100 border-l-4 cursor-pointer transition-colors ${
+                    isSelected ? 'bg-blue-200 border-l-blue-600' : 'border-l-transparent hover:bg-slate-50'
                   }`}
                 >
                   {/* Column 1: patient + date */}
