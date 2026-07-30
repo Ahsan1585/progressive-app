@@ -15,10 +15,17 @@ const fs = require('fs');
 const {
   serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel, statusCodeLabel,
   mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode, mapStatusLabelToCode,
+  resolveStrictnessProfile,
 } = require('../constants/njeis');
 const { logAudit } = require('../utils/auditLog');
-const { normalizeForMatch, namesMatch } = require('../utils/textMatch');
+const { normalizeForMatch, scoredNamesMatch } = require('../utils/textMatch');
 const path = require('path');
+
+// The 5 fields where a billing-confirmed mismatch generalizes into a
+// reusable rule (compliance_match_overrides) — everything else (time
+// fields, custom fields) is only ever a one-off per-log acknowledgment,
+// since a clerical typo on a specific date rarely recurs the same way.
+const LEARNABLE_COMPLIANCE_FIELDS = ['service_type', 'location', 'group_size', 'child_name', 'practitioner_name'];
 
 // --- 1. NEW Standardized Path Helper ---
 const getStoragePath = (practitioner, type) => {
@@ -628,6 +635,17 @@ const updateLogStatus = async (req, res) => {
   }
 
   try {
+    // Approve is the one transition that must never go through past an
+    // unresolved compliance mismatch — recompute live rather than trusting
+    // whatever the client last saw, since a learned rule or another
+    // biller's Allow could have changed things since the client's last fetch.
+    if (status === 'pending' && review === 'accept') {
+      const compliance = await computeSessionCompliance(assessmentId);
+      if (compliance.flagged) {
+        return res.status(400).json({ error: 'This log still has unresolved compliance mismatches — allow each flagged field before approving.' });
+      }
+    }
+
     if (status === 'pending') {
       // `review` distinguishes the three callers that land here:
       // Approve passes 'accept'; Release-from-Hold and the "reset to
@@ -854,6 +872,292 @@ function formatMinutesLabel(minutes) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+// Fields removed on the Company Information mapping screen have no column
+// mapped for them anymore — their comparison row is skipped entirely rather
+// than showing an always-empty "-" vs "-" row. Shared by every compliance
+// computation path.
+const FIELD_TO_MAPPING_KEY = {
+  child_id: 'child_id', child_name: 'child_name', practitioner_name: 'practitioner_name',
+  service_date: 'service_date', start_time: 'start_time', end_time: 'end_time',
+  service_type: 'service_label', location: 'location_label', group_size: 'group_size_label',
+  logged_date: 'logged_date', ifsp_event_id: 'ifsp_event_id',
+};
+
+// Multiple same-day sessions for a patient — pick the candidate whose
+// start_time AND end_time are jointly closest to ours. Two duplicate
+// sessions can share an identical start_time (e.g. both logged at 10:00 but
+// ending at different times) — scoring on start_time alone ties at 0 for
+// every candidate in that case, silently cross-pairing the wrong
+// duplicates; end_time breaks that tie.
+function pickBestCandidate(session, candidates) {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  const toMinutes = (hhmm) => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+  const ourStart = toMinutes(session.start_time);
+  const ourEnd = toMinutes(session.end_time);
+  let bestScore = Infinity;
+  let match = null;
+  for (const c of candidates) {
+    const cStart = toMinutes(c.start_time);
+    const cEnd = toMinutes(c.end_time);
+    let score = 0;
+    let comparable = false;
+    if (ourStart != null && cStart != null) { score += Math.abs(cStart - ourStart); comparable = true; }
+    if (ourEnd != null && cEnd != null) { score += Math.abs(cEnd - ourEnd); comparable = true; }
+    if (comparable && score < bestScore) { bestScore = score; match = c; }
+  }
+  return match || candidates[0];
+}
+
+// Compares two HH:MM strings within a tolerance (minutes) driven by the
+// active strictness profile — a state clerical typo of a minute or two
+// shouldn't flag the same way a genuinely different time would.
+function timeWithinTolerance(oursHHMM, stateHHMM, toleranceMinutes) {
+  if (!oursHHMM || !stateHHMM) return { match: false, withinTolerance: false };
+  const toMinutes = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+  const diff = Math.abs(toMinutes(oursHHMM) - toMinutes(stateHHMM));
+  if (diff === 0) return { match: true, withinTolerance: false };
+  return { match: diff <= toleranceMinutes, withinTolerance: diff <= toleranceMinutes };
+}
+
+// The learned-rules table (compliance_match_overrides), grouped by field for
+// fast lookup — one persisted, admin/billing-confirmed (field, state's raw
+// text, our value) pairing per row. Consulted for every session so a single
+// past "Allow" fixes every future occurrence of the same labeling difference.
+async function loadOverridesByField() {
+  const { rows } = await pool.query('SELECT field_key, state_value_normalized, our_value FROM compliance_match_overrides');
+  const map = new Map();
+  for (const row of rows) {
+    if (!map.has(row.field_key)) map.set(row.field_key, []);
+    map.get(row.field_key).push(row);
+  }
+  return map;
+}
+
+// One-off "allow just this log" records (compliance_field_acknowledgments),
+// keyed by `${assessment_id}:${field_key}` — applies to any field, including
+// ones that don't generalize into a learned rule.
+async function loadAcknowledgments(assessmentIds) {
+  if (!assessmentIds.length) return new Map();
+  const { rows } = await pool.query(
+    'SELECT assessment_id, field_key FROM compliance_field_acknowledgments WHERE assessment_id = ANY($1::int[])',
+    [assessmentIds]
+  );
+  const map = new Map();
+  for (const row of rows) map.set(`${row.assessment_id}:${row.field_key}`, row);
+  return map;
+}
+
+// Builds the field-by-field comparison for one session against its matched
+// state record, applying (in order): the strictness-driven baseline
+// matching, then the learned-overrides layer, then the per-log
+// acknowledgment layer. `_learn` (only present on the 5 learnable fields)
+// carries the normalized values a future "Allow" would persist into
+// compliance_match_overrides — used internally by allowComplianceField, not
+// meant to be hidden from the API response (it's not sensitive, just the
+// same ours/state values in a matching-ready shape).
+function buildFieldsForSession(session, match, ctx) {
+  const { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey } = ctx;
+  if (!match) return [];
+
+  const ourPractitionerName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
+  const statePractitionerName = match.practitioner_name || '';
+  const ourChildName = `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim();
+
+  // completed_at is a timestamptz (real JS Date from pg), logged_date is a
+  // plain date column (already a 'YYYY-MM-DD' string per the DATE type
+  // parser override in config/db.js).
+  const ourLoggedDate = session.completed_at ? new Date(session.completed_at).toISOString().slice(0, 10) : null;
+  const stateLoggedDate = match.logged_date || null;
+
+  const startTimeResult = timeWithinTolerance(session.start_time, match.start_time, matchParams.timeToleranceMinutes);
+  const endTimeResult = timeWithinTolerance(session.end_time, match.end_time, matchParams.timeToleranceMinutes);
+
+  const rawFields = [
+    {
+      key: 'child_id', label: 'Child ID',
+      ours: session.child_id, state: match.child_id,
+      match: !!session.child_id && !!match.child_id && session.child_id === match.child_id,
+    },
+    {
+      key: 'child_name', label: 'Child Name',
+      ours: ourChildName || null, state: match.child_name,
+      // Order-independent, threshold-scored word comparison — handles
+      // "Last, First" vs "First Last" formatting AND a partial word
+      // difference (e.g. a missing middle name) per the active profile.
+      match: scoredNamesMatch(ourChildName, match.child_name, matchParams.wordOverlapThreshold),
+      _learn: { ourValue: normalizeForMatch(ourChildName), stateValueRaw: match.child_name },
+    },
+    {
+      key: 'practitioner_name', label: 'Practitioner',
+      ours: ourPractitionerName || null, state: statePractitionerName || null,
+      match: scoredNamesMatch(ourPractitionerName, statePractitionerName, matchParams.wordOverlapThreshold),
+      _learn: { ourValue: normalizeForMatch(ourPractitionerName), stateValueRaw: statePractitionerName },
+    },
+    {
+      key: 'service_date', label: 'Service Date',
+      ours: session.service_date, state: match.service_date,
+      match: true, // this is the join key — always equal by construction
+    },
+    {
+      key: 'start_time', label: 'Start Time',
+      ours: session.start_time, state: match.start_time,
+      match: startTimeResult.match, withinTolerance: startTimeResult.withinTolerance,
+    },
+    {
+      key: 'end_time', label: 'End Time',
+      ours: session.end_time, state: match.end_time,
+      match: endTimeResult.match, withinTolerance: endTimeResult.withinTolerance,
+    },
+    // Service Type/Location/Group Size codes are recomputed from the raw
+    // label here rather than trusting the mapped_*_code columns cached on
+    // upload — those were computed once at import time, so a state log
+    // uploaded before a mapping-logic improvement would otherwise keep
+    // showing a stale mismatch forever instead of picking up the fix
+    // retroactively.
+    {
+      key: 'service_type', label: 'Service Type',
+      ours: session.type ? serviceCodeLabel(session.type) : null,
+      state: match.service_label,
+      match: !!session.type && session.type === mapServiceLabelToCode(match.service_label, matchParams.wordOverlapThreshold),
+      _learn: { ourValue: session.type, stateValueRaw: match.service_label },
+    },
+    {
+      key: 'location', label: 'Location',
+      ours: session.location ? locationCodeLabel(session.location) : null,
+      state: match.location_label,
+      match: !!session.location && session.location === mapLocationLabelToCode(match.location_label, matchParams.wordOverlapThreshold),
+      _learn: { ourValue: session.location, stateValueRaw: match.location_label },
+    },
+    {
+      key: 'group_size', label: 'Group Size Category',
+      ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
+      state: match.group_size_label,
+      match: !!session.group_size_category && session.group_size_category === mapGroupSizeLabelToCode(match.group_size_label, matchParams.wordOverlapThreshold),
+      _learn: { ourValue: session.group_size_category, stateValueRaw: match.group_size_label },
+    },
+    {
+      key: 'logged_date', label: 'Logged Date',
+      ours: ourLoggedDate, state: stateLoggedDate,
+      match: !!ourLoggedDate && !!stateLoggedDate && ourLoggedDate === stateLoggedDate,
+    },
+    {
+      key: 'ifsp_event_id', label: 'IFSP Event ID',
+      ours: null, state: match.ifsp_event_id,
+      match: null, // we don't track this field at all — informational only
+    },
+    // User-added custom fields (Company Information's "Add custom field")
+    // are state-side only by default — no equivalent on our side, so always
+    // informational. A custom field can optionally be tied to one of our
+    // real comparable fields (compareTo), which turns it into a genuine
+    // match/mismatch verdict. Custom fields are acknowledgment-only, never
+    // learned — they're admin-defined and less predictable than the 5 core
+    // fixed fields.
+    ...Object.entries(match.extra_fields || {}).map(([label, value]) => {
+      const compareTo = customFieldsByLabel.get(label)?.compareTo;
+      if (compareTo === 'service_type') {
+        const stateCode = mapServiceLabelToCode(value, matchParams.wordOverlapThreshold);
+        return {
+          key: `custom:${label}`, label,
+          ours: session.type ? serviceCodeLabel(session.type) : null,
+          state: stateCode ? serviceCodeLabel(stateCode) : value,
+          match: !!session.type && !!stateCode && session.type === stateCode,
+        };
+      }
+      if (compareTo === 'location') {
+        const stateCode = mapLocationLabelToCode(value, matchParams.wordOverlapThreshold);
+        return {
+          key: `custom:${label}`, label,
+          ours: session.location ? locationCodeLabel(session.location) : null,
+          state: stateCode ? locationCodeLabel(stateCode) : value,
+          match: !!session.location && !!stateCode && session.location === stateCode,
+        };
+      }
+      if (compareTo === 'group_size') {
+        const stateCode = mapGroupSizeLabelToCode(value, matchParams.wordOverlapThreshold);
+        return {
+          key: `custom:${label}`, label,
+          ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
+          state: stateCode ? groupSizeCodeLabel(stateCode) : value,
+          match: !!session.group_size_category && !!stateCode && session.group_size_category === stateCode,
+        };
+      }
+      if (compareTo === 'service_status') {
+        const stateCode = mapStatusLabelToCode(value, matchParams.wordOverlapThreshold);
+        return {
+          key: `custom:${label}`, label,
+          ours: session.status ? statusCodeLabel(session.status) : null,
+          state: stateCode ? statusCodeLabel(stateCode) : value,
+          match: !!session.status && !!stateCode && session.status === stateCode,
+        };
+      }
+      if (compareTo === 'practitioner_discipline') {
+        const ourCode = mapDisciplineToCode(session.practitioner_discipline);
+        const stateCode = mapDisciplineToCode(value);
+        return {
+          key: `custom:${label}`, label,
+          ours: session.practitioner_discipline || null,
+          state: value,
+          match: !!ourCode && !!stateCode && ourCode === stateCode,
+        };
+      }
+      if (compareTo === 'patient_county') {
+        return {
+          key: `custom:${label}`, label,
+          ours: session.patient_county || null,
+          state: value,
+          match: !!session.patient_county && !!value && normalizeForMatch(session.patient_county) === normalizeForMatch(value),
+        };
+      }
+      if (compareTo === 'patient_dob') {
+        // Both sides are already 'YYYY-MM-DD' — session.patient_dob per the
+        // DB's date-type-parser override, value per companyController's
+        // excelDateToISO extraction for this compareTo (see there).
+        return {
+          key: `custom:${label}`, label,
+          ours: session.patient_dob || null,
+          state: value,
+          match: !!session.patient_dob && !!value && session.patient_dob === value,
+        };
+      }
+      if (compareTo === 'total_time') {
+        const ourMinutes = session.total_time || null;
+        const stateMinutes = parseDurationMinutes(value);
+        const exact = ourMinutes != null && stateMinutes != null && ourMinutes === stateMinutes;
+        const withinTolerance = !exact && ourMinutes != null && stateMinutes != null
+          && Math.abs(ourMinutes - stateMinutes) <= matchParams.timeToleranceMinutes;
+        return {
+          key: `custom:${label}`, label,
+          ours: formatMinutesLabel(session.total_time),
+          state: value,
+          match: exact || withinTolerance, withinTolerance,
+        };
+      }
+      return { key: `custom:${label}`, label, ours: null, state: value, match: null };
+    }),
+  ].filter((f) => f.key.startsWith('custom:') || mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key]));
+
+  return rawFields.map((f) => {
+    if (f.match !== false) return f;
+    // Learned-override layer: a previously-confirmed pairing for this exact
+    // (field, state text, our value) auto-matches from here on, regardless
+    // of strictness level.
+    if (f._learn) {
+      const stateNorm = normalizeForMatch(f._learn.stateValueRaw || '');
+      const hit = (overridesByField.get(f.key) || []).find(
+        (o) => o.state_value_normalized === stateNorm && o.our_value === f._learn.ourValue
+      );
+      if (hit) return { ...f, match: true, learnedMatch: true };
+    }
+    // Per-log acknowledgment layer: applies to any field, including ones
+    // that don't generalize into a learned rule.
+    if (ackByKey.get(`${session.id}:${f.key}`)) {
+      return { ...f, match: true, acknowledged: true };
+    }
+    return f;
+  });
+}
+
 // --- 9c. Compliance Analysis — compare a practitioner's logged sessions in
 // a period against the state reference document (compliance_state_logs,
 // populated from Company Information's uploaded Excel). Match key: same
@@ -867,13 +1171,14 @@ const getComplianceAnalysis = async (req, res) => {
 
   try {
     const { rows: docRows } = await pool.query(
-      'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path, compliance_doc_custom_fields FROM company_settings WHERE id = 1'
+      'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path, compliance_doc_custom_fields, compliance_strictness FROM company_settings WHERE id = 1'
     );
     const doc = docRows[0];
+    const matchParams = resolveStrictnessProfile(doc?.compliance_strictness);
     // Custom fields are informational-only by default (no equivalent on our
     // side), but a custom field can optionally be tied to one of our real
     // comparable fields (compareTo) to get a real match/mismatch verdict
-    // instead — see the custom-fields loop below.
+    // instead — see buildFieldsForSession's custom-fields loop.
     const customFieldsByLabel = new Map(
       (doc?.compliance_doc_custom_fields || []).map((cf) => [cf.label, cf])
     );
@@ -888,18 +1193,9 @@ const getComplianceAnalysis = async (req, res) => {
       && doc?.compliance_doc_applied_path
       && doc.compliance_doc_applied_path === doc.compliance_doc_path
     );
-    // Fields removed on the Company Information mapping screen have no
-    // column mapped for them anymore — skip their comparison row entirely
-    // rather than showing an always-empty "-" vs "-" row.
     const mappedKeys = new Set(
       Object.entries(doc?.compliance_doc_column_mapping || {}).filter(([, header]) => header).map(([key]) => key)
     );
-    const FIELD_TO_MAPPING_KEY = {
-      child_id: 'child_id', child_name: 'child_name', practitioner_name: 'practitioner_name',
-      service_date: 'service_date', start_time: 'start_time', end_time: 'end_time',
-      service_type: 'service_label', location: 'location_label', group_size: 'group_size_label',
-      logged_date: 'logged_date', ifsp_event_id: 'ifsp_event_id',
-    };
 
     const params = [practitionerId];
     let sql = `
@@ -917,7 +1213,7 @@ const getComplianceAnalysis = async (req, res) => {
     const { rows: sessions } = await pool.query(sql, params);
 
     if (!documentOnFile || sessions.length === 0) {
-      return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, results: {} });
+      return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, strictness: doc?.compliance_strictness || 'moderate', results: {} });
     }
 
     // Lazy sweep: state reference data older than 60 days ages out on its
@@ -977,217 +1273,18 @@ const getComplianceAnalysis = async (req, res) => {
       stateByKey.get(key).push(log);
     }
 
+    const overridesByField = await loadOverridesByField();
+    const ackByKey = await loadAcknowledgments(sessions.map((s) => s.id));
+
     const usedStateLogIds = new Set();
     const results = {};
     for (const session of sessions) {
       const key = `${session.patient_id}:${session.service_date}`;
       const candidates = (stateByKey.get(key) || []).filter((l) => !usedStateLogIds.has(l.id));
-      let match = null;
-      if (candidates.length === 1) {
-        match = candidates[0];
-      } else if (candidates.length > 1) {
-        // Multiple same-day sessions for this patient — pick the candidate
-        // whose start_time AND end_time are jointly closest to ours. Two
-        // duplicate sessions can share an identical start_time (e.g. both
-        // logged at 10:00 but ending at different times) — scoring on
-        // start_time alone ties at 0 for every candidate in that case, so
-        // the tie always resolved to the same array slot regardless of
-        // which of our sessions was being matched, silently cross-pairing
-        // the wrong duplicates. End_time breaks that tie.
-        const toMinutes = (hhmm) => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
-        const ourStart = toMinutes(session.start_time);
-        const ourEnd = toMinutes(session.end_time);
-        let bestScore = Infinity;
-        for (const c of candidates) {
-          const cStart = toMinutes(c.start_time);
-          const cEnd = toMinutes(c.end_time);
-          let score = 0;
-          let comparable = false;
-          if (ourStart != null && cStart != null) { score += Math.abs(cStart - ourStart); comparable = true; }
-          if (ourEnd != null && cEnd != null) { score += Math.abs(cEnd - ourEnd); comparable = true; }
-          if (comparable && score < bestScore) { bestScore = score; match = c; }
-        }
-        if (!match) match = candidates[0];
-      }
+      const match = pickBestCandidate(session, candidates);
       if (match) usedStateLogIds.add(match.id);
 
-      // Practitioner names: state export format ("First Last") vs our
-      // separate first/last columns aren't guaranteed identical casing or
-      // spacing, so compare token-wise rather than requiring an exact
-      // string match — both our first and last name must appear in the
-      // state's practitioner_name text.
-      const ourPractitionerName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
-      const statePractitionerName = match?.practitioner_name || '';
-      const normalizedStatePractitionerName = normalizeForMatch(statePractitionerName);
-      const practitionerMatch = !!ourPractitionerName && !!statePractitionerName
-        && [session.practitioner_first_name, session.practitioner_last_name].every(
-          (n) => n && normalizedStatePractitionerName.includes(normalizeForMatch(n))
-        );
-
-      // completed_at is a timestamptz (real JS Date from pg), logged_date is
-      // a plain date column (already a 'YYYY-MM-DD' string, see above).
-      const ourLoggedDate = session.completed_at ? new Date(session.completed_at).toISOString().slice(0, 10) : null;
-      const stateLoggedDate = match?.logged_date || null;
-
-      const fields = match ? [
-        {
-          key: 'child_id', label: 'Child ID',
-          ours: session.child_id, state: match.child_id,
-          match: !!session.child_id && !!match.child_id && session.child_id === match.child_id,
-        },
-        {
-          key: 'child_name', label: 'Child Name',
-          ours: `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim() || null,
-          state: match.child_name,
-          // Order-independent word-set comparison handles "Last, First" vs
-          // "First Last" formatting differences between the two sources.
-          match: namesMatch(
-            `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim(),
-            match.child_name
-          ),
-        },
-        {
-          key: 'practitioner_name', label: 'Practitioner',
-          ours: ourPractitionerName || null, state: statePractitionerName || null,
-          match: practitionerMatch,
-        },
-        {
-          key: 'service_date', label: 'Service Date',
-          ours: session.service_date, state: match.service_date,
-          match: true, // this is the join key — always equal by construction
-        },
-        {
-          key: 'start_time', label: 'Start Time',
-          ours: session.start_time, state: match.start_time,
-          match: !!session.start_time && !!match.start_time && session.start_time === match.start_time,
-        },
-        {
-          key: 'end_time', label: 'End Time',
-          ours: session.end_time, state: match.end_time,
-          match: !!session.end_time && !!match.end_time && session.end_time === match.end_time,
-        },
-        // Service Type/Location/Group Size codes are recomputed from the raw
-        // label here rather than trusting the mapped_*_code columns cached on
-        // upload — those were computed once at import time, so a state log
-        // uploaded before a mapping-logic improvement (new override, subset-
-        // word fallback, etc.) would otherwise keep showing a stale mismatch
-        // forever instead of picking up the fix retroactively.
-        {
-          key: 'service_type', label: 'Service Type',
-          ours: session.type ? serviceCodeLabel(session.type) : null,
-          state: match.service_label,
-          match: !!session.type && session.type === mapServiceLabelToCode(match.service_label),
-        },
-        {
-          key: 'location', label: 'Location',
-          ours: session.location ? locationCodeLabel(session.location) : null,
-          state: match.location_label,
-          match: !!session.location && session.location === mapLocationLabelToCode(match.location_label),
-        },
-        {
-          key: 'group_size', label: 'Group Size Category',
-          ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
-          state: match.group_size_label,
-          match: !!session.group_size_category && session.group_size_category === mapGroupSizeLabelToCode(match.group_size_label),
-        },
-        {
-          key: 'logged_date', label: 'Logged Date',
-          ours: ourLoggedDate, state: stateLoggedDate,
-          match: !!ourLoggedDate && !!stateLoggedDate && ourLoggedDate === stateLoggedDate,
-        },
-        {
-          key: 'ifsp_event_id', label: 'IFSP Event ID',
-          ours: null, state: match.ifsp_event_id,
-          match: null, // we don't track this field at all — informational only
-        },
-        // User-added custom fields (Company Information's "Add custom field")
-        // are state-side only by default — no equivalent on our side, so
-        // always informational. A custom field can optionally be tied to one
-        // of our real comparable fields (compareTo, set on the mapping
-        // screen), which turns it into a genuine match/mismatch verdict
-        // using the same label->code mapping the primary Service Type/
-        // Location/Group Size rows use.
-        ...Object.entries(match.extra_fields || {}).map(([label, value]) => {
-          const compareTo = customFieldsByLabel.get(label)?.compareTo;
-          if (compareTo === 'service_type') {
-            const stateCode = mapServiceLabelToCode(value);
-            return {
-              key: `custom:${label}`, label,
-              ours: session.type ? serviceCodeLabel(session.type) : null,
-              state: stateCode ? serviceCodeLabel(stateCode) : value,
-              match: !!session.type && !!stateCode && session.type === stateCode,
-            };
-          }
-          if (compareTo === 'location') {
-            const stateCode = mapLocationLabelToCode(value);
-            return {
-              key: `custom:${label}`, label,
-              ours: session.location ? locationCodeLabel(session.location) : null,
-              state: stateCode ? locationCodeLabel(stateCode) : value,
-              match: !!session.location && !!stateCode && session.location === stateCode,
-            };
-          }
-          if (compareTo === 'group_size') {
-            const stateCode = mapGroupSizeLabelToCode(value);
-            return {
-              key: `custom:${label}`, label,
-              ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
-              state: stateCode ? groupSizeCodeLabel(stateCode) : value,
-              match: !!session.group_size_category && !!stateCode && session.group_size_category === stateCode,
-            };
-          }
-          if (compareTo === 'service_status') {
-            const stateCode = mapStatusLabelToCode(value);
-            return {
-              key: `custom:${label}`, label,
-              ours: session.status ? statusCodeLabel(session.status) : null,
-              state: stateCode ? statusCodeLabel(stateCode) : value,
-              match: !!session.status && !!stateCode && session.status === stateCode,
-            };
-          }
-          if (compareTo === 'practitioner_discipline') {
-            const ourCode = mapDisciplineToCode(session.practitioner_discipline);
-            const stateCode = mapDisciplineToCode(value);
-            return {
-              key: `custom:${label}`, label,
-              ours: session.practitioner_discipline || null,
-              state: value,
-              match: !!ourCode && !!stateCode && ourCode === stateCode,
-            };
-          }
-          if (compareTo === 'patient_county') {
-            return {
-              key: `custom:${label}`, label,
-              ours: session.patient_county || null,
-              state: value,
-              match: !!session.patient_county && !!value && normalizeForMatch(session.patient_county) === normalizeForMatch(value),
-            };
-          }
-          if (compareTo === 'patient_dob') {
-            // Both sides are already 'YYYY-MM-DD' — session.patient_dob per
-            // the DB's date-type-parser override, value per companyController's
-            // excelDateToISO extraction for this compareTo (see there).
-            return {
-              key: `custom:${label}`, label,
-              ours: session.patient_dob || null,
-              state: value,
-              match: !!session.patient_dob && !!value && session.patient_dob === value,
-            };
-          }
-          if (compareTo === 'total_time') {
-            const ourMinutes = session.total_time || null;
-            const stateMinutes = parseDurationMinutes(value);
-            return {
-              key: `custom:${label}`, label,
-              ours: formatMinutesLabel(session.total_time),
-              state: value,
-              match: ourMinutes != null && stateMinutes != null && ourMinutes === stateMinutes,
-            };
-          }
-          return { key: `custom:${label}`, label, ours: null, state: value, match: null };
-        }),
-      ].filter((f) => f.key.startsWith('custom:') || mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key])) : [];
-
+      const fields = buildFieldsForSession(session, match, { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey });
       const flagged = fields.some((f) => f.match === false);
 
       results[session.id] = {
@@ -1228,12 +1325,66 @@ const getComplianceAnalysis = async (req, res) => {
       }
     }
 
-    res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, results });
+    res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, strictness: doc.compliance_strictness || 'moderate', results });
   } catch (error) {
     console.error('Error running compliance analysis:', error);
     res.status(500).json({ error: 'Failed to run compliance analysis' });
   }
 };
+
+// Single-assessment version of the same comparison, used to (a) gate
+// Approve server-side in updateLogStatus, regardless of which UI entry
+// point was used, and (b) let allowComplianceField re-derive a field's
+// current ours/state values itself rather than trusting the client.
+async function computeSessionCompliance(assessmentId) {
+  const { rows: docRows } = await pool.query(
+    'SELECT compliance_doc_filename, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path, compliance_doc_custom_fields, compliance_strictness FROM company_settings WHERE id = 1'
+  );
+  const doc = docRows[0];
+  const documentOnFile = !!(
+    doc?.compliance_doc_filename
+    && doc?.compliance_doc_column_mapping
+    && doc?.compliance_doc_applied_path
+    && doc.compliance_doc_applied_path === doc.compliance_doc_path
+  );
+  if (!documentOnFile) return { matched: false, flagged: false, fields: [] };
+
+  const { rows: sessionRows } = await pool.query(
+    `SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
+            group_size_category, patient_first_name, patient_last_name,
+            practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
+            assessments.status, practitioner_discipline, patient_dob, patient_county
+     FROM assessments
+     LEFT JOIN patients ON patients.id = assessments.patient_id
+     WHERE assessments.id = $1`,
+    [assessmentId]
+  );
+  const session = sessionRows[0];
+  if (!session) return { matched: false, flagged: false, fields: [] };
+
+  const { rows: rawStateLogs } = await pool.query(
+    'SELECT * FROM compliance_state_logs WHERE patient_id = $1 AND service_date = $2',
+    [session.patient_id, session.service_date]
+  );
+  const stateLogs = rawStateLogs.filter((log) => {
+    const stateName = normalizeForMatch(log.practitioner_name || '');
+    if (!stateName) return false;
+    return [session.practitioner_first_name, session.practitioner_last_name].every(
+      (n) => n && stateName.includes(normalizeForMatch(n))
+    );
+  });
+
+  const match = pickBestCandidate(session, stateLogs);
+  const matchParams = resolveStrictnessProfile(doc.compliance_strictness);
+  const customFieldsByLabel = new Map((doc?.compliance_doc_custom_fields || []).map((cf) => [cf.label, cf]));
+  const mappedKeys = new Set(Object.entries(doc?.compliance_doc_column_mapping || {}).filter(([, header]) => header).map(([key]) => key));
+  const overridesByField = await loadOverridesByField();
+  const ackByKey = await loadAcknowledgments([assessmentId]);
+
+  const fields = buildFieldsForSession(session, match, { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey });
+  const flagged = fields.some((f) => f.match === false);
+  return { matched: !!match, flagged, fields };
+}
 
 // --- 10. Fetch logs for a completed vault entry (by practitioner name + date range) ---
 const getVaultLogs = async (req, res) => {
@@ -1547,5 +1698,7 @@ module.exports = {
   markBatchPrinted,
   markBatchPaid,
   lockPractitioner,
-  unlockPractitioner
+  unlockPractitioner,
+  computeSessionCompliance,
+  LEARNABLE_COMPLIANCE_FIELDS,
 };

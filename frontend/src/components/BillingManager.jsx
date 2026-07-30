@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { BillingBatchReview } from '@/components/BillingBatchReview';
+import { showAlert } from '@/utils/dialogStore';
 import {
   Search, ChevronRight, ChevronDown, Download, Check, X, Undo2,
   Ban, Clock, Lock, CheckCircle2, CircleAlert, PauseCircle, PlayCircle, MessageSquareText,
@@ -346,6 +347,7 @@ export const BillingManager = () => {
     } catch (error) {
       setLogActions(prev => ({ ...prev, [session.id]: '' }));
       console.error('Failed to accept log', error);
+      showAlert(error.response?.data?.error || 'Failed to approve log.');
     } finally {
       setProcessingLogId(null);
     }

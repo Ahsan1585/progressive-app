@@ -392,6 +392,14 @@ export const BillingBatchReview = ({
               >
                 <Sparkles className="size-4" /> Compliance Analysis
               </button>
+              <button
+                onClick={() => setDetailTab('matching')}
+                className={`px-3 pb-3 text-base font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
+                  detailTab === 'matching' ? 'border-emerald-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Sparkles className="size-4" /> Compliance Matching
+              </button>
             </div>
 
             {detailTab === 'analysis' ? (
@@ -408,6 +416,8 @@ export const BillingBatchReview = ({
                 handleReleaseHold={wrappedReleaseHold}
                 handleInlineReturnReject={wrappedInlineReturnReject}
               />
+            ) : detailTab === 'matching' ? (
+              <ComplianceMatchingSettings isAdmin={isAdmin} />
             ) : (
               <SessionDetailPanel
                 session={detailSession}
@@ -899,6 +909,158 @@ function ActionButton({ label, icon, onClick, active, tone }) {
   );
 }
 
+const STRICTNESS_LABELS = {
+  strict: 'Strict — every word/minute must match exactly',
+  moderate: 'Moderate — tolerates minor wording/timing differences (recommended)',
+  lenient: 'Lenient — tolerates larger wording/timing differences',
+};
+const FIELD_LABELS = {
+  service_type: 'Service Type', location: 'Location', group_size: 'Group Size Category',
+  child_name: 'Child Name', practitioner_name: 'Practitioner',
+};
+
+// --- Compliance Matching: the strictness profile that controls how
+// forgiving the baseline field comparison is (see resolveStrictnessProfile,
+// backend/src/constants/njeis.js), plus every learned rule the feedback
+// loop has picked up from billing clicking "Allow" on a flagged field (see
+// compliance_match_overrides, backend/src/controllers/complianceLearningController.js).
+// Strictness is ceo-only to change; both are visible to any billing user.
+function ComplianceMatchingSettings({ isAdmin }) {
+  const [strictness, setStrictness] = useState('moderate');
+  const [isLoadingStrictness, setIsLoadingStrictness] = useState(true);
+  const [isSavingStrictness, setIsSavingStrictness] = useState(false);
+  const [overrides, setOverrides] = useState([]);
+  const [isLoadingOverrides, setIsLoadingOverrides] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const fetchStrictness = () => {
+    setIsLoadingStrictness(true);
+    api.get('/api/company')
+      .then((res) => setStrictness(res.data?.settings?.compliance_strictness || 'moderate'))
+      .catch(() => {})
+      .finally(() => setIsLoadingStrictness(false));
+  };
+
+  const fetchOverrides = () => {
+    setIsLoadingOverrides(true);
+    api.get('/api/billing/compliance-learned-matches')
+      .then((res) => setOverrides(res.data.overrides || []))
+      .catch(() => {})
+      .finally(() => setIsLoadingOverrides(false));
+  };
+
+  useEffect(() => { fetchStrictness(); fetchOverrides(); }, []);
+
+  const handleStrictnessChange = async (e) => {
+    const value = e.target.value;
+    const previous = strictness;
+    setStrictness(value);
+    setIsSavingStrictness(true);
+    try {
+      await api.put('/api/billing/compliance-strictness', { strictness: value });
+    } catch (error) {
+      setStrictness(previous);
+      showAlert(error.response?.data?.error || 'Failed to update strictness.');
+    } finally {
+      setIsSavingStrictness(false);
+    }
+  };
+
+  const handleDeleteOverride = async (id) => {
+    setDeletingId(id);
+    try {
+      await api.delete(`/api/billing/compliance-learned-matches/${id}`);
+      setOverrides((prev) => prev.filter((o) => o.id !== id));
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to remove this learned match.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-slate-800">Matching Strictness</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Sets the starting tolerance for wording and timing differences before a field is flagged. Learned matches below always apply regardless of this setting.
+          </p>
+        </div>
+        {isLoadingStrictness ? (
+          <div className="text-sm text-slate-400">Loading…</div>
+        ) : (
+          <select
+            value={strictness}
+            onChange={handleStrictnessChange}
+            disabled={!isAdmin || isSavingStrictness}
+            className="w-full max-w-md h-10 rounded-md border border-slate-300 bg-white px-3 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {Object.entries(STRICTNESS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        )}
+        {!isAdmin && <p className="text-xs text-slate-400">Only an Admin can change this setting.</p>}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-slate-800">Learned Matches</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Every pairing billing has confirmed by clicking "Allow" on a flagged field — these auto-match on every future analysis. Remove one to go back to strictness-only matching for that pairing.
+          </p>
+        </div>
+        {isLoadingOverrides ? (
+          <div className="text-sm text-slate-400 py-4 text-center">Loading…</div>
+        ) : overrides.length === 0 ? (
+          <div className="text-sm text-slate-400 py-4 text-center">No learned matches yet — they appear here once billing clicks "Allow" on a flagged field.</div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <th className="text-left px-3 py-2">Field</th>
+                  <th className="text-left px-3 py-2">State's Text</th>
+                  <th className="text-left px-3 py-2">Our Value</th>
+                  <th className="text-left px-3 py-2">Confirmed By</th>
+                  <th className="px-3 py-2 w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {overrides.map((o) => (
+                  <tr key={o.id} className="border-t border-slate-200 bg-white">
+                    <td className="px-3 py-2 font-semibold text-slate-700">{FIELD_LABELS[o.field_key] || o.field_key}</td>
+                    <td className="px-3 py-2 font-mono text-amber-700">{o.state_value_raw}</td>
+                    <td className="px-3 py-2 font-mono text-slate-800">{o.our_value}</td>
+                    <td className="px-3 py-2 text-slate-500">
+                      {o.first_name ? `${o.first_name} ${o.last_name}` : '—'}
+                      <span className="block text-[11px] text-slate-400">
+                        {new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOverride(o.id)}
+                        disabled={deletingId === o.id}
+                        title="Remove this learned match"
+                        className="w-8 h-8 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors mx-auto"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // --- Compliance Analysis: compares this practitioner's logged sessions
 // against the state reference document (parsed on Company Information into
 // compliance_state_logs, matched by patient + service date — see
@@ -922,6 +1084,33 @@ function ComplianceAnalysisPreview({
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
   const [analysisError, setAnalysisError] = useState(null);
   const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged' | 'missing'
+  const [allowingKey, setAllowingKey] = useState(null); // `${sessionId}:${fieldKey}` currently in flight
+
+  // Billing confirms a flagged field is actually fine — clears it for this
+  // log (and, for the 5 learnable fields, teaches the system the pairing so
+  // it stops flagging it for every future log too). Updates `analysis` in
+  // place so the row flips from flagged to allowed without a full re-fetch.
+  const handleAllowField = async (sessionId, fieldKey) => {
+    const requestKey = `${sessionId}:${fieldKey}`;
+    setAllowingKey(requestKey);
+    try {
+      const res = await api.post('/api/billing/compliance-analysis/allow-field', { assessmentId: sessionId, fieldKey });
+      setAnalysis((prev) => {
+        if (!prev) return prev;
+        const prevResult = prev.results[sessionId];
+        if (!prevResult) return prev;
+        const fields = prevResult.fields.map((f) => (f.key === fieldKey ? res.data.field : f));
+        return {
+          ...prev,
+          results: { ...prev.results, [sessionId]: { ...prevResult, fields, flagged: res.data.flagged } },
+        };
+      });
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to allow this field.');
+    } finally {
+      setAllowingKey(null);
+    }
+  };
 
   useEffect(() => {
     api.get('/api/company')
@@ -959,6 +1148,10 @@ function ComplianceAnalysisPreview({
   const handleStatusChange = async (session, value) => {
     if (value === 'accept' && analysis?.results?.[session.id]?.duplicateOfSessionId) {
       showAlert("This is a duplicate log — it can't be approved for billing. Return or Reject it instead so only the original stays billable.");
+      return;
+    }
+    if (value === 'accept' && analysis?.results?.[session.id]?.flagged) {
+      showAlert("This log has flagged compliance fields — click \"Allow\" on each flagged field below before approving.");
       return;
     }
     if (value === 'return' || value === 'reject') {
@@ -1290,38 +1483,69 @@ function ComplianceAnalysisPreview({
                     <th className="px-4 py-2">
                       <span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">State Record</span>
                     </th>
+                    <th className="px-4 py-2 w-28"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoadingAnalysis ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-slate-400 text-xs" colSpan={3}>Loading comparison…</td>
+                      <td className="px-4 py-3 text-center text-slate-400 text-xs" colSpan={4}>Loading comparison…</td>
                     </tr>
                   ) : !documentReady ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-slate-400 text-xs italic" colSpan={3}>No confirmed state document to compare against</td>
+                      <td className="px-4 py-3 text-center text-slate-400 text-xs italic" colSpan={4}>No confirmed state document to compare against</td>
                     </tr>
                   ) : isDuplicate ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={3}>Duplicate of another log for this patient on this date/time — only one can match the state's single record for it</td>
+                      <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={4}>Duplicate of another log for this patient on this date/time — only one can match the state's single record for it</td>
                     </tr>
                   ) : !sessionResult?.matched ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={3}>No matching record found in the state document for this session</td>
+                      <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={4}>No matching record found in the state document for this session</td>
                     </tr>
                   ) : compareFields.map(f => {
-                    const rowClass = f.match === false ? 'bg-red-50/60' : '';
-                    const icon = f.match === true ? <CheckCircle2 className="size-3.5 text-emerald-500" />
-                      : f.match === false ? <X className="size-3.5 text-red-500" /> : null;
+                    // A field allowed via feedback (learned rule or a one-off
+                    // acknowledgment) still shows as resolved, not plain-green
+                    // "Match" — an amber badge distinguishes "billing signed off
+                    // on this" from "the data genuinely lines up."
+                    const isResolvedByFeedback = f.match === true && (f.learnedMatch || f.acknowledged);
+                    const rowClass = f.match === false ? 'bg-red-50/60' : isResolvedByFeedback ? 'bg-amber-50/60' : '';
+                    const icon = f.match === false ? <X className="size-3.5 text-red-500" />
+                      : isResolvedByFeedback ? <CheckCircle2 className="size-3.5 text-amber-500" />
+                      : f.match === true ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : null;
                     const stateColor = f.match === false ? 'text-red-700' : 'text-slate-800';
+                    const requestKey = `${s.id}:${f.key}`;
                     return (
                       <tr key={f.key} className={`border-t border-slate-100 ${rowClass}`}>
-                        <td className="px-4 py-2 font-semibold text-slate-600 flex items-center gap-1.5">
-                          {icon}
-                          {f.label}
+                        <td className="px-4 py-2 font-semibold text-slate-600">
+                          <div className="flex items-center gap-1.5">
+                            {icon}
+                            {f.label}
+                          </div>
+                          {f.withinTolerance && (
+                            <span className="block text-[10px] font-bold text-amber-600 mt-0.5">Within tolerance</span>
+                          )}
+                          {f.learnedMatch && (
+                            <span className="block text-[10px] font-bold text-amber-600 mt-0.5">Learned match</span>
+                          )}
+                          {f.acknowledged && !f.learnedMatch && (
+                            <span className="block text-[10px] font-bold text-amber-600 mt-0.5">Allowed for this log</span>
+                          )}
                         </td>
                         <td className="px-4 py-2 text-center font-mono font-bold text-slate-800">{f.ours || '-'}</td>
                         <td className={`px-4 py-2 text-center font-mono font-bold ${stateColor}`}>{f.state || '-'}</td>
+                        <td className="px-4 py-2 text-center">
+                          {f.match === false && (
+                            <button
+                              type="button"
+                              onClick={() => handleAllowField(s.id, f.key)}
+                              disabled={allowingKey === requestKey}
+                              className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 transition-colors"
+                            >
+                              {allowingKey === requestKey ? 'Allowing…' : 'Allow'}
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}

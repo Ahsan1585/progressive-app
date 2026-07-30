@@ -16,20 +16,44 @@ const activeOptions = (category) =>
 
 const norm = normalizeForMatch;
 
-// Fallback for when the state abbreviates a label by dropping a word (e.g.
-// exports "Speech Therapy" for our "Speech Language Therapy") rather than
-// just formatting it differently. Matches only when the state's words are
-// ALL present in exactly one option's words — if they're a subset of more
-// than one option (ambiguous) or of none, this intentionally returns null
-// rather than guessing, so a bad guess never silently mislabels a record.
-function subsetWordMatch(label, options) {
+// Admin-configurable via company_settings.compliance_strictness (Billing
+// Batch Review's "Compliance Matching" tab, ceo-editable). Each profile
+// controls how forgiving scoredWordMatch (below) and the time-tolerance
+// comparisons in billingController.js are — a starting point that the
+// feedback/learning layer (compliance_match_overrides) always overrides
+// regardless of which level is active.
+const STRICTNESS_PROFILES = {
+  strict:   { wordOverlapThreshold: 1,    timeToleranceMinutes: 0 },
+  moderate: { wordOverlapThreshold: 0.66, timeToleranceMinutes: 2 },
+  lenient:  { wordOverlapThreshold: 0.5,  timeToleranceMinutes: 5 },
+};
+const resolveStrictnessProfile = (level) => STRICTNESS_PROFILES[level] || STRICTNESS_PROFILES.moderate;
+
+// Fallback for when the state's text doesn't literally equal one of our
+// labels — e.g. drops a word ("Speech Therapy" for our "Speech Language
+// Therapy") or a clerical variation. Scores what fraction of the state
+// text's words are found in each option's words, and matches whichever
+// option clears `threshold` — at threshold 1 this is exactly "every one of
+// the state's words must appear in the option" (the original, stricter
+// behavior); lower thresholds tolerate more of the state's words being
+// "wrong"/different. If more than one option ties for the highest
+// qualifying score, this intentionally returns null rather than guessing,
+// so a bad guess never silently mislabels a record — strictness only
+// widens what counts as ONE clear match, it never resolves an ambiguity.
+function scoredWordMatch(label, options, threshold = 1) {
   const tokens = norm(label).split(' ').filter(Boolean);
   if (tokens.length < 2) return null;
-  const candidates = options.filter((o) => {
-    const optTokens = norm(o.label).split(' ').filter(Boolean);
-    return tokens.every((t) => optTokens.includes(t));
-  });
-  return candidates.length === 1 ? candidates[0] : null;
+  const scored = options
+    .map((o) => {
+      const optTokens = new Set(norm(o.label).split(' ').filter(Boolean));
+      const matchingCount = tokens.filter((t) => optTokens.has(t)).length;
+      return { option: o, score: matchingCount / tokens.length };
+    })
+    .filter((s) => s.score >= threshold);
+  if (scored.length === 0) return null;
+  const maxScore = Math.max(...scored.map((s) => s.score));
+  const winners = scored.filter((s) => s.score === maxScore);
+  return winners.length === 1 ? winners[0].option : null;
 }
 
 // The state's "Service" column doesn't always literally match one of our
@@ -40,7 +64,7 @@ const SERVICE_LABEL_OVERRIDES = [
   { test: (label) => /interpreter/i.test(label), code: 'I/T' },
 ];
 
-function mapServiceLabelToCode(label) {
+function mapServiceLabelToCode(label, threshold = 1) {
   if (!label) return null;
   const options = activeOptions('service_type');
   const n = norm(label);
@@ -48,38 +72,38 @@ function mapServiceLabelToCode(label) {
   if (exact) return exact.code;
   const override = SERVICE_LABEL_OVERRIDES.find((o) => o.test(label));
   if (override) return override.code;
-  const subset = subsetWordMatch(label, options);
-  return subset ? subset.code : null;
+  const scored = scoredWordMatch(label, options, threshold);
+  return scored ? scored.code : null;
 }
 
-function mapLocationLabelToCode(label) {
+function mapLocationLabelToCode(label, threshold = 1) {
   if (!label) return null;
   const options = activeOptions('location');
   const n = norm(label);
   const exact = options.find((o) => norm(o.label) === n);
   if (exact) return exact.code;
-  const subset = subsetWordMatch(label, options);
-  return subset ? subset.code : null;
+  const scored = scoredWordMatch(label, options, threshold);
+  return scored ? scored.code : null;
 }
 
-function mapGroupSizeLabelToCode(label) {
+function mapGroupSizeLabelToCode(label, threshold = 1) {
   if (!label) return null;
   const options = activeOptions('group_size');
   const n = norm(label);
   const exact = options.find((o) => norm(o.label) === n);
   if (exact) return exact.code;
-  const subset = subsetWordMatch(label, options);
-  return subset ? subset.code : null;
+  const scored = scoredWordMatch(label, options, threshold);
+  return scored ? scored.code : null;
 }
 
-function mapStatusLabelToCode(label) {
+function mapStatusLabelToCode(label, threshold = 1) {
   if (!label) return null;
   const options = activeOptions('service_status');
   const n = norm(label);
   const exact = options.find((o) => norm(o.label) === n || o.code === String(label).trim());
   if (exact) return exact.code;
-  const subset = subsetWordMatch(label, options);
-  return subset ? subset.code : null;
+  const scored = scoredWordMatch(label, options, threshold);
+  return scored ? scored.code : null;
 }
 
 // Code->label lookups search ALL rows (active + inactive) so a deactivated/
@@ -104,4 +128,6 @@ module.exports = {
   locationCodeLabel,
   groupSizeCodeLabel,
   statusCodeLabel,
+  STRICTNESS_PROFILES,
+  resolveStrictnessProfile,
 };

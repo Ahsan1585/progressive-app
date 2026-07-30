@@ -27,6 +27,12 @@ const {
   lockPractitioner,
   unlockPractitioner
 } = require('../controllers/billingController');
+const {
+  allowComplianceField,
+  listLearnedMatches,
+  deleteLearnedMatch,
+  updateComplianceStrictness,
+} = require('../controllers/complianceLearningController');
 
 // Covers Pending Bills + Completed Bills (and the read-only batches list, which
 // Completed Bills also needs to know a batch's paid status before allowing revert).
@@ -46,6 +52,12 @@ router.get('/pending-logs',      ...billingGuard, getPendingLogs);
 router.get('/practitioner-logs', ...billingGuard, getPractitionerLogs);
 router.get('/log-notes',         ...billingGuard, getLogNotes);
 router.get('/compliance-analysis', ...billingGuard, getComplianceAnalysis);
+router.post('/compliance-analysis/allow-field', ...billingGuard, allowComplianceField);
+router.get('/compliance-learned-matches',       ...billingGuard, listLearnedMatches);
+router.delete('/compliance-learned-matches/:id', ...billingGuard, deleteLearnedMatch);
+// Strictness itself (unlike viewing it or allowing/learning matches) is a
+// ceo-only policy lever — mirrors every other Company Information write.
+router.put('/compliance-strictness', protect, requireRole(['ceo']), updateComplianceStrictness);
 router.patch('/log-status',      ...billingGuard, updateLogStatus);
 router.post('/reject-log',       ...billingGuard, rejectLog);
 router.post('/reconcile-log',    ...billingGuard, reconcileLog);
