@@ -706,6 +706,11 @@ export const BillingManager = () => {
   };
 
   const filteredBatches = batches.filter(b => {
+    // A batch exists (and has an invoice_path) as soon as Generate & Issue
+    // runs, but it isn't a real invoice yet until Send to Completed Bills
+    // flips its logs to billing_status = 'invoiced' — same "completed"
+    // signal this file already uses to build completedBatchIds above.
+    if (!b.completed) return false;
     const practName = `${b.practitioners?.first_name || ''} ${b.practitioners?.last_name || ''}`.trim();
     const term = statusSearch.toLowerCase();
     if (term && !practName.toLowerCase().includes(term)) return false;

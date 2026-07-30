@@ -196,6 +196,14 @@ export const BillingBatchReview = ({
     // own — close it here so a released session can't keep sitting open
     // (and editable) after the biller no longer holds the lock on it.
     setDetail(prev => (prev?.practitionerId === practitionerId ? null : prev));
+    // Mirror onLock's auto-expand: a released group should collapse back to
+    // the minimized row, not linger open showing "Lock to Review" and the
+    // Generate & Issue footer for a practitioner no one is actively reviewing.
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      next.delete(practitionerId);
+      return next;
+    });
     await fetchPeriodPractitioners();
   };
 
@@ -1473,17 +1481,17 @@ function ComplianceAnalysisPreview({
                   )
                 )}
               </div>
-              <table className="w-full text-sm">
+              <table className="w-full table-fixed text-sm">
                 <thead>
                   <tr className="text-[11px] font-bold uppercase text-slate-500">
-                    <th className="text-left px-4 py-2 w-1/3"></th>
-                    <th className="px-4 py-2">
+                    <th className="text-left px-4 py-2 w-[28%]"></th>
+                    <th className="px-4 py-2 w-[30%]">
                       <span className="text-sky-700 bg-sky-50 rounded px-2 py-0.5">Our Log</span>
                     </th>
-                    <th className="px-4 py-2">
+                    <th className="px-4 py-2 w-[26%]">
                       <span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">State Record</span>
                     </th>
-                    <th className="px-4 py-2 w-28"></th>
+                    <th className="px-4 py-2 w-[16%]"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1532,8 +1540,8 @@ function ComplianceAnalysisPreview({
                             <span className="block text-[10px] font-bold text-amber-600 mt-0.5">Allowed for this log</span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-center font-mono font-bold text-slate-800">{f.ours || '-'}</td>
-                        <td className={`px-4 py-2 text-center font-mono font-bold ${stateColor}`}>{f.state || '-'}</td>
+                        <td className="px-4 py-2 text-center font-mono font-bold text-slate-800 break-words">{f.ours || '-'}</td>
+                        <td className={`px-4 py-2 text-center font-mono font-bold break-words ${stateColor}`}>{f.state || '-'}</td>
                         <td className="px-4 py-2 text-center">
                           {f.match === false && (
                             <button
