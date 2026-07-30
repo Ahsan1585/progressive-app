@@ -168,10 +168,22 @@ export const BillingBatchReview = ({
   const groupRefs = useRef({});
   const queueScrollRef = useRef(null);
   const scrollGroupToTop = (practitionerId) => {
+    // TEMPORARY diagnostic logging — remove once the scroll-on-lock bug is confirmed fixed.
     const container = queueScrollRef.current;
     const target = groupRefs.current[practitionerId];
-    if (!container || !target) return;
-    const offset = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+    console.log('[scrollGroupToTop]', {
+      practitionerId,
+      hasContainer: !!container,
+      hasTarget: !!target,
+      knownGroupIds: Object.keys(groupRefs.current),
+      containerScrollHeight: container?.scrollHeight,
+      containerClientHeight: container?.clientHeight,
+    });
+    if (!container || !target) { console.log('[scrollGroupToTop] bailing — missing container or target'); return; }
+    const targetRect = target.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const offset = targetRect.top - containerRect.top + container.scrollTop;
+    console.log('[scrollGroupToTop] computed', { targetTop: targetRect.top, containerTop: containerRect.top, currentScrollTop: container.scrollTop, offset });
     container.scrollTo({ top: offset, behavior: 'smooth' });
   };
   const expandedGroupsRef = useRef(expandedGroups);
@@ -197,7 +209,9 @@ export const BillingBatchReview = ({
   };
 
   const onLock = async (practitionerId) => {
+    console.log('[onLock] called', practitionerId); // TEMPORARY diagnostic
     await handleLock(practitionerId);
+    console.log('[onLock] handleLock resolved'); // TEMPORARY diagnostic
     setExpandedGroups(prev => new Set(prev).add(practitionerId));
     // handleLock only updates BillingManager's own (unscoped) practitioner
     // list — periodPractitioners is a separate local copy, so without this
