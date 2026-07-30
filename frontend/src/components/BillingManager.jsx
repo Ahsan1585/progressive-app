@@ -588,11 +588,6 @@ export const BillingManager = () => {
       }
       }
 
-      // Documents are generated — release the lock automatically so it doesn't
-      // linger for a completed row. Best-effort: a hiccup here shouldn't
-      // surface as a false "generation failed" error after the real work succeeded.
-      await api.post(`/api/billing/practitioner/${practitionerId}/unlock`).catch(() => {});
-
       // billing_status stays 'njeis_review' server-side even though both
       // documents now exist — the row only moves to Completed Bills once the
       // specialist explicitly clicks "Send to Completed Bills" below. Refetch
@@ -613,6 +608,14 @@ export const BillingManager = () => {
     try {
       const response = await api.post('/api/billing/complete-billing', { practitionerId });
       if (response.data.success) {
+        // The lock is only released now, on the specialist's own explicit
+        // "Send to Completed Bills" — not automatically after Generate &
+        // Issue — so another specialist can't start reviewing this
+        // practitioner's queue while the batch is still in njeis_review,
+        // generated but not yet actually sent. Best-effort: a hiccup here
+        // shouldn't surface as a false "failed to complete" error after the
+        // real completion already succeeded.
+        await api.post(`/api/billing/practitioner/${practitionerId}/unlock`).catch(() => {});
         pushToast('success', 'Moved to Completed Bills.');
         fetchLogs();
       }
