@@ -168,22 +168,12 @@ export const BillingBatchReview = ({
   const groupRefs = useRef({});
   const queueScrollRef = useRef(null);
   const scrollGroupToTop = (practitionerId) => {
-    // TEMPORARY diagnostic logging — remove once the scroll-on-lock bug is confirmed fixed.
     const container = queueScrollRef.current;
     const target = groupRefs.current[practitionerId];
-    console.log('[scrollGroupToTop]', {
-      practitionerId,
-      hasContainer: !!container,
-      hasTarget: !!target,
-      knownGroupIds: Object.keys(groupRefs.current),
-      containerScrollHeight: container?.scrollHeight,
-      containerClientHeight: container?.clientHeight,
-    });
-    if (!container || !target) { console.log('[scrollGroupToTop] bailing — missing container or target'); return; }
+    if (!container || !target) return;
     const targetRect = target.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     const offset = targetRect.top - containerRect.top + container.scrollTop;
-    console.log('[scrollGroupToTop] computed', { targetTop: targetRect.top, containerTop: containerRect.top, currentScrollTop: container.scrollTop, offset });
     container.scrollTo({ top: offset, behavior: 'smooth' });
   };
   const expandedGroupsRef = useRef(expandedGroups);
@@ -209,9 +199,7 @@ export const BillingBatchReview = ({
   };
 
   const onLock = async (practitionerId) => {
-    console.log('[onLock] called', practitionerId); // TEMPORARY diagnostic
     await handleLock(practitionerId);
-    console.log('[onLock] handleLock resolved'); // TEMPORARY diagnostic
     setExpandedGroups(prev => new Set(prev).add(practitionerId));
     // handleLock only updates BillingManager's own (unscoped) practitioner
     // list — periodPractitioners is a separate local copy, so without this
@@ -222,7 +210,15 @@ export const BillingBatchReview = ({
     // Scroll their row to the very top of the queue so as many of their logs
     // as possible are visible below, instead of leaving it wherever it was
     // in the list (often mid-scroll, with most of their logs off-screen).
-    scrollGroupToTop(practitionerId);
+    // Confirmed via diagnostic logging: fetchPeriodLogs resolving doesn't
+    // mean the browser has actually painted the newly-expanded session list
+    // yet — measuring immediately saw a scrollHeight matching only the
+    // collapsed rows, not the ~24 session rows about to be added. Deferring
+    // two animation frames guarantees the DOM has actually been laid out
+    // and painted before we measure/scroll against it.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scrollGroupToTop(practitionerId));
+    });
   };
 
   const onRelease = async (practitionerId) => {
