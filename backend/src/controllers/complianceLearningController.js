@@ -69,6 +69,32 @@ const listLearnedMatches = async (req, res) => {
 const deleteLearnedMatch = async (req, res) => {
   const { id } = req.params;
   try {
+    const { rows: overrideRows } = await pool.query(
+      'SELECT field_key, state_value_normalized FROM compliance_match_overrides WHERE id = $1',
+      [id]
+    );
+    const override = overrideRows[0];
+
+    if (override) {
+      // allowComplianceField writes a per-log acknowledgment alongside the
+      // learned rule at the moment the rule is first taught — without this,
+      // deleting the rule would leave the very log that taught it still
+      // privately "allowed" forever, with no screen to ever find or clear
+      // that acknowledgment. Acknowledgments store the display-form values
+      // (not the normalized/code form the override uses), so the match has
+      // to be done in JS via normalizeForMatch rather than a SQL equality.
+      const { rows: ackRows } = await pool.query(
+        'SELECT id, state_value FROM compliance_field_acknowledgments WHERE field_key = $1',
+        [override.field_key]
+      );
+      const staleAckIds = ackRows
+        .filter((a) => normalizeForMatch(a.state_value || '') === override.state_value_normalized)
+        .map((a) => a.id);
+      if (staleAckIds.length > 0) {
+        await pool.query('DELETE FROM compliance_field_acknowledgments WHERE id = ANY($1::int[])', [staleAckIds]);
+      }
+    }
+
     await pool.query('DELETE FROM compliance_match_overrides WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
