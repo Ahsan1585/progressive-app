@@ -2,12 +2,27 @@ const { pool } = require('../config/db');
 const { normalizeForMatch } = require('../utils/textMatch');
 const { computeSessionCompliance, LEARNABLE_COMPLIANCE_FIELDS } = require('./billingController');
 
+// A mismatch only gets taught as a reusable rule if the two display values
+// share at least one word — that's the signal it's plausibly a labeling/
+// formatting variant of the same thing (e.g. "Speech Therapy" vs "Speech
+// Language Therapy"). Zero shared words (e.g. "Developmental Intervention"
+// vs "Speech Therapy") means these are genuinely different values, not a
+// variant of each other, so persisting a rule would silently paper over a
+// real data mismatch on every future log instead of just this one.
+function hasWordOverlap(a, b) {
+  const tokensA = new Set(normalizeForMatch(a || '').split(' ').filter(Boolean));
+  const tokensB = new Set(normalizeForMatch(b || '').split(' ').filter(Boolean));
+  if (tokensA.size === 0 || tokensB.size === 0) return false;
+  for (const t of tokensA) if (tokensB.has(t)) return true;
+  return false;
+}
+
 // Billing clicks "Allow" on a flagged field: records a one-off acknowledgment
 // for this exact log (unblocks Approve for it), and — for the 5 fields where
 // a mismatch is usually a labeling/formatting difference rather than a
-// one-time typo — also upserts a reusable learned rule so every future log
-// with the same (field, state text, our value) pairing auto-matches without
-// needing a human again.
+// one-time typo, AND the two values actually share some wording — also
+// upserts a reusable learned rule so every future log with the same (field,
+// state text, our value) pairing auto-matches without needing a human again.
 const allowComplianceField = async (req, res) => {
   const { assessmentId, fieldKey } = req.body;
   if (!assessmentId || !fieldKey) {
@@ -29,7 +44,7 @@ const allowComplianceField = async (req, res) => {
       [assessmentId, fieldKey, field.ours, field.state, req.practitioner.practitionerId]
     );
 
-    if (LEARNABLE_COMPLIANCE_FIELDS.includes(fieldKey) && field._learn) {
+    if (LEARNABLE_COMPLIANCE_FIELDS.includes(fieldKey) && field._learn && hasWordOverlap(field.ours, field.state)) {
       const stateValueNormalized = normalizeForMatch(field._learn.stateValueRaw || '');
       if (stateValueNormalized && field._learn.ourValue) {
         await pool.query(

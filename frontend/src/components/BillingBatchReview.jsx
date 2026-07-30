@@ -4,7 +4,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { showAlert } from '@/utils/dialogStore';
+import { showAlert, showConfirm } from '@/utils/dialogStore';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
@@ -917,6 +917,27 @@ function ActionButton({ label, icon, onClick, active, tone }) {
   );
 }
 
+// Mirrors backend/src/controllers/billingController.js's
+// LEARNABLE_COMPLIANCE_FIELDS — used only to tailor the confirmation
+// message before Allow, since a learnable field's Allow persists a reusable
+// rule while everything else is a one-off allow for this log only.
+const LEARNABLE_COMPLIANCE_FIELD_KEYS = ['service_type', 'location', 'group_size', 'child_name', 'practitioner_name'];
+
+// Mirrors complianceLearningController.js's hasWordOverlap — a learnable
+// field only actually becomes a reusable rule server-side if the two values
+// share at least one word (a plausible labeling variant, not a genuinely
+// different value like "Developmental Intervention" vs "Speech Therapy").
+// Used here purely so the confirmation dialog warns accurately about what
+// Allow is about to do, without a round-trip to ask the server first.
+function hasWordOverlap(a, b) {
+  const norm = (s) => (s || '').toString().toLowerCase().replace(/[,.()\-–—'"]/g, ' ').replace(/\s+/g, ' ').trim();
+  const tokensA = new Set(norm(a).split(' ').filter(Boolean));
+  const tokensB = new Set(norm(b).split(' ').filter(Boolean));
+  if (tokensA.size === 0 || tokensB.size === 0) return false;
+  for (const t of tokensA) if (tokensB.has(t)) return true;
+  return false;
+}
+
 const STRICTNESS_LABELS = {
   strict: 'Strict — every word/minute must match exactly',
   moderate: 'Moderate — tolerates minor wording/timing differences (recommended)',
@@ -1098,7 +1119,17 @@ function ComplianceAnalysisPreview({
   // log (and, for the 5 learnable fields, teaches the system the pairing so
   // it stops flagging it for every future log too). Updates `analysis` in
   // place so the row flips from flagged to allowed without a full re-fetch.
-  const handleAllowField = async (sessionId, fieldKey) => {
+  // Requires an explicit confirmation first — for a learnable field this is
+  // a standing rule applied to every future log, not just this one, so it's
+  // worth a real "are you sure" rather than a single accidental click.
+  const handleAllowField = async (sessionId, field) => {
+    const isLearnable = LEARNABLE_COMPLIANCE_FIELD_KEYS.includes(field.key) && hasWordOverlap(field.ours, field.state);
+    const confirmMessage = isLearnable
+      ? `Allow "${field.label}"? Our value "${field.ours || '-'}" will be remembered as matching the state's "${field.state || '-'}" — every future log with this same mismatch will auto-match too, until removed from Compliance Matching.`
+      : `Allow "${field.label}" for this log? This only clears it for this specific log, not future ones.`;
+    if (!(await showConfirm(confirmMessage))) return;
+
+    const fieldKey = field.key;
     const requestKey = `${sessionId}:${fieldKey}`;
     setAllowingKey(requestKey);
     try {
@@ -1546,7 +1577,7 @@ function ComplianceAnalysisPreview({
                           {f.match === false && (
                             <button
                               type="button"
-                              onClick={() => handleAllowField(s.id, f.key)}
+                              onClick={() => handleAllowField(s.id, f)}
                               disabled={allowingKey === requestKey}
                               className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 transition-colors"
                             >
