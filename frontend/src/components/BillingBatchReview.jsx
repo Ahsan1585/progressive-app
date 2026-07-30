@@ -156,6 +156,11 @@ export const BillingBatchReview = ({
   // leave and re-enter the tab. Mirrors the legacy table's 20s silent poll.
   // expandedGroupsRef avoids resubscribing the interval every time a group
   // is expanded/collapsed, which would otherwise reset the timer.
+  // DOM node per practitioner group (registered via PractitionerGroup's
+  // containerRef below), used to scroll a just-locked practitioner's row to
+  // the very top of the queue so as many of their logs as possible are
+  // visible without the biller having to scroll past whatever was above them.
+  const groupRefs = useRef({});
   const expandedGroupsRef = useRef(expandedGroups);
   useEffect(() => { expandedGroupsRef.current = expandedGroups; }, [expandedGroups]);
   useEffect(() => {
@@ -187,6 +192,10 @@ export const BillingBatchReview = ({
     // nothing.
     await fetchPeriodPractitioners();
     await fetchPeriodLogs(practitionerId);
+    // Scroll their row to the very top of the queue so as many of their logs
+    // as possible are visible below, instead of leaving it wherever it was
+    // in the list (often mid-scroll, with most of their logs off-screen).
+    groupRefs.current[practitionerId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const onRelease = async (practitionerId) => {
@@ -344,6 +353,7 @@ export const BillingBatchReview = ({
           ) : filteredPractitioners.map(p => (
             <PractitionerGroup
               key={p.practitioner_id}
+              containerRef={(el) => { groupRefs.current[p.practitioner_id] = el; }}
               practitioner={p}
               isExpanded={expandedGroups.has(p.practitioner_id)}
               onToggle={() => toggleGroup(p.practitioner_id)}
@@ -456,7 +466,7 @@ export const BillingBatchReview = ({
 // plus a per-practitioner Generate & Issue / Send to Completed Bills bar,
 // mirroring the legacy table's per-row action column. ---
 function PractitionerGroup({
-  practitioner, isExpanded, onToggle, sessions, isLoadingSessions,
+  containerRef, practitioner, isExpanded, onToggle, sessions, isLoadingSessions,
   currentUserId, isAdmin, onLock, onRelease, logActions, formatTime,
   detailSessionId, onSelectSession,
   processingId, handleGenerateAndIssue, handleSendToCompleted,
@@ -475,7 +485,7 @@ function PractitionerGroup({
   }, { billable: 0, heldReturned: 0, excluded: 0 });
 
   return (
-    <div className="border-b border-slate-200">
+    <div ref={containerRef} className="border-b border-slate-200">
       <button
         type="button"
         onClick={onToggle}
@@ -1577,8 +1587,9 @@ function ComplianceAnalysisPreview({
                             <button
                               type="button"
                               onClick={() => handleAllowField(s.id, f)}
-                              disabled={allowingKey === requestKey}
-                              className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 transition-colors"
+                              disabled={allowingKey === requestKey || isReturned || isDeclined}
+                              title={isReturned ? "This log has been returned to the practitioner — it can't be allowed until it's resubmitted." : isDeclined ? 'This log has been permanently rejected.' : undefined}
+                              className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                             >
                               {allowingKey === requestKey ? 'Allowing…' : 'Allow'}
                             </button>
