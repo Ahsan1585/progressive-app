@@ -160,7 +160,20 @@ export const BillingBatchReview = ({
   // containerRef below), used to scroll a just-locked practitioner's row to
   // the very top of the queue so as many of their logs as possible are
   // visible without the biller having to scroll past whatever was above them.
+  // queueScrollRef is the actual scrollable list container — scrolling it
+  // directly via a computed offset (rather than element.scrollIntoView,
+  // which depends on the browser correctly walking up to find the nearest
+  // scrollable ancestor in this nested flex layout) is deterministic
+  // regardless of how many overflow contexts sit in between.
   const groupRefs = useRef({});
+  const queueScrollRef = useRef(null);
+  const scrollGroupToTop = (practitionerId) => {
+    const container = queueScrollRef.current;
+    const target = groupRefs.current[practitionerId];
+    if (!container || !target) return;
+    const offset = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+    container.scrollTo({ top: offset, behavior: 'smooth' });
+  };
   const expandedGroupsRef = useRef(expandedGroups);
   useEffect(() => { expandedGroupsRef.current = expandedGroups; }, [expandedGroups]);
   useEffect(() => {
@@ -195,7 +208,7 @@ export const BillingBatchReview = ({
     // Scroll their row to the very top of the queue so as many of their logs
     // as possible are visible below, instead of leaving it wherever it was
     // in the list (often mid-scroll, with most of their logs off-screen).
-    groupRefs.current[practitionerId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollGroupToTop(practitionerId);
   };
 
   const onRelease = async (practitionerId) => {
@@ -343,7 +356,7 @@ export const BillingBatchReview = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div ref={queueScrollRef} className="flex-1 overflow-y-auto">
           {isLoadingPractitioners ? (
             <div className="p-6 text-center text-base text-slate-400">Loading practitioners for this period...</div>
           ) : filteredPractitioners.length === 0 ? (
