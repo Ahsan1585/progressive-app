@@ -357,6 +357,14 @@ export const SubscriptionBilling = () => {
               </div>
               <div className="text-4xl font-bold text-teal-700 tracking-tight mt-1.5">{money(currentBillDue.total_amount)}</div>
               <div className="text-sm text-slate-500 mt-1.5">For {formatPeriod(currentBillDue.period_start, currentBillDue.period_end)} &middot; due {formatDate(currentBillDueDate)}</div>
+              <button
+                type="button"
+                onClick={() => handleDownloadInvoicePdf(currentBillDue)}
+                disabled={downloadingId === currentBillDue.id}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-wait mt-2"
+              >
+                {downloadingId === currentBillDue.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} View Bill
+              </button>
             </div>
             <div className="flex flex-col items-end gap-3">
               <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[currentBillDue.status] || STATUS_STYLES.pending}`}>{currentBillDue.status}</span>
