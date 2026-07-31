@@ -136,6 +136,7 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
     groupSizeCategory: 'individual'
   });
 
+  const [zeroTime, setZeroTime] = useState(false);
   const [parentSig, setParentSig] = useState(null);
   const [practitionerSig, setPractitionerSig] = useState(null);
   const [masterSignature, setMasterSignature] = useState(null);
@@ -173,6 +174,7 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
       setParentSig(null);
       setPractitionerSig(null);
       setPractitionerProfile(null);
+      setZeroTime(false);
       setFormData({
         date: new Date().toISOString().split('T')[0],
         startTime: '',
@@ -192,6 +194,11 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
     const diffMs = end - start;
     const diffMins = Math.round(diffMs / 60000);
     return diffMins < 0 ? diffMins + (24 * 60) : diffMins;
+  };
+
+  const handleZeroTimeToggle = (checked) => {
+    setZeroTime(checked);
+    setFormData((prev) => ({ ...prev, startTime: checked ? '00:00' : '', endTime: checked ? '00:00' : '' }));
   };
 
   const handleSubmit = async (e) => {
@@ -264,15 +271,30 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             </div>
             <div className="space-y-2">
               <Label>Start Time</Label>
-              <Input type="time" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} required />
+              <Input type="time" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} disabled={zeroTime} required={!zeroTime} />
             </div>
             <div className="space-y-2">
               <Label>End Time</Label>
-              <Input type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} required />
+              <Input type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} disabled={zeroTime} required={!zeroTime} />
             </div>
           </div>
 
-          {totalTimeLabel && (
+          <label className="-mt-4 flex items-center gap-2 w-fit text-sm font-medium text-neutral-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-neutral-300"
+              checked={zeroTime}
+              onChange={(e) => handleZeroTimeToggle(e.target.checked)}
+            />
+            Session was cancelled — log with 0 time
+          </label>
+
+          {zeroTime ? (
+            <div className="-mt-4 flex items-center gap-2 w-fit px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
+              <Clock className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-semibold text-blue-700">Total Time: 0 min (cancelled)</span>
+            </div>
+          ) : totalTimeLabel && (
             <div className="-mt-4 flex items-center gap-2 w-fit px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
               <Clock className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-semibold text-blue-700">Total Time: {totalTimeLabel}</span>

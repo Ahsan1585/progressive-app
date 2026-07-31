@@ -59,6 +59,7 @@ export default function LogIntervention() {
     location: "",
     groupSizeCategory: "individual",
   });
+  const [zeroTime, setZeroTime] = React.useState(false);
   const [parentSig, setParentSig] = React.useState<string | null>(null);
   const [practitionerSig, setPractitionerSig] = React.useState<string | null>(null);
   const [isUsingSaved, setIsUsingSaved] = React.useState(false);
@@ -90,10 +91,16 @@ export default function LogIntervention() {
     setForm((f) => ({ ...f, [key]: value }));
   };
 
+  const handleZeroTimeToggle = (checked: boolean) => {
+    setZeroTime(checked);
+    setTouched(true);
+    setForm((f) => ({ ...f, startTime: checked ? "00:00" : "", endTime: checked ? "00:00" : "" }));
+  };
+
   const missing: string[] = [];
   if (!form.date) missing.push("date");
-  if (!form.startTime) missing.push("start time");
-  if (!form.endTime) missing.push("end time");
+  if (!zeroTime && !form.startTime) missing.push("start time");
+  if (!zeroTime && !form.endTime) missing.push("end time");
   if (!form.type) missing.push("service type");
   if (!form.status) missing.push("status");
   if (!form.location) missing.push("location");
@@ -216,17 +223,26 @@ export default function LogIntervention() {
             <Input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} required />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field id="startTime" label="Start time" error={attemptedSubmit && !form.startTime ? "Required." : null}>
-              <Input type="time" value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} required />
+            <Field id="startTime" label="Start time" error={attemptedSubmit && !zeroTime && !form.startTime ? "Required." : null}>
+              <Input type="time" value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} disabled={zeroTime} required={!zeroTime} />
             </Field>
-            <Field id="endTime" label="End time" error={attemptedSubmit && !form.endTime ? "Required." : null}>
-              <Input type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} required />
+            <Field id="endTime" label="End time" error={attemptedSubmit && !zeroTime && !form.endTime ? "Required." : null}>
+              <Input type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} disabled={zeroTime} required={!zeroTime} />
             </Field>
           </div>
+          <label className="flex items-center gap-2.5 text-[13px] font-medium text-ink-body">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-border-strong"
+              checked={zeroTime}
+              onChange={(e) => handleZeroTimeToggle(e.target.checked)}
+            />
+            Session was cancelled — log with 0 time
+          </label>
           <div>
             <p className="text-[13px] font-medium leading-[18px] text-ink-body">Total time</p>
             <p className="tabular mt-1.5 text-lg font-semibold text-ink" aria-live="polite">
-              {totalMinutes > 0 ? `${(totalMinutes / 60).toFixed(2)} hrs (${totalMinutes} min)` : "—"}
+              {zeroTime ? "0 min (cancelled)" : totalMinutes > 0 ? `${(totalMinutes / 60).toFixed(2)} hrs (${totalMinutes} min)` : "—"}
             </p>
           </div>
         </div>
