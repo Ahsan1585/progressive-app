@@ -490,25 +490,9 @@ export const SubscriptionBilling = () => {
         {/* RIGHT: next charge + payment method */}
         <div className="space-y-5">
           <div className="rounded-2xl p-6 text-white bg-gradient-to-br from-slate-800 to-slate-950">
-            <div className="text-xs font-bold uppercase tracking-wide text-teal-400 mb-2">Next Charge</div>
-            <div className="text-4xl font-bold mb-1.5 tracking-tight">{money(summary.totalAmount)}</div>
-            <div className="text-sm text-white/70 mb-4">Bills automatically on {formatDate(summary.nextBillingDate)}</div>
-            <div className="flex flex-col gap-2.5 pt-4 border-t border-white/15">
-              <div className="flex justify-between text-sm text-white/90">
-                <span>{summary.activePractitionerCount} active practitioners × {money(summary.pricePerPractitioner)}</span>
-                <b className="text-white">{money(summary.practitionerCharge)}</b>
-              </div>
-              <div className="flex justify-between text-sm text-white/90">
-                <span>{Math.min(summary.officeStaffCount, summary.includedStaffSeats)} of {summary.includedStaffSeats} office staff (included)</span>
-                <b className="text-white">$0.00</b>
-              </div>
-              {summary.extraStaffSeats > 0 && (
-                <div className="flex justify-between text-sm text-white/90">
-                  <span>{summary.extraStaffSeats} extra office staff × {money(summary.extraStaffSeatPrice)}</span>
-                  <b className="text-white">{money(summary.extraStaffCharge)}</b>
-                </div>
-              )}
-            </div>
+            <div className="text-xs font-bold uppercase tracking-wide text-teal-400 mb-2">Next Invoice</div>
+            <div className="text-2xl font-bold mb-1.5 tracking-tight">{formatDate(summary.nextBillingDate)}</div>
+            <div className="text-sm text-white/70">Your next invoice will be generated and, if a payment method is on file, charged automatically on this date.</div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
