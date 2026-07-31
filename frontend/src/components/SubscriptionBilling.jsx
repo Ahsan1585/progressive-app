@@ -178,6 +178,21 @@ export const SubscriptionBilling = () => {
   const [toast, setToast] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [isPayingBill, setIsPayingBill] = useState(false);
+
+  // Most recent invoice that still has money owed on it — that's what's
+  // due, with the due date set to the 15th of the month after the period it
+  // covers (the same day Cloud Scheduler retries automatic billing).
+  const currentBillDue = useMemo(
+    () => invoices.find((inv) => inv.status === 'pending' || inv.status === 'failed') || null,
+    [invoices]
+  );
+  const currentBillDueDate = useMemo(() => {
+    if (!currentBillDue) return null;
+    const end = new Date(`${currentBillDue.period_end}T00:00:00Z`);
+    const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
+    return due.toISOString().slice(0, 10);
+  }, [currentBillDue]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -235,6 +250,24 @@ export const SubscriptionBilling = () => {
     }
   };
 
+  const handlePayBill = async () => {
+    if (!currentBillDue) return;
+    const confirmed = await showConfirm(`Charge the saved payment method ${money(currentBillDue.total_amount)} for this bill now?`);
+    if (!confirmed) return;
+    setIsPayingBill(true);
+    setToast(null);
+    try {
+      const { data } = await api.post(`/api/subscription/invoices/${currentBillDue.id}/pay`);
+      setToast({ type: 'success', message: `Payment successful — invoice marked as paid.` });
+      const { data: invoicesData } = await api.get('/api/subscription/invoices');
+      setInvoices(invoicesData.invoices);
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to pay bill.' });
+    } finally {
+      setIsPayingBill(false);
+    }
+  };
+
   const handleDownloadInvoicePdf = async (invoice) => {
     setDownloadingId(invoice.id);
     setToast(null);
@@ -288,7 +321,7 @@ export const SubscriptionBilling = () => {
         <p className="text-sm text-slate-500 mb-4">
           These 3 cards update live as sessions get logged this month ({formatPeriod(summary.periodStart, summary.periodEnd)}) and reset on the 1st. Past closed months are in Invoice History below.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[13px] font-semibold text-slate-600">Active Practitioners</span>
@@ -296,9 +329,6 @@ export const SubscriptionBilling = () => {
           </div>
           <div className="text-4xl font-bold text-slate-900 tracking-tight">{summary.activePractitionerCount}</div>
           <div className="text-sm text-slate-500 mt-1.5">of {summary.totalPractitionerCount} total practitioners &middot; {formatPeriod(summary.periodStart, summary.periodEnd)}</div>
-          <div className="mt-3 pt-3 border-t border-dashed border-slate-200 text-[13px] font-mono text-slate-600">
-            {summary.activePractitionerCount} × {money(summary.pricePerPractitioner)} = {money(summary.practitionerCharge)}
-          </div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
@@ -312,26 +342,32 @@ export const SubscriptionBilling = () => {
           <div className="text-sm text-slate-500 mt-1.5">
             {summary.extraStaffSeats > 0 ? `${summary.extraStaffSeats} extra office staff` : 'included in your plan'}
           </div>
-          <div className="mt-3 pt-3 border-t border-dashed border-slate-200 text-[13px] font-mono text-slate-600">
-            {summary.extraStaffSeats > 0
-              ? `${summary.extraStaffSeats} × ${money(summary.extraStaffSeatPrice)} = ${money(summary.extraStaffCharge)}`
-              : `Included — $0.00`}
-          </div>
-        </div>
-
-        <div className="bg-white border-2 border-teal-200 rounded-2xl p-5 shadow-sm shadow-teal-100">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] font-semibold text-slate-600">This Month's Total</span>
-            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center"><DollarSign className="w-4 h-4 text-teal-600" /></div>
-          </div>
-          <div className="text-4xl font-bold text-teal-700 tracking-tight">{money(summary.totalAmount)}</div>
-          <div className="text-sm text-slate-500 mt-1.5">Next charge {formatDate(summary.nextBillingDate)}</div>
-          <div className="mt-3 pt-3 border-t border-dashed border-slate-200 text-[13px] font-mono text-slate-600">
-            {money(summary.practitionerCharge)} + {money(summary.extraStaffCharge)} = {money(summary.totalAmount)}
-          </div>
         </div>
         </div>
       </div>
+
+      {/* CURRENT BILL DUE */}
+      {currentBillDue && (
+        <div className="bg-white border-2 border-teal-200 rounded-2xl p-5 shadow-sm shadow-teal-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center"><DollarSign className="w-4 h-4 text-teal-600" /></div>
+                <span className="text-[13px] font-semibold text-slate-600">Current Bill Due</span>
+              </div>
+              <div className="text-4xl font-bold text-teal-700 tracking-tight mt-1.5">{money(currentBillDue.total_amount)}</div>
+              <div className="text-sm text-slate-500 mt-1.5">For {formatPeriod(currentBillDue.period_start, currentBillDue.period_end)} &middot; due {formatDate(currentBillDueDate)}</div>
+            </div>
+            <div className="flex flex-col items-end gap-3">
+              <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[currentBillDue.status] || STATUS_STYLES.pending}`}>{currentBillDue.status}</span>
+              <Button size="sm" onClick={handlePayBill} disabled={isPayingBill} className="h-8 text-xs">
+                {isPayingBill ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
+                Pay Bill
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* INFO PANEL */}
       <div className="flex gap-3.5 items-start bg-sky-50 border border-sky-200 rounded-xl px-5 py-4">
@@ -352,7 +388,10 @@ export const SubscriptionBilling = () => {
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-800">Practitioner Activity</h3>
-              <span className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-full">{formatPeriod(summary.periodStart, summary.periodEnd)}</span>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />{summary.activePractitionerCount} active</span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />{summary.totalPractitionerCount - summary.activePractitionerCount} no activity</span>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -360,8 +399,7 @@ export const SubscriptionBilling = () => {
                   <tr className="text-left text-[11.5px] font-bold uppercase tracking-wide text-slate-500 border-b border-slate-200">
                     <th className="pb-2.5 pr-2">Practitioner</th>
                     <th className="pb-2.5 pr-2">Logs This Month</th>
-                    <th className="pb-2.5 pr-2">Status</th>
-                    <th className="pb-2.5">Charge</th>
+                    <th className="pb-2.5">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -374,18 +412,17 @@ export const SubscriptionBilling = () => {
                         </div>
                       </td>
                       <td className="py-3 pr-2 text-slate-600">{p.logCount} log{p.logCount === 1 ? '' : 's'}</td>
-                      <td className="py-3 pr-2">
+                      <td className="py-3">
                         {p.active ? (
                           <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />Active</span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />No activity</span>
                         )}
                       </td>
-                      <td className="py-3 font-bold text-slate-800">{p.active ? money(summary.pricePerPractitioner) : <span className="text-slate-400 font-normal">—</span>}</td>
                     </tr>
                   ))}
                   {summary.practitioners.length === 0 && (
-                    <tr><td colSpan={4} className="py-6 text-center text-slate-400 text-sm">No practitioners on staff yet.</td></tr>
+                    <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-sm">No practitioners on staff yet.</td></tr>
                   )}
                 </tbody>
               </table>

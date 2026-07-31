@@ -277,6 +277,61 @@ const generateInvoice = async (req, res) => {
   }
 };
 
+// Manual "Pay Bill" button (ceo) — retries the off-session charge for a
+// pending/failed invoice using whatever payment method is currently on file.
+// Reuses the same charge-and-record logic as closePeriodInvoice's automatic
+// attempt, just re-entered on demand instead of only at period-close time.
+const payInvoice = async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM subscription_invoices WHERE id = $1', [req.params.id]);
+    const invoice = rows[0];
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    if (invoice.status === 'paid') return res.status(400).json({ error: 'This invoice is already paid.' });
+
+    const stripe = getStripeClient();
+    const settings = await getSubscriptionSettings();
+    if (!stripe || !settings.stripeCustomerId || !settings.defaultPaymentMethodId) {
+      return res.status(400).json({ error: 'No payment method is on file yet — add one before paying this bill.' });
+    }
+
+    let updatedInvoice = invoice;
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(Number(invoice.total_amount) * 100),
+        currency: 'usd',
+        customer: settings.stripeCustomerId,
+        payment_method: settings.defaultPaymentMethodId,
+        off_session: true,
+        confirm: true,
+        description: `Izaya subscription — ${invoice.period_start} to ${invoice.period_end}`,
+        metadata: { subscription_invoice_id: invoice.id },
+      });
+      const { rows: updated } = await pool.query(
+        `UPDATE subscription_invoices SET status = $1, stripe_payment_intent_id = $2, paid_at = CASE WHEN $1 = 'paid' THEN now() ELSE NULL END WHERE id = $3 RETURNING *`,
+        [paymentIntent.status === 'succeeded' ? 'paid' : 'pending', paymentIntent.id, invoice.id]
+      );
+      updatedInvoice = updated[0];
+    } catch (chargeError) {
+      console.error('Manual subscription charge failed:', chargeError.message);
+      const { rows: updated } = await pool.query(
+        `UPDATE subscription_invoices SET status = 'failed', failure_reason = $1 WHERE id = $2 RETURNING *`,
+        [chargeError.message, invoice.id]
+      );
+      updatedInvoice = updated[0];
+    }
+
+    logAudit({ req, action: 'subscription_invoice_paid_manually', resourceType: 'subscription_invoice', resourceId: invoice.id, details: { status: updatedInvoice.status } });
+
+    if (updatedInvoice.status !== 'paid') {
+      return res.status(402).json({ error: updatedInvoice.failure_reason || 'Payment did not succeed.', invoice: updatedInvoice });
+    }
+    res.json({ success: true, invoice: updatedInvoice });
+  } catch (error) {
+    console.error('Error paying subscription invoice:', error);
+    res.status(500).json({ error: 'Failed to pay invoice' });
+  }
+};
+
 // Automatic monthly run — hit by Cloud Scheduler on the 15th of each month
 // to close out the previous calendar month. Not JWT-protected (Cloud
 // Scheduler has no user session); instead gated on a shared secret header
@@ -354,6 +409,7 @@ module.exports = {
   createSetupIntent,
   confirmPaymentMethod,
   generateInvoice,
+  payInvoice,
   runScheduledBilling,
   stripeWebhook,
 };
