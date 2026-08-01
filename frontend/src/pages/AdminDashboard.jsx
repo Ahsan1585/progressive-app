@@ -7,6 +7,7 @@ import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm'
 import { CompanySettings } from '@/components/CompanySettings';
 import { SubscriptionBilling } from '@/components/SubscriptionBilling';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
+import RoleManagement from '@/pages/RoleManagement';
 import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
 import { TrialStatusBanner } from '@/components/TrialStatusBanner';
 import { BaaGate } from '@/components/BaaGate';
@@ -122,6 +123,12 @@ const AdminDashboard = () => {
         return (
           <div className="max-w-6xl mx-auto w-full">
             <AuditLogViewer />
+          </div>
+        );
+      case 'roles':
+        return (
+          <div className="max-w-5xl mx-auto w-full">
+            <RoleManagement />
           </div>
         );
       default:
@@ -277,6 +284,22 @@ const AdminDashboard = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Audit Log
+              </button>
+            )}
+            {visibleTabs.includes('roles') && (
+              <button
+                onClick={() => { setActiveTab('roles'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                  activeTab === 'roles'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H2.5a2 2 0 110-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V2.5a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21.5a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                </svg>
+                Roles &amp; Permissions
               </button>
             )}
           </div>
