@@ -36,30 +36,44 @@ const provisionPractitioner = async (req, res) => {
     phone_number,
     ssn,
     role,
+    roleId,
     service_types
   } = req.body;
 
   const isOfficeStaff = position_title === 'Office Staff';
+  // `role: 'practitioner'` is how the existing invite form marks a
+  // practitioner registration; anything else is an office-staff account,
+  // whose actual permission tier now comes from `roleId` (a row in the
+  // tenant's `roles` table) rather than a hardcoded role string.
+  const isPractitionerRegistration = role === 'practitioner';
 
   try {
-    if (role === 'practitioner' && !isOfficeStaff && (!payRate || isNaN(payRate))) {
+    if (isPractitionerRegistration && !isOfficeStaff && (!payRate || isNaN(payRate))) {
       return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
     }
 
-    const VALID_ROLES = ['practitioner', 'staff_director', 'billing', 'ceo', 'account_specialist'];
-    if (!role || !VALID_ROLES.includes(role)) {
-      return res.status(400).json({ error: 'A valid role is required.' });
+    let legacyRole;
+    let resolvedRoleId = null;
+    if (isPractitionerRegistration) {
+      legacyRole = 'practitioner';
+    } else {
+      const { rows: roleRows } = await pool.query('SELECT id, is_system FROM roles WHERE id = $1', [roleId]);
+      if (!roleRows[0]) {
+        return res.status(400).json({ error: 'A valid role is required.' });
+      }
+      legacyRole = roleRows[0].is_system ? 'ceo' : 'staff';
+      resolvedRoleId = roleRows[0].id;
     }
 
     const serviceTypes = Array.isArray(service_types)
       ? service_types.filter(code => VALID_SERVICE_TYPE_CODES.includes(code))
       : [];
 
-    if (role === 'practitioner' && !isOfficeStaff && serviceTypes.length === 0) {
+    if (isPractitionerRegistration && !isOfficeStaff && serviceTypes.length === 0) {
       return res.status(400).json({ error: 'At least one service type is required.' });
     }
 
-    if (!req.isAdmin && !req.permissions.has('staff_directory_edit_role') && role !== 'practitioner') {
+    if (!req.isAdmin && !req.permissions.has('staff_directory_edit_role') && !isPractitionerRegistration) {
       return res.status(403).json({ error: 'You can only register Practitioner accounts.' });
     }
 
@@ -79,7 +93,7 @@ const provisionPractitioner = async (req, res) => {
     // when absent, so the column's DB default applies — matching the original
     // Supabase insert, which only included keys that were truthy.
     const columns = ['first_name', 'last_name', 'email', 'password_hash', 'requires_password_change', 'role', 'reset_token_hash', 'reset_token_expires'];
-    const values = [firstName, lastName, normalizedEmail, INVITE_PENDING, true, role, tokenHash, tokenExpiresAt];
+    const values = [firstName, lastName, normalizedEmail, INVITE_PENDING, true, legacyRole, tokenHash, tokenExpiresAt];
     const addColumn = (column, value) => { columns.push(column); values.push(value); };
 
     if (address) addColumn('address', address);
@@ -88,6 +102,7 @@ const provisionPractitioner = async (req, res) => {
     if (position_title) addColumn('position_title', position_title);
     if (ssn) addColumn('ssn', ssn);
     if (serviceTypes.length > 0) addColumn('service_types', serviceTypes);
+    if (resolvedRoleId) addColumn('role_id', resolvedRoleId);
 
     const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
     const { rows: insertedRows } = await pool.query(
