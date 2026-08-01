@@ -14,13 +14,13 @@ const {
 } = require('../controllers/reportController');
 
 const ceoGuard = [protect, loadPermissions, requirePermission('master_reports')];
-// Reading audit logs is its own permission — keep this in step with
-// auditLogRoutes.js, which guards the equivalent endpoint with 'audit_logs'.
-const auditLogGuard = [protect, loadPermissions, requirePermission('audit_logs')];
 
 router.post('/generate',           ...ceoGuard, generateMasterReport);
 router.get('/pending',             ...ceoGuard, getPendingReports);
-router.get('/audit-logs',          ...auditLogGuard, getAuditLogs);
+// Despite the name, this is the encounter-log query behind the Master Reports
+// screen (assessments/practitioners), not the PHI access trail — that lives in
+// auditLogController.js / auditLogRoutes.js and is gated on 'audit_logs'.
+router.get('/audit-logs',          ...ceoGuard, getAuditLogs);
 router.get('/patients',            ...ceoGuard, getAllPatients);
 router.post('/audit-njeis',        ...ceoGuard, generateAuditNJEIS);
 router.post('/audit-report-pdf',   ...ceoGuard, generateAuditReportPDF);
