@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 // Total time the animation plays before it starts departing, and how long
 // the depart transition itself takes — mirrors the standalone splash mockup
 // (field wake -> sprout draws -> logo strokes in -> nodes pop -> tagline).
-const HOLD_MS = 6800;
-const DEPART_MS = 800;
-const REDUCED_MOTION_HOLD_MS = 900;
+const HOLD_MS = 3200;
+const DEPART_MS = 500;
+const REDUCED_MOTION_HOLD_MS = 600;
 
 // Full-screen launch animation for the mobile hybrid app. Mounted once at
 // app start (not re-shown on ordinary in-session navigation) and sits above
@@ -47,7 +47,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
             radial-gradient(140% 100% at 50% 120%, rgba(14,110,103,0.5), transparent 70%),
             linear-gradient(180deg, #0B1B2A 0%, #132A3E 100%);
           opacity:0;
-          animation: splashFieldWake 2.8s cubic-bezier(0.33,0,0.13,1) 0.2s forwards;
+          animation: splashFieldWake 1.4s cubic-bezier(0.33,0,0.13,1) 0.1s forwards;
         }
         @keyframes splashFieldWake{ to{ opacity:1; } }
 
@@ -59,7 +59,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
           border-radius:50%;
           background:radial-gradient(circle, rgba(244,251,247,0.28) 0%, rgba(47,191,159,0.14) 40%, transparent 70%);
           opacity:0;
-          animation: splashBloom 3s cubic-bezier(0.33,0,0.13,1) 0.8s forwards;
+          animation: splashBloom 1.5s cubic-bezier(0.33,0,0.13,1) 0.4s forwards;
           animation-fill-mode:forwards;
           pointer-events:none;
         }
@@ -76,40 +76,41 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
         .splash-stem{
           stroke:#F4FBF7; stroke-width:3; stroke-linecap:round; fill:none;
           stroke-dasharray:60; stroke-dashoffset:60;
-          animation: splashDraw 1.1s cubic-bezier(0.33,0,0.13,1) 1.5s forwards;
+          animation: splashDraw 0.55s cubic-bezier(0.33,0,0.13,1) 0.75s forwards;
         }
         .splash-leaf{ fill:#2FBF9F; opacity:0; transform-origin:center bottom; transform:scale(0.4); }
-        .splash-leaf.l{ animation: splashUnfurl 0.9s cubic-bezier(0.33,0,0.13,1) 2.3s forwards; }
-        .splash-leaf.r{ animation: splashUnfurl 0.9s cubic-bezier(0.33,0,0.13,1) 2.55s forwards; }
+        .splash-leaf.l{ animation: splashUnfurl 0.45s cubic-bezier(0.33,0,0.13,1) 1.15s forwards; }
+        .splash-leaf.r{ animation: splashUnfurl 0.45s cubic-bezier(0.33,0,0.13,1) 1.28s forwards; }
         @keyframes splashDraw{ to{ stroke-dashoffset:0; } }
         @keyframes splashUnfurl{ to{ opacity:1; transform:scale(1); } }
-        .splash-seed{ fill:#F4FBF7; opacity:0; animation: splashSeedLight 0.6s cubic-bezier(0.33,0,0.13,1) 1.2s forwards; }
+        .splash-seed{ fill:#F4FBF7; opacity:0; animation: splashSeedLight 0.3s cubic-bezier(0.33,0,0.13,1) 0.6s forwards; }
         @keyframes splashSeedLight{ to{ opacity:0.9; } }
 
         .splash-logo{ width:min(300px, 78vw); height:auto; display:block; margin:0 auto; overflow:visible; }
         .splash-stroke-w{ stroke:#F4FBF7; fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
         .splash-stroke-g{ stroke:#2FBF9F; fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
-        .splash-letter{ opacity:0; transform:translateY(8px); animation: splashLetterIn 0.7s cubic-bezier(0.33,0,0.13,1) forwards; }
-        .splash-letter:nth-of-type(1){ animation-delay:3.1s; }
-        .splash-letter:nth-of-type(2){ animation-delay:3.24s; }
-        .splash-letter:nth-of-type(3){ animation-delay:3.38s; }
-        .splash-letter:nth-of-type(4){ animation-delay:3.52s; }
-        .splash-letter:nth-of-type(5){ animation-delay:3.66s; }
-        .splash-letter:nth-of-type(6){ animation-delay:3.8s; }
+        .splash-letter{ opacity:0; transform:translateY(8px); animation: splashLetterIn 0.35s cubic-bezier(0.33,0,0.13,1) forwards; }
+        .splash-letter:nth-of-type(1){ animation-delay:1.55s; }
+        .splash-letter:nth-of-type(2){ animation-delay:1.62s; }
+        .splash-letter:nth-of-type(3){ animation-delay:1.69s; }
+        .splash-letter:nth-of-type(4){ animation-delay:1.76s; }
+        .splash-letter:nth-of-type(5){ animation-delay:1.83s; }
+        .splash-letter:nth-of-type(6){ animation-delay:1.9s; }
         @keyframes splashLetterIn{ to{ opacity:1; transform:translateY(0); } }
         .splash-node{
           fill:#2FBF9F; opacity:0; transform-box:fill-box; transform-origin:center; transform:scale(0);
-          animation: splashNodePop 0.5s cubic-bezier(0.34,1.5,0.5,1) forwards;
+          animation: splashNodePop 0.25s cubic-bezier(0.34,1.5,0.5,1) forwards;
         }
-        .splash-node.n1{ animation-delay:4.15s; }
-        .splash-node.n2{ animation-delay:4.3s; }
-        .splash-node.n3{ animation-delay:4.45s; }
+        .splash-node.n1{ animation-delay:2.075s; }
+        .splash-node.n2{ animation-delay:2.15s; }
+        .splash-node.n3{ animation-delay:2.225s; }
         @keyframes splashNodePop{ to{ opacity:1; transform:scale(1); } }
 
         .splash-tagline{
-          margin-top:22px; font-size:11px; font-weight:500; letter-spacing:4px;
-          text-transform:uppercase; color:rgba(244,251,247,0.55); opacity:0;
-          animation: splashWhisper 1.2s cubic-bezier(0.33,0,0.13,1) 4.9s forwards;
+          margin-top:22px; font-size:15px; font-weight:700; letter-spacing:3px;
+          text-transform:uppercase; color:#F4FBF7; opacity:0;
+          text-shadow:0 1px 12px rgba(47,191,159,0.55);
+          animation: splashWhisper 0.6s cubic-bezier(0.33,0,0.13,1) 2.45s forwards;
         }
         @keyframes splashWhisper{ to{ opacity:1; } }
 
