@@ -11,7 +11,10 @@ import ActivateAccount from './pages/ActivateAccount';
 import AdminDashboard from './pages/AdminDashboard';
 import { DialogHost } from './components/DialogHost';
 
-const ADMIN_ROLES = ['staff_director', 'billing', 'ceo', 'account_specialist'];
+// Office-side accounts. Phase 2 collapsed the old fine-grained staff role strings
+// ('staff_director', 'billing', 'account_specialist') into the single catch-all 'staff';
+// what each of them can actually DO is now decided by their role's permissions, not this list.
+const ADMIN_ROLES = ['ceo', 'staff'];
 
 // HIPAA automatic logoff: clear the session and return to login after inactivity.
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes

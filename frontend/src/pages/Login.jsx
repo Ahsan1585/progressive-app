@@ -240,7 +240,8 @@ const Login = () => {
         localStorage.setItem('companySlug', slug);
 
         const role = response.data.practitioner.role;
-        const ADMIN_ROLES = ['staff_director', 'billing', 'ceo', 'account_specialist'];
+        // Phase 2: every non-practitioner office account is 'ceo' or the catch-all 'staff'.
+        const ADMIN_ROLES = ['ceo', 'staff'];
 
         if (response.data.requirePasswordChange) {
           navigate('/change-password');
