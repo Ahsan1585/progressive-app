@@ -190,7 +190,11 @@ const confirmPaymentMethod = async (req, res) => {
 // silently drift apart (e.g. a June period getting July's activity counted
 // into it because `at` defaulted to "now").
 async function closePeriodInvoice(periodStart, periodEnd) {
-  const summary = await computeCurrentPeriodSummary(new Date(`${periodStart}T00:00:00Z`));
+  // Noon UTC, not midnight — computeCurrentPeriodSummary resolves the
+  // period from this instant's Eastern-time calendar date (see
+  // subscriptionBilling.js's easternParts), and midnight UTC is already the
+  // previous day on the US East Coast under any DST offset.
+  const summary = await computeCurrentPeriodSummary(new Date(`${periodStart}T12:00:00Z`));
 
   const { rows: existing } = await pool.query(
     'SELECT id, status FROM subscription_invoices WHERE period_start = $1 AND period_end = $2',

@@ -1,19 +1,41 @@
 const { pool } = require('../config/db');
 
-// Calendar-month billing periods. `at` defaults to now — passed explicitly
-// in tests/backfills to compute a past period.
-function getPeriodBounds(at = new Date()) {
-  const year = at.getUTCFullYear();
-  const month = at.getUTCMonth(); // 0-indexed
+// The business runs on US Eastern time, but Cloud Run's clock is UTC — a
+// raw `Date.getUTCMonth()` flips to the next month several hours before
+// midnight actually arrives on the East Coast (e.g. July 31 8pm EDT is
+// already August 1 midnight UTC). Every "what month is it" decision below
+// must go through Eastern wall-clock time, not UTC, or billing periods and
+// invoice dates roll over a day (sometimes a whole month) early.
+function easternParts(at = new Date()) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(at).map((p) => [p.type, p.value])
+  );
+  return { year: Number(parts.year), month: Number(parts.month) - 1, day: Number(parts.day) };
+}
+
+// Bounds for an explicit (year, 0-indexed month) — built from Date.UTC purely
+// as an ISO-date formatter, never re-derived through easternParts (doing so
+// would shift a UTC-midnight-of-the-1st instant back into the prior day/month
+// once converted to Eastern time).
+function monthBounds(year, month) {
   const start = new Date(Date.UTC(year, month, 1));
   const end = new Date(Date.UTC(year, month + 1, 0)); // last day of month
   const toISO = (d) => d.toISOString().slice(0, 10);
   return { periodStart: toISO(start), periodEnd: toISO(end) };
 }
 
+// Calendar-month billing periods. `at` defaults to now — passed explicitly
+// in tests/backfills to compute a past period.
+function getPeriodBounds(at = new Date()) {
+  const { year, month } = easternParts(at);
+  return monthBounds(year, month);
+}
+
 function nextBillingDate(at = new Date()) {
-  const year = at.getUTCFullYear();
-  const month = at.getUTCMonth();
+  const { year, month } = easternParts(at);
   const next = new Date(Date.UTC(year, month + 1, 1));
   return next.toISOString().slice(0, 10);
 }
@@ -22,9 +44,8 @@ function nextBillingDate(at = new Date()) {
 // billing run (scheduled for the 15th of each month) always closes out,
 // regardless of what day it actually fires on.
 function getPreviousPeriodBounds(at = new Date()) {
-  const year = at.getUTCFullYear();
-  const month = at.getUTCMonth();
-  return getPeriodBounds(new Date(Date.UTC(year, month - 1, 1)));
+  const { year, month } = easternParts(at);
+  return monthBounds(year, month - 1);
 }
 
 // A practitioner counts as active for the WHOLE period the moment they've
