@@ -5,6 +5,9 @@ import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import SignupWizard from './pages/SignupWizard';
+import SignupConfirm from './pages/SignupConfirm';
+import ActivateAccount from './pages/ActivateAccount';
 import AdminDashboard from './pages/AdminDashboard';
 import { DialogHost } from './components/DialogHost';
 
@@ -63,6 +66,9 @@ function App() {
         <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/signup" element={<SignupWizard />} />
+        <Route path="/signup/confirm/:token" element={<SignupConfirm />} />
+        <Route path="/:companySlug/activate/:token" element={<ActivateAccount />} />
         <Route
           path="/dashboard"
           element={<ProtectedRoute element={<Dashboard />} allowedRoles={['practitioner']} />}

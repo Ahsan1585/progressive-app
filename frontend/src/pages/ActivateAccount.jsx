@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -9,18 +9,26 @@ import { AuthLayout } from '@/components/AuthLayout';
 const isPasswordStrong = (pw) =>
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pw);
 
-const ResetPassword = () => {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+// Mirrors ResetPassword.jsx closely (same card, same flow) so an invitee
+// clicking an emailed link recognizes the same app, not a different one —
+// the one addition is the company name confirmation up top, so they know
+// they're joining the right organization before setting a password.
+const ActivateAccount = () => {
+  const { companySlug, token } = useParams();
   const navigate = useNavigate();
 
-  const [companySlug, setCompanySlug] = useState(() => {
-    try { return localStorage.getItem('companySlug') || ''; } catch { return ''; }
-  });
+  const [companyName, setCompanyName] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!companySlug) return;
+    api.get(`/api/auth/${companySlug}/company-name`)
+      .then(({ data }) => setCompanyName(data.displayName))
+      .catch(() => setCompanyName(null));
+  }, [companySlug]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,10 +45,11 @@ const ResetPassword = () => {
 
     setIsSubmitting(true);
     try {
-      await api.post('/api/auth/reset-password', { slug: companySlug.trim().toLowerCase(), token, newPassword });
+      await api.post(`/api/auth/${companySlug}/activate/${token}`, { newPassword });
+      try { localStorage.setItem('companySlug', companySlug); } catch { /* ignore */ }
       navigate('/', { state: { resetSuccess: true } });
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to reset password. Please request a new link.');
+      setError(err.response?.data?.error || 'Failed to activate your account. Please request a new invite.');
     } finally {
       setIsSubmitting(false);
     }
@@ -48,18 +57,23 @@ const ResetPassword = () => {
 
   return (
     <AuthLayout>
-      {!token ? (
+      {!companySlug || !token ? (
         <div className="text-center space-y-6">
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg text-sm text-red-700 font-medium text-left">
-            This reset link is missing or invalid. Please request a new one.
+            This activation link is missing or invalid. Ask your administrator to resend your invite.
           </div>
-          <Link to="/forgot-password" className="inline-block font-semibold text-cyan-700 hover:underline">
-            Request a new link
+          <Link to="/" className="inline-block font-semibold text-cyan-700 hover:underline">
+            Back to Sign In
           </Link>
         </div>
       ) : (
         <>
-          <h2 className="text-lg font-semibold text-slate-800 mb-6 text-center">Set a new password</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-1 text-center">
+            Activate your account{companyName ? ` — ${companyName}` : ''}
+          </h2>
+          <p className="text-sm text-slate-500 mb-6 text-center">
+            Choose a password to finish setting up your account.
+          </p>
 
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-5 rounded-lg text-sm text-red-700 font-medium">
@@ -69,21 +83,7 @@ const ResetPassword = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="company-slug" className="text-slate-700">Company Code</Label>
-              <input
-                id="company-slug"
-                type="text"
-                placeholder="your-company"
-                value={companySlug}
-                onChange={(e) => setCompanySlug(e.target.value)}
-                className="flex w-full h-11 rounded-lg bg-slate-50 border border-slate-200 px-3 text-sm focus-visible:outline-none focus-visible:border-cyan-600 focus-visible:ring-2 focus-visible:ring-cyan-600/40"
-                autoCapitalize="none"
-                autoCorrect="off"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="newPassword" className="text-slate-700">New Password</Label>
+              <Label htmlFor="newPassword" className="text-slate-700">Password</Label>
               <PasswordInput
                 id="newPassword"
                 value={newPassword}
@@ -95,7 +95,7 @@ const ResetPassword = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-slate-700">Confirm New Password</Label>
+              <Label htmlFor="confirmPassword" className="text-slate-700">Confirm Password</Label>
               <PasswordInput
                 id="confirmPassword"
                 value={confirmPassword}
@@ -111,7 +111,7 @@ const ResetPassword = () => {
               disabled={isSubmitting}
               className="w-full h-11 mt-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white text-base font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(8,74,90,0.4)] transition-colors"
             >
-              {isSubmitting ? 'Updating...' : 'Reset Password'}
+              {isSubmitting ? 'Activating…' : 'Activate Account'}
             </Button>
           </form>
         </>
@@ -120,4 +120,4 @@ const ResetPassword = () => {
   );
 };
 
-export default ResetPassword;
+export default ActivateAccount;

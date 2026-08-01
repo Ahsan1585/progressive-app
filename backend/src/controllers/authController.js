@@ -2,14 +2,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { pool } = require('../config/db');
-const { sendPasswordResetEmail } = require('../utils/emailClient');
+const { sendPasswordResetEmail, sendInviteEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
+const { isPasswordStrong } = require('../utils/passwordValidation');
+const { lookupCompanyBySlug } = require('../middleware/tenantMiddleware');
+const { platformPool } = require('../config/platformDb');
 
-// --- Helper: Enforce Password Strength ---
-const isPasswordStrong = (password) => {
-  const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  return strongPasswordRegex.test(password);
-};
+// Placeholder password_hash for an invited-but-not-yet-activated account —
+// never a real bcrypt hash, so it can never match a bcrypt.compare() and
+// doubles as the "still pending" check in activateAccount below.
+const INVITE_PENDING = 'INVITE_PENDING';
+const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — longer than a password-reset link, since this is first-time onboarding, not an urgent forgotten-password flow
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 // Service Type Code legend from the NJEIS-020 form — must match
 // frontend/src/pages/dashboard.jsx's serviceTypeMap and mobile/src/constants/njeis.ts
@@ -18,13 +22,14 @@ const VALID_SERVICE_TYPE_CODES = [
   'OT', 'PT', 'PSY', 'SLP', 'SW', 'VI', 'CC', 'I/T', 'ES', 'TPC'
 ];
 
-// --- Function 1: Admin Provisions a Practitioner ---
+// --- Function 1: Admin Provisions a Practitioner (invite-link based — the
+// admin fills in every field except a password; the invitee gets a
+// one-time link and picks their own) ---
 const provisionPractitioner = async (req, res) => {
   const {
     firstName,
     lastName,
     email,
-    tempPassword,
     payRate,
     position_title,
     address,
@@ -54,10 +59,6 @@ const provisionPractitioner = async (req, res) => {
       return res.status(400).json({ error: 'At least one service type is required.' });
     }
 
-    if (!isPasswordStrong(tempPassword)) {
-      return res.status(400).json({ error: 'Temporary password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.' });
-    }
-
     if (['staff_director', 'account_specialist'].includes(req.practitioner.role) && role !== 'practitioner') {
       return res.status(403).json({ error: 'Office Managers and Account Specialists can only register Practitioner accounts.' });
     }
@@ -70,14 +71,15 @@ const provisionPractitioner = async (req, res) => {
     );
     if (existingRows[0]) return res.status(400).json({ error: 'This email is already registered.' });
 
-    const salt = await bcrypt.genSalt(10);
-    const temporaryHash = await bcrypt.hash(tempPassword, salt);
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(rawToken);
+    const tokenExpiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
 
     // Optional fields are omitted from the INSERT entirely (not passed as NULL)
     // when absent, so the column's DB default applies — matching the original
     // Supabase insert, which only included keys that were truthy.
-    const columns = ['first_name', 'last_name', 'email', 'password_hash', 'requires_password_change', 'role'];
-    const values = [firstName, lastName, normalizedEmail, temporaryHash, true, role];
+    const columns = ['first_name', 'last_name', 'email', 'password_hash', 'requires_password_change', 'role', 'reset_token_hash', 'reset_token_expires'];
+    const values = [firstName, lastName, normalizedEmail, INVITE_PENDING, true, role, tokenHash, tokenExpiresAt];
     const addColumn = (column, value) => { columns.push(column); values.push(value); };
 
     if (address) addColumn('address', address);
@@ -95,9 +97,104 @@ const provisionPractitioner = async (req, res) => {
       values
     );
 
-    res.status(201).json({ message: 'Practitioner provisioned successfully', practitioner: insertedRows[0] });
+    const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
+    const companyName = companyRows[0]?.display_name || 'Izaya EIS';
+    const slug = req.practitioner.slug;
+
+    // The app is served under the /eis base path (see frontend/vite.config.js's
+    // `base: "/eis/"`), so FRONTEND_URL must include it.
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
+    const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
+
+    try {
+      await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
+    } catch (emailError) {
+      console.error('Failed to send account invite email:', emailError);
+    }
+
+    res.status(201).json({ message: 'Invite sent successfully', practitioner: insertedRows[0] });
   } catch (error) {
     console.error('Provisioning error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Public, read-only, no-PHI lookup used only so an activation/login/reset
+// page can greet the user with "...for Progressive Steps NJ" before they've
+// entered any credentials — reads straight from the platform registry, not
+// a tenant database, so no tenant context is needed here at all.
+const getCompanyDisplayName = async (req, res) => {
+  const slug = String(req.params.companySlug || '').toLowerCase().trim();
+  const company = await lookupCompanyBySlug(slug);
+  if (!company) return res.status(404).json({ error: 'Unknown company code' });
+  res.json({ displayName: company.display_name });
+};
+
+// Lets any authenticated user's dashboard show a trial-countdown/upgrade
+// banner without needing ceo-only subscription-route access — reads the
+// current status fresh from the platform registry (not the JWT, which can
+// be up to 24h stale), same source of truth authMiddleware's trial gate uses.
+const getCompanyStatus = async (req, res) => {
+  try {
+    const { rows } = await platformPool.query(
+      'SELECT display_name, status, trial_ends_at FROM companies WHERE slug = $1',
+      [req.practitioner.slug]
+    );
+    const company = rows[0];
+    if (!company) return res.status(404).json({ error: 'Company not found' });
+    res.json({
+      displayName: company.display_name,
+      status: company.status,
+      trialEndsAt: company.trial_ends_at,
+    });
+  } catch (error) {
+    console.error('Error fetching company status:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// --- Function 1b: Invitee activates their account via the one-time link,
+// choosing their own password. Structurally identical to resetPassword,
+// with one extra check: the account must still be in the pending state
+// (password_hash === INVITE_PENDING) — an already-activated account's link
+// can't be reused to hijack the password. Tenant is resolved from the URL's
+// company slug via resolveTenantBySlug (same as login/signup), so the
+// invitee never has to know or type a company code themselves. ---
+const activateAccount = async (req, res) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'An activation token and new password are required.' });
+  }
+  if (!isPasswordStrong(newPassword)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.' });
+  }
+
+  try {
+    const tokenHash = hashToken(token);
+    const { rows } = await pool.query(
+      'SELECT id, reset_token_expires FROM practitioners WHERE reset_token_hash = $1 AND password_hash = $2',
+      [tokenHash, INVITE_PENDING]
+    );
+    const user = rows[0];
+
+    if (!user || !user.reset_token_expires || new Date(user.reset_token_expires) < new Date()) {
+      return res.status(400).json({ error: 'This activation link is invalid or has expired.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    await pool.query(
+      `UPDATE practitioners
+       SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL
+       WHERE id = $2`,
+      [newPasswordHash, user.id]
+    );
+
+    res.json({ success: true, message: 'Account activated. You can now log in.' });
+  } catch (error) {
+    console.error('Activate account error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -130,8 +227,12 @@ const loginPractitioner = async (req, res) => {
     }
 
     // CREATE THE TOKEN REGARDLESS OF PASSWORD STATUS
+    // slug/tenantDb come from req.company (set by resolveTenantBySlug,
+    // mounted ahead of this handler) — signed into the JWT so every later
+    // authenticated request already knows which tenant database to use
+    // without a platform-DB lookup on every request (see authMiddleware.js).
     const token = jwt.sign(
-      { practitionerId: user.id, email: user.email, role: user.role },
+      { practitionerId: user.id, email: user.email, role: user.role, slug: req.company.slug, tenantDb: req.company.tenant_db_name },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -457,6 +558,9 @@ const reactivateStaffMember = async (req, res) => {
 
 module.exports = {
   provisionPractitioner,
+  activateAccount,
+  getCompanyDisplayName,
+  getCompanyStatus,
   loginPractitioner,
   changeTemporaryPassword,
   forgotPassword,

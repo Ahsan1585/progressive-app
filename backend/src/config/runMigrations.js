@@ -1,20 +1,34 @@
 const fs = require('fs');
 const path = require('path');
-const { pool } = require('./db');
+const { MIGRATIONS } = require('../../db/migrations');
+const { platformPool } = require('./platformDb');
+const { getTenantPool } = require('./tenantPoolRegistry');
 
-// Every file listed here must be purely additive/idempotent (ADD COLUMN IF
-// NOT EXISTS, CREATE TABLE IF NOT EXISTS, etc.) — this runs on every boot,
-// not just once, so a migration that isn't safe to re-run doesn't belong
-// here. Lets a migration ship with a deploy instead of requiring a separate
-// manual `psql` step against production.
-const MIGRATIONS = ['add_subscription_billing.sql', 'add_dropdown_options.sql', 'add_compliance_learning.sql', 'fix_zero_time_logs.sql', 'add_eims_missing_approval.sql', 'add_eims_missing_approval_workflow.sql', 'add_invoice_overdue_status.sql'];
-
-async function runMigrations() {
+// Every file listed in MIGRATIONS must be purely additive/idempotent (ADD
+// COLUMN IF NOT EXISTS, CREATE TABLE IF NOT EXISTS, etc.) — this runs on
+// every boot, against every tenant database, not just once.
+async function applyMigrationsToPool(pool, label) {
   for (const file of MIGRATIONS) {
     const sql = fs.readFileSync(path.join(__dirname, '../../db/migrations', file), 'utf8');
     await pool.query(sql);
-    console.log(`Migration applied: ${file}`);
+    console.log(`Migration applied to ${label}: ${file}`);
   }
 }
 
-module.exports = { runMigrations };
+// Loops over every non-cancelled company in the platform registry and
+// applies the same fixed migration list to each one's tenant database.
+// Requires izaya_platform (and its `companies` table, with at least the
+// one row registered for the existing production tenant) to already exist
+// before this boots — see the multi-tenant-foundation plan, section E,
+// step 5, for the deploy-ordering requirement this implies.
+async function runMigrations() {
+  const { rows: companies } = await platformPool.query(
+    "SELECT slug, tenant_db_name FROM companies WHERE status != 'cancelled'"
+  );
+  for (const { slug, tenant_db_name } of companies) {
+    const tenantPool = getTenantPool(tenant_db_name);
+    await applyMigrationsToPool(tenantPool, slug);
+  }
+}
+
+module.exports = { runMigrations, applyMigrationsToPool };
