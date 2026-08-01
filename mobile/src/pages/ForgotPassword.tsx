@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export default function ForgotPassword() {
+  const [companySlug, setCompanySlug] = React.useState(() => {
+    try { return localStorage.getItem("companySlug") || ""; } catch { return ""; }
+  });
   const [email, setEmail] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
@@ -16,7 +19,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post("/api/auth/forgot-password", { email });
+      await api.post("/api/auth/forgot-password", { slug: companySlug.trim().toLowerCase(), email });
     } catch {
       // Intentionally ignored — the backend always responds generically either way.
     } finally {
@@ -45,6 +48,16 @@ export default function ForgotPassword() {
               Enter the email on file and we'll send you a link to reset your password.
             </p>
           </div>
+
+          <Field id="company-code" label="Company Code">
+            <Input
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={companySlug}
+              onChange={(e) => setCompanySlug(e.target.value)}
+              required
+            />
+          </Field>
 
           <Field id="email" label="Email address">
             <Input

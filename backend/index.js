@@ -27,9 +27,12 @@ const companyRoutes = require('./src/routes/companyRoutes');
 const auditLogRoutes = require('./src/routes/auditLogRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
+const signupRoutes = require('./src/routes/signupRoutes');
+const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
-const { loadDropdownOptionsCache } = require('./src/constants/dropdownOptionsCache');
 const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
+const { platformPool } = require('./src/config/platformDb');
+const { runWithTenant } = require('./src/config/tenantContext');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -79,6 +82,8 @@ app.use('/api/company', companyRoutes);
 app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/dropdown-options', dropdownOptionsRoutes);
+app.use('/api/signup', signupRoutes);
+app.use('/api/platform', platformAdminRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).
@@ -542,21 +547,38 @@ app.get('/api/interventions/:patientId', protect, async (req, res) => {
 app.get('/', (req, res) => { res.send('NJEIS Encounter App Backend is Secure and Active'); });
 app.get('/health', (req, res) => { res.json({ status: 'ok', timestamp: new Date().toISOString() }); });
 
+// Subscription invoice lifecycle sweep (pending/failed -> overdue past the
+// 15th-of-next-month due date), looped across every non-cancelled tenant —
+// there's no single implicit tenant anymore, so this can't just call
+// markOverdueInvoices() directly (that needs a tenant context set first).
+async function sweepAllTenantsOverdueInvoices() {
+  const { rows: companies } = await platformPool.query("SELECT slug, tenant_db_name FROM companies WHERE status IN ('trial', 'active')");
+  for (const { slug, tenant_db_name } of companies) {
+    try {
+      await runWithTenant(tenant_db_name, () => markOverdueInvoices());
+    } catch (err) {
+      console.error(`Startup overdue-invoice sweep failed for tenant "${slug}":`, err.message);
+    }
+  }
+}
+
+// NOTE: the dropdown-options cache is no longer loaded here at boot — there
+// is no tenant context available at this point, so it's lazily populated
+// per tenant on first authenticated request instead (see authMiddleware.js
+// and dropdownOptionsCache.js).
 runMigrations()
-  .then(() => loadDropdownOptionsCache())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
 
-      // Subscription invoice lifecycle sweep (pending/failed -> overdue past
-      // the 15th-of-next-month due date) — runs on its own here so it isn't
-      // dependent on a ceo happening to load the Subscription & Billing page
-      // or Cloud Scheduler being separately configured. Fires once at boot
-      // (covers every deploy/cold-start) and every 6 hours thereafter for as
-      // long as this instance stays warm; harmless/idempotent to re-run.
-      markOverdueInvoices().catch((err) => console.error('Startup overdue-invoice sweep failed:', err));
+      // Runs on its own here so it isn't dependent on a ceo happening to
+      // load the Subscription & Billing page or Cloud Scheduler being
+      // separately configured. Fires once at boot (covers every
+      // deploy/cold-start) and every 6 hours thereafter for as long as
+      // this instance stays warm; harmless/idempotent to re-run.
+      sweepAllTenantsOverdueInvoices().catch((err) => console.error('Startup overdue-invoice sweep failed:', err));
       setInterval(() => {
-        markOverdueInvoices().catch((err) => console.error('Scheduled overdue-invoice sweep failed:', err));
+        sweepAllTenantsOverdueInvoices().catch((err) => console.error('Scheduled overdue-invoice sweep failed:', err));
       }, 6 * 60 * 60 * 1000);
     });
   })

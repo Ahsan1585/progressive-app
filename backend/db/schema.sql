@@ -309,8 +309,10 @@ CREATE TABLE company_settings (
   compliance_doc_applied_path text,
   updated_at timestamp with time zone DEFAULT now()
 );
-INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email)
-VALUES (1, 'Progressive Steps NJ', 'Progressive Steps Early Intervention, LLC', 'New Jersey', 'Eastern (ET)', '14 Route 9 South, Old Bridge, NJ 08857', '(732) 555-0148', 'billing@progressivestepsnj.com');
+-- No hardcoded seed row here (this file is applied to every new tenant
+-- database during self-serve signup provisioning, not just one customer's) —
+-- the initial id=1 row is inserted by signupController.js with that
+-- specific company's own display name/legal entity/address/phone/email.
 
 -- compliance_state_logs: FK -> patients. Parsed rows from the currently
 -- attached compliance_doc Excel (backend/src/constants/njeis.js maps the

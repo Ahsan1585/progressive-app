@@ -8,6 +8,7 @@ import { CompanySettings } from '@/components/CompanySettings';
 import { SubscriptionBilling } from '@/components/SubscriptionBilling';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
+import { TrialStatusBanner } from '@/components/TrialStatusBanner';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
@@ -328,6 +329,7 @@ const AdminDashboard = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 print:h-auto print:overflow-visible print:p-0">
+          <TrialStatusBanner />
           {renderContent()}
         </div>
       </main>

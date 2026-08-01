@@ -171,6 +171,11 @@ function DownloadQR() {
 const MOBILE_BANNER_SEEN_KEY = 'izaya-mobile-install-banner-seen';
 
 const Login = () => {
+  // Remembered from a previous successful login on this device — most
+  // returning users never have to type it again after their first visit.
+  const [companySlug, setCompanySlug] = useState(() => {
+    try { return localStorage.getItem('companySlug') || ''; } catch { return ''; }
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -226,11 +231,13 @@ const Login = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      const response = await api.post('/api/auth/login', { email, password });
+      const slug = companySlug.trim().toLowerCase();
+      const response = await api.post('/api/auth/login', { slug, email, password });
 
       if (response.data.success) {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('role', response.data.practitioner.role);
+        localStorage.setItem('companySlug', slug);
 
         const role = response.data.practitioner.role;
         const ADMIN_ROLES = ['staff_director', 'billing', 'ceo', 'account_specialist'];
@@ -605,6 +612,20 @@ const Login = () => {
 
               <form onSubmit={handleLogin} noValidate>
                 <div className="il-field">
+                  <label htmlFor="login-company">Company Code</label>
+                  <input
+                    id="login-company"
+                    type="text"
+                    placeholder="your-company"
+                    value={companySlug}
+                    onChange={(e) => setCompanySlug(e.target.value)}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    required
+                  />
+                </div>
+
+                <div className="il-field">
                   <label htmlFor="login-email">Email</label>
                   <input
                     id="login-email"
@@ -637,7 +658,8 @@ const Login = () => {
               </form>
 
               <div className="il-card-foot">
-                New to Izaya? Your agency administrator will set up your account.<br />
+                New agency? <Link to="/signup">Sign up your company</Link> and start a free 15-day trial.<br />
+                Already have an account but no Company Code? Ask your agency admin.<br />
                 Trouble signing in? <a href="mailto:support@izayaedge.com">support@izayaedge.com</a>
               </div>
             </div>

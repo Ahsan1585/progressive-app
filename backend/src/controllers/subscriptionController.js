@@ -1,4 +1,6 @@
 const { pool } = require('../config/db');
+const { platformPool } = require('../config/platformDb');
+const { runWithTenant, getCurrentTenantDb } = require('../config/tenantContext');
 const { getStripeClient, isStripeConfigured, isGooglePayConfigured } = require('../config/stripe');
 const { computeCurrentPeriodSummary, getSubscriptionSettings, getPreviousPeriodBounds, markOverdueInvoices } = require('../utils/subscriptionBilling');
 const { generateSubscriptionInvoicePdf } = require('../utils/subscriptionInvoicePdf');
@@ -101,6 +103,10 @@ async function ensureStripeCustomer(stripe) {
     metadata: { app: 'izaya-eis', company_settings_id: '1' },
   });
   await pool.query('UPDATE company_settings SET stripe_customer_id = $1, updated_at = now() WHERE id = 1', [customer.id]);
+  // Mirrored into the platform DB too — the Stripe webhook is public and has
+  // no JWT/slug, so it has no other way to resolve which tenant a given
+  // Stripe customer id belongs to (see stripeWebhook below).
+  await platformPool.query('UPDATE companies SET stripe_customer_id = $1, updated_at = now() WHERE tenant_db_name = $2', [customer.id, getCurrentTenantDb()]);
   return customer.id;
 }
 
@@ -344,18 +350,35 @@ const payInvoice = async (req, res) => {
 // so this can't be triggered by an arbitrary request. Fails closed: if
 // CRON_SECRET isn't configured, every request is rejected rather than the
 // check being silently skipped.
+//
+// Multi-tenant: there's no single implicit tenant anymore, so this loops
+// over every non-cancelled company in the platform registry and closes
+// each one's period independently — one tenant's failure doesn't stop the
+// others from being billed.
 const runScheduledBilling = async (req, res) => {
   const expectedSecret = process.env.CRON_SECRET;
   if (!expectedSecret || req.headers['x-cron-secret'] !== expectedSecret) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
-    const { periodStart, periodEnd } = getPreviousPeriodBounds();
-    const invoice = await closePeriodInvoice(periodStart, periodEnd);
-    logAudit({ actorEmail: 'scheduler@izayaedge.com', actorRole: 'system', action: 'subscription_invoice_generated', resourceType: 'subscription_invoice', resourceId: invoice.id, details: { periodStart, periodEnd, totalAmount: invoice.total_amount, status: invoice.status, trigger: 'scheduled' } });
-    res.json({ success: true, invoice });
+    const { rows: companies } = await platformPool.query("SELECT slug, tenant_db_name FROM companies WHERE status IN ('trial', 'active')");
+    const results = [];
+    for (const { slug, tenant_db_name } of companies) {
+      try {
+        const invoice = await runWithTenant(tenant_db_name, async () => {
+          const { periodStart, periodEnd } = getPreviousPeriodBounds();
+          const inv = await closePeriodInvoice(periodStart, periodEnd);
+          logAudit({ actorEmail: 'scheduler@izayaedge.com', actorRole: 'system', action: 'subscription_invoice_generated', resourceType: 'subscription_invoice', resourceId: inv.id, details: { periodStart, periodEnd, totalAmount: inv.total_amount, status: inv.status, trigger: 'scheduled' } });
+          return inv;
+        });
+        results.push({ slug, status: invoice.status });
+      } catch (tenantError) {
+        console.error(`Scheduled billing failed for tenant "${slug}":`, tenantError.message);
+        results.push({ slug, error: tenantError.message });
+      }
+    }
+    res.json({ success: true, results });
   } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
     console.error('Error running scheduled subscription billing:', error);
     res.status(500).json({ error: 'Failed to run scheduled billing' });
   }
@@ -366,14 +389,23 @@ const runScheduledBilling = async (req, res) => {
 // so this endpoint isn't required for correctness, but wiring a scheduled
 // job here makes the pending -> overdue transition happen right on the
 // 16th even if nobody opens the billing screen that day. Same shared-secret
-// auth pattern as runScheduledBilling.
+// auth pattern as runScheduledBilling; loops over every tenant for the same
+// reason as above.
 const runOverdueSweep = async (req, res) => {
   const expectedSecret = process.env.CRON_SECRET;
   if (!expectedSecret || req.headers['x-cron-secret'] !== expectedSecret) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
-    const overdueCount = await markOverdueInvoices();
+    const { rows: companies } = await platformPool.query("SELECT slug, tenant_db_name FROM companies WHERE status IN ('trial', 'active')");
+    let overdueCount = 0;
+    for (const { slug, tenant_db_name } of companies) {
+      try {
+        overdueCount += await runWithTenant(tenant_db_name, () => markOverdueInvoices());
+      } catch (tenantError) {
+        console.error(`Overdue sweep failed for tenant "${slug}":`, tenantError.message);
+      }
+    }
     res.json({ success: true, overdueCount });
   } catch (error) {
     console.error('Error running overdue invoice sweep:', error);
@@ -385,6 +417,12 @@ const runOverdueSweep = async (req, res) => {
 // parser (see index.js), since signature verification needs the exact raw
 // body bytes. No-ops (200, does nothing) if STRIPE_WEBHOOK_SECRET isn't set,
 // rather than erroring, so an unconfigured deployment doesn't 500 on stray traffic.
+//
+// Multi-tenant: this endpoint is public and carries no JWT/slug, so it must
+// resolve which tenant a given Stripe customer id belongs to before
+// touching `pool` at all — done via the platform DB's companies.stripe_customer_id
+// mirror (kept in sync by ensureStripeCustomer above), then the rest of the
+// handling runs inside runWithTenant(...) for that one tenant.
 const stripeWebhook = async (req, res) => {
   const stripe = getStripeClient();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -400,25 +438,45 @@ const stripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  const relevantTypes = ['payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_method.updated', 'payment_method.attached'];
+  if (!relevantTypes.includes(event.type)) {
+    return res.json({ received: true });
+  }
+
+  const stripeCustomerId = event.data.object.customer;
+  if (!stripeCustomerId) {
+    return res.json({ received: true });
+  }
+
   try {
-    if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.payment_failed') {
-      const intent = event.data.object;
-      const status = event.type === 'payment_intent.succeeded' ? 'paid' : 'failed';
-      await pool.query(
-        `UPDATE subscription_invoices SET status = $1, paid_at = CASE WHEN $1 = 'paid' THEN now() ELSE paid_at END,
-           failure_reason = CASE WHEN $1 = 'failed' THEN $2 ELSE failure_reason END
-         WHERE stripe_payment_intent_id = $3`,
-        [status, intent.last_payment_error?.message || null, intent.id]
-      );
-    } else if (event.type === 'payment_method.updated' || event.type === 'payment_method.attached') {
-      const pm = event.data.object;
-      const card = pm.card || {};
-      await pool.query(
-        `UPDATE company_settings SET stripe_default_pm_brand = $1, stripe_default_pm_last4 = $2, stripe_default_pm_exp = $3, updated_at = now()
-         WHERE id = 1 AND stripe_default_payment_method_id = $4`,
-        [card.brand || null, card.last4 || null, card.exp_month && card.exp_year ? `${String(card.exp_month).padStart(2, '0')}/${String(card.exp_year).slice(-2)}` : null, pm.id]
-      );
+    const { rows } = await platformPool.query('SELECT tenant_db_name FROM companies WHERE stripe_customer_id = $1', [stripeCustomerId]);
+    const tenantDbName = rows[0]?.tenant_db_name;
+    if (!tenantDbName) {
+      console.error(`Stripe webhook: no tenant found for customer ${stripeCustomerId}`);
+      return res.json({ received: true });
     }
+
+    await runWithTenant(tenantDbName, async () => {
+      if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.payment_failed') {
+        const intent = event.data.object;
+        const status = event.type === 'payment_intent.succeeded' ? 'paid' : 'failed';
+        await pool.query(
+          `UPDATE subscription_invoices SET status = $1, paid_at = CASE WHEN $1 = 'paid' THEN now() ELSE paid_at END,
+             failure_reason = CASE WHEN $1 = 'failed' THEN $2 ELSE failure_reason END
+           WHERE stripe_payment_intent_id = $3`,
+          [status, intent.last_payment_error?.message || null, intent.id]
+        );
+      } else {
+        const pm = event.data.object;
+        const card = pm.card || {};
+        await pool.query(
+          `UPDATE company_settings SET stripe_default_pm_brand = $1, stripe_default_pm_last4 = $2, stripe_default_pm_exp = $3, updated_at = now()
+           WHERE id = 1 AND stripe_default_payment_method_id = $4`,
+          [card.brand || null, card.last4 || null, card.exp_month && card.exp_year ? `${String(card.exp_month).padStart(2, '0')}/${String(card.exp_year).slice(-2)}` : null, pm.id]
+        );
+      }
+    });
+
     res.json({ received: true });
   } catch (error) {
     console.error('Error handling Stripe webhook:', error);

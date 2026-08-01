@@ -19,6 +19,40 @@ const sendPasswordResetEmail = async (toEmail, resetUrl) => {
   });
 };
 
+const sendInviteEmail = async (toEmail, { activateUrl, companyName }) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping account invite email send.');
+    return;
+  }
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: `You've been invited to join ${companyName} on Izaya EIS`,
+    html: `
+      <p>You've been added as a user for <b>${companyName}</b> on Izaya EIS.</p>
+      <p><a href="${activateUrl}">Click here to set up your account</a> and choose your own password. This link expires in 7 days.</p>
+      <p>If you weren't expecting this, you can safely ignore this email.</p>
+    `,
+  });
+};
+
+const sendSignupConfirmationEmail = async (toEmail, { confirmUrl, companyName }) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping signup confirmation email send.');
+    return;
+  }
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: `Confirm your Izaya EIS signup — ${companyName}`,
+    html: `
+      <p>Thanks for signing up ${companyName} for Izaya EIS.</p>
+      <p><a href="${confirmUrl}">Click here to confirm your email</a> and finish setting up your account. Your 15-day free trial starts once you confirm. This link expires in 24 hours.</p>
+      <p>If you didn't request this, you can safely ignore this email.</p>
+    `,
+  });
+};
+
 const sendSessionScheduledEmail = async (toEmail, {
   childName, practitionerName, sessionDate, startTime, endTime, location, icsContent, cancelled,
 }) => {
@@ -58,4 +92,4 @@ const sendSessionScheduledEmail = async (toEmail, {
   });
 };
 
-module.exports = { sendPasswordResetEmail, sendSessionScheduledEmail };
+module.exports = { sendPasswordResetEmail, sendInviteEmail, sendSignupConfirmationEmail, sendSessionScheduledEmail };

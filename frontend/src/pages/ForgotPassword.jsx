@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const ForgotPassword = () => {
+  const [companySlug, setCompanySlug] = useState(() => {
+    try { return localStorage.getItem('companySlug') || ''; } catch { return ''; }
+  });
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -15,7 +18,7 @@ const ForgotPassword = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await api.post('/api/auth/forgot-password', { email });
+      await api.post('/api/auth/forgot-password', { slug: companySlug.trim().toLowerCase(), email });
     } catch {
       // Intentionally ignored — the backend always responds generically either way.
     } finally {
@@ -44,6 +47,21 @@ const ForgotPassword = () => {
             Enter the email address on file and we'll send you a link to reset your password.
           </p>
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="company-slug" className="text-slate-700">Company Code</Label>
+              <Input
+                id="company-slug"
+                type="text"
+                placeholder="your-company"
+                value={companySlug}
+                onChange={(e) => setCompanySlug(e.target.value)}
+                className="w-full h-11 rounded-lg bg-slate-50 border-slate-200 focus-visible:border-cyan-600 focus-visible:ring-cyan-600/40"
+                autoCapitalize="none"
+                autoCorrect="off"
+                required
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-700">Email Address</Label>
               <Input

@@ -23,6 +23,9 @@ export default function Login() {
   // burying it below the sign-in form.
   const arrivedToInstall = searchParams.get("install") === "1";
 
+  const [companySlug, setCompanySlug] = React.useState(() => {
+    try { return localStorage.getItem("companySlug") || ""; } catch { return ""; }
+  });
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -35,8 +38,10 @@ export default function Login() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await api.post<LoginResponse>("/api/auth/login", { email, password });
+      const slug = companySlug.trim().toLowerCase();
+      const res = await api.post<LoginResponse>("/api/auth/login", { slug, email, password });
       if (res.data.success) {
+        try { localStorage.setItem("companySlug", slug); } catch { /* ignore */ }
         clearLogoutBanner();
         login(res.data);
         if (res.data.practitioner.role !== "practitioner") {
@@ -150,6 +155,16 @@ export default function Login() {
             <p>{error}</p>
           </div>
         )}
+
+        <Field id="company-code" label="Company Code">
+          <Input
+            autoCapitalize="none"
+            autoCorrect="off"
+            value={companySlug}
+            onChange={(e) => setCompanySlug(e.target.value)}
+            required
+          />
+        </Field>
 
         <Field id="email" label="Email address">
           <Input

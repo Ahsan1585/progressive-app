@@ -18,6 +18,9 @@ export default function ResetPassword() {
   const tokenFromLink = searchParams.get("token");
   const navigate = useNavigate();
 
+  const [companySlug, setCompanySlug] = React.useState(() => {
+    try { return localStorage.getItem("companySlug") || ""; } catch { return ""; }
+  });
   const [token, setToken] = React.useState(tokenFromLink ?? "");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -51,7 +54,7 @@ export default function ResetPassword() {
 
     setSubmitting(true);
     try {
-      await api.post("/api/auth/reset-password", { token: token.trim(), newPassword });
+      await api.post("/api/auth/reset-password", { slug: companySlug.trim().toLowerCase(), token: token.trim(), newPassword });
       navigate("/login", { replace: true, state: { resetSuccess: true } });
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
@@ -92,6 +95,16 @@ export default function ResetPassword() {
             <p>{error}</p>
           </div>
         )}
+
+        <Field id="company-code" label="Company Code">
+          <Input
+            autoCapitalize="none"
+            autoCorrect="off"
+            value={companySlug}
+            onChange={(e) => setCompanySlug(e.target.value)}
+            required
+          />
+        </Field>
 
         <Field
           id="token"

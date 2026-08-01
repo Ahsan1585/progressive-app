@@ -1,36 +1,27 @@
-const { Pool, types } = require('pg');
 require('dotenv').config();
+const { getCurrentTenantDb } = require('./tenantContext');
+const { getTenantPool } = require('./tenantPoolRegistry');
 
-// pg parses `date` columns into JS Date objects by default. Supabase's
-// PostgREST API always serialized `date` columns as plain "YYYY-MM-DD"
-// strings, and the app's PDF/report generation code throughout
-// (billingController, reportController, patientRoutes, index.js) does
-// string ops (.split('-'), string concatenation) directly on patient_dob/
-// service_date/etc. expecting that format. Returning the raw text instead
-// of a parsed Date restores exact parity without touching every call site.
-types.setTypeParser(types.builtins.DATE, (val) => val);
-
-// On Cloud Run, INSTANCE_UNIX_SOCKET points at the Cloud SQL Auth Proxy's
-// Unix socket (/cloudsql/<INSTANCE_CONNECTION_NAME>), attached via
-// --add-cloudsql-instances. Locally/elsewhere, DATABASE_URL is used instead.
-const pool = process.env.INSTANCE_UNIX_SOCKET
-  ? new Pool({
-      host: process.env.INSTANCE_UNIX_SOCKET,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    })
-  : new Pool({
-      connectionString: process.env.DATABASE_URL,
-      // Local/dev TCP fallback only — the production path is the Cloud SQL Unix
-      // socket above, where the Auth Proxy handles encryption and this branch
-      // isn't used at all. rejectUnauthorized: false accepts the pooled/managed
-      // Postgres provider's cert chain without pinning a CA for local testing.
-      ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : undefined,
-    });
-
-if (!process.env.INSTANCE_UNIX_SOCKET && !process.env.DATABASE_URL) {
-  throw new Error('Missing DATABASE_URL (or INSTANCE_UNIX_SOCKET + DB_USER/DB_PASSWORD/DB_NAME) in .env file');
-}
+// `pool` used to be a single module-level pg.Pool shared by the whole
+// (single-tenant) app. Now every controller still does
+// `const { pool } = require('../config/db')` and calls `pool.query(...)`/
+// `pool.connect()` exactly as before — but this Proxy resolves, on every
+// single property/method access, whichever tenant database is active for
+// the current request (set by tenant-resolution middleware via
+// tenantContext.js's AsyncLocalStorage), and forwards to that tenant's real
+// pg.Pool. This is what makes ~15 existing controllers tenant-aware with
+// zero changes to their query call sites, including the one pool.connect()
+// transaction block in companyController.js — the returned client is a
+// real PoolClient bound to the correct tenant's real Pool.
+const pool = new Proxy(
+  {},
+  {
+    get(_target, prop) {
+      const real = getTenantPool(getCurrentTenantDb());
+      const val = real[prop];
+      return typeof val === 'function' ? val.bind(real) : val;
+    },
+  }
+);
 
 module.exports = { pool };

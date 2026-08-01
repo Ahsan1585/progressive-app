@@ -3,6 +3,7 @@ const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
 const { protect, requireRole } = require('../middleware/authMiddleware');
+const { resolveTenantBySlug } = require('../middleware/tenantMiddleware');
 
 // Throttle login attempts to slow brute-force / credential-stuffing (HIPAA §164.308(a)(5))
 const loginLimiter = rateLimit({
@@ -24,6 +25,9 @@ const forgotPasswordLimiter = rateLimit({
 
 const {
   provisionPractitioner,
+  activateAccount,
+  getCompanyDisplayName,
+  getCompanyStatus,
   loginPractitioner,
   changeTemporaryPassword,
   forgotPassword,
@@ -35,6 +39,16 @@ const {
   reactivateStaffMember,
   reviewContactUpdate
 } = require('../controllers/authController');
+
+// Throttle account activation attempts the same way as login/reset —
+// prevents brute-forcing an invite/activation token.
+const activateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+});
 
 // ==========================================
 // --- ADMIN ROUTES ---
@@ -69,11 +83,20 @@ router.post('/staff/:id/contact-request', protect, requireRole(['ceo', 'staff_di
 // --- PRACTITIONER ROUTES ---
 // ==========================================
 
-router.post('/login', loginLimiter, loginPractitioner);
+// All three of these are unauthenticated (no JWT exists yet) but tenant-
+// scoped by company slug — resolveTenantBySlug reads req.body.slug and
+// sets the AsyncLocalStorage tenant context before the controller runs.
+router.post('/login', loginLimiter, resolveTenantBySlug, loginPractitioner);
+router.post('/forgot-password', forgotPasswordLimiter, resolveTenantBySlug, forgotPassword);
+router.post('/reset-password', resolveTenantBySlug, resetPassword);
 
-router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
-router.post('/reset-password', resetPassword);
+// Invite-link account activation — tenant resolved from the URL's company
+// slug segment instead of the request body, so the invitee never has to
+// know or type a company code themselves.
+router.post('/:companySlug/activate/:token', activateLimiter, resolveTenantBySlug, activateAccount);
+router.get('/:companySlug/company-name', getCompanyDisplayName);
 
 router.post('/change-password', protect, changeTemporaryPassword);
+router.get('/company-status', protect, getCompanyStatus);
 
 module.exports = router;
