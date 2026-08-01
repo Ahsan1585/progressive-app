@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { protect, requireRole } = require('../middleware/authMiddleware');
+const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
 const {
   generateMasterReport,
   getPendingReports,
@@ -13,7 +13,7 @@ const {
   issueInvoiceOverride
 } = require('../controllers/reportController');
 
-const ceoGuard = [protect, requireRole(['ceo'])];
+const ceoGuard = [protect, loadPermissions, requirePermission('master_reports')];
 
 router.post('/generate',           ...ceoGuard, generateMasterReport);
 router.get('/pending',             ...ceoGuard, getPendingReports);

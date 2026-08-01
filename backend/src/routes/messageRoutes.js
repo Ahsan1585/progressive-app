@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
-const { protect, requireRole } = require('../middleware/authMiddleware');
+const { protect, loadPermissions, requireOfficeStaff } = require('../middleware/authMiddleware');
 const { getThreads, getThread, postMessage, getUnreadCount } = require('../controllers/messageController');
 
-const officeGuard = [protect, requireRole(['ceo', 'staff_director', 'billing', 'account_specialist'])];
+const officeGuard = [protect, loadPermissions, requireOfficeStaff];
 
 router.get('/threads', ...officeGuard, getThreads);
 router.get('/unread-count', protect, getUnreadCount);

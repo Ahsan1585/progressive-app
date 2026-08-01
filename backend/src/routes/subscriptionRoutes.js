@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { protect, requireRole } = require('../middleware/authMiddleware');
+const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
 const {
   getConfig,
   getSummary,
@@ -18,7 +18,7 @@ const {
 
 // Admin-only, same as Company Information — this is what the agency owes
 // Izaya, not a practitioner-facing concern.
-const ceoOnly = [protect, requireRole(['ceo'])];
+const ceoOnly = [protect, loadPermissions, requirePermission('subscription_billing')];
 
 router.get('/config', ...ceoOnly, getConfig);
 router.get('/summary', ...ceoOnly, getSummary);

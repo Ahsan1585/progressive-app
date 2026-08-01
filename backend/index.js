@@ -398,7 +398,7 @@ app.get('/api/reports/practitioner/njeis-form', protect, async (req, res) => {
 // --- ADMIN PDF ROUTE ---
 // =========================================================================
 
-app.get('/api/admin/reports/njeis-form', protect, requireRole(['ceo', 'staff_director']), async (req, res) => {
+app.get('/api/admin/reports/njeis-form', protect, loadPermissions, requirePermission('master_reports'), async (req, res) => {
   try {
     const { type, value } = req.query;
 

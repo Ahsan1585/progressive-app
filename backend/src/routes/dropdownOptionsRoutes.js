@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { protect, requireRole } = require('../middleware/authMiddleware');
+const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
 const {
   getDropdownOptions,
   createDropdownOption,
@@ -15,7 +15,7 @@ const {
 router.get('/', protect, getDropdownOptions);
 
 // Write: 'ceo' only, mirrors the Company Information tab itself being ceo-only.
-const writeGuard = [protect, requireRole(['ceo'])];
+const writeGuard = [protect, loadPermissions, requirePermission('company_info_dropdown_options')];
 router.post('/', ...writeGuard, createDropdownOption);
 router.put('/:id', ...writeGuard, updateDropdownOption);
 router.delete('/:id', ...writeGuard, deactivateDropdownOption);
