@@ -7,10 +7,12 @@ import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm'
 import { CompanySettings } from '@/components/CompanySettings';
 import { SubscriptionBilling } from '@/components/SubscriptionBilling';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
+import { ActionRequired } from '@/components/ActionRequired';
 import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
+  actionRequired: ['ceo'],
   practitioners: ['ceo', 'staff_director', 'account_specialist'],
   reports:       ['ceo'],
   billing:       ['ceo', 'billing', 'account_specialist'],
@@ -20,6 +22,7 @@ const TAB_ACCESS = {
 };
 
 const TAB_TITLES = {
+  actionRequired: 'Action Required',
   practitioners: 'Staff Directory',
   reports:       'Master Reports',
   billing:       'Billing & Invoices',
@@ -76,6 +79,12 @@ const AdminDashboard = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'actionRequired':
+        return (
+          <div className="max-w-5xl mx-auto w-full">
+            <ActionRequired />
+          </div>
+        );
       case 'billing':
         return (
           <div className="max-w-6xl mx-auto w-full">
@@ -169,6 +178,22 @@ const AdminDashboard = () => {
         </div>
 
         <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+
+          {visibleTabs.includes('actionRequired') && (
+            <button
+              onClick={() => { setActiveTab('actionRequired'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                activeTab === 'actionRequired'
+                  ? 'bg-orange-50 text-orange-700 border border-orange-100'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Action Required
+            </button>
+          )}
 
           {visibleTabs.includes('practitioners') && (
             <button

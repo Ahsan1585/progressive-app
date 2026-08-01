@@ -646,12 +646,11 @@ const updateLogStatus = async (req, res) => {
       }
       // "Missing in EIMS" (no matching state record at all) is a distinct,
       // higher-stakes gap than a field-level mismatch — there's nothing to
-      // "Allow" against, so it needs an explicit admin sign-off instead
-      // (POST /compliance-analysis/approve-missing, ceo-only) before ANY
-      // role, including ceo, can approve the log itself. Keeps the
-      // sign-off and the approval as two separate, auditable actions.
-      if (compliance.documentOnFile && !compliance.matched && !compliance.eimsMissingApprovedAt) {
-        return res.status(400).json({ error: 'This log has no matching record in the state document — an admin must approve it under Compliance Analysis before it can be approved.' });
+      // "Allow" against, so it needs the full send-to-admin workflow
+      // (sendMissingToAdmin -> ceo's Action Required queue -> decideMissingInEims)
+      // before ANY role, including ceo, can approve the log itself.
+      if (compliance.documentOnFile && !compliance.matched && compliance.eimsMissingStatus !== 'approved') {
+        return res.status(400).json({ error: 'This log has no matching record in the state document — send it to an admin for approval under Compliance Analysis before it can be approved.' });
       }
     }
 
@@ -1246,7 +1245,7 @@ const getComplianceAnalysis = async (req, res) => {
              group_size_category, patient_first_name, patient_last_name,
              practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
              assessments.status, practitioner_discipline, patient_dob, patient_county,
-             eims_missing_approved_at
+             eims_missing_status
       FROM assessments
       LEFT JOIN patients ON patients.id = assessments.patient_id
       WHERE assessments.practitioner_id = $1 AND billing_status != 'declined'
@@ -1341,7 +1340,7 @@ const getComplianceAnalysis = async (req, res) => {
           ifsp_event_id: match.ifsp_event_id,
         } : null,
         fields,
-        eimsMissingApprovedAt: session.eims_missing_approved_at || null,
+        eimsMissingStatus: session.eims_missing_status || null,
       };
     }
 
@@ -1399,7 +1398,7 @@ async function computeSessionCompliance(assessmentId) {
             group_size_category, patient_first_name, patient_last_name,
             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
             assessments.status, practitioner_discipline, patient_dob, patient_county,
-            eims_missing_approved_at
+            eims_missing_status
      FROM assessments
      LEFT JOIN patients ON patients.id = assessments.patient_id
      WHERE assessments.id = $1`,
@@ -1429,7 +1428,7 @@ async function computeSessionCompliance(assessmentId) {
 
   const fields = buildFieldsForSession(session, match, { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey });
   const flagged = fields.some((f) => f.match === false);
-  return { matched: !!match, flagged, fields, documentOnFile: true, eimsMissingApprovedAt: session.eims_missing_approved_at || null };
+  return { matched: !!match, flagged, fields, documentOnFile: true, eimsMissingStatus: session.eims_missing_status || null };
 }
 
 // --- 10. Fetch logs for a completed vault entry (by practitioner name + date range) ---
@@ -1722,29 +1721,141 @@ const unlockPractitioner = async (req, res) => {
   }
 };
 
-// Admin-only sign-off for a "Missing in EIMS" log (no matching state record
-// at all) — a separate, ceo-gated action from the per-field Allow flow,
-// required before ANYONE (including ceo) can approve the log itself via
-// updateLogStatus. Re-derives `matched` itself rather than trusting the
-// client, same reasoning as allowComplianceField.
-const approveMissingInEims = async (req, res) => {
-  const { assessmentId } = req.body;
+// Lightweight single-session compliance status, used by SessionDetailPanel
+// (the Session Detail tab) to gate its own Approve button the same way the
+// Compliance Analysis tab does, without needing the whole batch's `analysis`
+// state lifted or re-fetched there.
+const getSessionComplianceStatus = async (req, res) => {
+  const { assessmentId } = req.query;
+  if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
+  try {
+    const compliance = await computeSessionCompliance(assessmentId);
+    res.json({
+      success: true,
+      documentOnFile: compliance.documentOnFile,
+      matched: compliance.matched,
+      flagged: compliance.flagged,
+      eimsMissingStatus: compliance.eimsMissingStatus || null,
+    });
+  } catch (error) {
+    console.error('Error fetching session compliance status:', error);
+    res.status(500).json({ error: 'Failed to fetch compliance status' });
+  }
+};
+
+// Billing sends a "Missing in EIMS" log to an admin for review instead of
+// being able to approve it directly — step 1 of the send-to-admin workflow.
+// An optional note goes into the same assessment_notes thread every other
+// log comment uses, so it shows up wherever those already surface (the
+// notes icon in the queue, Master Reports' notes modal).
+const sendMissingToAdmin = async (req, res) => {
+  const { assessmentId, note } = req.body;
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
   try {
     const compliance = await computeSessionCompliance(assessmentId);
     if (compliance.matched) {
-      return res.status(400).json({ error: 'This log has a matching state record — admin approval is not required.' });
+      return res.status(400).json({ error: 'This log has a matching state record — it doesn\'t need admin review.' });
     }
+    if (compliance.eimsMissingStatus === 'sent_to_admin') {
+      return res.status(400).json({ error: 'This log has already been sent to an admin for review.' });
+    }
+
     await pool.query(
-      'UPDATE assessments SET eims_missing_approved_by = $1, eims_missing_approved_at = now() WHERE id = $2',
+      `UPDATE assessments
+       SET eims_missing_status = 'sent_to_admin', eims_missing_sent_by = $1, eims_missing_sent_at = now(),
+           eims_missing_decided_by = NULL, eims_missing_decided_at = NULL
+       WHERE id = $2`,
       [req.practitioner.practitionerId, assessmentId]
     );
-    logAudit({ req, action: 'missing_in_eims_admin_approved', resourceType: 'assessment', resourceId: assessmentId });
+    if (note && note.trim()) {
+      await pool.query(
+        `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+         VALUES ($1, $2, $3, $4)`,
+        [assessmentId, req.practitioner.practitionerId, req.practitioner.role, note.trim()]
+      );
+    }
+    logAudit({ req, action: 'missing_in_eims_sent_to_admin', resourceType: 'assessment', resourceId: assessmentId });
     res.json({ success: true });
   } catch (error) {
-    console.error('Error approving missing-in-EIMS log:', error);
-    res.status(500).json({ error: 'Failed to approve log' });
+    console.error('Error sending missing-in-EIMS log to admin:', error);
+    res.status(500).json({ error: 'Failed to send log to admin' });
+  }
+};
+
+// Ceo's "Action Required" queue — every log currently awaiting an admin
+// decision, across all practitioners, newest-sent first.
+const getActionRequiredLogs = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.id, a.service_date, a.type, a.location, a.status, a.total_time,
+              a.patient_first_name, a.patient_last_name,
+              a.practitioner_first_name, a.practitioner_last_name,
+              a.eims_missing_sent_at,
+              sender.first_name AS sent_by_first_name, sender.last_name AS sent_by_last_name
+       FROM assessments a
+       LEFT JOIN practitioners sender ON sender.id = a.eims_missing_sent_by
+       WHERE a.eims_missing_status = 'sent_to_admin'
+       ORDER BY a.eims_missing_sent_at ASC`
+    );
+    res.json({ success: true, logs: rows });
+  } catch (error) {
+    console.error('Error fetching action-required logs:', error);
+    res.status(500).json({ error: 'Failed to fetch action-required logs' });
+  }
+};
+
+// Ceo approves or rejects a "Missing in EIMS" log — step 2 (final) of the
+// send-to-admin workflow. A comment is mandatory either way: approving
+// without saying why defeats the point of a review step, and rejecting
+// needs a reason for the practitioner/billing to see. The comment always
+// goes into the same assessment_notes thread as every other log comment.
+// A reject also declines the log outright (mirrors rejectLog's permanent-
+// reject path) — an admin-rejected "missing in EIMS" log was never going to
+// become billable, so there's nothing left to leave it pending for.
+const decideMissingInEims = async (req, res) => {
+  const { assessmentId, decision, comment } = req.body;
+  if (!assessmentId || !['approved', 'rejected'].includes(decision)) {
+    return res.status(400).json({ error: 'assessmentId and a valid decision (approved | rejected) are required' });
+  }
+  if (!comment?.trim()) {
+    return res.status(400).json({ error: 'A comment is required to approve or reject this log.' });
+  }
+
+  try {
+    const compliance = await computeSessionCompliance(assessmentId);
+    if (compliance.matched) {
+      return res.status(400).json({ error: 'This log has a matching state record — it doesn\'t need admin review.' });
+    }
+
+    await pool.query(
+      `UPDATE assessments
+       SET eims_missing_status = $1, eims_missing_decided_by = $2, eims_missing_decided_at = now()
+       WHERE id = $3`,
+      [decision, req.practitioner.practitionerId, assessmentId]
+    );
+
+    if (decision === 'rejected') {
+      const { rows: currentRows } = await pool.query('SELECT rejection_count FROM assessments WHERE id = $1', [assessmentId]);
+      await pool.query(
+        `UPDATE assessments
+         SET billing_status = 'declined', billing_review = 'reject', rejection_note = $1, rejected_at = now(), rejection_count = $2
+         WHERE id = $3`,
+        [comment.trim(), (currentRows[0]?.rejection_count || 0) + 1, assessmentId]
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+       VALUES ($1, $2, $3, $4)`,
+      [assessmentId, req.practitioner.practitionerId, req.practitioner.role, comment.trim()]
+    );
+
+    logAudit({ req, action: `missing_in_eims_${decision}`, resourceType: 'assessment', resourceId: assessmentId, details: { comment: comment.trim() } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deciding missing-in-EIMS log:', error);
+    res.status(500).json({ error: 'Failed to record decision' });
   }
 };
 
@@ -1772,6 +1883,9 @@ module.exports = {
   lockPractitioner,
   unlockPractitioner,
   computeSessionCompliance,
-  approveMissingInEims,
+  getSessionComplianceStatus,
+  sendMissingToAdmin,
+  getActionRequiredLogs,
+  decideMissingInEims,
   LEARNABLE_COMPLIANCE_FIELDS,
 };

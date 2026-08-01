@@ -455,7 +455,6 @@ export const BillingBatchReview = ({
                 handleHold={wrappedHold}
                 handleReleaseHold={wrappedReleaseHold}
                 handleInlineReturnReject={wrappedInlineReturnReject}
-                isAdmin={isAdmin}
               />
             ) : detailTab === 'matching' ? (
               <ComplianceMatchingSettings isAdmin={isAdmin} />
@@ -707,6 +706,24 @@ function SessionDetailPanel({
   const [pendingAction, setPendingAction] = useState(null); // 'return' | 'reject' | null
   useEffect(() => { setPendingAction(null); }, [session.id]);
 
+  // Mirrors the Compliance Analysis tab's Approve gate here too, since this
+  // panel has its own independent Approve button — fetched per-session
+  // rather than lifting the whole batch's `analysis` state, since this
+  // panel only ever needs one session's status at a time.
+  const [complianceStatus, setComplianceStatus] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/api/billing/compliance-analysis/session-status', { params: { assessmentId: session.id } })
+      .then((res) => { if (!cancelled) setComplianceStatus(res.data); })
+      .catch(() => { if (!cancelled) setComplianceStatus(null); });
+    return () => { cancelled = true; };
+  }, [session.id]);
+  const complianceBlockReason = !complianceStatus?.documentOnFile ? null
+    : complianceStatus.flagged ? 'This log has flagged compliance fields — resolve them under Compliance Analysis before approving.'
+    : (!complianceStatus.matched && complianceStatus.eimsMissingStatus !== 'approved')
+      ? 'This log has no matching record in the state document — send it to an admin for approval under Compliance Analysis before approving.'
+      : null;
+
   return (
     <div className="max-w-2xl">
       <div className="text-sm font-bold uppercase tracking-wide text-blue-600 mb-1.5">
@@ -770,6 +787,12 @@ function SessionDetailPanel({
           <PlayCircle className="size-4" /> Release from Hold
         </Button>
       ) : (
+        <>
+        {!isApproved && complianceBlockReason && (
+          <div className="flex items-center gap-2 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
+            <Ban className="size-3.5 flex-shrink-0" /> {complianceBlockReason}
+          </div>
+        )}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <ActionButton
             label={isApproved ? 'Approved' : 'Approve'} active={isApproved} tone="emerald"
@@ -778,6 +801,8 @@ function SessionDetailPanel({
               if (isApproved) {
                 setLogActions(prev => ({ ...prev, [session.id]: '' }));
                 handleResetToPending(session, practitionerId);
+              } else if (complianceBlockReason) {
+                showAlert(complianceBlockReason);
               } else {
                 setLogActions(prev => ({ ...prev, [session.id]: 'accept' }));
                 handleAccept(session, practitionerId);
@@ -800,6 +825,7 @@ function SessionDetailPanel({
             onClick={() => handleHold(session, practitionerId)}
           />
         </div>
+        </>
       )}
 
       <CommentThread
@@ -1132,7 +1158,6 @@ function ComplianceMatchingSettings({ isAdmin }) {
 function ComplianceAnalysisPreview({
   sessions, practitioner, practitionerId, periodStart, periodEnd, logActions,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleInlineReturnReject,
-  isAdmin,
 }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
   // { session, practitionerId, type: 'return'|'reject' } | null — the popup
@@ -1148,7 +1173,9 @@ function ComplianceAnalysisPreview({
   const [analysisError, setAnalysisError] = useState(null);
   const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged' | 'missing'
   const [allowingKey, setAllowingKey] = useState(null); // `${sessionId}:${fieldKey}` currently in flight
-  const [approvingMissingId, setApprovingMissingId] = useState(null); // sessionId currently in flight
+  const [sendToAdminTarget, setSendToAdminTarget] = useState(null); // sessionId with its inline note box open
+  const [sendToAdminNote, setSendToAdminNote] = useState('');
+  const [isSendingToAdmin, setIsSendingToAdmin] = useState(false);
 
   // Billing confirms a flagged field is actually fine — clears it for this
   // log (and, for the 5 learnable fields, teaches the system the pairing so
@@ -1186,28 +1213,30 @@ function ComplianceAnalysisPreview({
     }
   };
 
-  // Admin-only sign-off for a log with no matching state record at all
-  // ("Missing in EIMS") — a distinct, higher-stakes gap than a field-level
-  // mismatch (there's nothing to "Allow" against), so it's gated to ceo and
-  // required before ANYONE, including ceo, can approve the log itself.
-  const handleApproveMissing = async (sessionId) => {
-    if (!(await showConfirm('This log has no matching record in the state document. Confirm as an admin that it should still be allowed into the billing approval queue?'))) return;
-    setApprovingMissingId(sessionId);
+  // Step 1 of the send-to-admin workflow for a log with no matching state
+  // record at all ("Missing in EIMS") — billing can't approve this
+  // themselves (there's nothing to "Allow" against), so they hand it off to
+  // an admin, optionally with a note, instead. The admin then approves or
+  // rejects it (with a required comment) from their Action Required queue.
+  const handleSendMissingToAdmin = async (sessionId) => {
+    setIsSendingToAdmin(true);
     try {
-      await api.post('/api/billing/compliance-analysis/approve-missing', { assessmentId: sessionId });
+      await api.post('/api/billing/compliance-analysis/send-missing-to-admin', { assessmentId: sessionId, note: sendToAdminNote.trim() || undefined });
       setAnalysis((prev) => {
         if (!prev) return prev;
         const prevResult = prev.results[sessionId];
         if (!prevResult) return prev;
         return {
           ...prev,
-          results: { ...prev.results, [sessionId]: { ...prevResult, eimsMissingApprovedAt: new Date().toISOString() } },
+          results: { ...prev.results, [sessionId]: { ...prevResult, eimsMissingStatus: 'sent_to_admin' } },
         };
       });
+      setSendToAdminTarget(null);
+      setSendToAdminNote('');
     } catch (error) {
-      showAlert(error.response?.data?.error || 'Failed to approve this log.');
+      showAlert(error.response?.data?.error || 'Failed to send this log to an admin.');
     } finally {
-      setApprovingMissingId(null);
+      setIsSendingToAdmin(false);
     }
   };
 
@@ -1253,8 +1282,8 @@ function ComplianceAnalysisPreview({
       showAlert("This log has flagged compliance fields — click \"Allow\" on each flagged field below before approving.");
       return;
     }
-    if (value === 'accept' && analysis?.documentOnFile && !analysis?.results?.[session.id]?.matched && !analysis?.results?.[session.id]?.duplicateOfSessionId && !analysis?.results?.[session.id]?.eimsMissingApprovedAt) {
-      showAlert("This log has no matching record in the state document — an admin must click \"Admin Approve\" below before it can be approved.");
+    if (value === 'accept' && analysis?.documentOnFile && !analysis?.results?.[session.id]?.matched && !analysis?.results?.[session.id]?.duplicateOfSessionId && analysis?.results?.[session.id]?.eimsMissingStatus !== 'approved') {
+      showAlert("This log has no matching record in the state document — send it to an admin for approval below before it can be approved.");
       return;
     }
     if (value === 'return' || value === 'reject') {
@@ -1540,21 +1569,24 @@ function ComplianceAnalysisPreview({
                     )
                   )}
                   {isMissing && (
-                    sessionResult.eimsMissingApprovedAt ? (
+                    sessionResult.eimsMissingStatus === 'approved' ? (
                       <span className="flex items-center gap-1 text-xs font-bold text-amber-700">
                         <CheckCircle2 className="size-3.5" /> Admin Approved
                       </span>
-                    ) : isAdmin ? (
+                    ) : sessionResult.eimsMissingStatus === 'rejected' ? (
+                      <span className="flex items-center gap-1 text-xs font-bold text-red-700">
+                        <X className="size-3.5" /> Admin Rejected
+                      </span>
+                    ) : sessionResult.eimsMissingStatus === 'sent_to_admin' ? (
+                      <span className="text-xs font-semibold text-slate-500">Awaiting Admin Review</span>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => handleApproveMissing(s.id)}
-                        disabled={approvingMissingId === s.id}
-                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => { setSendToAdminTarget(s.id); setSendToAdminNote(''); }}
+                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 transition-colors"
                       >
-                        {approvingMissingId === s.id ? 'Approving…' : 'Admin Approve'}
+                        Send to Admin for Approval
                       </button>
-                    ) : (
-                      <span className="text-xs font-semibold text-slate-400">Requires admin approval</span>
                     )
                   )}
                 </div>
@@ -1708,6 +1740,35 @@ function ComplianceAnalysisPreview({
                       className={`cursor-pointer text-white ${pendingNoteAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
                     >
                       {isSubmittingNote ? 'Sending...' : pendingNoteAction.type === 'reject' ? 'Confirm Reject' : 'Confirm Return'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {sendToAdminTarget === s.id && (
+                <div className="border-t px-4 py-3 space-y-2 bg-amber-50/60 border-amber-200">
+                  <p className="text-xs font-semibold text-amber-700">
+                    Sending this log to an admin for review — add a note if it'll help them decide (optional).
+                  </p>
+                  <Textarea
+                    autoFocus
+                    placeholder="Any context for the admin..."
+                    value={sendToAdminNote}
+                    onChange={(e) => setSendToAdminNote(e.target.value)}
+                    className="bg-white min-h-[80px]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={() => setSendToAdminTarget(null)} className="cursor-pointer">
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleSendMissingToAdmin(s.id)}
+                      disabled={isSendingToAdmin}
+                      className="cursor-pointer text-white bg-amber-600 hover:bg-amber-700"
+                    >
+                      {isSendingToAdmin ? 'Sending...' : 'Send to Admin'}
                     </Button>
                   </div>
                 </div>

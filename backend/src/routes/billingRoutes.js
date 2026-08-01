@@ -26,7 +26,10 @@ const {
   markBatchPaid,
   lockPractitioner,
   unlockPractitioner,
-  approveMissingInEims
+  getSessionComplianceStatus,
+  sendMissingToAdmin,
+  getActionRequiredLogs,
+  decideMissingInEims
 } = require('../controllers/billingController');
 const {
   allowComplianceField,
@@ -59,9 +62,13 @@ router.delete('/compliance-learned-matches/:id', ...billingGuard, deleteLearnedM
 // Strictness itself (unlike viewing it or allowing/learning matches) is a
 // ceo-only policy lever — mirrors every other Company Information write.
 router.put('/compliance-strictness', protect, requireRole(['ceo']), updateComplianceStrictness);
-// Missing-in-EIMS sign-off is a distinct admin gate from allow-field —
-// ceo-only, mirrors the strictness lever above.
-router.post('/compliance-analysis/approve-missing', protect, requireRole(['ceo']), approveMissingInEims);
+router.get('/compliance-analysis/session-status', ...billingGuard, getSessionComplianceStatus);
+// Missing-in-EIMS send-to-admin workflow: billing/ceo can send it (step 1),
+// but only ceo sees the queue and can decide it (step 2) — mirrors the
+// strictness lever above.
+router.post('/compliance-analysis/send-missing-to-admin', ...billingGuard, sendMissingToAdmin);
+router.get('/action-required', protect, requireRole(['ceo']), getActionRequiredLogs);
+router.post('/action-required/decide', protect, requireRole(['ceo']), decideMissingInEims);
 router.patch('/log-status',      ...billingGuard, updateLogStatus);
 router.post('/reject-log',       ...billingGuard, rejectLog);
 router.post('/reconcile-log',    ...billingGuard, reconcileLog);
