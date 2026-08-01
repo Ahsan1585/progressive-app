@@ -1231,9 +1231,7 @@ function ComplianceAnalysisPreview({
   const [analysisError, setAnalysisError] = useState(null);
   const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged' | 'missing'
   const [allowingKey, setAllowingKey] = useState(null); // `${sessionId}:${fieldKey}` currently in flight
-  const [sendToAdminTarget, setSendToAdminTarget] = useState(null); // sessionId with its inline note box open
-  const [sendToAdminNote, setSendToAdminNote] = useState('');
-  const [isSendingToAdmin, setIsSendingToAdmin] = useState(false);
+  const [isSendingToAdmin, setIsSendingToAdmin] = useState(null); // sessionId currently in flight
   const [adminDecideTarget, setAdminDecideTarget] = useState(null); // sessionId with its admin decide box open
   const [adminDecideComment, setAdminDecideComment] = useState('');
   const [isDecidingMissing, setIsDecidingMissing] = useState(false);
@@ -1277,12 +1275,16 @@ function ComplianceAnalysisPreview({
   // Step 1 of the send-to-admin workflow for a log with no matching state
   // record at all ("Missing in EIMS") — billing can't approve this
   // themselves (there's nothing to "Allow" against), so they hand it off to
-  // an admin, optionally with a note, instead. The admin then approves or
-  // rejects it (with a required comment) from their Action Required queue.
+  // an admin instead. Single click + confirm, not a two-step "open a note
+  // box, then click a second Send button" flow — that shape read as one
+  // action but silently required a second click nobody noticed, so the
+  // request never fired. Billing can still leave context via the log's
+  // regular comment thread below if they want to.
   const handleSendMissingToAdmin = async (sessionId) => {
-    setIsSendingToAdmin(true);
+    if (!(await showConfirm('Send this log to an admin for approval? It has no matching record in the state document.'))) return;
+    setIsSendingToAdmin(sessionId);
     try {
-      await api.post('/api/billing/compliance-analysis/send-missing-to-admin', { assessmentId: sessionId, note: sendToAdminNote.trim() || undefined });
+      await api.post('/api/billing/compliance-analysis/send-missing-to-admin', { assessmentId: sessionId });
       setAnalysis((prev) => {
         if (!prev) return prev;
         const prevResult = prev.results[sessionId];
@@ -1292,12 +1294,10 @@ function ComplianceAnalysisPreview({
           results: { ...prev.results, [sessionId]: { ...prevResult, eimsMissingStatus: 'sent_to_admin' } },
         };
       });
-      setSendToAdminTarget(null);
-      setSendToAdminNote('');
     } catch (error) {
       showAlert(error.response?.data?.error || 'Failed to send this log to an admin.');
     } finally {
-      setIsSendingToAdmin(false);
+      setIsSendingToAdmin(null);
     }
   };
 
@@ -1686,10 +1686,11 @@ function ComplianceAnalysisPreview({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => { setSendToAdminTarget(s.id); setSendToAdminNote(''); }}
-                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 transition-colors"
+                        onClick={() => handleSendMissingToAdmin(s.id)}
+                        disabled={isSendingToAdmin === s.id}
+                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                       >
-                        Send to Admin for Approval
+                        {isSendingToAdmin === s.id ? 'Sending...' : 'Send to Admin for Approval'}
                       </button>
                     )
                   )}
@@ -1849,34 +1850,6 @@ function ComplianceAnalysisPreview({
                 </div>
               )}
 
-              {sendToAdminTarget === s.id && (
-                <div className="border-t px-4 py-3 space-y-2 bg-amber-50/60 border-amber-200">
-                  <p className="text-xs font-semibold text-amber-700">
-                    Sending this log to an admin for review — add a note if it'll help them decide (optional).
-                  </p>
-                  <Textarea
-                    autoFocus
-                    placeholder="Any context for the admin..."
-                    value={sendToAdminNote}
-                    onChange={(e) => setSendToAdminNote(e.target.value)}
-                    className="bg-white min-h-[80px]"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" size="sm" variant="outline" onClick={() => setSendToAdminTarget(null)} className="cursor-pointer">
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => handleSendMissingToAdmin(s.id)}
-                      disabled={isSendingToAdmin}
-                      className="cursor-pointer text-white bg-amber-600 hover:bg-amber-700"
-                    >
-                      {isSendingToAdmin ? 'Sending...' : 'Send to Admin'}
-                    </Button>
-                  </div>
-                </div>
-              )}
 
               {adminDecideTarget === s.id && (
                 <div className="border-t px-4 py-3 space-y-2 bg-orange-50/60 border-orange-200">
