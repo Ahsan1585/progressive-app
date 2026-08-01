@@ -29,6 +29,7 @@ const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
 const { loadDropdownOptionsCache } = require('./src/constants/dropdownOptionsCache');
+const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -546,6 +547,17 @@ runMigrations()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+
+      // Subscription invoice lifecycle sweep (pending/failed -> overdue past
+      // the 15th-of-next-month due date) — runs on its own here so it isn't
+      // dependent on a ceo happening to load the Subscription & Billing page
+      // or Cloud Scheduler being separately configured. Fires once at boot
+      // (covers every deploy/cold-start) and every 6 hours thereafter for as
+      // long as this instance stays warm; harmless/idempotent to re-run.
+      markOverdueInvoices().catch((err) => console.error('Startup overdue-invoice sweep failed:', err));
+      setInterval(() => {
+        markOverdueInvoices().catch((err) => console.error('Scheduled overdue-invoice sweep failed:', err));
+      }, 6 * 60 * 60 * 1000);
     });
   })
   .catch((err) => {
