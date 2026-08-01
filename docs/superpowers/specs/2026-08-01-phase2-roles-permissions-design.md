@@ -93,6 +93,13 @@ For every existing tenant (just Progressive today) and baked into the same per-t
 1. Create the `roles` / `role_permissions` tables.
 2. Seed one `is_system = true` "Admin" row (no explicit `role_permissions` rows needed — Admin's "all permissions" comes from the `is_system` flag, not enumeration, so the catalog can grow later without a migration).
 3. Seed the 4 prebuilt labels (Account Specialist, Billing Specialist, Program Coordinator, Staff Director) each with only `staff_directory_view` — BUT for the existing Progressive tenant specifically, backfill each seeded role's permissions to **match what that role could already do today** (i.e., migrate existing `staff_director`/`billing`/`account_specialist` accounts onto equivalent permission sets derived from today's `requireRole` guards), so the cutover is behavior-preserving and no existing staff member's access silently narrows the moment this deploys. Brand-new tenants signing up after this phase ships get the true minimal default.
+
+   Concrete mapping for Progressive's 3 existing office roles, derived directly from today's `requireRole` guards (no manual reconfiguration needed at cutover):
+   - **Staff Director** → `staff_directory_view`, `staff_directory_edit`, `staff_directory_edit_role`, `register_new_user`
+   - **Billing** → `billing_pending`, `billing_completed`, `billing_invoice_status`
+   - **Account Specialist** → `staff_directory_view`, `staff_directory_edit`, `register_new_user`, `billing_pending`, `billing_completed`, `billing_invoice_status`
+
+   Every existing practitioner row's `role` value maps onto the corresponding seeded role automatically; no Progressive staff member's access changes at deploy time.
 4. Backfill every existing practitioner row's `role_id` to point at the matching seeded role (by their current `role` value), and update their `role` text column to `'ceo'` (unchanged), `'practitioner'` (unchanged), or `'staff'` (for the 3 old fine-grained values).
 5. New signups (`signupController.js`'s `confirmSignup`) seed the same Admin + 4-prebuilt-with-minimal-default set as step 2/3 (minus the Progressive-specific backfill in step 3), so every new company starts from the same clean slate.
 
