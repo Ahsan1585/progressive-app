@@ -6,6 +6,7 @@ const { platformPool } = require('../config/platformDb');
 const { getProvisioningPool } = require('../config/provisioningDb');
 const { getTenantPool, evictTenantPool } = require('../config/tenantPoolRegistry');
 const { applyMigrationsToPool } = require('../config/runMigrations');
+const { PREBUILT_ROLE_NAMES } = require('../constants/permissions');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { sendSignupConfirmationEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
@@ -152,10 +153,32 @@ const confirmSignup = async (req, res) => {
          address = EXCLUDED.address, phone = EXCLUDED.phone, billing_email = EXCLUDED.billing_email`,
       [pending.display_name, pending.legal_entity_name, pending.address, pending.phone, pending.email]
     );
+
+    // Seed the Admin role + 4 prebuilt roles for this new tenant. The
+    // migrations applied above (applyMigrationsToPool, including
+    // add_roles_permissions.sql) already seed these same rows via
+    // `WHERE NOT EXISTS` guards, so this must reuse those same guards
+    // rather than bare INSERTs — otherwise this would throw a duplicate-key
+    // error on every single new signup.
+    const { rows: adminRoleRows } = await tenantPool.query(
+      `INSERT INTO roles (name, is_system) SELECT 'Admin', true WHERE NOT EXISTS (SELECT 1 FROM roles WHERE is_system = true) RETURNING id`
+    );
+    let adminRoleId = adminRoleRows[0]?.id;
+    if (!adminRoleId) {
+      const { rows } = await tenantPool.query('SELECT id FROM roles WHERE is_system = true');
+      adminRoleId = rows[0].id;
+    }
+    for (const roleName of PREBUILT_ROLE_NAMES) {
+      const { rows: existing } = await tenantPool.query('SELECT id FROM roles WHERE name = $1', [roleName]);
+      if (existing[0]) continue;
+      const { rows } = await tenantPool.query('INSERT INTO roles (name) VALUES ($1) RETURNING id', [roleName]);
+      await tenantPool.query('INSERT INTO role_permissions (role_id, permission_key) VALUES ($1, $2)', [rows[0].id, 'staff_directory_view']);
+    }
+
     await tenantPool.query(
-      `INSERT INTO practitioners (first_name, last_name, email, password_hash, requires_password_change, role)
-       VALUES ($1, $2, $3, $4, false, 'ceo')`,
-      [pending.ceo_first_name, pending.ceo_last_name, pending.ceo_email, pending.ceo_password_hash]
+      `INSERT INTO practitioners (first_name, last_name, email, password_hash, requires_password_change, role, role_id)
+       VALUES ($1, $2, $3, $4, false, 'ceo', $5)`,
+      [pending.ceo_first_name, pending.ceo_last_name, pending.ceo_email, pending.ceo_password_hash, adminRoleId]
     );
 
     // Only as the last step, register the tenant in the platform DB — a
