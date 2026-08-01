@@ -1376,8 +1376,8 @@ function ComplianceAnalysisPreview({
     }
     if (value === 'accept' && analysis?.documentOnFile && !analysis?.results?.[session.id]?.matched && !analysis?.results?.[session.id]?.duplicateOfSessionId && analysis?.results?.[session.id]?.eimsMissingStatus !== 'approved') {
       showAlert(isAdmin
-        ? "This log has no matching record in the state document — click \"Review & Decide\" below to approve or reject it."
-        : "This log has no matching record in the state document — send it to an admin for approval below before it can be approved.");
+        ? "This log has no matching record in the state document — click the \"Review & Decide\" button to approve or reject it."
+        : "This log has no matching record in the state document — click \"Send to Admin for Approval\" before it can be approved.");
       return;
     }
     if (value === 'return' || value === 'reject') {
@@ -1662,6 +1662,8 @@ function ComplianceAnalysisPreview({
                       </span>
                     )
                   )}
+                </div>
+                <div className="flex items-center gap-2">
                   {isMissing && (
                     sessionResult.eimsMissingStatus === 'approved' ? (
                       <span className="flex items-center gap-1 text-xs font-bold text-amber-700">
@@ -1691,7 +1693,6 @@ function ComplianceAnalysisPreview({
                       </button>
                     )
                   )}
-                </div>
                 {documentReady && !!sessionResult && (
                   canChangeStatus ? (
                     <select
@@ -1727,6 +1728,7 @@ function ComplianceAnalysisPreview({
                     <span className={`text-xs font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
                   )
                 )}
+                </div>
               </div>
               <table className="w-full table-fixed text-sm">
                 <thead>

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StaffChatPopover } from '@/components/StaffChatPopover';
+import { ActionRequired } from '@/components/ActionRequired';
 import { showAlert } from '@/utils/dialogStore';
 import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
 
@@ -377,6 +378,21 @@ export const RegisterPractitionerForm = () => {
           </svg>
           Register New Account
         </button>
+        {currentUserRole === 'ceo' && (
+          <button
+            onClick={() => setActiveTab('actionRequired')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === 'actionRequired'
+                ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-orange-500/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <svg className={`w-4 h-4 ${activeTab === 'actionRequired' ? 'text-orange-600' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Action Required
+          </button>
+        )}
       </div>
 
       {/* ── SECTION 1: STAFF ROSTER ── */}
@@ -787,6 +803,11 @@ export const RegisterPractitionerForm = () => {
           </div>
         </form>
       </div>
+      )}
+
+      {/* ── SECTION 3: ACTION REQUIRED (ceo-only) ── */}
+      {activeTab === 'actionRequired' && currentUserRole === 'ceo' && (
+        <ActionRequired />
       )}
 
       {/* ── DEACTIVATE CONFIRM DIALOG ── */}
