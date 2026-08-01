@@ -82,6 +82,52 @@ const protect = (req, res, next) => {
     .catch(next);
 };
 
+const { pool } = require('../config/db');
+
+const loadPermissions = (req, res, next) => {
+  if (req.practitioner.role === 'ceo') {
+    req.isAdmin = true;
+    req.permissions = new Set();
+    return next();
+  }
+  if (req.practitioner.role === 'practitioner') {
+    req.isAdmin = false;
+    req.permissions = new Set();
+    return next();
+  }
+  pool
+    .query(
+      `SELECT r.is_system, COALESCE(array_agg(rp.permission_key) FILTER (WHERE rp.permission_key IS NOT NULL), '{}') AS keys
+       FROM practitioners p
+       JOIN roles r ON r.id = p.role_id
+       LEFT JOIN role_permissions rp ON rp.role_id = r.id
+       WHERE p.id = $1
+       GROUP BY r.is_system`,
+      [req.practitioner.practitionerId]
+    )
+    .then(({ rows }) => {
+      const row = rows[0];
+      req.isAdmin = Boolean(row?.is_system);
+      req.permissions = new Set(row?.keys || []);
+      next();
+    })
+    .catch(next);
+};
+
+const requirePermission = (key) => (req, res, next) => {
+  if (req.isAdmin || req.permissions?.has(key)) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+};
+
+const requireOfficeStaff = (req, res, next) => {
+  if (req.practitioner?.role === 'practitioner') {
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+  }
+  next();
+};
+
 const requireRole = (allowedRoles) => (req, res, next) => {
   const userRole = req.practitioner?.role;
   if (!userRole || !allowedRoles.includes(userRole)) {
@@ -90,4 +136,4 @@ const requireRole = (allowedRoles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect, requireRole };
+module.exports = { protect, requireRole, loadPermissions, requirePermission, requireOfficeStaff };

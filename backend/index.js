@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { protect, requireRole } = require('./src/middleware/authMiddleware');
+const { protect, requireRole, loadPermissions, requirePermission, requireOfficeStaff } = require('./src/middleware/authMiddleware');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
