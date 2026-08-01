@@ -59,8 +59,8 @@ const provisionPractitioner = async (req, res) => {
       return res.status(400).json({ error: 'At least one service type is required.' });
     }
 
-    if (['staff_director', 'account_specialist'].includes(req.practitioner.role) && role !== 'practitioner') {
-      return res.status(403).json({ error: 'Office Managers and Account Specialists can only register Practitioner accounts.' });
+    if (!req.isAdmin && !req.permissions.has('staff_directory_edit_role') && role !== 'practitioner') {
+      return res.status(403).json({ error: 'You can only register Practitioner accounts.' });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -478,8 +478,8 @@ const updateStaffProfile = async (req, res) => {
     const target = targetRows[0];
     if (!target) return res.status(404).json({ error: 'Staff member not found.' });
 
-    if (['staff_director', 'account_specialist'].includes(req.practitioner.role) && target.role !== 'practitioner') {
-      return res.status(403).json({ error: 'Office Managers and Account Specialists can only edit Practitioner accounts.' });
+    if (!req.isAdmin && !req.permissions.has('staff_directory_edit_role') && target.role !== 'practitioner') {
+      return res.status(403).json({ error: 'You can only edit Practitioner accounts.' });
     }
 
     const setClauses = [];
@@ -540,16 +540,17 @@ const updateStaffProfile = async (req, res) => {
   }
 };
 
-// --- Function 5: Update Staff Role (CEO only) ---
+// --- Function 5: Update Staff Role (staff_directory_edit_role) ---
 const updateStaffRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body;
-    const VALID_ROLES = ['practitioner', 'staff_director', 'billing', 'ceo', 'account_specialist'];
-    if (!role || !VALID_ROLES.includes(role)) {
+    const { roleId } = req.body;
+    const { rows: roleRows } = await pool.query('SELECT id, is_system FROM roles WHERE id = $1', [roleId]);
+    if (!roleRows[0]) {
       return res.status(400).json({ error: 'Invalid role.' });
     }
-    await pool.query('UPDATE practitioners SET role = $1 WHERE id = $2', [role, id]);
+    const legacyRole = roleRows[0].is_system ? 'ceo' : 'staff';
+    await pool.query('UPDATE practitioners SET role = $1, role_id = $2 WHERE id = $3', [legacyRole, roleId, id]);
     res.json({ success: true });
   } catch (error) {
     console.error('Update role error:', error);
@@ -584,6 +585,12 @@ const reactivateStaffMember = async (req, res) => {
   }
 };
 
+// --- Function 7: Return the caller's own admin/permission set (used by the
+// frontend to decide what to render without duplicating role logic there) ---
+async function getMe(req, res) {
+  res.json({ isAdmin: req.isAdmin, permissions: Array.from(req.permissions) });
+}
+
 module.exports = {
   provisionPractitioner,
   activateAccount,
@@ -599,5 +606,6 @@ module.exports = {
   updateStaffRole,
   deleteStaffMember,
   reactivateStaffMember,
-  reviewContactUpdate
+  reviewContactUpdate,
+  getMe
 };
