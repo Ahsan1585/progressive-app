@@ -574,11 +574,7 @@ export const RegisterPractitionerForm = () => {
                     <td className={`px-4 py-3 ${isDeactivated ? 'opacity-60' : ''}`}>
                       {canManageRoles && member.role !== 'practitioner' ? (
                         <select
-                          // getAllStaff doesn't return each member's specific role_id, only
-                          // the collapsed 'ceo'/'staff' tier, so an existing 'staff'-tier
-                          // member's exact role can't be pre-selected here — only 'ceo'
-                          // (the fixed Admin role) can be matched back to a roles-table id.
-                          value={member.role === 'ceo' ? (roles.find(r => r.is_system)?.id || '') : ''}
+                          value={member.role_id || ''}
                           onChange={(e) => handleRoleChange(member.id, e.target.value)}
                           disabled={updatingId === member.id}
                           className={`text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'} ${updatingId === member.id ? 'opacity-50 cursor-wait' : ''}`}
@@ -590,7 +586,7 @@ export const RegisterPractitionerForm = () => {
                         </select>
                       ) : (
                         <span className={`inline-block text-xs font-semibold border rounded-md px-2 py-1 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                          {ROLE_LABELS[member.role] || member.role}
+                          {member.role_name || ROLE_LABELS[member.role] || member.role}
                         </span>
                       )}
                     </td>

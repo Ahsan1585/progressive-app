@@ -432,10 +432,12 @@ const resetPassword = async (req, res) => {
 const getAllStaff = async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.position_title, p.service_types,
+      `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.role_id, r.name AS role_name,
+              p.position_title, p.service_types,
               p.pay_rate, p.address, p.phone_number, p.created_at, p.is_active, p.profile_picture,
               pcu.address AS pending_address, pcu.phone_number AS pending_phone_number, pcu.submitted_at AS pending_submitted_at
        FROM practitioners p
+       LEFT JOIN roles r ON r.id = p.role_id
        LEFT JOIN pending_contact_updates pcu ON pcu.practitioner_id = p.id
        ORDER BY p.created_at DESC`
     );
