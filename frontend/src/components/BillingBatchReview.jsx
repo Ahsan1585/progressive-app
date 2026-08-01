@@ -1586,6 +1586,9 @@ function ComplianceAnalysisPreview({
                       : f.match === true ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : null;
                     const stateColor = f.match === false ? 'text-red-700' : 'text-slate-800';
                     const requestKey = `${s.id}:${f.key}`;
+                    const isTimeField = f.key === 'start_time' || f.key === 'end_time';
+                    const displayOurs = isTimeField && f.ours ? formatTime12h(f.ours) : f.ours;
+                    const displayState = isTimeField && f.state ? formatTime12h(f.state) : f.state;
                     return (
                       <tr key={f.key} className={`border-t border-slate-100 ${rowClass}`}>
                         <td className="px-4 py-2 font-semibold text-slate-600">
@@ -1603,8 +1606,8 @@ function ComplianceAnalysisPreview({
                             <span className="block text-[10px] font-bold text-amber-600 mt-0.5">Allowed for this log</span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-center font-mono font-bold text-slate-800 break-words">{f.ours || '-'}</td>
-                        <td className={`px-4 py-2 text-center font-mono font-bold break-words ${stateColor}`}>{f.state || '-'}</td>
+                        <td className="px-4 py-2 text-center font-mono font-bold text-slate-800 break-words">{displayOurs || '-'}</td>
+                        <td className={`px-4 py-2 text-center font-mono font-bold break-words ${stateColor}`}>{displayState || '-'}</td>
                         <td className="px-4 py-2 text-center">
                           {f.match === false && (
                             <button
