@@ -25,6 +25,7 @@ import AddPatient from "@/pages/AddPatient";
 import EditPatient from "@/pages/EditPatient";
 import PatientDetail from "@/pages/PatientDetail";
 import LogIntervention from "@/pages/LogIntervention";
+import EditLog from "@/pages/EditLog";
 import ResubmitLog from "@/pages/ResubmitLog";
 import ChangePasswordVoluntary from "@/pages/ChangePasswordVoluntary";
 import ManageSignature from "@/pages/ManageSignature";
@@ -131,6 +132,7 @@ function App() {
               <Route path="/patients/:id" element={<PatientDetail />} />
               <Route path="/patients/:id/edit" element={<EditPatient />} />
               <Route path="/patients/:id/log" element={<LogIntervention />} />
+              <Route path="/patients/:id/logs/:logId/edit" element={<EditLog />} />
               <Route path="/inbox/:id/resubmit" element={<ResubmitLog />} />
               <Route path="/profile/change-password" element={<ChangePasswordVoluntary />} />
               <Route path="/profile/signature" element={<ManageSignature />} />

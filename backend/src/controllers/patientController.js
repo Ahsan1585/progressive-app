@@ -282,6 +282,51 @@ const resubmitLog = async (req, res) => {
   }
 };
 
+// Practitioner-initiated edit of a log that hasn't entered the billing
+// pipeline yet — mirrors deleteLog's ownership check and 'pending'-only
+// gate (a 'rejected' log already has its own dedicated edit+resubmit flow,
+// resubmitLog above, which also clears the rejection note and re-queues
+// it for review — conflating the two here would bypass that).
+const editLog = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category } = req.body;
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    const log = rows[0];
+    if (!log) return res.status(404).json({ error: 'Log not found' });
+    if (log.billing_status !== 'pending') {
+      return res.status(400).json({ error: 'This log can no longer be edited.' });
+    }
+
+    const { rows: practitionerRows } = await pool.query(
+      'SELECT service_types FROM practitioners WHERE id = $1',
+      [practitionerId]
+    );
+    const submittingPractitioner = practitionerRows[0];
+    if (submittingPractitioner.service_types?.length > 0 && !submittingPractitioner.service_types.includes(type)) {
+      return res.status(403).json({ error: 'You are not registered to provide this service type' });
+    }
+
+    await pool.query(
+      `UPDATE assessments
+       SET service_date = $1, type = $2, location = $3, start_time = $4, end_time = $5,
+           total_time = $6, status = $7, group_size_category = $8
+       WHERE id = $9`,
+      [service_date, type, location, start_time, end_time, total_time, status, group_size_category || null, id]
+    );
+    logAudit({ req, action: 'log_edit', resourceType: 'assessment', resourceId: id });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error editing log:', error);
+    res.status(500).json({ error: 'Failed to edit log' });
+  }
+};
+
 // Practitioner-initiated, permanent — only while a log hasn't entered the
 // billing pipeline (still 'pending') or has been sent back for revision
 // ('rejected'/Returned). Anything past that (njeis_review, invoiced,
@@ -357,4 +402,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, deleteLog, deletePatient, getPractitionerStats };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, deletePatient, getPractitionerStats };

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2 } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2, PencilLine } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -298,14 +298,24 @@ export default function PatientDetail() {
                   <span className="font-semibold uppercase tracking-wide">{statusCodeMap[item.status] || item.status}</span>
                 </div>
                 {item.billing_status === "pending" && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget(item)}
-                    className="press-scale mt-2 flex items-center gap-1 text-xs font-semibold text-danger"
-                  >
-                    <Trash2 className="size-3.5" aria-hidden="true" />
-                    Delete
-                  </button>
+                  <div className="mt-2 flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/patients/${id}/logs/${item.id}/edit`)}
+                      className="press-scale flex items-center gap-1 text-xs font-semibold text-primary"
+                    >
+                      <PencilLine className="size-3.5" aria-hidden="true" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(item)}
+                      className="press-scale flex items-center gap-1 text-xs font-semibold text-danger"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
