@@ -290,6 +290,14 @@ export const BillingBatchReview = ({
     await fetchPeriodLogs(practitionerId, { silent: true });
   };
 
+  // Billing hands a "Missing in EIMS" log off to an admin — same action
+  // available from Compliance Analysis, wired up here too so Session Detail
+  // isn't just a dead-end banner for non-admins.
+  const handleSendMissingToAdmin = async (session, practitionerId) => {
+    await api.post('/api/billing/compliance-analysis/send-missing-to-admin', { assessmentId: session.id });
+    await fetchPeriodLogs(practitionerId, { silent: true });
+  };
+
   const detailPractitioner = detail ? periodPractitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
   const detailSessions = detail ? (periodLogs[detail.practitionerId] || []) : [];
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
@@ -489,6 +497,7 @@ export const BillingBatchReview = ({
                 formatTime={formatTime}
                 isAdmin={isAdmin}
                 onAdminDecideMissing={handleAdminDecideMissing}
+                onSendMissingToAdmin={handleSendMissingToAdmin}
               />
             )}
           </div>
@@ -706,7 +715,7 @@ function PractitionerGroup({
 function SessionDetailPanel({
   session, practitionerId, practitionerName, logActions, setLogActions, processingLogId,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleReconcile, handleInlineReturnReject, formatTime,
-  isAdmin, onAdminDecideMissing,
+  isAdmin, onAdminDecideMissing, onSendMissingToAdmin,
 }) {
   const isDeclined = session.billing_status === 'declined';
   const isReturned = session.billing_status === 'rejected';
@@ -739,9 +748,7 @@ function SessionDetailPanel({
   const isMissingBlock = !!complianceStatus?.documentOnFile && !complianceStatus.matched && complianceStatus.eimsMissingStatus !== 'approved';
   const complianceBlockReason = isFlaggedBlock
     ? 'This log has flagged compliance fields — resolve them under Compliance Analysis before approving.'
-    : isMissingBlock && !isAdmin
-      ? 'This log has no matching record in the state document — send it to an admin for approval under Compliance Analysis before approving.'
-      : null;
+    : null;
 
   const [adminComment, setAdminComment] = useState('');
   const [isDecidingMissing, setIsDecidingMissing] = useState(false);
@@ -755,6 +762,20 @@ function SessionDetailPanel({
       showAlert(error.response?.data?.error || 'Failed to record your decision.');
     } finally {
       setIsDecidingMissing(false);
+    }
+  };
+
+  const [isSendingToAdmin, setIsSendingToAdmin] = useState(false);
+  const handleSendToAdmin = async () => {
+    if (!(await showConfirm('Send this log to an admin for approval? It has no matching record in the state document.'))) return;
+    setIsSendingToAdmin(true);
+    try {
+      await onSendMissingToAdmin(session, practitionerId);
+      setComplianceStatus((prev) => (prev ? { ...prev, eimsMissingStatus: 'sent_to_admin' } : prev));
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to send this log to an admin.');
+    } finally {
+      setIsSendingToAdmin(false);
     }
   };
 
@@ -848,6 +869,19 @@ function SessionDetailPanel({
             </div>
           </div>
         )}
+        {!isApproved && isMissingBlock && !isAdmin && (
+          <div className="flex items-center justify-between gap-3 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
+            <span className="flex items-center gap-2">
+              <Ban className="size-3.5 flex-shrink-0" />
+              {complianceStatus.eimsMissingStatus === 'sent_to_admin' ? 'This log has no matching record in the state document — awaiting admin review.' : 'This log has no matching record in the state document.'}
+            </span>
+            {complianceStatus.eimsMissingStatus !== 'sent_to_admin' && (
+              <Button type="button" size="sm" onClick={handleSendToAdmin} disabled={isSendingToAdmin} className="cursor-pointer text-white bg-amber-600 hover:bg-amber-700 flex-shrink-0">
+                {isSendingToAdmin ? 'Sending...' : 'Send to Admin'}
+              </Button>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <ActionButton
             label={isApproved ? 'Approved' : 'Approve'} active={isApproved} tone="emerald"
@@ -858,6 +892,8 @@ function SessionDetailPanel({
                 handleResetToPending(session, practitionerId);
               } else if (isMissingBlock && isAdmin) {
                 showAlert('Use the comment box above to approve or reject this log.');
+              } else if (isMissingBlock) {
+                showAlert('This log has no matching record in the state document — click "Send to Admin" above before it can be approved.');
               } else if (complianceBlockReason) {
                 showAlert(complianceBlockReason);
               } else {

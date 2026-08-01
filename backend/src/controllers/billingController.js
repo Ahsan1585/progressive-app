@@ -1788,12 +1788,15 @@ const sendMissingToAdmin = async (req, res) => {
 const getActionRequiredLogs = async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT a.id, a.service_date, a.type, a.location, a.status, a.total_time,
-              a.patient_first_name, a.patient_last_name,
-              a.practitioner_first_name, a.practitioner_last_name,
+      `SELECT a.id, a.service_date, a.start_time, a.end_time, a.total_time,
+              a.type, a.location, a.status, a.group_size_category,
+              a.patient_id, patients.child_id, a.patient_first_name, a.patient_last_name,
+              a.patient_dob, a.patient_county,
+              a.practitioner_first_name, a.practitioner_last_name, a.practitioner_discipline,
               a.eims_missing_sent_at,
               sender.first_name AS sent_by_first_name, sender.last_name AS sent_by_last_name
        FROM assessments a
+       LEFT JOIN patients ON patients.id = a.patient_id
        LEFT JOIN practitioners sender ON sender.id = a.eims_missing_sent_by
        WHERE a.eims_missing_status = 'sent_to_admin'
        ORDER BY a.eims_missing_sent_at ASC`
