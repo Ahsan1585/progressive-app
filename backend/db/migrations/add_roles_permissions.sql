@@ -24,12 +24,6 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 
 ALTER TABLE practitioners ADD COLUMN IF NOT EXISTS role_id uuid REFERENCES roles(id);
 
--- Widen the legacy role check: the 3 fine-grained strings collapse into
--- one 'staff' catch-all; 'ceo' and 'practitioner' are unchanged.
-ALTER TABLE practitioners DROP CONSTRAINT IF EXISTS practitioners_role_check;
-ALTER TABLE practitioners ADD CONSTRAINT practitioners_role_check
-  CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text]));
-
 -- Seed the fixed Admin role (is_system = true; "all permissions" comes from
 -- the is_system flag at query time, not enumeration in role_permissions).
 INSERT INTO roles (name, is_system)
@@ -92,3 +86,11 @@ UPDATE practitioners SET role_id = (SELECT id FROM roles WHERE name = 'Account S
 -- Finally, collapse the 3 retired literal values down to the 'staff'
 -- catch-all now that role_id carries the real distinction.
 UPDATE practitioners SET role = 'staff' WHERE role IN ('staff_director', 'billing', 'account_specialist');
+
+-- Tighten the legacy role check: the 3 fine-grained strings have collapsed into
+-- one 'staff' catch-all; 'ceo' and 'practitioner' are unchanged. This constraint
+-- is applied AFTER the role collapse so it does not reject existing 'staff_director',
+-- 'billing', and 'account_specialist' rows.
+ALTER TABLE practitioners DROP CONSTRAINT IF EXISTS practitioners_role_check;
+ALTER TABLE practitioners ADD CONSTRAINT practitioners_role_check
+  CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text]));
