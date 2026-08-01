@@ -28,20 +28,22 @@ const formatSSN = (val) => {
   return `${d.slice(0,3)}-${d.slice(3,5)}-${d.slice(5)}`;
 };
 
+// The 3 fine-grained office-staff role strings this used to enumerate
+// (staff_director/billing/account_specialist) were collapsed by the roles
+// migration into a single generic 'staff' tier — practitioners.role can now
+// only ever be 'practitioner' | 'ceo' | 'staff'. Specific role names for
+// 'staff'-tier accounts now live in the `roles` table (see the `roles`
+// state below, fetched from GET /api/roles) rather than as fixed strings.
 const ROLE_LABELS = {
-  ceo:                'Admin',
-  staff_director:     'Office Manager',
-  billing:            'Billing Specialist',
-  account_specialist: 'Account Specialist',
-  practitioner:       'Practitioner',
+  ceo:          'Admin',
+  staff:        'Staff',
+  practitioner: 'Practitioner',
 };
 
 const ROLE_BADGE_COLORS = {
-  ceo:                'bg-blue-100 text-blue-700 border-blue-200',
-  staff_director:     'bg-purple-100 text-purple-700 border-purple-200',
-  billing:            'bg-green-100 text-green-700 border-green-200',
-  account_specialist: 'bg-amber-100 text-amber-700 border-amber-200',
-  practitioner:       'bg-slate-100 text-slate-600 border-slate-200',
+  ceo:          'bg-blue-100 text-blue-700 border-blue-200',
+  staff:        'bg-purple-100 text-purple-700 border-purple-200',
+  practitioner: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 export const RegisterPractitionerForm = () => {
@@ -62,6 +64,11 @@ export const RegisterPractitionerForm = () => {
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'deactivated' | 'all'
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | one of ROLE_LABELS keys
   const [staffSearch, setStaffSearch] = useState('');
+
+  // --- Roles (fetched from the API, replacing the old hardcoded 5-string
+  // role list) — used both by the "Account Role" dropdown when registering
+  // an office-staff account and by the CEO's per-row role reassignment. ---
+  const [roles, setRoles] = useState([]);
 
   // --- Messaging (integrated into the roster row, not a separate tab) ---
   const [unreadByPractitioner, setUnreadByPractitioner] = useState({}); // { [practitionerId]: count }
@@ -87,7 +94,8 @@ export const RegisterPractitionerForm = () => {
     address: '',
     phoneNumber: '',
     ssn: '',
-    role: 'practitioner'
+    role: 'practitioner',
+    roleId: ''
   });
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -96,6 +104,12 @@ export const RegisterPractitionerForm = () => {
       .then(res => setStaffList(res.data.staff || []))
       .catch(() => {})
       .finally(() => setLoadingStaff(false));
+  }, []);
+
+  useEffect(() => {
+    api.get('/api/roles')
+      .then(res => setRoles(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {});
   }, []);
 
   const fetchMessageThreads = async () => {
@@ -237,11 +251,17 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
-  const handleRoleChange = async (id, newRole) => {
+  const handleRoleChange = async (id, newRoleId) => {
     setUpdatingId(id);
     try {
-      await api.patch(`/api/auth/staff/${id}/role`, { role: newRole });
-      setStaffList(prev => prev.map(s => s.id === id ? { ...s, role: newRole } : s));
+      await api.patch(`/api/auth/staff/${id}/role`, { roleId: newRoleId });
+      // The server derives the legacy 'ceo' | 'staff' tier from the
+      // selected role's is_system flag — mirror that here for the
+      // optimistic local update (getAllStaff doesn't return role_id, so
+      // this is the best available approximation without a refetch).
+      const selectedRole = roles.find(r => r.id === newRoleId);
+      const legacyRole = selectedRole?.is_system ? 'ceo' : 'staff';
+      setStaffList(prev => prev.map(s => s.id === id ? { ...s, role: legacyRole } : s));
     } catch {
       showAlert('Failed to update role.');
     } finally {
@@ -285,9 +305,15 @@ export const RegisterPractitionerForm = () => {
   const handleRegisterPractitioner = async (e) => {
     e.preventDefault();
 
-    const effectiveRole = currentUserRole === 'ceo' ? regForm.role : 'practitioner';
-    if (effectiveRole === 'practitioner' && regForm.positionTitle !== 'Office Staff' && regForm.serviceTypes.length === 0) {
+    // Only a CEO/Admin sees the Account Role selector at all — anyone else
+    // registering an account can only ever create a Practitioner.
+    const isPractitionerReg = currentUserRole === 'ceo' ? regForm.role === 'practitioner' : true;
+    if (isPractitionerReg && regForm.positionTitle !== 'Office Staff' && regForm.serviceTypes.length === 0) {
       showAlert('Select at least one service type.');
+      return;
+    }
+    if (!isPractitionerReg && !regForm.roleId) {
+      showAlert('Select an account role.');
       return;
     }
 
@@ -305,8 +331,16 @@ export const RegisterPractitionerForm = () => {
         address: regForm.address.trim(),
         phone_number: regForm.phoneNumber.trim(),
         ssn: regForm.ssn.trim(),
-        role: effectiveRole
       };
+      // Practitioner registrations are unchanged — still `role: 'practitioner'`.
+      // Office-staff registrations now send the selected role's id instead
+      // of a free-string role, matching provisionPractitioner's rewritten
+      // contract (it looks `roleId` up against the `roles` table).
+      if (isPractitionerReg) {
+        payload.role = 'practitioner';
+      } else {
+        payload.roleId = regForm.roleId;
+      }
 
       const response = await api.post('/api/auth/register-practitioner', payload);
 
@@ -315,7 +349,7 @@ export const RegisterPractitionerForm = () => {
         setRegForm({
           firstName: '', lastName: '', email: '', password: '',
           payRate: '', positionTitle: '', serviceTypes: [], address: '', phoneNumber: '', ssn: '',
-          role: 'practitioner'
+          role: 'practitioner', roleId: ''
         });
         // Refresh roster and switch to it so the new member is visible
         api.get('/api/auth/staff').then(res => setStaffList(res.data.staff || []));
@@ -332,7 +366,7 @@ export const RegisterPractitionerForm = () => {
     setRegForm({
       firstName: '', lastName: '', email: '', password: '',
       payRate: '', positionTitle: '', serviceTypes: [], address: '', phoneNumber: '', ssn: '',
-      role: 'practitioner'
+      role: 'practitioner', roleId: ''
     });
     setActiveTab('roster');
   };
@@ -468,7 +502,7 @@ export const RegisterPractitionerForm = () => {
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
-                  {(currentUserRole === 'ceo' || currentUserRole === 'staff_director' || currentUserRole === 'account_specialist') && (
+                  {(currentUserRole === 'ceo' || currentUserRole === 'staff') && (
                     <th className="px-4 py-3"></th>
                   )}
                 </tr>
@@ -522,18 +556,21 @@ export const RegisterPractitionerForm = () => {
                     <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.email}</td>
                     <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.position_title || '—'}</td>
                     <td className={`px-4 py-3 ${isDeactivated ? 'opacity-60' : ''}`}>
-                      {currentUserRole === 'ceo' ? (
+                      {currentUserRole === 'ceo' && member.role !== 'practitioner' ? (
                         <select
-                          value={member.role}
+                          // getAllStaff doesn't return each member's specific role_id, only
+                          // the collapsed 'ceo'/'staff' tier, so an existing 'staff'-tier
+                          // member's exact role can't be pre-selected here — only 'ceo'
+                          // (the fixed Admin role) can be matched back to a roles-table id.
+                          value={member.role === 'ceo' ? (roles.find(r => r.is_system)?.id || '') : ''}
                           onChange={(e) => handleRoleChange(member.id, e.target.value)}
                           disabled={updatingId === member.id}
                           className={`text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'} ${updatingId === member.id ? 'opacity-50 cursor-wait' : ''}`}
                         >
-                          <option value="practitioner">Practitioner</option>
-                          <option value="staff_director">Office Manager</option>
-                          <option value="billing">Billing Specialist</option>
-                          <option value="account_specialist">Account Specialist</option>
-                          <option value="ceo">Admin</option>
+                          <option value="" disabled>Select a role...</option>
+                          {roles.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))}
                         </select>
                       ) : (
                         <span className={`inline-block text-xs font-semibold border rounded-md px-2 py-1 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
@@ -541,7 +578,7 @@ export const RegisterPractitionerForm = () => {
                         </span>
                       )}
                     </td>
-                    {(currentUserRole === 'ceo' || currentUserRole === 'staff_director' || currentUserRole === 'account_specialist') && (
+                    {(currentUserRole === 'ceo' || currentUserRole === 'staff') && (
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {member.role === 'practitioner' && (
@@ -662,11 +699,7 @@ export const RegisterPractitionerForm = () => {
             <Label className="text-sm font-semibold text-slate-700">Discipline / Position Title</Label>
             <select
               value={regForm.positionTitle}
-              onChange={(e) => {
-                const positionTitle = e.target.value;
-                const role = positionTitle === 'Office Staff' && regForm.role === 'practitioner' ? 'staff_director' : regForm.role;
-                setRegForm({...regForm, positionTitle, role});
-              }}
+              onChange={(e) => setRegForm({...regForm, positionTitle: e.target.value})}
               className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required={regForm.role === 'practitioner'}
             >
@@ -704,21 +737,32 @@ export const RegisterPractitionerForm = () => {
           </div>
           )}
 
-          {/* Role selector — CEO only */}
+          {/* Role selector — CEO only. Options are fetched from GET /api/roles
+              (Admin + any office-staff roles the CEO has defined) instead of a
+              hardcoded 5-string list. Selecting a fetched role submits its id
+              as `roleId`; selecting Practitioner still submits `role: 'practitioner'`
+              unchanged, since that path doesn't go through the roles table. */}
           {currentUserRole === 'ceo' && (
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Account Role</Label>
               <select
-                value={regForm.role}
-                onChange={(e) => setRegForm({...regForm, role: e.target.value})}
+                value={regForm.role === 'practitioner' ? 'practitioner' : regForm.roleId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'practitioner') {
+                    setRegForm({...regForm, role: 'practitioner', roleId: ''});
+                  } else {
+                    setRegForm({...regForm, role: 'staff', roleId: val});
+                  }
+                }}
                 className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 {regForm.positionTitle !== 'Office Staff' && <option value="practitioner">Practitioner</option>}
-                <option value="staff_director">Office Manager</option>
-                <option value="billing">Billing Specialist</option>
-                <option value="account_specialist">Account Specialist</option>
-                <option value="ceo">Admin</option>
+                {roles.length === 0 && <option value="" disabled>Loading roles...</option>}
+                {roles.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
               </select>
             </div>
           )}
