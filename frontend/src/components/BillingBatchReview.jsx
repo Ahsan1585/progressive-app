@@ -455,6 +455,7 @@ export const BillingBatchReview = ({
                 handleHold={wrappedHold}
                 handleReleaseHold={wrappedReleaseHold}
                 handleInlineReturnReject={wrappedInlineReturnReject}
+                isAdmin={isAdmin}
               />
             ) : detailTab === 'matching' ? (
               <ComplianceMatchingSettings isAdmin={isAdmin} />
@@ -1131,6 +1132,7 @@ function ComplianceMatchingSettings({ isAdmin }) {
 function ComplianceAnalysisPreview({
   sessions, practitioner, practitionerId, periodStart, periodEnd, logActions,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleInlineReturnReject,
+  isAdmin,
 }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
   // { session, practitionerId, type: 'return'|'reject' } | null — the popup
@@ -1146,6 +1148,7 @@ function ComplianceAnalysisPreview({
   const [analysisError, setAnalysisError] = useState(null);
   const [statFilter, setStatFilter] = useState('all'); // 'all' | 'matched' | 'flagged' | 'missing'
   const [allowingKey, setAllowingKey] = useState(null); // `${sessionId}:${fieldKey}` currently in flight
+  const [approvingMissingId, setApprovingMissingId] = useState(null); // sessionId currently in flight
 
   // Billing confirms a flagged field is actually fine — clears it for this
   // log (and, for the 5 learnable fields, teaches the system the pairing so
@@ -1180,6 +1183,31 @@ function ComplianceAnalysisPreview({
       showAlert(error.response?.data?.error || 'Failed to allow this field.');
     } finally {
       setAllowingKey(null);
+    }
+  };
+
+  // Admin-only sign-off for a log with no matching state record at all
+  // ("Missing in EIMS") — a distinct, higher-stakes gap than a field-level
+  // mismatch (there's nothing to "Allow" against), so it's gated to ceo and
+  // required before ANYONE, including ceo, can approve the log itself.
+  const handleApproveMissing = async (sessionId) => {
+    if (!(await showConfirm('This log has no matching record in the state document. Confirm as an admin that it should still be allowed into the billing approval queue?'))) return;
+    setApprovingMissingId(sessionId);
+    try {
+      await api.post('/api/billing/compliance-analysis/approve-missing', { assessmentId: sessionId });
+      setAnalysis((prev) => {
+        if (!prev) return prev;
+        const prevResult = prev.results[sessionId];
+        if (!prevResult) return prev;
+        return {
+          ...prev,
+          results: { ...prev.results, [sessionId]: { ...prevResult, eimsMissingApprovedAt: new Date().toISOString() } },
+        };
+      });
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to approve this log.');
+    } finally {
+      setApprovingMissingId(null);
     }
   };
 
@@ -1223,6 +1251,10 @@ function ComplianceAnalysisPreview({
     }
     if (value === 'accept' && analysis?.results?.[session.id]?.flagged) {
       showAlert("This log has flagged compliance fields — click \"Allow\" on each flagged field below before approving.");
+      return;
+    }
+    if (value === 'accept' && analysis?.documentOnFile && !analysis?.results?.[session.id]?.matched && !analysis?.results?.[session.id]?.duplicateOfSessionId && !analysis?.results?.[session.id]?.eimsMissingApprovedAt) {
+      showAlert("This log has no matching record in the state document — an admin must click \"Admin Approve\" below before it can be approved.");
       return;
     }
     if (value === 'return' || value === 'reject') {
@@ -1505,6 +1537,24 @@ function ComplianceAnalysisPreview({
                       <span className="flex items-center gap-1 text-xs font-bold text-orange-600">
                         <X className="size-3.5" /> Missing in EIMS
                       </span>
+                    )
+                  )}
+                  {isMissing && (
+                    sessionResult.eimsMissingApprovedAt ? (
+                      <span className="flex items-center gap-1 text-xs font-bold text-amber-700">
+                        <CheckCircle2 className="size-3.5" /> Admin Approved
+                      </span>
+                    ) : isAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => handleApproveMissing(s.id)}
+                        disabled={approvingMissingId === s.id}
+                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {approvingMissingId === s.id ? 'Approving…' : 'Admin Approve'}
+                      </button>
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">Requires admin approval</span>
                     )
                   )}
                 </div>

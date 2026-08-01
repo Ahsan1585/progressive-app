@@ -644,6 +644,15 @@ const updateLogStatus = async (req, res) => {
       if (compliance.flagged) {
         return res.status(400).json({ error: 'This log still has unresolved compliance mismatches — allow each flagged field before approving.' });
       }
+      // "Missing in EIMS" (no matching state record at all) is a distinct,
+      // higher-stakes gap than a field-level mismatch — there's nothing to
+      // "Allow" against, so it needs an explicit admin sign-off instead
+      // (POST /compliance-analysis/approve-missing, ceo-only) before ANY
+      // role, including ceo, can approve the log itself. Keeps the
+      // sign-off and the approval as two separate, auditable actions.
+      if (compliance.documentOnFile && !compliance.matched && !compliance.eimsMissingApprovedAt) {
+        return res.status(400).json({ error: 'This log has no matching record in the state document — an admin must approve it under Compliance Analysis before it can be approved.' });
+      }
     }
 
     if (status === 'pending') {
@@ -1236,7 +1245,8 @@ const getComplianceAnalysis = async (req, res) => {
       SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
              group_size_category, patient_first_name, patient_last_name,
              practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
-             assessments.status, practitioner_discipline, patient_dob, patient_county
+             assessments.status, practitioner_discipline, patient_dob, patient_county,
+             eims_missing_approved_at
       FROM assessments
       LEFT JOIN patients ON patients.id = assessments.patient_id
       WHERE assessments.practitioner_id = $1 AND billing_status != 'declined'
@@ -1331,6 +1341,7 @@ const getComplianceAnalysis = async (req, res) => {
           ifsp_event_id: match.ifsp_event_id,
         } : null,
         fields,
+        eimsMissingApprovedAt: session.eims_missing_approved_at || null,
       };
     }
 
@@ -1381,20 +1392,21 @@ async function computeSessionCompliance(assessmentId) {
     && doc?.compliance_doc_applied_path
     && doc.compliance_doc_applied_path === doc.compliance_doc_path
   );
-  if (!documentOnFile) return { matched: false, flagged: false, fields: [] };
+  if (!documentOnFile) return { matched: false, flagged: false, fields: [], documentOnFile: false };
 
   const { rows: sessionRows } = await pool.query(
     `SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
             group_size_category, patient_first_name, patient_last_name,
             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
-            assessments.status, practitioner_discipline, patient_dob, patient_county
+            assessments.status, practitioner_discipline, patient_dob, patient_county,
+            eims_missing_approved_at
      FROM assessments
      LEFT JOIN patients ON patients.id = assessments.patient_id
      WHERE assessments.id = $1`,
     [assessmentId]
   );
   const session = sessionRows[0];
-  if (!session) return { matched: false, flagged: false, fields: [] };
+  if (!session) return { matched: false, flagged: false, fields: [], documentOnFile: true };
 
   const { rows: rawStateLogs } = await pool.query(
     'SELECT * FROM compliance_state_logs WHERE patient_id = $1 AND service_date = $2',
@@ -1417,7 +1429,7 @@ async function computeSessionCompliance(assessmentId) {
 
   const fields = buildFieldsForSession(session, match, { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey });
   const flagged = fields.some((f) => f.match === false);
-  return { matched: !!match, flagged, fields };
+  return { matched: !!match, flagged, fields, documentOnFile: true, eimsMissingApprovedAt: session.eims_missing_approved_at || null };
 }
 
 // --- 10. Fetch logs for a completed vault entry (by practitioner name + date range) ---
@@ -1710,6 +1722,32 @@ const unlockPractitioner = async (req, res) => {
   }
 };
 
+// Admin-only sign-off for a "Missing in EIMS" log (no matching state record
+// at all) — a separate, ceo-gated action from the per-field Allow flow,
+// required before ANYONE (including ceo) can approve the log itself via
+// updateLogStatus. Re-derives `matched` itself rather than trusting the
+// client, same reasoning as allowComplianceField.
+const approveMissingInEims = async (req, res) => {
+  const { assessmentId } = req.body;
+  if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
+
+  try {
+    const compliance = await computeSessionCompliance(assessmentId);
+    if (compliance.matched) {
+      return res.status(400).json({ error: 'This log has a matching state record — admin approval is not required.' });
+    }
+    await pool.query(
+      'UPDATE assessments SET eims_missing_approved_by = $1, eims_missing_approved_at = now() WHERE id = $2',
+      [req.practitioner.practitionerId, assessmentId]
+    );
+    logAudit({ req, action: 'missing_in_eims_admin_approved', resourceType: 'assessment', resourceId: assessmentId });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error approving missing-in-EIMS log:', error);
+    res.status(500).json({ error: 'Failed to approve log' });
+  }
+};
+
 module.exports = {
   getPendingLogs,
   generateNJEISForms,
@@ -1734,5 +1772,6 @@ module.exports = {
   lockPractitioner,
   unlockPractitioner,
   computeSessionCompliance,
+  approveMissingInEims,
   LEARNABLE_COMPLIANCE_FIELDS,
 };

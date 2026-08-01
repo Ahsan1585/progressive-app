@@ -25,7 +25,8 @@ const {
   markBatchPrinted,
   markBatchPaid,
   lockPractitioner,
-  unlockPractitioner
+  unlockPractitioner,
+  approveMissingInEims
 } = require('../controllers/billingController');
 const {
   allowComplianceField,
@@ -58,6 +59,9 @@ router.delete('/compliance-learned-matches/:id', ...billingGuard, deleteLearnedM
 // Strictness itself (unlike viewing it or allowing/learning matches) is a
 // ceo-only policy lever — mirrors every other Company Information write.
 router.put('/compliance-strictness', protect, requireRole(['ceo']), updateComplianceStrictness);
+// Missing-in-EIMS sign-off is a distinct admin gate from allow-field —
+// ceo-only, mirrors the strictness lever above.
+router.post('/compliance-analysis/approve-missing', protect, requireRole(['ceo']), approveMissingInEims);
 router.patch('/log-status',      ...billingGuard, updateLogStatus);
 router.post('/reject-log',       ...billingGuard, rejectLog);
 router.post('/reconcile-log',    ...billingGuard, reconcileLog);
