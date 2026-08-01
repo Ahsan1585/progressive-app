@@ -564,7 +564,7 @@ const Login = () => {
       {/* NAV */}
       <nav className={`il-nav${navScrolled ? ' scrolled' : ''}`}>
         <div className="il-nav-brand">
-          <a aria-label="IZAYA home" href="#top">
+          <a aria-label="IZAYA home" href="https://izayaedge.com">
             <IzayaWordmark className="il-nav-logo" />
           </a>
           <span className="il-nav-slogan">Early Intervention Simplified</span>
