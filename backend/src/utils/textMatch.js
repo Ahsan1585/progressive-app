@@ -28,16 +28,26 @@ function namesMatch(a, b) {
 // differing (or one side having an extra/missing word, e.g. a middle name)
 // instead of requiring an identical token set. At threshold 1 this reduces
 // to namesMatch's exact behavior (same word count, every word present).
-// Scored against the LONGER token list so a length mismatch alone can't
-// inflate the score past what it should be.
+//
+// Scored as true Jaccard similarity (intersection / union of the two token
+// sets), NOT intersection / max(lenA, lenB) — dividing by max() alone
+// overstates similarity whenever BOTH sides have their own non-overlapping
+// word(s): e.g. "James Cole" vs "James Miller" (two different children who
+// only share a first name) scores 1/2 = 0.5 against max() — a false match
+// at Lenient — but only 1/3 = 0.33 against the true union, correctly
+// failing at every strictness level. A person's name is close enough to an
+// identity check that this field should err toward under-matching, not
+// over-matching.
 function scoredNamesMatch(a, b, threshold = 1) {
   if (!a || !b) return null;
   const tokensA = normalizeForMatch(a).split(' ').filter(Boolean);
   const tokensB = normalizeForMatch(b).split(' ').filter(Boolean);
   if (tokensA.length === 0 || tokensB.length === 0) return null;
+  const setA = new Set(tokensA);
   const setB = new Set(tokensB);
-  const matchingCount = tokensA.filter((t) => setB.has(t)).length;
-  const score = matchingCount / Math.max(tokensA.length, tokensB.length);
+  const intersectionCount = [...setA].filter((t) => setB.has(t)).length;
+  const unionCount = new Set([...setA, ...setB]).size;
+  const score = intersectionCount / unionCount;
   return score >= threshold;
 }
 
