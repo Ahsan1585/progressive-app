@@ -13,7 +13,7 @@ import { Picker } from "@/components/Picker";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
-import { calculateTotalMinutes } from "@/utils/time";
+import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { ApiErrorBody } from "@/types";
 
@@ -27,7 +27,7 @@ interface FormState {
   groupSizeCategory: string;
 }
 
-const todayIso = () => new Date().toISOString().split("T")[0];
+const todayIso = localTodayIso;
 
 const SECTIONS = [
   { id: "details", label: "Details" },

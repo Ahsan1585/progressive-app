@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import api from '@/api/axiosInstance';
 import { showAlert } from '@/utils/dialogStore';
 import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
+import { localTodayIso } from '@/utils/formatTime';
 
 // --- Custom Signature Pad Sub-Component ---
 const SignaturePad = ({ label, subtext, onUpdate, onSave }) => {
@@ -127,7 +128,7 @@ const SignaturePad = ({ label, subtext, onUpdate, onSave }) => {
 // --- Main Modal Component ---
 export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: localTodayIso(),
     startTime: '',
     endTime: '',
     status: '1',
@@ -176,7 +177,7 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
       setPractitionerProfile(null);
       setZeroTime(false);
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: localTodayIso(),
         startTime: '',
         endTime: '',
         status: '1',

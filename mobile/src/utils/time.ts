@@ -28,3 +28,17 @@ export const formatSafeDate = (dateString?: string | null): string => {
   const [year, month, day] = dateString.split("T")[0].split("-");
   return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
 };
+
+// Today's date as the device's own local calendar day — NOT
+// `new Date().toISOString().split("T")[0]`, which converts to UTC first.
+// A practitioner on the East Coast in the evening has already rolled into
+// UTC's "tomorrow" hours before their own local midnight, so that pattern
+// defaults the Service Date field to the wrong day. getFullYear/getMonth/
+// getDate all read the device's local time zone directly.
+export const localTodayIso = (): string => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
