@@ -29,6 +29,7 @@ const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
 const signupRoutes = require('./src/routes/signupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
+const roleRoutes = require('./src/routes/roleRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
 const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
 const { platformPool } = require('./src/config/platformDb');
@@ -84,6 +85,7 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/dropdown-options', dropdownOptionsRoutes);
 app.use('/api/signup', signupRoutes);
 app.use('/api/platform', platformAdminRoutes);
+app.use('/api/roles', roleRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).
