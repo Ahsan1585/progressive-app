@@ -24,7 +24,6 @@ export default function EditLog() {
   const { showToast } = useToast();
   const { profile, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions } = useAppData();
 
-  const [log, setLog] = React.useState<Assessment | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [notEditable, setNotEditable] = React.useState(false);
 
@@ -54,7 +53,6 @@ export default function EditLog() {
       try {
         const res = await api.get<Assessment[]>(`/api/patients/${patientId}/assessments`);
         const found = res.data.find((a) => String(a.id) === logId) || null;
-        setLog(found);
         if (!found || found.billing_status !== "pending") {
           setNotEditable(true);
         } else {

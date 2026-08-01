@@ -107,6 +107,7 @@ export interface Assessment {
   status: string;
   type: string;
   location: string;
+  group_size_category?: string | null;
   billing_status: BillingStatus;
   rejection_note?: string | null;
   rejected_at?: string | null;
