@@ -77,6 +77,8 @@ Today, `req.practitioner.role` comes straight from the JWT and `requireRole([...
 
 ## Role management API & UI
 
+This screen and its API are available to every tenant identically, including Progressive — the migration only preserves what each of Progressive's existing roles can do *at the moment of cutover* (see Migration, above), it does not restrict them from editing, renaming, or adding roles afterward. Progressive's Admin gets the exact same Roles screen a brand-new signup does, from day one of this phase shipping.
+
 New backend routes, all gated by `requirePermission('staff_directory_edit_role')` except where noted:
 - `GET /api/roles` — list roles + their permission sets (available to anyone who can reach the staff directory, needed to populate the "assign role" dropdown).
 - `POST /api/roles` — create a role (name + initial permission set).
