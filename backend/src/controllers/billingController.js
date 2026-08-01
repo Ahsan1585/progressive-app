@@ -1145,6 +1145,14 @@ function buildFieldsForSession(session, match, ctx) {
     }),
   ].filter((f) => f.key.startsWith('custom:') || mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key]));
 
+  // A zero-duration log (cancelled visit) is never billed regardless of
+  // what else does or doesn't match against the state — nothing to
+  // reconcile a payment against — so every field short-circuits to
+  // matched instead of requiring an Allow click for e.g. Location.
+  if (!session.total_time) {
+    return rawFields.map((f) => (f.match === false ? { ...f, match: true, zeroTimeExempt: true } : f));
+  }
+
   return rawFields.map((f) => {
     if (f.match !== false) return f;
     // Learned-override layer: a previously-confirmed pairing for this exact
