@@ -13,11 +13,15 @@ import { TrialStatusBanner } from '@/components/TrialStatusBanner';
 import { BaaGate } from '@/components/BaaGate';
 import izayaLogo from '@/assets/izaya-logo.png';
 
+// A tab's value is either a single permission key, or an array of keys with
+// any-of semantics (the tab shows if the user holds at least one of them —
+// used where one tab hosts several independently-grantable actions). Admin
+// always sees everything.
 const TAB_PERMISSION = {
   practitioners: 'staff_directory_view',
   reports:       'master_reports',
-  billing:       'billing_pending',
-  company:       null,  // requireOfficeStaff on the backend — visible to any non-practitioner
+  billing:       ['billing_pending', 'billing_completed', 'billing_invoice_status'],
+  company:       ['company_info_compliance_doc', 'company_info_dropdown_options'],
   subscription:  'subscription_billing',
   auditLog:      'audit_logs',
   roles:         'staff_directory_edit_role',
@@ -47,7 +51,8 @@ const AdminDashboard = () => {
     if (!me) return false;
     if (me.isAdmin) return true;
     const key = TAB_PERMISSION[tab];
-    return key === null || me.permissions.includes(key);
+    if (Array.isArray(key)) return key.some(k => me.permissions.includes(k));
+    return me.permissions.includes(key);
   };
 
   const visibleTabs = me ? Object.keys(TAB_PERMISSION).filter(hasTabAccess) : [];
@@ -240,22 +245,27 @@ const AdminDashboard = () => {
 
         </nav>
 
-        {visibleTabs.includes('company') && (
+        {/* "Useful Links" group — shows if ANY of its entries is visible; the
+            group used to be gated on the Company tab alone, which would now
+            hide Audit Log / Roles from someone who has those but not Company. */}
+        {['company', 'subscription', 'auditLog', 'roles'].some(t => visibleTabs.includes(t)) && (
           <div className="p-4 border-t border-slate-100">
             <p className="px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Useful Links</p>
-            <button
-              onClick={() => { setActiveTab('company'); setSidebarOpen(false); setDesktopNavOpen(false); }}
-              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
-                activeTab === 'company'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l7-3 7 3z" />
-              </svg>
-              Company Information
-            </button>
+            {visibleTabs.includes('company') && (
+              <button
+                onClick={() => { setActiveTab('company'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                  activeTab === 'company'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l7-3 7 3z" />
+                </svg>
+                Company Information
+              </button>
+            )}
             {visibleTabs.includes('subscription') && (
               <button
                 onClick={() => { setActiveTab('subscription'); setSidebarOpen(false); setDesktopNavOpen(false); }}

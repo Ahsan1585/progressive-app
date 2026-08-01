@@ -47,7 +47,21 @@ const ROLE_BADGE_COLORS = {
 };
 
 export const RegisterPractitionerForm = () => {
-  const currentUserRole = localStorage.getItem('role');
+  // What this screen offers is decided by the caller's live permission set
+  // (same GET /api/auth/me AdminDashboard.jsx uses), not the localStorage role
+  // string — since Phase 2 that string is only 'ceo' | 'staff' | 'practitioner'
+  // and says nothing about what a 'staff' account is actually allowed to do.
+  const [me, setMe] = useState(null);
+  useEffect(() => {
+    api.get('/api/auth/me')
+      .then(res => setMe(res.data))
+      .catch(() => setMe({ isAdmin: false, permissions: [] }));
+  }, []);
+  const hasPermission = (key) => !!me && (me.isAdmin || (me.permissions || []).includes(key));
+  const canManageRoles = hasPermission('staff_directory_edit_role');  // change role / deactivate / reactivate
+  const canEditStaff = hasPermission('staff_directory_edit');
+  const canApproveActions = hasPermission('action_required_approve');
+
   const { options: dropdownOptions } = useDropdownOptions();
   const SERVICE_TYPE_OPTIONS = activeOnly(dropdownOptions.service_type);
 
@@ -305,9 +319,10 @@ export const RegisterPractitionerForm = () => {
   const handleRegisterPractitioner = async (e) => {
     e.preventDefault();
 
-    // Only a CEO/Admin sees the Account Role selector at all — anyone else
-    // registering an account can only ever create a Practitioner.
-    const isPractitionerReg = currentUserRole === 'ceo' ? regForm.role === 'practitioner' : true;
+    // Only someone who can manage staff roles sees the Account Role selector at
+    // all — anyone else registering an account can only ever create a Practitioner
+    // (which is exactly what the backend enforces in provisionPractitioner).
+    const isPractitionerReg = canManageRoles ? regForm.role === 'practitioner' : true;
     if (isPractitionerReg && regForm.positionTitle !== 'Office Staff' && regForm.serviceTypes.length === 0) {
       showAlert('Select at least one service type.');
       return;
@@ -412,7 +427,7 @@ export const RegisterPractitionerForm = () => {
           </svg>
           Register New Account
         </button>
-        {currentUserRole === 'ceo' && (
+        {canApproveActions && (
           <button
             onClick={() => setActiveTab('actionRequired')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
@@ -502,9 +517,10 @@ export const RegisterPractitionerForm = () => {
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
-                  {(currentUserRole === 'ceo' || currentUserRole === 'staff') && (
-                    <th className="px-4 py-3"></th>
-                  )}
+                  {/* Actions column — anyone who can reach this screen is office
+                      staff (it needs staff_directory_view), so the column always
+                      renders; each button inside is permission-gated on its own. */}
+                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -556,7 +572,7 @@ export const RegisterPractitionerForm = () => {
                     <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.email}</td>
                     <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.position_title || '—'}</td>
                     <td className={`px-4 py-3 ${isDeactivated ? 'opacity-60' : ''}`}>
-                      {currentUserRole === 'ceo' && member.role !== 'practitioner' ? (
+                      {canManageRoles && member.role !== 'practitioner' ? (
                         <select
                           // getAllStaff doesn't return each member's specific role_id, only
                           // the collapsed 'ceo'/'staff' tier, so an existing 'staff'-tier
@@ -578,8 +594,7 @@ export const RegisterPractitionerForm = () => {
                         </span>
                       )}
                     </td>
-                    {(currentUserRole === 'ceo' || currentUserRole === 'staff') && (
-                      <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {member.role === 'practitioner' && (
                             <button
@@ -600,7 +615,11 @@ export const RegisterPractitionerForm = () => {
                               )}
                             </button>
                           )}
-                          {(currentUserRole === 'ceo' || member.role === 'practitioner') && (
+                          {/* Mirrors updateStaffProfile's backend rule: editing
+                              needs staff_directory_edit, and without
+                              staff_directory_edit_role only Practitioner
+                              accounts may be edited. */}
+                          {canEditStaff && (canManageRoles || member.role === 'practitioner') && (
                             <button
                               onClick={() => handleOpenEdit(member)}
                               className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
@@ -611,7 +630,7 @@ export const RegisterPractitionerForm = () => {
                               </svg>
                             </button>
                           )}
-                          {currentUserRole === 'ceo' && (
+                          {canManageRoles && (
                             isDeactivated ? (
                               <button
                                 onClick={() => handleReactivate(member.id)}
@@ -638,8 +657,7 @@ export const RegisterPractitionerForm = () => {
                             )
                           )}
                         </div>
-                      </td>
-                    )}
+                    </td>
                   </tr>
                   );
                 })}
@@ -719,7 +737,7 @@ export const RegisterPractitionerForm = () => {
           {regForm.positionTitle !== 'Office Staff' && (
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-slate-700">
-              Service Types {(currentUserRole === 'ceo' ? regForm.role : 'practitioner') === 'practitioner' && '*'}
+              Service Types {(canManageRoles ? regForm.role : 'practitioner') === 'practitioner' && '*'}
             </Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 border border-slate-200 rounded-md bg-slate-50">
               {SERVICE_TYPE_OPTIONS.map(opt => (
@@ -737,12 +755,13 @@ export const RegisterPractitionerForm = () => {
           </div>
           )}
 
-          {/* Role selector — CEO only. Options are fetched from GET /api/roles
+          {/* Role selector — shown to anyone holding staff_directory_edit_role
+              (Admin included). Options are fetched from GET /api/roles
               (Admin + any office-staff roles the CEO has defined) instead of a
               hardcoded 5-string list. Selecting a fetched role submits its id
               as `roleId`; selecting Practitioner still submits `role: 'practitioner'`
               unchanged, since that path doesn't go through the roles table. */}
-          {currentUserRole === 'ceo' && (
+          {canManageRoles && (
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Account Role</Label>
               <select
@@ -850,7 +869,7 @@ export const RegisterPractitionerForm = () => {
       )}
 
       {/* ── SECTION 3: ACTION REQUIRED (ceo-only) ── */}
-      {activeTab === 'actionRequired' && currentUserRole === 'ceo' && (
+      {activeTab === 'actionRequired' && canApproveActions && (
         <ActionRequired />
       )}
 

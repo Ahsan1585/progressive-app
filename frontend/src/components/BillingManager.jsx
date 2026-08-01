@@ -102,12 +102,19 @@ function SortableHeader({ label, field, sort, onSort, className = '' }) {
 }
 
 export const BillingManager = () => {
-  // Billing Specialists get Pending Bills + Completed Bills only — Invoice Status
-  // (mark printed / mark paid) is restricted to CEO + Account Specialist, mirroring
-  // the backend's invoiceStatusWriteGuard in billingRoutes.js.
-  const currentUserRole = localStorage.getItem('role');
-  const canSeeInvoiceStatus = currentUserRole !== 'billing';
-  const isAdmin = currentUserRole === 'ceo';
+  // Invoice Status (mark printed / mark paid) is its own permission, mirroring
+  // the backend's requirePermission('billing_invoice_status') guard in
+  // billingRoutes.js. Read from the live permission set rather than the
+  // localStorage role string, which since Phase 2 is only ever
+  // 'ceo'/'staff'/'practitioner' and says nothing about what a staff user can do.
+  const [me, setMe] = useState(null);
+  useEffect(() => {
+    api.get('/api/auth/me')
+      .then(res => setMe(res.data))
+      .catch(() => setMe({ isAdmin: false, permissions: [] }));
+  }, []);
+  const isAdmin = !!me?.isAdmin;
+  const canSeeInvoiceStatus = isAdmin || !!me?.permissions?.includes('billing_invoice_status');
 
   // --- CURRENT USER (needed to tell "locked by me" apart from "locked by someone else") ---
   const [currentUserId, setCurrentUserId] = useState(null);
