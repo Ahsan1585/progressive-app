@@ -364,7 +364,7 @@ export const SubscriptionBilling = () => {
 
       {/* CURRENT BILL DUE */}
       {currentBillDue && (
-        <div className="bg-white border-2 border-teal-200 rounded-2xl p-5 shadow-sm shadow-teal-100">
+        <div className="bg-white border-4 border-teal-500 rounded-2xl p-5 shadow-md shadow-teal-200">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2.5 mb-1">
@@ -386,9 +386,11 @@ export const SubscriptionBilling = () => {
               {isCurrentBillOverdue && (
                 <span className="text-xs font-bold border px-2.5 py-1 rounded-full bg-red-50 text-red-700 border-red-200">Overdue</span>
               )}
-              <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[currentBillDue.status] || STATUS_STYLES.pending}`}>{currentBillDue.status}</span>
-              <Button size="sm" onClick={handlePayBill} disabled={isPayingBill} className="h-8 text-xs">
-                {isPayingBill ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
+              {currentBillDue.status === 'failed' && (
+                <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES.failed}`}>Failed</span>
+              )}
+              <Button size="lg" onClick={handlePayBill} disabled={isPayingBill} className="h-12 px-8 text-base">
+                {isPayingBill ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : null}
                 Pay Bill
               </Button>
             </div>
