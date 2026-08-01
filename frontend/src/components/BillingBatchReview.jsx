@@ -277,6 +277,19 @@ export const BillingBatchReview = ({
     await fetchPeriodPractitioners();
   };
 
+  // A ceo reviewing a "Missing in EIMS" log directly in Session Detail
+  // doesn't need to send it to themselves and go find it in Action
+  // Required — they decide it right there. Approving also immediately
+  // moves the log to Approved (one action, not two), since that's the
+  // whole point of an admin acting on their own review.
+  const handleAdminDecideMissing = async (session, practitionerId, decision, comment) => {
+    await api.post('/api/billing/action-required/decide', { assessmentId: session.id, decision, comment });
+    if (decision === 'approved') {
+      await handleAccept(session, practitionerId);
+    }
+    await fetchPeriodLogs(practitionerId, { silent: true });
+  };
+
   const detailPractitioner = detail ? periodPractitioners.find(p => p.practitioner_id === detail.practitionerId) : null;
   const detailSessions = detail ? (periodLogs[detail.practitionerId] || []) : [];
   const detailSession = detail ? detailSessions.find(s => s.id === detail.sessionId) || null : null;
@@ -455,6 +468,7 @@ export const BillingBatchReview = ({
                 handleHold={wrappedHold}
                 handleReleaseHold={wrappedReleaseHold}
                 handleInlineReturnReject={wrappedInlineReturnReject}
+                isAdmin={isAdmin}
               />
             ) : detailTab === 'matching' ? (
               <ComplianceMatchingSettings isAdmin={isAdmin} />
@@ -473,6 +487,8 @@ export const BillingBatchReview = ({
                 handleReconcile={wrappedReconcile}
                 handleInlineReturnReject={wrappedInlineReturnReject}
                 formatTime={formatTime}
+                isAdmin={isAdmin}
+                onAdminDecideMissing={handleAdminDecideMissing}
               />
             )}
           </div>
@@ -690,6 +706,7 @@ function PractitionerGroup({
 function SessionDetailPanel({
   session, practitionerId, practitionerName, logActions, setLogActions, processingLogId,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleReconcile, handleInlineReturnReject, formatTime,
+  isAdmin, onAdminDecideMissing,
 }) {
   const isDeclined = session.billing_status === 'declined';
   const isReturned = session.billing_status === 'rejected';
@@ -718,11 +735,28 @@ function SessionDetailPanel({
       .catch(() => { if (!cancelled) setComplianceStatus(null); });
     return () => { cancelled = true; };
   }, [session.id]);
-  const complianceBlockReason = !complianceStatus?.documentOnFile ? null
-    : complianceStatus.flagged ? 'This log has flagged compliance fields — resolve them under Compliance Analysis before approving.'
-    : (!complianceStatus.matched && complianceStatus.eimsMissingStatus !== 'approved')
+  const isFlaggedBlock = !!complianceStatus?.documentOnFile && complianceStatus.flagged;
+  const isMissingBlock = !!complianceStatus?.documentOnFile && !complianceStatus.matched && complianceStatus.eimsMissingStatus !== 'approved';
+  const complianceBlockReason = isFlaggedBlock
+    ? 'This log has flagged compliance fields — resolve them under Compliance Analysis before approving.'
+    : isMissingBlock && !isAdmin
       ? 'This log has no matching record in the state document — send it to an admin for approval under Compliance Analysis before approving.'
       : null;
+
+  const [adminComment, setAdminComment] = useState('');
+  const [isDecidingMissing, setIsDecidingMissing] = useState(false);
+  const handleAdminDecide = async (decision) => {
+    if (!adminComment.trim()) { showAlert('A comment is required to approve or reject this log.'); return; }
+    setIsDecidingMissing(true);
+    try {
+      await onAdminDecideMissing(session, practitionerId, decision, adminComment.trim());
+      setAdminComment('');
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to record your decision.');
+    } finally {
+      setIsDecidingMissing(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl">
@@ -793,6 +827,27 @@ function SessionDetailPanel({
             <Ban className="size-3.5 flex-shrink-0" /> {complianceBlockReason}
           </div>
         )}
+        {!isApproved && isMissingBlock && isAdmin && (
+          <div className="rounded-lg border border-orange-200 bg-orange-50/60 px-3 py-3 mb-3 space-y-2">
+            <p className="text-xs font-semibold text-orange-700 flex items-center gap-2">
+              <Ban className="size-3.5 flex-shrink-0" /> This log has no matching record in the state document. As the admin, you can decide it right here — a comment is required either way.
+            </p>
+            <Textarea
+              placeholder="Explain your decision — this will be added to the log's notes."
+              value={adminComment}
+              onChange={(e) => setAdminComment(e.target.value)}
+              className="bg-white min-h-[70px]"
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" onClick={() => handleAdminDecide('rejected')} disabled={isDecidingMissing} className="cursor-pointer text-white bg-red-600 hover:bg-red-700">
+                Reject
+              </Button>
+              <Button type="button" size="sm" onClick={() => handleAdminDecide('approved')} disabled={isDecidingMissing} className="cursor-pointer text-white bg-emerald-600 hover:bg-emerald-700">
+                {isDecidingMissing ? 'Saving...' : 'Approve'}
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <ActionButton
             label={isApproved ? 'Approved' : 'Approve'} active={isApproved} tone="emerald"
@@ -801,6 +856,8 @@ function SessionDetailPanel({
               if (isApproved) {
                 setLogActions(prev => ({ ...prev, [session.id]: '' }));
                 handleResetToPending(session, practitionerId);
+              } else if (isMissingBlock && isAdmin) {
+                showAlert('Use the comment box above to approve or reject this log.');
               } else if (complianceBlockReason) {
                 showAlert(complianceBlockReason);
               } else {
@@ -1158,6 +1215,7 @@ function ComplianceMatchingSettings({ isAdmin }) {
 function ComplianceAnalysisPreview({
   sessions, practitioner, practitionerId, periodStart, periodEnd, logActions,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleInlineReturnReject,
+  isAdmin,
 }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
   // { session, practitionerId, type: 'return'|'reject' } | null — the popup
@@ -1176,6 +1234,9 @@ function ComplianceAnalysisPreview({
   const [sendToAdminTarget, setSendToAdminTarget] = useState(null); // sessionId with its inline note box open
   const [sendToAdminNote, setSendToAdminNote] = useState('');
   const [isSendingToAdmin, setIsSendingToAdmin] = useState(false);
+  const [adminDecideTarget, setAdminDecideTarget] = useState(null); // sessionId with its admin decide box open
+  const [adminDecideComment, setAdminDecideComment] = useState('');
+  const [isDecidingMissing, setIsDecidingMissing] = useState(false);
 
   // Billing confirms a flagged field is actually fine — clears it for this
   // log (and, for the 5 learnable fields, teaches the system the pairing so
@@ -1240,6 +1301,37 @@ function ComplianceAnalysisPreview({
     }
   };
 
+  // A ceo reviewing a "Missing in EIMS" log here doesn't need to send it to
+  // themselves and go find it in Action Required — they decide it right in
+  // this same view. Approving also immediately calls handleAccept so the
+  // log moves straight to Approved in one action.
+  const handleAdminDecideInline = async (sessionId, decision) => {
+    if (!adminDecideComment.trim()) { showAlert('A comment is required to approve or reject this log.'); return; }
+    setIsDecidingMissing(true);
+    try {
+      await api.post('/api/billing/action-required/decide', { assessmentId: sessionId, decision, comment: adminDecideComment.trim() });
+      setAnalysis((prev) => {
+        if (!prev) return prev;
+        const prevResult = prev.results[sessionId];
+        if (!prevResult) return prev;
+        return {
+          ...prev,
+          results: { ...prev.results, [sessionId]: { ...prevResult, eimsMissingStatus: decision } },
+        };
+      });
+      setAdminDecideTarget(null);
+      setAdminDecideComment('');
+      if (decision === 'approved') {
+        const session = sessions.find((s) => s.id === sessionId);
+        if (session) await handleAccept(session, practitionerId);
+      }
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to record your decision.');
+    } finally {
+      setIsDecidingMissing(false);
+    }
+  };
+
   useEffect(() => {
     api.get('/api/company')
       .then(res => {
@@ -1283,7 +1375,9 @@ function ComplianceAnalysisPreview({
       return;
     }
     if (value === 'accept' && analysis?.documentOnFile && !analysis?.results?.[session.id]?.matched && !analysis?.results?.[session.id]?.duplicateOfSessionId && analysis?.results?.[session.id]?.eimsMissingStatus !== 'approved') {
-      showAlert("This log has no matching record in the state document — send it to an admin for approval below before it can be approved.");
+      showAlert(isAdmin
+        ? "This log has no matching record in the state document — click \"Review & Decide\" below to approve or reject it."
+        : "This log has no matching record in the state document — send it to an admin for approval below before it can be approved.");
       return;
     }
     if (value === 'return' || value === 'reject') {
@@ -1577,6 +1671,14 @@ function ComplianceAnalysisPreview({
                       <span className="flex items-center gap-1 text-xs font-bold text-red-700">
                         <X className="size-3.5" /> Admin Rejected
                       </span>
+                    ) : isAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => { setAdminDecideTarget(s.id); setAdminDecideComment(''); }}
+                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 transition-colors"
+                      >
+                        Review &amp; Decide
+                      </button>
                     ) : sessionResult.eimsMissingStatus === 'sent_to_admin' ? (
                       <span className="text-xs font-semibold text-slate-500">Awaiting Admin Review</span>
                     ) : (
@@ -1769,6 +1871,44 @@ function ComplianceAnalysisPreview({
                       className="cursor-pointer text-white bg-amber-600 hover:bg-amber-700"
                     >
                       {isSendingToAdmin ? 'Sending...' : 'Send to Admin'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {adminDecideTarget === s.id && (
+                <div className="border-t px-4 py-3 space-y-2 bg-orange-50/60 border-orange-200">
+                  <p className="text-xs font-semibold text-orange-700">
+                    This log has no matching record in the state document. A comment is required either way.
+                  </p>
+                  <Textarea
+                    autoFocus
+                    placeholder="Explain your decision — this will be added to the log's notes."
+                    value={adminDecideComment}
+                    onChange={(e) => setAdminDecideComment(e.target.value)}
+                    className="bg-white min-h-[80px]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={() => setAdminDecideTarget(null)} className="cursor-pointer">
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAdminDecideInline(s.id, 'rejected')}
+                      disabled={isDecidingMissing}
+                      className="cursor-pointer text-white bg-red-600 hover:bg-red-700"
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAdminDecideInline(s.id, 'approved')}
+                      disabled={isDecidingMissing}
+                      className="cursor-pointer text-white bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {isDecidingMissing ? 'Saving...' : 'Approve'}
                     </Button>
                   </div>
                 </div>
