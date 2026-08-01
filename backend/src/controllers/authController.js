@@ -561,6 +561,23 @@ const updateStaffProfile = async (req, res) => {
   }
 };
 
+// The fixed Admin role (roles.is_system = true) is a tenant's only source of
+// full access, so it must never be possible to leave an agency with zero active
+// Admins — by role change or by deactivation, and regardless of who initiates
+// it. Returns true only when `practitionerId` is an ACTIVE Admin and is the last
+// one; an already-inactive target isn't counted, so changing it is always safe.
+const isLastActiveAdmin = async (practitionerId) => {
+  const { rows } = await pool.query(
+    `SELECT (SELECT COUNT(*) FROM practitioners
+              WHERE role_id = r.id AND is_active = true) AS admin_count
+       FROM practitioners p
+       JOIN roles r ON r.id = p.role_id
+      WHERE p.id = $1 AND p.is_active = true AND r.is_system = true`,
+    [practitionerId]
+  );
+  return rows[0] ? Number(rows[0].admin_count) <= 1 : false;
+};
+
 // --- Function 5: Update Staff Role (staff_directory_edit_role) ---
 const updateStaffRole = async (req, res) => {
   try {
@@ -584,6 +601,13 @@ const updateStaffRole = async (req, res) => {
       return res.status(400).json({ error: 'You cannot remove your own Admin access.' });
     }
 
+    // Count-based last-Admin rail: blocks moving the only remaining active Admin
+    // off the system role no matter who asks (e.g. a non-Admin holding
+    // staff_directory_edit_role demoting someone else's Admin account).
+    if (!roleRows[0].is_system && await isLastActiveAdmin(id)) {
+      return res.status(400).json({ error: 'This is the only remaining Admin account — assign Admin to someone else first.' });
+    }
+
     const legacyRole = roleRows[0].is_system ? 'ceo' : 'staff';
     await pool.query('UPDATE practitioners SET role = $1, role_id = $2 WHERE id = $3', [legacyRole, roleId, id]);
     res.json({ success: true });
@@ -599,6 +623,11 @@ const deleteStaffMember = async (req, res) => {
     const requesterId = req.practitioner.practitionerId;
     if (String(id) === String(requesterId)) {
       return res.status(400).json({ error: 'You cannot delete your own account.' });
+    }
+    // Same last-Admin rail as updateStaffRole — deactivating the only remaining
+    // active Admin would leave the agency with no full-access account.
+    if (await isLastActiveAdmin(id)) {
+      return res.status(400).json({ error: 'This is the only remaining Admin account — assign Admin to someone else first.' });
     }
     await pool.query('UPDATE practitioners SET is_active = false WHERE id = $1', [id]);
     res.json({ success: true });
