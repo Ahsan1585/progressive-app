@@ -89,14 +89,21 @@ UPDATE practitioners SET role_id = (SELECT id FROM roles WHERE name = 'Staff Dir
 UPDATE practitioners SET role_id = (SELECT id FROM roles WHERE name = 'Billing Specialist') WHERE role = 'billing' AND role_id IS NULL;
 UPDATE practitioners SET role_id = (SELECT id FROM roles WHERE name = 'Account Specialist') WHERE role = 'account_specialist' AND role_id IS NULL;
 
--- Finally, collapse the 3 retired literal values down to the 'staff'
--- catch-all now that role_id carries the real distinction.
+-- Drop the legacy constraint BEFORE collapsing role values: the existing
+-- constraint permits practitioner/staff_director/billing/ceo/account_specialist
+-- but has never permitted 'staff', so the collapse UPDATE below would violate
+-- it if it were still in place. Dropping first means the table is briefly
+-- unconstrained on `role`, which is fine within this single migration file
+-- (applied as one implicit transaction) since the very next statement after
+-- the collapse re-adds a tightened constraint validating the final state.
+ALTER TABLE practitioners DROP CONSTRAINT IF EXISTS practitioners_role_check;
+
+-- Collapse the 3 retired literal values down to the 'staff' catch-all now
+-- that role_id carries the real distinction.
 UPDATE practitioners SET role = 'staff' WHERE role IN ('staff_director', 'billing', 'account_specialist');
 
--- Tighten the legacy role check: the 3 fine-grained strings have collapsed into
--- one 'staff' catch-all; 'ceo' and 'practitioner' are unchanged. This constraint
--- is applied AFTER the role collapse so it does not reject existing 'staff_director',
--- 'billing', and 'account_specialist' rows.
-ALTER TABLE practitioners DROP CONSTRAINT IF EXISTS practitioners_role_check;
+-- Re-add the tightened legacy role check now that every row is already one
+-- of 'practitioner'/'ceo'/'staff' — this is where 'staff' actually becomes a
+-- permitted value for the first time.
 ALTER TABLE practitioners ADD CONSTRAINT practitioners_role_check
   CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text]));
