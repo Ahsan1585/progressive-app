@@ -193,6 +193,22 @@ export const SubscriptionBilling = () => {
     const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
     return due.toISOString().slice(0, 10);
   }, [currentBillDue]);
+  const isCurrentBillOverdue = useMemo(() => {
+    if (!currentBillDue || !currentBillDueDate) return false;
+    return new Date(`${currentBillDueDate}T00:00:00Z`) < new Date();
+  }, [currentBillDue, currentBillDueDate]);
+
+  // A heads-up that another bill is coming, shown once we're late enough
+  // into the current period's month that its own invoice is coming soon —
+  // only worth surfacing if the prior bill is still sitting unpaid, so it
+  // doesn't pile up silently on top of it.
+  const showUpcomingBillNotice = currentBillDue && summary && new Date().getDate() > 20;
+  const upcomingBillDueDate = useMemo(() => {
+    if (!summary) return null;
+    const end = new Date(`${summary.periodEnd}T00:00:00Z`);
+    const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
+    return due.toISOString().slice(0, 10);
+  }, [summary]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -367,12 +383,28 @@ export const SubscriptionBilling = () => {
               </button>
             </div>
             <div className="flex flex-col items-end gap-3">
+              {isCurrentBillOverdue && (
+                <span className="text-xs font-bold border px-2.5 py-1 rounded-full bg-red-50 text-red-700 border-red-200">Overdue</span>
+              )}
               <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[currentBillDue.status] || STATUS_STYLES.pending}`}>{currentBillDue.status}</span>
               <Button size="sm" onClick={handlePayBill} disabled={isPayingBill} className="h-8 text-xs">
                 {isPayingBill ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
                 Pay Bill
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* UPCOMING BILL NOTICE */}
+      {showUpcomingBillNotice && (
+        <div className="flex gap-3.5 items-start bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
+          <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-base font-bold text-slate-800 mb-1">Next Bill Coming</h4>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Your {formatPeriod(summary.periodStart, summary.periodEnd)} bill will be generated and due {formatDate(upcomingBillDueDate)}, on top of the bill still outstanding above.
+            </p>
           </div>
         </div>
       )}
