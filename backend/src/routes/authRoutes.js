@@ -28,6 +28,7 @@ const {
   activateAccount,
   getCompanyDisplayName,
   getCompanyStatus,
+  acceptBaa,
   loginPractitioner,
   changeTemporaryPassword,
   forgotPassword,
@@ -98,5 +99,6 @@ router.get('/:companySlug/company-name', getCompanyDisplayName);
 
 router.post('/change-password', protect, changeTemporaryPassword);
 router.get('/company-status', protect, getCompanyStatus);
+router.post('/accept-baa', protect, requireRole(['ceo']), acceptBaa);
 
 module.exports = router;

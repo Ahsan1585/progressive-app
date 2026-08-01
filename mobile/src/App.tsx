@@ -6,6 +6,7 @@ import { AppDataProvider } from "@/contexts/AppDataContext";
 import { ToastProvider } from "@/components/ui/toast";
 import { RequireAuth, RequireForcedChange, RequireGuest } from "@/routes/guards";
 import { IdleGate } from "@/components/shell/IdleGate";
+import { BaaGate } from "@/components/shell/BaaGate";
 import { ShellLayout } from "@/components/shell/ShellLayout";
 import { SplashScreen } from "@/components/shell/SplashScreen";
 
@@ -41,7 +42,9 @@ function AuthenticatedTree() {
     <RequireAuth>
       <AppDataProvider>
         <IdleGate>
-          <Outlet />
+          <BaaGate>
+            <Outlet />
+          </BaaGate>
         </IdleGate>
       </AppDataProvider>
     </RequireAuth>

@@ -137,7 +137,7 @@ const getCompanyDisplayName = async (req, res) => {
 const getCompanyStatus = async (req, res) => {
   try {
     const { rows } = await platformPool.query(
-      'SELECT display_name, status, trial_ends_at FROM companies WHERE slug = $1',
+      'SELECT display_name, status, trial_ends_at, baa_accepted_at FROM companies WHERE slug = $1',
       [req.practitioner.slug]
     );
     const company = rows[0];
@@ -146,9 +146,37 @@ const getCompanyStatus = async (req, res) => {
       displayName: company.display_name,
       status: company.status,
       trialEndsAt: company.trial_ends_at,
+      baaAccepted: !!company.baa_accepted_at,
     });
   } catch (error) {
     console.error('Error fetching company status:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Clears the BAA gate for this company — ceo only (mirrors who checks the
+// "authority to accept this agreement" box during signup). Deliberately
+// takes name/email rather than trusting req.practitioner's own identity,
+// since the person accepting on the company's behalf may not be the same
+// person currently logged in, and this needs an auditable record of who
+// actually accepted, same as the signup-time acceptance.
+const acceptBaa = async (req, res) => {
+  const { name, email } = req.body;
+  if (!name?.trim() || !email?.trim()) {
+    return res.status(400).json({ error: 'Name and email are required to accept the agreement.' });
+  }
+  try {
+    const { rows } = await platformPool.query(
+      `UPDATE companies SET baa_accepted_at = now(), baa_accepted_by_name = $1, baa_accepted_by_email = $2, updated_at = now()
+       WHERE slug = $3
+       RETURNING slug`,
+      [name.trim(), email.trim(), req.practitioner.slug]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Company not found' });
+    logAudit({ req, action: 'baa_accepted', resourceType: 'company', resourceId: req.practitioner.slug, details: { name: name.trim(), email: email.trim() } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error accepting BAA:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -561,6 +589,7 @@ module.exports = {
   activateAccount,
   getCompanyDisplayName,
   getCompanyStatus,
+  acceptBaa,
   loginPractitioner,
   changeTemporaryPassword,
   forgotPassword,

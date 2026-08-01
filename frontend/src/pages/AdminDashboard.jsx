@@ -9,6 +9,7 @@ import { SubscriptionBilling } from '@/components/SubscriptionBilling';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
 import { TrialStatusBanner } from '@/components/TrialStatusBanner';
+import { BaaGate } from '@/components/BaaGate';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 const TAB_ACCESS = {
@@ -119,6 +120,7 @@ const AdminDashboard = () => {
   };
 
   return (
+    <BaaGate>
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900 print:h-auto print:overflow-visible print:block">
 
       {/* Mobile backdrop */}
@@ -336,6 +338,7 @@ const AdminDashboard = () => {
 
       <IdleTimeoutWarning onLogout={handleLogout} />
     </div>
+    </BaaGate>
   );
 };
 

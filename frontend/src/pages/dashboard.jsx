@@ -10,6 +10,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import izayaLogo from '@/assets/izaya-logo.png';
 import { useDropdownOptions, activeOnly, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
+import { BaaGate } from '@/components/BaaGate';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState([]);
@@ -308,6 +309,7 @@ const Dashboard = () => {
   }).slice(0, 5);
 
   return (
+    <BaaGate>
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900 font-sans">
 
       {/* Mobile backdrop */}
@@ -1079,6 +1081,7 @@ const Dashboard = () => {
         </div>
       )}
     </div>
+    </BaaGate>
   );
 };
 

@@ -32,7 +32,7 @@ const protect = (req, res, next) => {
   // expire. The ceo's own subscription/payment routes stay reachable even
   // past trial expiration so there's always a way to add a payment method.
   platformPool
-    .query('SELECT status, trial_ends_at FROM companies WHERE slug = $1', [decoded.slug])
+    .query('SELECT status, trial_ends_at, baa_accepted_at FROM companies WHERE slug = $1', [decoded.slug])
     .then(({ rows }) => {
       const company = rows[0];
       if (!company || company.status === 'cancelled') {
@@ -49,6 +49,23 @@ const protect = (req, res, next) => {
           error: trialExpired
             ? 'Your free trial has ended — add a payment method to continue.'
             : "This company's account is suspended.",
+        });
+      }
+
+      // 3b. Business Associate Agreement gate — a company can be flagged
+      // (or re-flagged, e.g. an agreement lapsing/being superseded) as not
+      // having a BAA on file, which blocks all PHI-touching routes until a
+      // ceo accepts it. `/api/auth/accept-baa` and `/api/auth/company-status`
+      // stay reachable regardless (a ceo needs the first to clear the gate,
+      // and every role needs the second so the frontend can render the
+      // right blocking screen instead of a bare error).
+      const isBaaExemptRoute = req.originalUrl.startsWith('/api/auth/accept-baa') || req.originalUrl.startsWith('/api/auth/company-status');
+      if (!company.baa_accepted_at && !isBaaExemptRoute) {
+        return res.status(403).json({
+          error: decoded.role === 'ceo'
+            ? 'A Business Associate Agreement must be accepted before continuing.'
+            : "Your administrator needs to accept Izaya's Business Associate Agreement before you can continue.",
+          code: 'BAA_REQUIRED',
         });
       }
 
