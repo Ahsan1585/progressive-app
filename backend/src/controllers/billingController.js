@@ -961,7 +961,25 @@ async function loadAcknowledgments(assessmentIds) {
 // same ours/state values in a matching-ready shape).
 function buildFieldsForSession(session, match, ctx) {
   const { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey } = ctx;
-  if (!match) return [];
+  // No state record to compare against at all ("Missing in EIMS") — still
+  // show our own logged values as rows instead of an empty table, just with
+  // every State Record cell blank and nothing flagged (there's nothing on
+  // the other side to disagree with).
+  if (!match) {
+    const ourPractitionerName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
+    const ourChildName = `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim();
+    return [
+      { key: 'child_id', label: 'Child ID', ours: session.child_id, state: null, match: null },
+      { key: 'child_name', label: 'Child Name', ours: ourChildName || null, state: null, match: null },
+      { key: 'practitioner_name', label: 'Practitioner', ours: ourPractitionerName || null, state: null, match: null },
+      { key: 'service_date', label: 'Service Date', ours: session.service_date, state: null, match: null },
+      { key: 'start_time', label: 'Start Time', ours: session.start_time, state: null, match: null },
+      { key: 'end_time', label: 'End Time', ours: session.end_time, state: null, match: null },
+      { key: 'service_type', label: 'Service Type', ours: session.type ? serviceCodeLabel(session.type) : null, state: null, match: null },
+      { key: 'location', label: 'Location', ours: session.location ? locationCodeLabel(session.location) : null, state: null, match: null },
+      { key: 'group_size', label: 'Group Size Category', ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null, state: null, match: null },
+    ].filter((f) => mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key]));
+  }
 
   const ourPractitionerName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
   const statePractitionerName = match.practitioner_name || '';

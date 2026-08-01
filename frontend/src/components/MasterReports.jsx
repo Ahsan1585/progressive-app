@@ -79,7 +79,7 @@ export const MasterReports = () => {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   const formatTime = (minutes) => {
-    if (!minutes) return '-';
+    if (minutes == null) return '-';
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
     return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;

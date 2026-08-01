@@ -1570,11 +1570,14 @@ function ComplianceAnalysisPreview({
                     <tr>
                       <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={4}>Duplicate of another log for this patient on this date/time — only one can match the state's single record for it</td>
                     </tr>
-                  ) : !sessionResult?.matched ? (
-                    <tr>
-                      <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={4}>No matching record found in the state document for this session</td>
-                    </tr>
-                  ) : compareFields.map(f => {
+                  ) : (
+                    <>
+                      {!sessionResult?.matched && (
+                        <tr>
+                          <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={4}>No matching record found in the state document for this session — showing our own logged values below</td>
+                        </tr>
+                      )}
+                      {compareFields.map(f => {
                     // A field allowed via feedback (learned rule or a one-off
                     // acknowledgment) still shows as resolved, not plain-green
                     // "Match" — an amber badge distinguishes "billing signed off
@@ -1623,7 +1626,9 @@ function ComplianceAnalysisPreview({
                         </td>
                       </tr>
                     );
-                  })}
+                      })}
+                    </>
+                  )}
                 </tbody>
               </table>
 
