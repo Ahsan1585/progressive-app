@@ -913,6 +913,9 @@ function pickBestCandidate(session, candidates) {
 // active strictness profile — a state clerical typo of a minute or two
 // shouldn't flag the same way a genuinely different time would.
 function timeWithinTolerance(oursHHMM, stateHHMM, toleranceMinutes) {
+  // Both blank means neither side logged a time at all — the expected shape
+  // for a cancelled visit (0 time), not a mismatch to flag.
+  if (!oursHHMM && !stateHHMM) return { match: true, withinTolerance: false };
   if (!oursHHMM || !stateHHMM) return { match: false, withinTolerance: false };
   const toMinutes = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
   const diff = Math.abs(toMinutes(oursHHMM) - toMinutes(stateHHMM));
@@ -1121,16 +1124,21 @@ function buildFieldsForSession(session, match, ctx) {
         };
       }
       if (compareTo === 'total_time') {
-        const ourMinutes = session.total_time || null;
+        // `|| null` on a plain 0 would wipe out a legitimate zero-duration
+        // (cancelled) session, so check for null/undefined explicitly.
+        const ourMinutes = session.total_time == null ? null : session.total_time;
         const stateMinutes = parseDurationMinutes(value);
+        // Both sides logging no/zero duration is the expected shape for a
+        // cancelled visit, not a mismatch to flag.
+        const bothZeroOrBlank = (ourMinutes == null || ourMinutes === 0) && (stateMinutes == null || stateMinutes === 0);
         const exact = ourMinutes != null && stateMinutes != null && ourMinutes === stateMinutes;
         const withinTolerance = !exact && ourMinutes != null && stateMinutes != null
           && Math.abs(ourMinutes - stateMinutes) <= matchParams.timeToleranceMinutes;
         return {
           key: `custom:${label}`, label,
-          ours: formatMinutesLabel(session.total_time),
+          ours: ourMinutes != null ? (formatMinutesLabel(ourMinutes) || '0m') : null,
           state: value,
-          match: exact || withinTolerance, withinTolerance,
+          match: bothZeroOrBlank || exact || withinTolerance, withinTolerance,
         };
       }
       return { key: `custom:${label}`, label, ours: null, state: value, match: null };

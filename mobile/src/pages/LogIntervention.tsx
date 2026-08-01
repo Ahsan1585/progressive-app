@@ -94,7 +94,7 @@ export default function LogIntervention() {
   const handleZeroTimeToggle = (checked: boolean) => {
     setZeroTime(checked);
     setTouched(true);
-    setForm((f) => ({ ...f, startTime: checked ? "00:00" : "", endTime: checked ? "00:00" : "" }));
+    setForm((f) => ({ ...f, startTime: "", endTime: "" }));
   };
 
   const missing: string[] = [];

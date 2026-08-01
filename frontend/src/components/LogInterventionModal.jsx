@@ -198,7 +198,7 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
 
   const handleZeroTimeToggle = (checked) => {
     setZeroTime(checked);
-    setFormData((prev) => ({ ...prev, startTime: checked ? '00:00' : '', endTime: checked ? '00:00' : '' }));
+    setFormData((prev) => ({ ...prev, startTime: '', endTime: '' }));
   };
 
   const handleSubmit = async (e) => {
