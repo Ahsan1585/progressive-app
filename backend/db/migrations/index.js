@@ -11,6 +11,7 @@ const MIGRATIONS = [
   'add_eims_missing_approval.sql',
   'add_eims_missing_approval_workflow.sql',
   'add_invoice_overdue_status.sql',
+  'add_roles_permissions.sql',
 ];
 
 module.exports = { MIGRATIONS };
