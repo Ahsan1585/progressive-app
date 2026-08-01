@@ -21,6 +21,7 @@ const formatDate = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-
 const STATUS_STYLES = {
   paid: 'bg-teal-50 text-teal-700 border-teal-200',
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  overdue: 'bg-red-50 text-red-700 border-red-200',
   failed: 'bg-red-50 text-red-700 border-red-200',
   void: 'bg-slate-100 text-slate-500 border-slate-200',
 };
@@ -182,9 +183,12 @@ export const SubscriptionBilling = () => {
 
   // Most recent invoice that still has money owed on it — that's what's
   // due, with the due date set to the 15th of the month after the period it
-  // covers (the same day Cloud Scheduler retries automatic billing).
+  // covers. Status (pending/overdue/failed) is tracked server-side now —
+  // the backend flips pending/failed -> overdue itself once that due date
+  // passes (see markOverdueInvoices in subscriptionBilling.js), so this is
+  // just reading the persisted lifecycle state, not recomputing it.
   const currentBillDue = useMemo(
-    () => invoices.find((inv) => inv.status === 'pending' || inv.status === 'failed') || null,
+    () => invoices.find((inv) => inv.status === 'pending' || inv.status === 'failed' || inv.status === 'overdue') || null,
     [invoices]
   );
   const currentBillDueDate = useMemo(() => {
@@ -193,10 +197,7 @@ export const SubscriptionBilling = () => {
     const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
     return due.toISOString().slice(0, 10);
   }, [currentBillDue]);
-  const isCurrentBillOverdue = useMemo(() => {
-    if (!currentBillDue || !currentBillDueDate) return false;
-    return new Date(`${currentBillDueDate}T00:00:00Z`) < new Date();
-  }, [currentBillDue, currentBillDueDate]);
+  const isCurrentBillOverdue = currentBillDue?.status === 'overdue';
 
   // A heads-up that another bill is coming, shown once we're late enough
   // into the current period's month that its own invoice is coming soon —

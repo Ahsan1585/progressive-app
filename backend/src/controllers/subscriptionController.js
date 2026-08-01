@@ -1,6 +1,6 @@
 const { pool } = require('../config/db');
 const { getStripeClient, isStripeConfigured, isGooglePayConfigured } = require('../config/stripe');
-const { computeCurrentPeriodSummary, getSubscriptionSettings, getPreviousPeriodBounds } = require('../utils/subscriptionBilling');
+const { computeCurrentPeriodSummary, getSubscriptionSettings, getPreviousPeriodBounds, markOverdueInvoices } = require('../utils/subscriptionBilling');
 const { generateSubscriptionInvoicePdf } = require('../utils/subscriptionInvoicePdf');
 const { logAudit } = require('../utils/auditLog');
 
@@ -27,6 +27,7 @@ const getSummary = async (req, res) => {
 
 const getInvoices = async (req, res) => {
   try {
+    await markOverdueInvoices();
     const { rows } = await pool.query(
       `SELECT id, period_start, period_end, active_practitioner_count, office_staff_count,
               extra_staff_seats, total_amount, status, paid_at, created_at
@@ -287,6 +288,7 @@ const generateInvoice = async (req, res) => {
 // attempt, just re-entered on demand instead of only at period-close time.
 const payInvoice = async (req, res) => {
   try {
+    await markOverdueInvoices();
     const { rows } = await pool.query('SELECT * FROM subscription_invoices WHERE id = $1', [req.params.id]);
     const invoice = rows[0];
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
@@ -359,6 +361,26 @@ const runScheduledBilling = async (req, res) => {
   }
 };
 
+// Optional explicit Cloud Scheduler target for the 16th of each month —
+// the overdue sweep also runs lazily on every getInvoices/payInvoice call,
+// so this endpoint isn't required for correctness, but wiring a scheduled
+// job here makes the pending -> overdue transition happen right on the
+// 16th even if nobody opens the billing screen that day. Same shared-secret
+// auth pattern as runScheduledBilling.
+const runOverdueSweep = async (req, res) => {
+  const expectedSecret = process.env.CRON_SECRET;
+  if (!expectedSecret || req.headers['x-cron-secret'] !== expectedSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const overdueCount = await markOverdueInvoices();
+    res.json({ success: true, overdueCount });
+  } catch (error) {
+    console.error('Error running overdue invoice sweep:', error);
+    res.status(500).json({ error: 'Failed to run overdue sweep' });
+  }
+};
+
 // Stripe webhook — mounted with express.raw() BEFORE the global express.json()
 // parser (see index.js), since signature verification needs the exact raw
 // body bytes. No-ops (200, does nothing) if STRIPE_WEBHOOK_SECRET isn't set,
@@ -415,5 +437,6 @@ module.exports = {
   generateInvoice,
   payInvoice,
   runScheduledBilling,
+  runOverdueSweep,
   stripeWebhook,
 };

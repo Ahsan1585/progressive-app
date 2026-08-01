@@ -48,6 +48,43 @@ function getPreviousPeriodBounds(at = new Date()) {
   return monthBounds(year, month - 1);
 }
 
+// An invoice for a given period is due the 15th of the month right after
+// that period ends (e.g. period_end 2026-06-30 -> due 2026-07-15) — the same
+// date shown to the practitioner-facing admin as "due" and the date the
+// automatic overdue sweep below compares against.
+function invoiceDueDate(periodEnd) {
+  const end = new Date(`${periodEnd}T12:00:00Z`);
+  const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
+  return due.toISOString().slice(0, 10);
+}
+
+// Today's calendar date in Eastern time, as an ISO date string — used (not
+// the server's raw UTC date) so the overdue sweep flips on the 16th by the
+// business's own clock, not several hours early/late depending on DST.
+function easternTodayIso(at = new Date()) {
+  const { year, month, day } = easternParts(at);
+  return new Date(Date.UTC(year, month, day)).toISOString().slice(0, 10);
+}
+
+// The real lifecycle of a billed invoice: 'pending' when generated -> stays
+// 'pending' (or 'failed', if a charge attempt errored) until either a
+// payment succeeds ('paid') or the due date passes unpaid ('overdue'). This
+// sweep is what actually performs that second transition — called lazily
+// whenever invoices are read, so the status is always accurate regardless
+// of whether any particular external cron job happens to have fired.
+async function markOverdueInvoices(at = new Date()) {
+  const today = easternTodayIso(at);
+  const { rows } = await pool.query(
+    `UPDATE subscription_invoices
+     SET status = 'overdue'
+     WHERE status IN ('pending', 'failed')
+       AND (date_trunc('month', period_end) + interval '1 month' + interval '14 days')::date < $1::date
+     RETURNING id`,
+    [today]
+  );
+  return rows.length;
+}
+
 // A practitioner counts as active for the WHOLE period the moment they've
 // submitted one session log in it — not prorated by log count, and status
 // changes (deactivation) don't retroactively affect a period already
@@ -151,6 +188,8 @@ module.exports = {
   getPeriodBounds,
   getPreviousPeriodBounds,
   nextBillingDate,
+  invoiceDueDate,
+  markOverdueInvoices,
   getPractitionerActivity,
   getOfficeStaffCount,
   getSubscriptionSettings,

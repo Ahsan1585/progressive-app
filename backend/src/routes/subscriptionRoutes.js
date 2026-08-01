@@ -13,6 +13,7 @@ const {
   generateInvoice,
   payInvoice,
   runScheduledBilling,
+  runOverdueSweep,
 } = require('../controllers/subscriptionController');
 
 // Admin-only, same as Company Information — this is what the agency owes
@@ -35,6 +36,10 @@ router.post('/invoices/:id/pay', ...ceoOnly, payInvoice);
 // authenticates instead via the X-Cron-Secret header checked inside the
 // handler, matched against CRON_SECRET.
 router.post('/invoices/run-scheduled', runScheduledBilling);
+
+// Optional second Cloud Scheduler target (16th of each month) — see
+// runOverdueSweep in subscriptionController.js for why this is optional.
+router.post('/invoices/mark-overdue', runOverdueSweep);
 
 // NOTE: the Stripe webhook is intentionally NOT mounted here — it must sit
 // before the app-wide express.json() parser (raw body needed for signature
