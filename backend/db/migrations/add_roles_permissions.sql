@@ -49,11 +49,17 @@ INSERT INTO role_permissions (role_id, permission_key)
 -- retired values (a brand-new tenant has none, so this is a no-op there).
 -- Overwrite 'Staff Director' role's permissions to match today's
 -- staff_director requireRole guards exactly.
+-- NOTE: deliberately WITHOUT staff_directory_edit_role. Pre-migration,
+-- PATCH /staff/:id/role, DELETE /staff/:id and PATCH /staff/:id/reactivate were
+-- all requireRole(['ceo'])-only, so a staff_director could never change anyone's
+-- role, deactivate, or reactivate them. Granting it here would not be
+-- behavior-preserving, it would widen access on day one (and would let a Staff
+-- Director promote themselves to Admin).
 DELETE FROM role_permissions WHERE role_id = (SELECT id FROM roles WHERE name = 'Staff Director')
   AND EXISTS (SELECT 1 FROM practitioners WHERE role = 'staff_director');
 INSERT INTO role_permissions (role_id, permission_key)
   SELECT (SELECT id FROM roles WHERE name = 'Staff Director'), key
-  FROM unnest(ARRAY['staff_directory_view', 'staff_directory_edit', 'staff_directory_edit_role', 'register_new_user']) AS key
+  FROM unnest(ARRAY['staff_directory_view', 'staff_directory_edit', 'register_new_user']) AS key
   WHERE EXISTS (SELECT 1 FROM practitioners WHERE role = 'staff_director')
   ON CONFLICT DO NOTHING;
 

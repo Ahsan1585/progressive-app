@@ -61,6 +61,12 @@ const provisionPractitioner = async (req, res) => {
       if (!roleRows[0]) {
         return res.status(400).json({ error: 'A valid role is required.' });
       }
+      // Only an existing Admin can create another Admin — otherwise anyone
+      // holding staff_directory_edit_role could invite themselves a second,
+      // full-access account and escalate that way.
+      if (roleRows[0].is_system && !req.isAdmin) {
+        return res.status(403).json({ error: 'Only an existing Admin can grant Admin access.' });
+      }
       legacyRole = roleRows[0].is_system ? 'ceo' : 'staff';
       resolvedRoleId = roleRows[0].id;
     }
@@ -564,6 +570,20 @@ const updateStaffRole = async (req, res) => {
     if (!roleRows[0]) {
       return res.status(400).json({ error: 'Invalid role.' });
     }
+    // Only an existing Admin can hand out Admin. Without this, anyone holding
+    // staff_directory_edit_role could promote themselves (or anyone else) to the
+    // fixed full-access system role — a straight privilege escalation.
+    if (roleRows[0].is_system && !req.isAdmin) {
+      return res.status(403).json({ error: 'Only an existing Admin can grant Admin access.' });
+    }
+
+    // Last-Admin/self-demotion guard: an Admin must not be able to strip their
+    // own Admin access (mirrors the self-deletion guard in deleteStaffMember,
+    // and protects against a tenant ending up with zero full-access accounts).
+    if (String(id) === String(req.practitioner.practitionerId) && req.isAdmin && !roleRows[0].is_system) {
+      return res.status(400).json({ error: 'You cannot remove your own Admin access.' });
+    }
+
     const legacyRole = roleRows[0].is_system ? 'ceo' : 'staff';
     await pool.query('UPDATE practitioners SET role = $1, role_id = $2 WHERE id = $3', [legacyRole, roleId, id]);
     res.json({ success: true });
@@ -613,7 +633,10 @@ async function getMe(req, res) {
       `SELECT r.name FROM roles r JOIN practitioners p ON p.role_id = r.id WHERE p.id = $1`,
       [req.practitioner.practitionerId]
     );
-    roleName = rows[0]?.name || 'Admin';
+    // Fall back to the neutral 'Staff' label, never 'Admin' — a staff account
+    // with a NULL/unmatched role_id has no permissions, so labelling it Admin
+    // would be actively misleading.
+    roleName = rows[0]?.name || 'Staff';
   }
   res.json({ isAdmin: req.isAdmin, permissions: Array.from(req.permissions), roleName });
 }

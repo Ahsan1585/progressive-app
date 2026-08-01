@@ -1,6 +1,10 @@
 const { pool } = require('../config/db');
 
-const OFFICE_ROLES = ['ceo', 'staff_director', 'billing', 'account_specialist'];
+// Anyone who isn't a practitioner is office-side. Phase 2 collapsed the old
+// fine-grained staff role strings into the single catch-all 'staff', so an
+// allowlist of literal role names would silently exclude every staff account;
+// this matches the requireOfficeStaff middleware guarding these same routes.
+const isOfficeStaff = (req) => req.practitioner.role !== 'practitioner';
 
 // One thread per practitioner (messages.practitioner_id is always the thread
 // owner, regardless of which side sent a given row). Office roles can open
@@ -52,7 +56,7 @@ const getThread = async (req, res) => {
   const practitionerId = resolveThreadPractitionerId(req);
   if (!practitionerId) return res.status(400).json({ error: 'Invalid practitioner id.' });
 
-  const isOffice = OFFICE_ROLES.includes(req.practitioner.role);
+  const isOffice = isOfficeStaff(req);
   if (!isOffice && practitionerId !== req.practitioner.practitionerId) {
     return res.status(403).json({ error: 'Not authorized for this thread.' });
   }
@@ -89,7 +93,7 @@ const postMessage = async (req, res) => {
   const practitionerId = resolveThreadPractitionerId(req);
   if (!practitionerId) return res.status(400).json({ error: 'Invalid practitioner id.' });
 
-  const isOffice = OFFICE_ROLES.includes(req.practitioner.role);
+  const isOffice = isOfficeStaff(req);
   if (!isOffice && practitionerId !== req.practitioner.practitionerId) {
     return res.status(403).json({ error: 'Not authorized for this thread.' });
   }

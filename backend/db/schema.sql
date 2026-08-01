@@ -52,7 +52,11 @@ CREATE TABLE practitioners (
   profile_picture text,
   PRIMARY KEY (id),
   CONSTRAINT practitioners_email_key UNIQUE (email),
-  CONSTRAINT practitioners_role_check CHECK (role = ANY (ARRAY['practitioner'::text, 'staff_director'::text, 'billing'::text, 'ceo'::text, 'account_specialist'::text]))
+  -- Phase 2 collapsed the 3 fine-grained office-staff values into the single
+  -- catch-all 'staff'; what a 'staff' account can do now comes from its
+  -- role_id -> roles/role_permissions (see migrations/add_roles_permissions.sql,
+  -- which re-applies this identical constraint for already-provisioned tenants).
+  CONSTRAINT practitioners_role_check CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text]))
 );
 ALTER SEQUENCE practitioners_id_seq OWNED BY practitioners.id;
 
