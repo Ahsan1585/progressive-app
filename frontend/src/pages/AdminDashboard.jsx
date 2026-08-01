@@ -12,13 +12,14 @@ import { TrialStatusBanner } from '@/components/TrialStatusBanner';
 import { BaaGate } from '@/components/BaaGate';
 import izayaLogo from '@/assets/izaya-logo.png';
 
-const TAB_ACCESS = {
-  practitioners: ['ceo', 'staff_director', 'account_specialist'],
-  reports:       ['ceo'],
-  billing:       ['ceo', 'billing', 'account_specialist'],
-  company:       ['ceo'],
-  subscription:  ['ceo'],
-  auditLog:      ['ceo'],
+const TAB_PERMISSION = {
+  practitioners: 'staff_directory_view',
+  reports:       'master_reports',
+  billing:       'billing_pending',
+  company:       null,  // requireOfficeStaff on the backend — visible to any non-practitioner
+  subscription:  'subscription_billing',
+  auditLog:      'audit_logs',
+  roles:         'staff_directory_edit_role',
 };
 
 const TAB_TITLES = {
@@ -28,24 +29,33 @@ const TAB_TITLES = {
   company:       'Company Information',
   subscription:  'Subscription & Billing',
   auditLog:      'Audit Log',
-};
-
-const ROLE_LABELS = {
-  ceo:                'Admin',
-  staff_director:     'Office Manager',
-  billing:            'Billing Specialist',
-  account_specialist: 'Account Specialist',
+  roles:         'Roles & Permissions',
 };
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const userRole = localStorage.getItem('role');
+  const [me, setMe] = useState(null);
 
-  const visibleTabs = Object.keys(TAB_ACCESS).filter(tab => TAB_ACCESS[tab].includes(userRole));
+  useEffect(() => {
+    api.get('/api/auth/me')
+      .then(res => setMe(res.data))
+      .catch(() => setMe({ isAdmin: false, permissions: [], roleName: 'Staff' }));
+  }, []);
 
-  const [activeTab, setActiveTab] = useState(() => {
-    return Object.keys(TAB_ACCESS).find(tab => TAB_ACCESS[tab].includes(userRole)) || 'billing';
-  });
+  const hasTabAccess = (tab) => {
+    if (!me) return false;
+    if (me.isAdmin) return true;
+    const key = TAB_PERMISSION[tab];
+    return key === null || me.permissions.includes(key);
+  };
+
+  const visibleTabs = me ? Object.keys(TAB_PERMISSION).filter(hasTabAccess) : [];
+
+  // activeTab stays null until permissions are fetched; once `me` resolves,
+  // derive the initial tab from visibleTabs during render (no effect needed)
+  // while still letting user clicks below override it via setActiveTab.
+  const [explicitTab, setActiveTab] = useState(null);
+  const activeTab = explicitTab ?? (me ? (visibleTabs[0] || 'billing') : null);
 
   const [adminProfile, setAdminProfile] = useState(null);
   const [companySettings, setCompanySettings] = useState(null);
@@ -313,7 +323,7 @@ const AdminDashboard = () => {
                   {adminProfile.first_name} {adminProfile.last_name}
                 </span>
                 <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">
-                  {ROLE_LABELS[userRole] || 'Admin'}
+                  {me?.isAdmin ? 'Admin' : (me?.roleName || 'Staff')}
                 </span>
               </div>
             )}

@@ -603,7 +603,19 @@ const reactivateStaffMember = async (req, res) => {
 // --- Function 7: Return the caller's own admin/permission set (used by the
 // frontend to decide what to render without duplicating role logic there) ---
 async function getMe(req, res) {
-  res.json({ isAdmin: req.isAdmin, permissions: Array.from(req.permissions) });
+  let roleName;
+  if (req.practitioner.role === 'ceo') {
+    roleName = 'Admin';
+  } else if (req.practitioner.role === 'practitioner') {
+    roleName = 'Practitioner';
+  } else {
+    const { rows } = await pool.query(
+      `SELECT r.name FROM roles r JOIN practitioners p ON p.role_id = r.id WHERE p.id = $1`,
+      [req.practitioner.practitionerId]
+    );
+    roleName = rows[0]?.name || 'Admin';
+  }
+  res.json({ isAdmin: req.isAdmin, permissions: Array.from(req.permissions), roleName });
 }
 
 module.exports = {
