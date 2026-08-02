@@ -8,6 +8,7 @@ import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Picker } from "@/components/Picker";
 import { SignatureCapture } from "@/components/SignatureCapture";
@@ -26,6 +27,7 @@ interface FormState {
   location: string;
   groupSizeCategory: string;
   customFields: Record<string, string>;
+  note: string;
 }
 
 const todayIso = localTodayIso;
@@ -65,6 +67,7 @@ export default function LogIntervention() {
     location: "",
     groupSizeCategory: "individual",
     customFields: {},
+    note: "",
   });
   const [zeroTime, setZeroTime] = React.useState(false);
   const [parentSig, setParentSig] = React.useState<string | null>(null);
@@ -180,6 +183,7 @@ export default function LogIntervention() {
         parentSignatureBase64: parentSig,
         practitionerSignatureBase64: practitionerSig,
         custom_fields: form.customFields,
+        note: form.note,
       });
 
       showToast("Encounter saved.");
@@ -308,6 +312,13 @@ export default function LogIntervention() {
               />
             );
           })}
+          <Field id="note" label="Notes" optional>
+            <Textarea
+              placeholder="Add any context on this session..."
+              value={form.note}
+              onChange={(e) => setField("note", e.target.value)}
+            />
+          </Field>
         </div>
 
         <div ref={(el) => { sectionRefs.current.signatures = el; }} className="space-y-6">

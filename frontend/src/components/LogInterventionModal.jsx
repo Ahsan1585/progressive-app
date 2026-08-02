@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import api from '@/api/axiosInstance';
 import { showAlert } from '@/utils/dialogStore';
 import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
@@ -135,7 +136,8 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
     type: 'DI',
     location: '1',
     groupSizeCategory: 'individual',
-    customFields: {}
+    customFields: {},
+    note: ''
   });
 
   const [zeroTime, setZeroTime] = useState(false);
@@ -186,7 +188,8 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
         type: 'DI',
         location: '1',
         groupSizeCategory: 'individual',
-        customFields: {}
+        customFields: {},
+        note: ''
       });
     }
   }, [isOpen]);
@@ -361,9 +364,18 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
             })}
           </div>
 
+          <div className="space-y-2">
+            <Label>Notes (optional)</Label>
+            <Textarea
+              placeholder="Add any context on this session..."
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-neutral-100">
-            <SignaturePad 
-              label="Parent/Caregiver Signature" 
+            <SignaturePad
+              label="Parent/Caregiver Signature"
               subtext="I verify that the above services were received."
               onUpdate={(base64) => setParentSig(base64)}
             />

@@ -132,6 +132,9 @@ app.post('/api/interventions', protect, async (req, res) => {
 
       // Custom dropdown category values, keyed by category key
       custom_fields,
+
+      // Optional free-text note the practitioner can attach at logging time
+      note,
     } = req.body;
 
     const finalTotalTime = total_time || totalTime || 0;
@@ -175,6 +178,16 @@ app.post('/api/interventions', protect, async (req, res) => {
         JSON.stringify({ custom_fields: sanitizedCustomFields })
       ]
     );
+
+    // Optional — surfaces in the same comment thread billing/admins already
+    // see in Session Detail (getLogNotes), rather than a new separate field.
+    if (note && note.trim()) {
+      await pool.query(
+        `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+         VALUES ($1, $2, $3, $4)`,
+        [insertedRows[0].id, trustedPractitionerId, req.practitioner.role, note.trim()]
+      );
+    }
 
     res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: insertedRows });
   } catch (error) {
