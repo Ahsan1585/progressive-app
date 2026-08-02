@@ -8,6 +8,7 @@ const {
   listFilesDetailed,
 } = require('../config/storage');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
+const { getCompanyName } = require('../utils/companyName');
 const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { getDisciplineCode, mapDisciplineToCode } = require('../utils/disciplineCodes');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
@@ -209,6 +210,8 @@ const generateNJEISForms = async (req, res) => {
     const { rows: assessments } = await pool.query(sql, params);
     if (!assessments || assessments.length === 0) return res.status(400).json({ success: false, error: "No pending assessments found." });
 
+    const companyName = await getCompanyName();
+
     const practitioner = assessments[0].practitioners;
     const filteredAssessments = excludedIds.length > 0
       ? assessments.filter(a => !excludedIds.includes(a.id))
@@ -242,7 +245,7 @@ const generateNJEISForms = async (req, res) => {
           } catch (e) { }
         };
 
-        setUniformText('Service Provider Agency Name', 'Progressive Steps');
+        setUniformText('Service Provider Agency Name', companyName);
         setUniformText('Practitioner Last Name', pData.practitioner_last_name);
         setUniformText('Practitioner First Name', pData.practitioner_first_name);
         setUniformText('Childs Last Name', pData.patient_last_name);
@@ -464,7 +467,9 @@ const generateFinancialInvoice = async (req, res) => {
       ? `${specialistRows[0].first_name || ''} ${specialistRows[0].last_name || ''}`.trim()
       : '';
 
-    const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems, processedBy);
+    const companyName = await getCompanyName();
+
+    const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems, processedBy, companyName);
 
     const invNow = new Date();
     const invYearMonth = `${invNow.getFullYear()}-${String(invNow.getMonth() + 1).padStart(2, '0')}`;

@@ -16,6 +16,7 @@ const path = require('path');
 const { pool } = require('./src/config/db');
 const { runMigrations } = require('./src/config/runMigrations');
 const { sanitizeCustomFields } = require('./src/utils/customFields');
+const { getCompanyName } = require('./src/utils/companyName');
 
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
@@ -298,6 +299,8 @@ app.get('/api/reports/practitioner/njeis-form', protect, async (req, res) => {
     
     const practitionerId = req.practitioner.practitionerId;
 
+    const companyName = await getCompanyName();
+
     const { rows: assessments } = await pool.query(
       'SELECT * FROM assessments WHERE practitioner_id = $1 ORDER BY service_date ASC',
       [practitionerId]
@@ -337,13 +340,13 @@ app.get('/api/reports/practitioner/njeis-form', protect, async (req, res) => {
           }
         };
 
-        setUniformText('Service Provider Agency Name', 'Progressive Steps');
+        setUniformText('Service Provider Agency Name', companyName);
         setUniformText('Practitioner Last Name', pData.practitioner_last_name);
         setUniformText('Practitioner First Name', pData.practitioner_first_name);
         setUniformText('Childs Last Name', pData.patient_last_name);
         setUniformText('Childs First Name', pData.patient_first_name);
         setUniformText('DOB', pData.patient_dob ? new Date(pData.patient_dob).toLocaleDateString() : '');
-        
+
         // THE FIX: Pull the county directly from our new dedicated database column
         setUniformText('County', pData.patient_county || '');
         
@@ -426,6 +429,8 @@ app.get('/api/admin/reports/njeis-form', protect, loadPermissions, requirePermis
       [value]
     );
 
+    const companyName = await getCompanyName();
+
     if (!assessments || assessments.length === 0) {
       return res.status(404).send('No records found for this identifier.');
     }
@@ -462,7 +467,7 @@ app.get('/api/admin/reports/njeis-form', protect, loadPermissions, requirePermis
           }
         };
 
-        setUniformText('Service Provider Agency Name', 'Progressive Steps');
+        setUniformText('Service Provider Agency Name', companyName);
         setUniformText('Practitioner Last Name', pData.practitioner_last_name);
         setUniformText('Practitioner First Name', pData.practitioner_first_name);
         setUniformText('Childs Last Name', pData.patient_last_name);

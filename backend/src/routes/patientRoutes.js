@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 const { pool } = require('../config/db');
+const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
 const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, deletePatient, getPractitionerStats } = require('../controllers/patientController');
@@ -64,7 +65,7 @@ router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {
     form.getTextField('Child ID').setText(String(assessment.patient_id || ''));
     
     form.getTextField('DOB').setText(assessment.patient_dob || '');
-    form.getTextField('Service Provider Agency Name').setText('Progressive Steps NJ');
+    form.getTextField('Service Provider Agency Name').setText(await getCompanyName());
     form.getTextField('Practitioner First Name').setText(assessment.practitioner_first_name || '');
     form.getTextField('Practitioner Last Name').setText(assessment.practitioner_last_name || '');
     form.getTextField('DisciplinePosition Title').setText(assessment.practitioner_discipline || '');

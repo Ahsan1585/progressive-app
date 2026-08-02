@@ -7,6 +7,7 @@ const {
 } = require('../config/storage');
 const { generateNjeisPDF } = require('../utils/njeisGenerator');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
+const { getCompanyName } = require('../utils/companyName');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const ExcelJS = require('exceljs');
 const { logAudit } = require('../utils/auditLog');
@@ -33,6 +34,8 @@ const generateMasterReport = async (req, res) => {
     );
     const practitioner = practitionerRows[0];
     if (!practitioner) throw new Error('Practitioner not found');
+
+    const companyName = await getCompanyName();
 
     const parsedPractitionerId = parseInt(practitionerId, 10);
 
@@ -95,7 +98,8 @@ const generateMasterReport = async (req, res) => {
         practitioner,
         childData,
         encounters,
-        `${targetMonth}/${targetYear}`
+        `${targetMonth}/${targetYear}`,
+        companyName
       );
 
       const fileName = `${practitionerId}/${childName}-${Date.now()}.pdf`.replace(/\s+/g, '_');
@@ -267,6 +271,8 @@ const generateAuditNJEIS = async (req, res) => {
       if (practitionerIds.length === 0) return res.status(404).json({ error: 'No matching practitioners found' });
     }
 
+    const companyName = await getCompanyName();
+
     const params = [];
     let sql = `
       SELECT a.id, a.service_date, a.status, a.type, a.location, a.start_time, a.end_time, a.total_time,
@@ -339,7 +345,7 @@ const generateAuditNJEIS = async (req, res) => {
       // Chunk encounters into pages of 10 rows each
       for (let i = 0; i < group.logs.length; i += ROWS_PER_PAGE) {
         const chunk = group.logs.slice(i, i + ROWS_PER_PAGE);
-        const pdfBuffer = await generateNjeisPDF(practitionerObj, patientData, chunk, targetMonthYear);
+        const pdfBuffer = await generateNjeisPDF(practitionerObj, patientData, chunk, targetMonthYear, companyName);
         const pageDoc = await PDFDocument.load(pdfBuffer);
         const [copiedPage] = await mergedDoc.copyPages(pageDoc, [0]);
         mergedDoc.addPage(copiedPage);
@@ -653,6 +659,8 @@ const issueInvoiceOverride = async (req, res) => {
     return res.status(400).json({ error: 'assessmentIds array is required' });
   }
   try {
+    const companyName = await getCompanyName();
+
     // Fetch full assessment + practitioner data
     const { rows: assessments } = await pool.query(
       `SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
@@ -706,7 +714,7 @@ const issueInvoiceOverride = async (req, res) => {
         };
       });
 
-      const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems);
+      const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems, '', companyName);
 
       const practName = `${practitioner.first_name}_${practitioner.last_name}`.replace(/\s+/g, '_');
       const serviceDates = logs.map(a => a.service_date).filter(Boolean).sort();

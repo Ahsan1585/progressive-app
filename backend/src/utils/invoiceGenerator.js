@@ -8,7 +8,7 @@ const formatServiceDate = (dateStr) => {
   return `${m.padStart(2, '0')}-${d.padStart(2, '0')}-${y}`;
 };
 
-const generateInvoicePDF = async (practitioner, encounters, processedBy = '') => {
+const generateInvoicePDF = async (practitioner, encounters, processedBy = '', companyName = '') => {
   const pdfDoc = await PDFDocument.create();
   let page = pdfDoc.addPage([612, 792]); // Letter size
 
@@ -21,7 +21,7 @@ const generateInvoicePDF = async (practitioner, encounters, processedBy = '') =>
   let y = height - margin;
 
   // ── Title ──
-  const title = 'BILLING INVOICE PROGRESSIVE STEPS';
+  const title = `BILLING INVOICE ${companyName || ''}`.trim().toUpperCase();
   const titleW = bold.widthOfTextAtSize(title, 14);
   page.drawText(title, { x: (width - titleW) / 2, y, font: bold, size: 14, color: rgb(0,0,0) });
   y -= 30;
@@ -34,7 +34,7 @@ const generateInvoicePDF = async (practitioner, encounters, processedBy = '') =>
     y -= 22;
   };
 
-  drawInfoRow('Company Name:', 'Progressive Steps');
+  drawInfoRow('Company Name:', companyName);
   drawInfoRow("Therapist's Name:", `${practitioner.first_name || ''} ${practitioner.last_name || ''}`);
   drawInfoRow('Address:', practitioner.address || '');
   drawInfoRow('Phone:', practitioner.phone_number || '');
@@ -121,12 +121,12 @@ const generateInvoicePDF = async (practitioner, encounters, processedBy = '') =>
   // ── Declaration box ──
   const declLines = [
     'I do solemnly declare and certify that all hours specified above have been previously',
-    'approved by the IF-SP and are hereby in compliance with the contractual Agreement between',
-    'Progressive Steps and the New Jersey Department of Health and Senior Services.',
+    `approved by the IF-SP and are hereby in compliance with the contractual Agreement between`,
+    `${companyName || 'the agency'} and the New Jersey Department of Health and Senior Services.`,
     '',
     'Furthermore, I fully Accept and Acknowledge that any hours which may exceed the time',
     'allotted by said contractual agreement may not be presented for payment at the discretion',
-    'of Progressive Steps.',
+    `of ${companyName || 'the agency'}.`,
   ];
 
   const declBoxH = 145;

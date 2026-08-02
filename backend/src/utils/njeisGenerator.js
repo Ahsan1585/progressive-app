@@ -32,7 +32,7 @@ const formatShortDate = (dateStr) => {
   return `${month}/${day}/${year}`;
 };
 
-const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear) => {
+const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear, companyName = '') => {
   const templatePath = path.join(__dirname, '../../templates/NJEIS-020.pdf');
   const templateBytes = fs.readFileSync(templatePath);
 
@@ -133,7 +133,7 @@ const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear
   };
 
   // --- HEADER INFO ---
-  fillField('Service Provider Agency Name', 'Progressive Steps');
+  fillField('Service Provider Agency Name', companyName);
   fillField('Practitioner First Name', practitioner.first_name);
   fillField('Practitioner Last Name', practitioner.last_name);
   
