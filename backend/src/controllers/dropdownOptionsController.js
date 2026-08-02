@@ -1,5 +1,5 @@
 const { pool } = require('../config/db');
-const { loadDropdownOptionsCache, getDropdownOptionsCache, CATEGORIES } = require('../constants/dropdownOptionsCache');
+const { loadDropdownOptionsCache, getDropdownOptionsCache } = require('../constants/dropdownOptionsCache');
 
 // Full set (active + inactive) grouped by category — the admin UI needs
 // inactive rows to offer "Reactivate"; the log-form dropdowns filter to
@@ -10,13 +10,17 @@ const getDropdownOptions = (req, res) => {
 
 const createDropdownOption = async (req, res) => {
   const { category, code, label, sort_order } = req.body;
-  if (!CATEGORIES.includes(category)) {
-    return res.status(400).json({ error: 'Invalid category' });
-  }
   if (!code || !String(code).trim() || !label || !String(label).trim()) {
     return res.status(400).json({ error: 'Code and name are required' });
   }
   try {
+    const { rows: categoryRows } = await pool.query(
+      'SELECT 1 FROM dropdown_categories WHERE key = $1 AND is_active = true',
+      [category]
+    );
+    if (!categoryRows[0]) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
     // Re-adding a code that was previously deactivated reactivates it (and
     // updates its label) rather than erroring on the UNIQUE(category, code)
     // constraint — keeps the same row/id so history association is preserved.

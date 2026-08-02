@@ -9,6 +9,12 @@ const {
   deactivateDropdownOption,
   reactivateDropdownOption,
 } = require('../controllers/dropdownOptionsController');
+const {
+  listDropdownCategories,
+  createDropdownCategory,
+  updateDropdownCategory,
+  deleteDropdownCategory,
+} = require('../controllers/dropdownCategoriesController');
 
 // Any authenticated role — the log-session form (practitioners included)
 // needs these to render its Service Type/Status/Location/Group Size dropdowns.
@@ -20,5 +26,13 @@ router.post('/', ...writeGuard, createDropdownOption);
 router.put('/:id', ...writeGuard, updateDropdownOption);
 router.delete('/:id', ...writeGuard, deactivateDropdownOption);
 router.put('/:id/reactivate', ...writeGuard, reactivateDropdownOption);
+
+// Category management — any authenticated role needs the category list to
+// render the log form's dropdown groups; mutations are ceo-only, same as
+// the option write routes above.
+router.get('/categories', protect, listDropdownCategories);
+router.post('/categories', ...writeGuard, createDropdownCategory);
+router.patch('/categories/:id', ...writeGuard, updateDropdownCategory);
+router.delete('/categories/:id', ...writeGuard, deleteDropdownCategory);
 
 module.exports = router;
