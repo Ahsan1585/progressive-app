@@ -13,19 +13,30 @@ const { getCurrentTenantDb } = require('../config/tenantContext');
 // runs, so njeis.js's synchronous reads always find an already-warm
 // cache), and refreshed synchronously by dropdownOptionsController
 // whenever an admin adds/edits/deactivates/reactivates an option.
-const CATEGORIES = ['service_type', 'service_status', 'location', 'group_size'];
-const EMPTY_CACHE = { service_type: [], service_status: [], location: [], group_size: [] };
-
-const cacheByTenant = new Map(); // tenantDbName -> { service_type: [...], ... }
+//
+// Both caches below are dynamic — keyed by whatever categories exist in
+// this tenant's dropdown_categories table (built-in + custom), not a fixed
+// list. A category with zero options yet still gets an empty array key so
+// consumers don't need an `|| []` guard for a brand-new custom category.
+const cacheByTenant = new Map(); // tenantDbName -> { <category key>: [...], ... }
+const categoriesByTenant = new Map(); // tenantDbName -> [{ key, display_name, is_custom, is_required_on_log, sort_order }, ...]
 
 async function loadDropdownOptionsCache(tenantDbName = getCurrentTenantDb()) {
-  const { rows } = await pool.query(
+  const { rows: categoryRows } = await pool.query(
+    'SELECT key, display_name, is_custom, is_required_on_log, sort_order FROM dropdown_categories WHERE is_active = true ORDER BY sort_order, key'
+  );
+  const { rows: optionRows } = await pool.query(
     'SELECT id, category, code, label, sort_order, is_active FROM dropdown_options ORDER BY category, sort_order, id'
   );
-  const next = { service_type: [], service_status: [], location: [], group_size: [] };
-  for (const row of rows) {
-    if (CATEGORIES.includes(row.category)) next[row.category].push(row);
+
+  const next = {};
+  for (const cat of categoryRows) next[cat.key] = [];
+  for (const row of optionRows) {
+    if (!next[row.category]) next[row.category] = [];
+    next[row.category].push(row);
   }
+
+  categoriesByTenant.set(tenantDbName, categoryRows);
   cacheByTenant.set(tenantDbName, next);
   return next;
 }
@@ -37,7 +48,16 @@ async function ensureDropdownOptionsCacheLoaded(tenantDbName) {
 }
 
 function getDropdownOptionsCache(tenantDbName = getCurrentTenantDb()) {
-  return cacheByTenant.get(tenantDbName) || EMPTY_CACHE;
+  return cacheByTenant.get(tenantDbName) || {};
 }
 
-module.exports = { loadDropdownOptionsCache, ensureDropdownOptionsCacheLoaded, getDropdownOptionsCache, CATEGORIES };
+function getDropdownCategoriesCache(tenantDbName = getCurrentTenantDb()) {
+  return categoriesByTenant.get(tenantDbName) || [];
+}
+
+module.exports = {
+  loadDropdownOptionsCache,
+  ensureDropdownOptionsCacheLoaded,
+  getDropdownOptionsCache,
+  getDropdownCategoriesCache,
+};
