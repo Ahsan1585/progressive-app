@@ -5,6 +5,7 @@
   "rewrites": [
     { "source": "/eis/assets/:path*", "destination": "/assets/:path*" },
     { "source": "/eis/favicon.svg", "destination": "/favicon.svg" },
+    { "source": "/eis/favicon.png", "destination": "/favicon.png" },
     { "source": "/eis/icons.svg", "destination": "/icons.svg" },
     { "source": "/eis/email-logo.png", "destination": "/email-logo.png" },
     { "source": "/(.*)", "destination": "/index.html" }
