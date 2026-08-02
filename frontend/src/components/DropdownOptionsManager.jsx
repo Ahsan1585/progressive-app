@@ -4,12 +4,15 @@ import { Input } from '@/components/ui/input';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { useDropdownOptions } from '@/hooks/useDropdownOptions';
 
-const SECTIONS = [
-  { category: 'service_type', title: 'Service Type', hint: 'Shown in the Service Type dropdown when a practitioner logs a session.' },
-  { category: 'service_status', title: 'Service Status', hint: 'Shown in the Service Status dropdown when a practitioner logs a session.' },
-  { category: 'location', title: 'Location', hint: 'Shown in the Service Location dropdown when a practitioner logs a session.' },
-  { category: 'group_size', title: 'Group Size Category', hint: 'Shown in the Group Size Category dropdown when a practitioner logs a session.' },
-];
+// Human-readable hints for the 4 built-in, state-mandated categories — a
+// custom category has no equivalent fixed hint, so it just shows its own
+// display name in the section header instead.
+const BUILT_IN_HINTS = {
+  service_type: 'Shown in the Service Type dropdown when a practitioner logs a session.',
+  service_status: 'Shown in the Service Status dropdown when a practitioner logs a session.',
+  location: 'Shown in the Service Location dropdown when a practitioner logs a session.',
+  group_size: 'Shown in the Group Size Category dropdown when a practitioner logs a session.',
+};
 
 const TrashIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -190,22 +193,114 @@ const OptionSection = ({ title, hint, category, rows, onSaved, onDeleted, onCrea
   );
 };
 
-// Lets an admin add/rename/deactivate the codes offered in the Service Type,
-// Service Status, Location, and Group Size dropdowns when a practitioner
-// logs a session. Every add/edit/delete/reactivate saves immediately (no
-// batch "Save" step) since these changes should reflect app-wide right away.
+const NewCategoryForm = ({ onCreated, onCancel }) => {
+  const [displayName, setDisplayName] = useState('');
+  const [isRequiredOnLog, setIsRequiredOnLog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSave = async () => {
+    if (!displayName.trim()) {
+      setError('A category name is required.');
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      const response = await api.post('/api/dropdown-options/categories', { displayName: displayName.trim(), isRequiredOnLog });
+      onCreated(response.data.category);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add category.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-teal-50/40 border border-dashed border-teal-200 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-3">
+        <Input
+          placeholder="Category name, e.g. Insurance Type"
+          value={displayName}
+          disabled={isSaving}
+          onChange={(e) => setDisplayName(e.target.value)}
+          className="h-9 max-w-xs"
+        />
+        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isRequiredOnLog}
+            disabled={isSaving}
+            onChange={(e) => setIsRequiredOnLog(e.target.checked)}
+          />
+          Required when logging a session
+        </label>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={handleSave} disabled={isSaving} className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
+          {isSaving ? 'Saving...' : 'Save'}
+        </button>
+        <button type="button" onClick={onCancel} disabled={isSaving} className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Lets an admin add/rename/deactivate the codes offered in each dropdown
+// category (the 4 built-in, state-mandated ones plus any custom categories
+// a company has created) when a practitioner logs a session. Every
+// add/edit/delete/reactivate saves immediately (no batch "Save" step) since
+// these changes should reflect app-wide right away.
 export const DropdownOptionsManager = () => {
-  const { options, isLoading, refetch } = useDropdownOptions();
+  const { options, categories, isLoading, refetch } = useDropdownOptions();
+  const [explicitCategory, setExplicitCategory] = useState(null);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+
+  // Derived at render time rather than synced via an effect: defaults to
+  // the first category until the user (or a create/delete action) picks a
+  // specific one, without a setState-in-effect render cascade.
+  const activeCategory = explicitCategory ?? categories[0]?.key ?? null;
 
   if (isLoading) {
     return <div className="py-10 text-center text-slate-500">Loading options...</div>;
   }
 
-  const patchRow = (category, updated) => {
+  const patchRow = () => {
     // Simplest correct approach: just refetch from the server so the cache
     // (and every other open tab/component) stays authoritative.
     refetch();
   };
+
+  const handleCategoryCreated = (category) => {
+    setIsAddingCategory(false);
+    refetch();
+    setExplicitCategory(category.key);
+  };
+
+  const handleDeleteCategory = async () => {
+    const current = categories.find((c) => c.key === activeCategory);
+    if (!current) return;
+    if (!(await showConfirm(`Delete the "${current.display_name}" category? This can't be undone.`))) {
+      return;
+    }
+    setIsDeletingCategory(true);
+    try {
+      await api.delete(`/api/dropdown-options/categories/${current.id}`);
+      const remaining = categories.filter((c) => c.key !== current.key);
+      setExplicitCategory(remaining[0]?.key || null);
+      refetch();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Failed to delete category.');
+    } finally {
+      setIsDeletingCategory(false);
+    }
+  };
+
+  const current = categories.find((c) => c.key === activeCategory);
 
   return (
     <div className="space-y-5">
@@ -215,18 +310,59 @@ export const DropdownOptionsManager = () => {
           Add, rename, or remove the codes practitioners choose from when logging a session. Renaming a code updates how it displays everywhere immediately — including past logs that used it. Removing a code hides it from new logs but keeps past logs showing its name.
         </p>
       </div>
-      {SECTIONS.map((section) => (
-        <OptionSection
-          key={section.category}
-          title={section.title}
-          hint={section.hint}
-          category={section.category}
-          rows={options[section.category] || []}
-          onSaved={() => patchRow(section.category)}
-          onDeleted={() => patchRow(section.category)}
-          onCreated={() => patchRow(section.category)}
-        />
-      ))}
+
+      <div className="flex items-center gap-1 border-b border-slate-200">
+        {categories.map((cat) => (
+          <button
+            key={cat.key}
+            type="button"
+            onClick={() => setExplicitCategory(cat.key)}
+            className={`px-4 py-2 text-sm font-semibold cursor-pointer border-b-2 -mb-px transition-colors ${
+              activeCategory === cat.key ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {cat.display_name}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setIsAddingCategory(true)}
+          aria-label="Add a new dropdown category"
+          title="Add a new dropdown category"
+          className="px-3 py-2 text-base font-bold text-teal-700 hover:text-teal-800 cursor-pointer"
+        >
+          +
+        </button>
+      </div>
+
+      {isAddingCategory && (
+        <NewCategoryForm onCreated={handleCategoryCreated} onCancel={() => setIsAddingCategory(false)} />
+      )}
+
+      {current && (
+        <>
+          <OptionSection
+            key={current.key}
+            title={current.display_name}
+            hint={BUILT_IN_HINTS[current.key] || `Shown in the ${current.display_name} dropdown when a practitioner logs a session.`}
+            category={current.key}
+            rows={options[current.key] || []}
+            onSaved={patchRow}
+            onDeleted={patchRow}
+            onCreated={patchRow}
+          />
+          {current.is_custom && (
+            <button
+              type="button"
+              onClick={handleDeleteCategory}
+              disabled={isDeletingCategory}
+              className="text-xs font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
+            >
+              Delete this category
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 };
