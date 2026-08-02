@@ -20,6 +20,18 @@ const { getCurrentTenantDb } = require('../config/tenantContext');
 // consumers don't need an `|| []` guard for a brand-new custom category.
 const cacheByTenant = new Map(); // tenantDbName -> { <category key>: [...], ... }
 const categoriesByTenant = new Map(); // tenantDbName -> [{ key, display_name, is_custom, is_required_on_log, sort_order }, ...]
+const loadedAtByTenant = new Map(); // tenantDbName -> ms timestamp of last load, for TTL below
+
+// Cloud Run runs multiple instances of this service; each holds its own
+// in-memory copy of this cache. A write (e.g. an admin adding a custom
+// category) calls loadDropdownOptionsCache() to refresh — but only on the
+// instance that handled that request. Every sibling instance keeps serving
+// its old snapshot indefinitely (no TTL, no cross-instance broadcast),
+// which silently dropped newly-added custom category fields from session
+// submissions whenever they landed on a different instance. This TTL makes
+// every instance self-heal within a bounded window instead of staying wrong
+// until it happens to restart.
+const CACHE_TTL_MS = 30_000;
 
 async function loadDropdownOptionsCache(tenantDbName = getCurrentTenantDb()) {
   const { rows: categoryRows } = await pool.query(
@@ -38,11 +50,13 @@ async function loadDropdownOptionsCache(tenantDbName = getCurrentTenantDb()) {
 
   categoriesByTenant.set(tenantDbName, categoryRows);
   cacheByTenant.set(tenantDbName, next);
+  loadedAtByTenant.set(tenantDbName, Date.now());
   return next;
 }
 
 async function ensureDropdownOptionsCacheLoaded(tenantDbName) {
-  if (!cacheByTenant.has(tenantDbName)) {
+  const loadedAt = loadedAtByTenant.get(tenantDbName);
+  if (!cacheByTenant.has(tenantDbName) || !loadedAt || Date.now() - loadedAt > CACHE_TTL_MS) {
     await loadDropdownOptionsCache(tenantDbName);
   }
 }
