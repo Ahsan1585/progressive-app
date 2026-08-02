@@ -249,6 +249,64 @@ const NewCategoryForm = ({ onCreated, onCancel }) => {
   );
 };
 
+const EditCategoryForm = ({ category, onSaved, onCancel }) => {
+  const [displayName, setDisplayName] = useState(category.display_name);
+  const [isRequiredOnLog, setIsRequiredOnLog] = useState(category.is_required_on_log);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSave = async () => {
+    if (!displayName.trim()) {
+      setError('A category name is required.');
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      const response = await api.patch(`/api/dropdown-options/categories/${category.id}`, {
+        displayName: displayName.trim(),
+        isRequiredOnLog,
+      });
+      onSaved(response.data.category);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save category.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-3">
+        <Input
+          value={displayName}
+          disabled={isSaving}
+          onChange={(e) => setDisplayName(e.target.value)}
+          className="h-9 max-w-xs"
+        />
+        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isRequiredOnLog}
+            disabled={isSaving}
+            onChange={(e) => setIsRequiredOnLog(e.target.checked)}
+          />
+          Required when logging a session
+        </label>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={handleSave} disabled={isSaving} className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
+          {isSaving ? 'Saving...' : 'Save'}
+        </button>
+        <button type="button" onClick={onCancel} disabled={isSaving} className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Lets an admin add/rename/deactivate the codes offered in each dropdown
 // category (the 4 built-in, state-mandated ones plus any custom categories
 // a company has created) when a practitioner logs a session. Every
@@ -258,6 +316,7 @@ export const DropdownOptionsManager = () => {
   const { options, categories, isLoading, refetch } = useDropdownOptions();
   const [explicitCategory, setExplicitCategory] = useState(null);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [isDeletingCategory, setIsDeletingCategory] = useState(false);
 
   // Derived at render time rather than synced via an effect: defaults to
@@ -277,6 +336,12 @@ export const DropdownOptionsManager = () => {
 
   const handleCategoryCreated = (category) => {
     setIsAddingCategory(false);
+    refetch();
+    setExplicitCategory(category.key);
+  };
+
+  const handleCategorySaved = (category) => {
+    setIsEditingCategory(false);
     refetch();
     setExplicitCategory(category.key);
   };
@@ -341,25 +406,42 @@ export const DropdownOptionsManager = () => {
 
       {current && (
         <>
-          <OptionSection
-            key={current.key}
-            title={current.display_name}
-            hint={BUILT_IN_HINTS[current.key] || `Shown in the ${current.display_name} dropdown when a practitioner logs a session.`}
-            category={current.key}
-            rows={options[current.key] || []}
-            onSaved={patchRow}
-            onDeleted={patchRow}
-            onCreated={patchRow}
-          />
-          {current.is_custom && (
-            <button
-              type="button"
-              onClick={handleDeleteCategory}
-              disabled={isDeletingCategory}
-              className="text-xs font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
-            >
-              Delete this category
-            </button>
+          {current.is_custom && isEditingCategory ? (
+            <EditCategoryForm
+              category={current}
+              onSaved={handleCategorySaved}
+              onCancel={() => setIsEditingCategory(false)}
+            />
+          ) : (
+            <OptionSection
+              key={current.key}
+              title={current.display_name}
+              hint={BUILT_IN_HINTS[current.key] || `Shown in the ${current.display_name} dropdown when a practitioner logs a session.`}
+              category={current.key}
+              rows={options[current.key] || []}
+              onSaved={patchRow}
+              onDeleted={patchRow}
+              onCreated={patchRow}
+            />
+          )}
+          {current.is_custom && !isEditingCategory && (
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setIsEditingCategory(true)}
+                className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
+              >
+                Rename / edit settings
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCategory}
+                disabled={isDeletingCategory}
+                className="text-xs font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
+              >
+                Delete this category
+              </button>
+            </div>
           )}
         </>
       )}
