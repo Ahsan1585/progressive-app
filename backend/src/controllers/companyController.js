@@ -328,11 +328,21 @@ const applyComplianceDocMapping = async (req, res) => {
       'service_type', 'location', 'group_size',
       'service_status', 'total_time', 'practitioner_discipline', 'patient_dob', 'patient_county',
     ];
+    // A company's own custom dropdown categories are also valid compareTo
+    // targets (custom_category:<key>) alongside the fixed 8 above — checked
+    // dynamically against the DB rather than a static array, since custom
+    // categories are per-tenant and created/removed at runtime.
+    const { rows: customCategoryRows } = await pool.query(
+      'SELECT key FROM dropdown_categories WHERE is_custom = true AND is_active = true'
+    );
+    const validCustomCategoryCompareTos = customCategoryRows.map((r) => `custom_category:${r.key}`);
+    const isValidCompareTo = (value) =>
+      VALID_CUSTOM_FIELD_COMPARE_TO.includes(value) || validCustomCategoryCompareTos.includes(value);
     const customFields = Array.isArray(rawCustomFields)
       ? rawCustomFields.filter((cf) => cf && cf.label && cf.header).map((cf) => ({
           label: String(cf.label).trim(),
           header: String(cf.header),
-          compareTo: VALID_CUSTOM_FIELD_COMPARE_TO.includes(cf.compareTo) ? cf.compareTo : null,
+          compareTo: isValidCompareTo(cf.compareTo) ? cf.compareTo : null,
         }))
       : [];
 
