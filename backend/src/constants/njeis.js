@@ -12,7 +12,7 @@ const { getDropdownOptionsCache } = require('./dropdownOptionsCache');
 // when they were hardcoded. Used for label<->code matching of *new*
 // submissions/imports, where a deactivated option shouldn't be offered.
 const activeOptions = (category) =>
-  getDropdownOptionsCache()[category].filter((o) => o.is_active).map((o) => ({ code: o.code, label: o.label }));
+  (getDropdownOptionsCache()[category] || []).filter((o) => o.is_active).map((o) => ({ code: o.code, label: o.label }));
 
 const norm = normalizeForMatch;
 
@@ -106,10 +106,25 @@ function mapStatusLabelToCode(label, threshold = 1) {
   return scored ? scored.code : null;
 }
 
+// Generic version of the mapXLabelToCode pattern above, for any custom
+// (admin-created) dropdown category — deliberately does NOT carry
+// service_type's SERVICE_LABEL_OVERRIDES or service_status's extra
+// exact-code-match rule, since those are domain-specific to NJEIS's fixed
+// vocabulary and have no equivalent meaning for an arbitrary custom field.
+function mapCategoryLabelToCode(category, label, threshold = 1) {
+  if (!label) return null;
+  const options = activeOptions(category);
+  const n = norm(label);
+  const exact = options.find((o) => norm(o.label) === n);
+  if (exact) return exact.code;
+  const scored = scoredWordMatch(label, options, threshold);
+  return scored ? scored.code : null;
+}
+
 // Code->label lookups search ALL rows (active + inactive) so a deactivated/
 // retired code used on a historical record still resolves to its label
 // instead of falling back to the raw code.
-const codeLabel = (category, code) => getDropdownOptionsCache()[category].find((o) => o.code === code)?.label || code;
+const codeLabel = (category, code) => (getDropdownOptionsCache()[category] || []).find((o) => o.code === code)?.label || code;
 const serviceCodeLabel = (code) => codeLabel('service_type', code);
 const locationCodeLabel = (code) => codeLabel('location', code);
 const groupSizeCodeLabel = (code) => codeLabel('group_size', code);
@@ -124,10 +139,12 @@ module.exports = {
   mapLocationLabelToCode,
   mapGroupSizeLabelToCode,
   mapStatusLabelToCode,
+  mapCategoryLabelToCode,
   serviceCodeLabel,
   locationCodeLabel,
   groupSizeCodeLabel,
   statusCodeLabel,
+  codeLabel,
   STRICTNESS_PROFILES,
   resolveStrictnessProfile,
 };
