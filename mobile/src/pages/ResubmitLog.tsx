@@ -21,10 +21,14 @@ import type { ApiErrorBody } from "@/types";
 export default function ResubmitLog() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rejectedLogs, fetchRejectedLogs, profile, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions } = useAppData();
+  const { rejectedLogs, fetchRejectedLogs, profile, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories } = useAppData();
   const { showToast } = useToast();
 
   const log = rejectedLogs.find((l) => String(l.id) === id);
+  const customCategories = React.useMemo(
+    () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
+    [dropdownCategories]
+  );
 
   const allowedServiceTypeOptions = React.useMemo(() => {
     const allowed = profile?.service_types;
@@ -40,6 +44,7 @@ export default function ResubmitLog() {
     status: log?.status ?? "",
     group_size_category: log?.group_size_category ?? "individual",
     note: "",
+    custom_fields: (log?.form_data?.custom_fields ?? {}) as Record<string, string>,
   });
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -134,6 +139,21 @@ export default function ResubmitLog() {
           options={groupSizeOptions}
           onChange={(v) => setForm((f) => ({ ...f, group_size_category: v }))}
         />
+        {customCategories.map((cat) => {
+          const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
+          return (
+            <Picker
+              key={cat.key}
+              id={`custom-${cat.key}`}
+              label={cat.display_name}
+              value={form.custom_fields[cat.key] || ""}
+              options={catOptions}
+              onChange={(v) => {
+                setForm((f) => ({ ...f, custom_fields: { ...f.custom_fields, [cat.key]: v } }));
+              }}
+            />
+          );
+        })}
         <div className="grid grid-cols-2 gap-3">
           <Field id="start_time" label="Start time">
             <Input

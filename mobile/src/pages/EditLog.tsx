@@ -22,7 +22,11 @@ export default function EditLog() {
   const { id: patientId, logId } = useParams<{ id: string; logId: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { profile, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions } = useAppData();
+  const { profile, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories } = useAppData();
+  const customCategories = React.useMemo(
+    () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
+    [dropdownCategories]
+  );
 
   const [loading, setLoading] = React.useState(true);
   const [notEditable, setNotEditable] = React.useState(false);
@@ -41,6 +45,7 @@ export default function EditLog() {
     type: "",
     location: "",
     groupSizeCategory: "individual",
+    customFields: {} as Record<string, string>,
   });
   const [zeroTime, setZeroTime] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -64,6 +69,7 @@ export default function EditLog() {
             type: found.type || "",
             location: found.location || "",
             groupSizeCategory: found.group_size_category || "individual",
+            customFields: found.form_data?.custom_fields || {},
           });
           setZeroTime(!found.start_time && !found.end_time);
         }
@@ -93,6 +99,9 @@ export default function EditLog() {
   if (!form.type) missing.push("service type");
   if (!form.status) missing.push("status");
   if (!form.location) missing.push("location");
+  for (const cat of customCategories) {
+    if (cat.is_required_on_log && !form.customFields[cat.key]) missing.push(cat.display_name.toLowerCase());
+  }
 
   const handleSubmit = async () => {
     if (!logId || missing.length > 0) return;
@@ -108,6 +117,7 @@ export default function EditLog() {
         location: form.location,
         group_size_category: form.groupSizeCategory,
         total_time: totalMinutes,
+        custom_fields: form.customFields,
       });
       showToast("Log updated.");
       navigate(`/patients/${patientId}`, { replace: true });
@@ -197,6 +207,21 @@ export default function EditLog() {
               options={groupSizeOptions}
               onChange={(v) => setField("groupSizeCategory", v)}
             />
+            {customCategories.map((cat) => {
+              const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
+              return (
+                <Picker
+                  key={cat.key}
+                  id={`custom-${cat.key}`}
+                  label={cat.display_name}
+                  value={form.customFields[cat.key] || ""}
+                  options={catOptions}
+                  onChange={(v) => {
+                    setForm((f) => ({ ...f, customFields: { ...f.customFields, [cat.key]: v } }));
+                  }}
+                />
+              );
+            })}
           </>
         )}
       </div>

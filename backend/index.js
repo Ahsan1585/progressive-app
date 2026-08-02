@@ -15,7 +15,7 @@ const path = require('path');
 // --- Database Initialization ---
 const { pool } = require('./src/config/db');
 const { runMigrations } = require('./src/config/runMigrations');
-const { getDropdownOptionsCache, getDropdownCategoriesCache } = require('./src/constants/dropdownOptionsCache');
+const { sanitizeCustomFields } = require('./src/utils/customFields');
 
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
@@ -156,26 +156,7 @@ app.post('/api/interventions', protect, async (req, res) => {
       return res.status(403).json({ error: 'You are not registered to provide this service type' });
     }
 
-    // Custom dropdown category values are client-submitted, so they're
-    // validated server-side too: only a key that's a real, currently-active
-    // custom category, and only a value that's a real, currently-active
-    // option code within that category, survives — anything else is
-    // silently dropped rather than rejecting the whole encounter over one
-    // bad field. These values feed Compliance Analysis's match/mismatch
-    // check on a billing SaaS, so they can't be trusted as freeform text.
-    const sanitizedCustomFields = {};
-    if (custom_fields && typeof custom_fields === 'object' && !Array.isArray(custom_fields)) {
-      const dropdownCache = getDropdownOptionsCache();
-      const activeCustomCategoryKeys = new Set(
-        getDropdownCategoriesCache().filter((c) => c.is_custom && c.is_active).map((c) => c.key)
-      );
-      for (const [key, value] of Object.entries(custom_fields)) {
-        if (!activeCustomCategoryKeys.has(key)) continue;
-        const validCodes = new Set((dropdownCache[key] || []).filter((o) => o.is_active).map((o) => o.code));
-        const strValue = String(value);
-        if (validCodes.has(strValue)) sanitizedCustomFields[key] = strValue;
-      }
-    }
+    const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
 
     const { rows: insertedRows } = await pool.query(
       `INSERT INTO assessments

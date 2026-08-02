@@ -1,6 +1,7 @@
 const { patientSchema } = require('../utils/patientSchema');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
+const { sanitizeCustomFields } = require('../utils/customFields');
 
 const VALID_PATIENT_STATUSES = ['active', 'inactive'];
 
@@ -180,7 +181,7 @@ const getRejectedLogs = async (req, res) => {
   try {
     const { rows: logs } = await pool.query(
       `SELECT id, patient_first_name, patient_last_name, patient_id, service_date, type, location,
-              start_time, end_time, total_time, status, group_size_category, rejection_note, rejected_at, rejection_count,
+              start_time, end_time, total_time, status, group_size_category, form_data, rejection_note, rejected_at, rejection_count,
               parent_signature, billing_status, acknowledged_at
        FROM assessments
        WHERE practitioner_id = $1
@@ -234,7 +235,7 @@ const acknowledgeLog = async (req, res) => {
 
 const resubmitLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
-  const { assessmentId, type, location, start_time, end_time, total_time, status, note, group_size_category } = req.body;
+  const { assessmentId, type, location, start_time, end_time, total_time, status, note, group_size_category, custom_fields } = req.body;
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
   try {
@@ -255,13 +256,16 @@ const resubmitLog = async (req, res) => {
       return res.status(403).json({ error: 'You are not registered to provide this service type' });
     }
 
+    const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
+
     await pool.query(
       `UPDATE assessments
        SET billing_status = 'pending', billing_review = NULL, type = $1, location = $2,
            start_time = $3, end_time = $4, total_time = $5, status = $6, group_size_category = $7,
-           rejection_note = NULL, rejected_at = NULL
-       WHERE id = $8`,
-      [type, location, start_time, end_time, total_time, status, group_size_category || null, assessmentId]
+           form_data = $8, rejection_note = NULL, rejected_at = NULL
+       WHERE id = $9`,
+      [type, location, start_time, end_time, total_time, status, group_size_category || null,
+       JSON.stringify({ custom_fields: sanitizedCustomFields }), assessmentId]
     );
 
     // Optional — the practitioner's note on why/how they revised the log,
@@ -290,7 +294,7 @@ const resubmitLog = async (req, res) => {
 const editLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
-  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category } = req.body;
+  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category, custom_fields } = req.body;
 
   try {
     const { rows } = await pool.query(
@@ -312,12 +316,15 @@ const editLog = async (req, res) => {
       return res.status(403).json({ error: 'You are not registered to provide this service type' });
     }
 
+    const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
+
     await pool.query(
       `UPDATE assessments
        SET service_date = $1, type = $2, location = $3, start_time = $4, end_time = $5,
-           total_time = $6, status = $7, group_size_category = $8
-       WHERE id = $9`,
-      [service_date, type, location, start_time, end_time, total_time, status, group_size_category || null, id]
+           total_time = $6, status = $7, group_size_category = $8, form_data = $9
+       WHERE id = $10`,
+      [service_date, type, location, start_time, end_time, total_time, status, group_size_category || null,
+       JSON.stringify({ custom_fields: sanitizedCustomFields }), id]
     );
     logAudit({ req, action: 'log_edit', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });

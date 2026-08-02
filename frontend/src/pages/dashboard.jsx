@@ -57,7 +57,7 @@ const Dashboard = () => {
   // objects below (built from ALL rows, active + inactive) are for display
   // label lookups — a deactivated code still resolves to its label on an
   // existing log. The *Options arrays (active only) populate the edit dropdowns.
-  const { options: dropdownOptions } = useDropdownOptions();
+  const { options: dropdownOptions, categories: dropdownCategories } = useDropdownOptions();
   const serviceTypeMap = buildCodeLabelMap(dropdownOptions.service_type);
   const statusCodeMap = buildCodeLabelMap(dropdownOptions.service_status);
   const locationCodeMap = buildCodeLabelMap(dropdownOptions.location);
@@ -66,6 +66,7 @@ const Dashboard = () => {
   const statusOptionsActive = activeOnly(dropdownOptions.service_status);
   const locationOptionsActive = activeOnly(dropdownOptions.location);
   const groupSizeOptionsActive = activeOnly(dropdownOptions.group_size);
+  const customCategories = dropdownCategories.filter((c) => c.is_custom && c.is_active);
   const billingStatusConfig = {
     njeis_review: { label: 'In Review',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
     invoiced:     { label: 'Accepted',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -159,7 +160,8 @@ const Dashboard = () => {
       end_time: log.end_time || '',
       total_time: log.total_time || '',
       status: log.status || '',
-      group_size_category: log.group_size_category || 'individual'
+      group_size_category: log.group_size_category || 'individual',
+      custom_fields: log.form_data?.custom_fields || {}
     });
   };
 
@@ -1059,6 +1061,21 @@ const Dashboard = () => {
                   ))}
                 </select>
               </div>
+              {customCategories.map((cat) => (
+                <div className="col-span-2 space-y-1" key={cat.key}>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{cat.display_name}</label>
+                  <select
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                    value={resubmitForm.custom_fields?.[cat.key] || ''}
+                    onChange={e => setResubmitForm(f => ({ ...f, custom_fields: { ...f.custom_fields, [cat.key]: e.target.value } }))}
+                  >
+                    <option value="">Select...</option>
+                    {activeOnly(dropdownOptions[cat.key]).map(({ code, label }) => (
+                      <option key={code} value={code}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
             <div className="flex gap-3 pt-1">
               <Button

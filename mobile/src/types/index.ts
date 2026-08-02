@@ -122,6 +122,7 @@ export interface Assessment {
   type: string;
   location: string;
   group_size_category?: string | null;
+  form_data?: { custom_fields?: Record<string, string> } | null;
   billing_status: BillingStatus;
   rejection_note?: string | null;
   rejected_at?: string | null;
@@ -145,6 +146,7 @@ export interface RejectedLog {
   total_time: number;
   status: string;
   group_size_category: string | null;
+  form_data?: { custom_fields?: Record<string, string> } | null;
   rejection_note: string | null;
   rejected_at: string | null;
   rejection_count: number;
