@@ -126,7 +126,10 @@ app.post('/api/interventions', protect, async (req, res) => {
 
       // Signatures
       parentSignatureBase64,
-      practitionerSignatureBase64
+      practitionerSignatureBase64,
+
+      // Custom dropdown category values, keyed by category key
+      custom_fields,
     } = req.body;
 
     const finalTotalTime = total_time || totalTime || 0;
@@ -164,7 +167,8 @@ app.post('/api/interventions', protect, async (req, res) => {
         patientId, trustedPractitionerId, patient_first_name, patient_last_name, patient_dob, patient_county,
         practitioner_first_name, practitioner_last_name, practitioner_discipline,
         date, startTime, endTime, finalTotalTime, status, type, location, groupSizeCategory || null,
-        parentSignatureBase64, practitionerSignatureBase64, JSON.stringify({})
+        parentSignatureBase64, practitionerSignatureBase64,
+        JSON.stringify({ custom_fields: (custom_fields && typeof custom_fields === 'object') ? custom_fields : {} })
       ]
     );
 
