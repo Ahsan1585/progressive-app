@@ -15,10 +15,10 @@ export default defineConfig({
       // subpath/domain it ends up deployed at.
       base: "/",
       manifest: {
-        name: "Progressive Steps NJ — Practitioner",
-        short_name: "PS NJ",
+        name: "Izaya EIS",
+        short_name: "Izaya EIS",
         description:
-          "Progressive Steps NJ — practitioner field app for NJEIS encounter logging.",
+          "Izaya EIS — practitioner field app for NJEIS encounter logging.",
         start_url: "/",
         scope: "/",
         display: "standalone",
