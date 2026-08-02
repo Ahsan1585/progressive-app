@@ -4,6 +4,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
+import { useDropdownOptions, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
@@ -722,6 +723,8 @@ function SessionDetailPanel({
   const isOnHold = session.billing_status === 'on_hold';
   const isProcessing = processingLogId === session.id;
   const isLocked = session.billing_status === 'njeis_review';
+  const { options: dropdownOptions, categories } = useDropdownOptions();
+  const customCategories = categories.filter((c) => c.is_custom && c.is_active);
   // Same isApproved pattern used everywhere else in this file (PractitionerGroup,
   // handleStatusChange) — must fall back to the persisted billing_review, not
   // just local logActions, or a log that's already Approved on the server
@@ -788,7 +791,7 @@ function SessionDetailPanel({
       <p className="text-base text-slate-600 mb-6">{session.type || '-'} session</p>
 
       <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2.5">Service Codes</div>
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-4 gap-3 mb-5">
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
           <div className="text-[11px] font-bold uppercase text-slate-500">Status</div>
           <div className="text-base font-bold font-mono text-slate-900">{session.status || '-'}</div>
@@ -800,6 +803,10 @@ function SessionDetailPanel({
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
           <div className="text-[11px] font-bold uppercase text-slate-500">Location</div>
           <div className="text-base font-bold font-mono text-slate-900">{session.location || '-'}</div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+          <div className="text-[11px] font-bold uppercase text-slate-500">Group Size</div>
+          <div className="text-base font-bold font-mono text-slate-900">{session.group_size_category || '-'}</div>
         </div>
       </div>
 
@@ -818,6 +825,24 @@ function SessionDetailPanel({
           <div className="text-base font-bold text-slate-900">{formatTime(session.total_time)}</div>
         </div>
       </div>
+
+      {customCategories.length > 0 && (
+        <>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2.5">Additional Fields</div>
+          <div className="grid grid-cols-4 gap-3 mb-7">
+            {customCategories.map((cat) => {
+              const codeLabelMap = buildCodeLabelMap(dropdownOptions[cat.key] || []);
+              const code = session.form_data?.custom_fields?.[cat.key];
+              return (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3" key={cat.key}>
+                  <div className="text-[11px] font-bold uppercase text-slate-500">{cat.display_name}</div>
+                  <div className="text-base font-bold text-slate-900">{code ? (codeLabelMap[code] || code) : '-'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {isProcessing ? (
         <div className="text-base text-slate-500">Processing...</div>
