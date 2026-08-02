@@ -230,7 +230,7 @@ git commit -m "Make dropdown options cache dynamic instead of a fixed 4-category
 
 **Interfaces:**
 - Consumes: `getDropdownCategoriesCache`, `loadDropdownOptionsCache` from Task 2; `pool` from `backend/src/config/db.js`.
-- Produces: `GET/POST/PATCH/DELETE /api/dropdown-categories` — consumed by Task 5's frontend tab UI.
+- Produces: `GET/POST/PATCH/DELETE /api/dropdown-options/categories` — consumed by Task 5's frontend tab UI.
 
 - [ ] **Step 1: Read dropdownOptionsController.js in full**
 
@@ -408,15 +408,15 @@ No live DB in this environment by default — if you have scratch-DB access from
 
 ```bash
 TOKEN="<jwt for an Admin/ceo account on the scratch tenant>"
-curl -s -X POST http://localhost:8080/api/dropdown-categories -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"displayName":"Insurance Type","isRequiredOnLog":true}'
-curl -s http://localhost:8080/api/dropdown-categories -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:8080/api/dropdown-options/categories -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"displayName":"Insurance Type","isRequiredOnLog":true}'
+curl -s http://localhost:8080/api/dropdown-options/categories -H "Authorization: Bearer $TOKEN"
 ```
 
 Expected: 201 with `key: "insurance_type"`, then the GET lists all 5 categories (4 built-in + this one). Then confirm a built-in can't be edited/deleted:
 
 ```bash
-SERVICE_TYPE_ID=$(curl -s http://localhost:8080/api/dropdown-categories -H "Authorization: Bearer $TOKEN" | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).categories.find(c=>c.key==='service_type').id))")
-curl -s -X DELETE http://localhost:8080/api/dropdown-categories/$SERVICE_TYPE_ID -H "Authorization: Bearer $TOKEN"
+SERVICE_TYPE_ID=$(curl -s http://localhost:8080/api/dropdown-options/categories -H "Authorization: Bearer $TOKEN" | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).categories.find(c=>c.key==='service_type').id))")
+curl -s -X DELETE http://localhost:8080/api/dropdown-options/categories/$SERVICE_TYPE_ID -H "Authorization: Bearer $TOKEN"
 ```
 
 Expected: `400 { "error": "This is a built-in category and cannot be deleted." }`. If no DB access is available, do a careful manual code trace instead and report as DONE_WITH_CONCERNS.
@@ -436,7 +436,7 @@ git commit -m "Add dropdown category CRUD API"
 - Modify: `frontend/src/hooks/useDropdownOptions.js`
 
 **Interfaces:**
-- Consumes: `GET /api/dropdown-categories` (Task 3).
+- Consumes: `GET /api/dropdown-options/categories` (Task 3).
 - Produces: `useDropdownOptions()` now also returns `categories` (array of `{ id, key, display_name, is_custom, is_required_on_log, sort_order, is_active }`, sorted) alongside its existing `options`/`isLoading`/`refetch` — consumed by Task 5 (tab UI) and Task 6/7 (log-form custom fields).
 
 - [ ] **Step 1: Read the current file in full**
@@ -448,7 +448,7 @@ const [categories, setCategories] = useState([]);
 // ... inside the existing fetch effect/function, alongside the options fetch:
 const [optionsRes, categoriesRes] = await Promise.all([
   api.get('/api/dropdown-options'),
-  api.get('/api/dropdown-categories'),
+  api.get('/api/dropdown-options/categories'),
 ]);
 setOptions(optionsRes.data.options);
 setCategories(categoriesRes.data.categories);
@@ -479,7 +479,7 @@ git commit -m "Expose category metadata from useDropdownOptions"
 - Modify: `frontend/src/components/DropdownOptionsManager.jsx`
 
 **Interfaces:**
-- Consumes: `categories` from Task 4's `useDropdownOptions()`; `POST/PATCH/DELETE /api/dropdown-categories` from Task 3.
+- Consumes: `categories` from Task 4's `useDropdownOptions()`; `POST/PATCH/DELETE /api/dropdown-options/categories` from Task 3.
 
 - [ ] **Step 1: Read the current file in full**
 
@@ -518,11 +518,11 @@ Below the tab bar, render only the ONE `OptionSection` matching `activeCategory`
 
 - [ ] **Step 4: Add the "+" inline create-category form**
 
-Add `const [isAddingCategory, setIsAddingCategory] = useState(false);` and a small form (name input + "Required when logging a session" checkbox + Save/Cancel), following this file's existing `NewOptionRow` component as your visual/interaction template (inline row, `onBlur`/explicit-Save pattern, error message shown inline). On save, `POST /api/dropdown-categories`, then `refetch()` (the hook's existing refetch, which now also needs to re-fetch categories — confirm Task 4's `refetch` does this) and switch `activeCategory` to the newly created category's key.
+Add `const [isAddingCategory, setIsAddingCategory] = useState(false);` and a small form (name input + "Required when logging a session" checkbox + Save/Cancel), following this file's existing `NewOptionRow` component as your visual/interaction template (inline row, `onBlur`/explicit-Save pattern, error message shown inline). On save, `POST /api/dropdown-options/categories`, then `refetch()` (the hook's existing refetch, which now also needs to re-fetch categories — confirm Task 4's `refetch` does this) and switch `activeCategory` to the newly created category's key.
 
 - [ ] **Step 5: Add a "Delete category" action for custom (non-built-in) tabs**
 
-Only shown when `categories.find(c => c.key === activeCategory)?.is_custom` is true. Use `showConfirm` (already imported in this file) before calling `DELETE /api/dropdown-categories/:id`, matching this file's existing `handleDelete` pattern in `OptionRow`. On success, switch `activeCategory` back to the first remaining category and `refetch()`.
+Only shown when `categories.find(c => c.key === activeCategory)?.is_custom` is true. Use `showConfirm` (already imported in this file) before calling `DELETE /api/dropdown-options/categories/:id`, matching this file's existing `handleDelete` pattern in `OptionRow`. On success, switch `activeCategory` back to the first remaining category and `refetch()`.
 
 - [ ] **Step 6: Verify**
 
@@ -688,7 +688,7 @@ git commit -m "Render custom dropdown categories in the web log-entry form"
 
 - [ ] **Step 2: Extend AppDataContext to also fetch and expose categories**
 
-Add a fetch to `/api/dropdown-categories` (mirroring however the existing `/api/dropdown-options` fetch is done in this file — same API client, same error handling), store the result, and add `categories` (and a way to get a given custom category's own options, e.g. `dropdownOptions[key]`) to the context's provided value.
+Add a fetch to `/api/dropdown-options/categories` (mirroring however the existing `/api/dropdown-options` fetch is done in this file — same API client, same error handling), store the result, and add `categories` (and a way to get a given custom category's own options, e.g. `dropdownOptions[key]`) to the context's provided value.
 
 - [ ] **Step 3: Extend LogIntervention.tsx's FormState and form state**
 
@@ -835,7 +835,7 @@ git commit -m "Accept custom dropdown categories as a compareTo target in compli
 - Modify: `frontend/src/components/CompanySettings.jsx`
 
 **Interfaces:**
-- Consumes: `GET /api/dropdown-categories` (Task 3) — this component doesn't currently use `useDropdownOptions()`, so it needs its own fetch or to adopt that hook.
+- Consumes: `GET /api/dropdown-options/categories` (Task 3) — this component doesn't currently use `useDropdownOptions()`, so it needs its own fetch or to adopt that hook.
 
 - [ ] **Step 1: Read the full compareTo `<select>` section and surrounding state**
 
@@ -843,7 +843,7 @@ You need the exact current JSX (the 8 hardcoded `<option>` elements) and this co
 
 - [ ] **Step 2: Fetch custom categories**
 
-Add a fetch to `/api/dropdown-categories` (either via the shared `useDropdownOptions()` hook — simplest, since Task 4 already added `categories` to it — or a standalone `api.get` call if adopting the hook here would require unrelated restructuring; prefer the hook unless doing so conflicts with this component's existing patterns). Filter to `is_custom && is_active`.
+Add a fetch to `/api/dropdown-options/categories` (either via the shared `useDropdownOptions()` hook — simplest, since Task 4 already added `categories` to it — or a standalone `api.get` call if adopting the hook here would require unrelated restructuring; prefer the hook unless doing so conflicts with this component's existing patterns). Filter to `is_custom && is_active`.
 
 - [ ] **Step 3: Extend the compareTo select's options**
 
