@@ -1800,7 +1800,7 @@ const getActionRequiredLogs = async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT a.id, a.service_date, a.start_time, a.end_time, a.total_time,
-              a.type, a.location, a.status, a.group_size_category,
+              a.type, a.location, a.status, a.group_size_category, a.form_data,
               a.patient_id, patients.child_id, a.patient_first_name, a.patient_last_name,
               a.patient_dob, a.patient_county,
               a.practitioner_first_name, a.practitioner_last_name, a.practitioner_discipline,

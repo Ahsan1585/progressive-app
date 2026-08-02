@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { showAlert } from '@/utils/dialogStore';
 import { formatTime12h } from '@/utils/formatTime';
+import { useDropdownOptions, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '-';
@@ -35,6 +36,8 @@ export function ActionRequired() {
   const [expandedId, setExpandedId] = useState(null);
   const [comment, setComment] = useState('');
   const [decidingId, setDecidingId] = useState(null);
+  const { options: dropdownOptions, categories } = useDropdownOptions();
+  const customCategories = categories.filter((c) => c.is_custom && c.is_active);
 
   const fetchLogs = () => {
     setIsLoading(true);
@@ -152,6 +155,24 @@ export function ActionRequired() {
                       </div>
                     </div>
                   </div>
+
+                  {customCategories.length > 0 && (
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Additional Fields</div>
+                      <div className="grid grid-cols-4 gap-3">
+                        {customCategories.map((cat) => {
+                          const codeLabelMap = buildCodeLabelMap(dropdownOptions[cat.key] || []);
+                          const code = log.form_data?.custom_fields?.[cat.key];
+                          return (
+                            <div className="bg-white border border-slate-200 rounded-lg px-3 py-2" key={cat.key}>
+                              <div className="text-[11px] font-bold uppercase text-slate-500">{cat.display_name}</div>
+                              <div className="text-sm font-bold text-slate-900">{code ? (codeLabelMap[code] || code) : '-'}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Session Time</div>
