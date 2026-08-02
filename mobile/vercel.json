@@ -1,5 +1,17 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "redirects": [
+    { "source": "/", "destination": "/EIS/login", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/EIS/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/EIS/icons/:path*", "destination": "/icons/:path*" },
+    { "source": "/EIS/favicon.png", "destination": "/favicon.png" },
+    { "source": "/EIS/sw.js", "destination": "/sw.js" },
+    { "source": "/EIS/registerSW.js", "destination": "/registerSW.js" },
+    { "source": "/EIS/workbox-(.*)", "destination": "/workbox-$1" },
+    { "source": "/EIS/manifest.webmanifest", "destination": "/manifest.webmanifest" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

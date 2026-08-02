@@ -4,7 +4,7 @@ import izayaLogo from '@/assets/izaya-logo.png';
 // The practitioner mobile app is a separate deployment (its own PWA install
 // flow lives there — Android gets a native install prompt, iOS gets "Add to
 // Home Screen" instructions — neither can be triggered from this origin).
-export const MOBILE_APP_URL = 'https://mobile-pied-two.vercel.app/login';
+export const MOBILE_APP_URL = 'https://app.izayaedge.com/EIS/login';
 // `install=1` tells the mobile login page to lead with the install
 // card instead of burying it below the sign-in form.
 export const MOBILE_APP_INSTALL_URL = `${MOBILE_APP_URL}?install=1`;

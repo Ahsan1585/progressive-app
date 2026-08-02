@@ -79,7 +79,7 @@ function App() {
   }, [showSplash]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/EIS">
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       <AuthProvider>
         <ToastProvider>

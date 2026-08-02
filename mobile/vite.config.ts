@@ -6,21 +6,24 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Served at app.izayaedge.com/EIS — every asset/URL the build emits must
+  // carry that prefix (this is Vite's own base, controlling %BASE_URL% and
+  // every emitted <script>/<link> src), or requests miss the /EIS/*
+  // rewrites in vercel.json and fall through to the SPA catch-all instead
+  // of the real file (see frontend/vercel.json's identical /eis pattern).
+  base: "/EIS/",
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      // Root-relative so the app installs correctly regardless of which
-      // subpath/domain it ends up deployed at.
-      base: "/",
       manifest: {
         name: "Izaya EIS",
         short_name: "Izaya EIS",
         description:
           "Izaya EIS — practitioner field app for NJEIS encounter logging.",
-        start_url: "/",
-        scope: "/",
+        start_url: "/EIS/",
+        scope: "/EIS/",
         display: "standalone",
         orientation: "portrait",
         // Clinical Trust Blue tokens — design/practitioner-mobile-app-art-direction.md
@@ -28,19 +31,19 @@ export default defineConfig({
         background_color: "#f8fafc",
         icons: [
           {
-            src: "/icons/icon-192.png",
+            src: "/EIS/icons/icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/icons/icon-512.png",
+            src: "/EIS/icons/icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/icons/icon-512-maskable.png",
+            src: "/EIS/icons/icon-512-maskable.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
