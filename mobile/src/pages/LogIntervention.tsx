@@ -25,6 +25,7 @@ interface FormState {
   type: string;
   location: string;
   groupSizeCategory: string;
+  customFields: Record<string, string>;
 }
 
 const todayIso = localTodayIso;
@@ -38,11 +39,16 @@ const SECTIONS = [
 export default function LogIntervention() {
   const { id: patientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions } = useAppData();
+  const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories } = useAppData();
   const { practitioner } = useAuth();
   const { showToast } = useToast();
 
   const patient = patients.find((p) => p.id === patientId);
+
+  const customCategories = React.useMemo(
+    () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
+    [dropdownCategories]
+  );
 
   const allowedServiceTypeOptions = React.useMemo(() => {
     const allowed = profile?.service_types;
@@ -58,6 +64,7 @@ export default function LogIntervention() {
     type: "",
     location: "",
     groupSizeCategory: "individual",
+    customFields: {},
   });
   const [zeroTime, setZeroTime] = React.useState(false);
   const [parentSig, setParentSig] = React.useState<string | null>(null);
@@ -106,6 +113,9 @@ export default function LogIntervention() {
   if (!form.location) missing.push("location");
   if (!parentSig) missing.push("parent signature");
   if (!practitionerSig) missing.push("practitioner signature");
+  for (const cat of customCategories) {
+    if (cat.is_required_on_log && !form.customFields[cat.key]) missing.push(cat.display_name.toLowerCase());
+  }
 
   const scrollToSection = (sectionId: string) => {
     setActiveSection(sectionId);
@@ -169,6 +179,7 @@ export default function LogIntervention() {
         total_time: totalMinutes,
         parentSignatureBase64: parentSig,
         practitionerSignatureBase64: practitionerSig,
+        custom_fields: form.customFields,
       });
 
       showToast("Encounter saved.");
@@ -280,6 +291,23 @@ export default function LogIntervention() {
             options={groupSizeOptions}
             onChange={(v) => setField("groupSizeCategory", v)}
           />
+          {customCategories.map((cat) => {
+            const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
+            return (
+              <Picker
+                key={cat.key}
+                id={`custom-${cat.key}`}
+                label={cat.display_name}
+                value={form.customFields[cat.key] || ""}
+                options={catOptions}
+                onChange={(v) => {
+                  setTouched(true);
+                  setForm((f) => ({ ...f, customFields: { ...f.customFields, [cat.key]: v } }));
+                }}
+                error={attemptedSubmit && cat.is_required_on_log && !form.customFields[cat.key] ? `${cat.display_name} is required.` : null}
+              />
+            );
+          })}
         </div>
 
         <div ref={(el) => { sectionRefs.current.signatures = el; }} className="space-y-6">

@@ -60,7 +60,9 @@ export interface ScheduledSession {
 
 export interface DropdownOption {
   id: number;
-  category: "service_type" | "service_status" | "location" | "group_size";
+  // A plain string, not a fixed union — a category key can now be any
+  // company-defined custom category's key, not just the 4 built-ins.
+  category: string;
   code: string;
   label: string;
   sort_order: number;
@@ -72,6 +74,18 @@ export interface DropdownOptionsByCategory {
   service_status: DropdownOption[];
   location: DropdownOption[];
   group_size: DropdownOption[];
+  // Any custom category's key also resolves here.
+  [key: string]: DropdownOption[];
+}
+
+export interface DropdownCategory {
+  id: string;
+  key: string;
+  display_name: string;
+  is_custom: boolean;
+  is_required_on_log: boolean;
+  sort_order: number;
+  is_active: boolean;
 }
 
 export interface Invoice {

@@ -1,6 +1,6 @@
 import * as React from "react";
 import api from "@/api/axiosInstance";
-import type { DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession } from "@/types";
+import type { DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession } from "@/types";
 
 const EMPTY_DROPDOWN_OPTIONS: DropdownOptionsByCategory = { service_type: [], service_status: [], location: [], group_size: [] };
 
@@ -49,6 +49,7 @@ interface AppDataContextValue {
   // code to a label on a historical log even if the option's since been
   // deactivated.
   dropdownOptions: DropdownOptionsByCategory;
+  dropdownCategories: DropdownCategory[];
   serviceTypeOptions: DropdownOption[];
   statusOptions: DropdownOption[];
   locationOptions: DropdownOption[];
@@ -91,6 +92,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [companyName, setCompanyName] = React.useState<string | null>(null);
 
   const [dropdownOptions, setDropdownOptions] = React.useState<DropdownOptionsByCategory>(EMPTY_DROPDOWN_OPTIONS);
+  const [dropdownCategories, setDropdownCategories] = React.useState<DropdownCategory[]>([]);
 
   const fetchPatients = React.useCallback(async () => {
     setPatientsLoading(true);
@@ -184,8 +186,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const fetchDropdownOptions = React.useCallback(async () => {
     try {
-      const res = await api.get<{ options: DropdownOptionsByCategory }>("/api/dropdown-options");
-      setDropdownOptions(res.data.options);
+      const [optionsRes, categoriesRes] = await Promise.all([
+        api.get<{ options: DropdownOptionsByCategory }>("/api/dropdown-options"),
+        api.get<{ categories: DropdownCategory[] }>("/api/dropdown-options/categories"),
+      ]);
+      setDropdownOptions(optionsRes.data.options);
+      setDropdownCategories(categoriesRes.data.categories);
     } catch {
       // Non-critical enough to fail silently — pickers just render empty until retried.
     }
@@ -248,6 +254,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       companyName,
       fetchCompanyBranding,
       dropdownOptions,
+      dropdownCategories,
       serviceTypeOptions,
       statusOptions,
       locationOptions,
@@ -283,6 +290,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       companyName,
       fetchCompanyBranding,
       dropdownOptions,
+      dropdownCategories,
       serviceTypeOptions,
       statusOptions,
       locationOptions,
