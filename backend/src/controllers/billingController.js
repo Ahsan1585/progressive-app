@@ -13,8 +13,8 @@ const { getDisciplineCode, mapDisciplineToCode } = require('../utils/disciplineC
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const {
-  serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel, statusCodeLabel,
-  mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode, mapStatusLabelToCode,
+  serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel, statusCodeLabel, codeLabel,
+  mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode, mapStatusLabelToCode, mapCategoryLabelToCode,
   resolveStrictnessProfile,
 } = require('../constants/njeis');
 const { logAudit } = require('../utils/auditLog');
@@ -1167,6 +1167,17 @@ function buildFieldsForSession(session, match, ctx) {
           match: bothZeroOrBlank || exact || withinTolerance, withinTolerance,
         };
       }
+      if (compareTo && compareTo.startsWith('custom_category:')) {
+        const categoryKey = compareTo.slice('custom_category:'.length);
+        const ourCode = session.form_data?.custom_fields?.[categoryKey] || null;
+        const stateCode = mapCategoryLabelToCode(categoryKey, value, matchParams.wordOverlapThreshold);
+        return {
+          key: `custom:${label}`, label,
+          ours: ourCode ? codeLabel(categoryKey, ourCode) : null,
+          state: stateCode ? codeLabel(categoryKey, stateCode) : value,
+          match: !!ourCode && !!stateCode && ourCode === stateCode,
+        };
+      }
       return { key: `custom:${label}`, label, ours: null, state: value, match: null };
     }),
   ].filter((f) => f.key.startsWith('custom:') || mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key]));
@@ -1245,7 +1256,7 @@ const getComplianceAnalysis = async (req, res) => {
              group_size_category, patient_first_name, patient_last_name,
              practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
              assessments.status, practitioner_discipline, patient_dob, patient_county,
-             eims_missing_status
+             eims_missing_status, form_data
       FROM assessments
       LEFT JOIN patients ON patients.id = assessments.patient_id
       WHERE assessments.practitioner_id = $1 AND billing_status != 'declined'
@@ -1398,7 +1409,7 @@ async function computeSessionCompliance(assessmentId) {
             group_size_category, patient_first_name, patient_last_name,
             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
             assessments.status, practitioner_discipline, patient_dob, patient_county,
-            eims_missing_status
+            eims_missing_status, form_data
      FROM assessments
      LEFT JOIN patients ON patients.id = assessments.patient_id
      WHERE assessments.id = $1`,
