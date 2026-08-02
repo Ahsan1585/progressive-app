@@ -134,7 +134,8 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
     status: '1',
     type: 'DI',
     location: '1',
-    groupSizeCategory: 'individual'
+    groupSizeCategory: 'individual',
+    customFields: {}
   });
 
   const [zeroTime, setZeroTime] = useState(false);
@@ -142,11 +143,12 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
   const [practitionerSig, setPractitionerSig] = useState(null);
   const [masterSignature, setMasterSignature] = useState(null);
   const [practitionerProfile, setPractitionerProfile] = useState(null);
-  const { options: dropdownOptions } = useDropdownOptions();
+  const { options: dropdownOptions, categories } = useDropdownOptions();
   const serviceTypeOptions = activeOnly(dropdownOptions.service_type);
   const statusOptions = activeOnly(dropdownOptions.service_status);
   const locationOptions = activeOnly(dropdownOptions.location);
   const groupSizeOptions = activeOnly(dropdownOptions.group_size);
+  const customCategories = categories.filter((c) => c.is_custom && c.is_active);
 
   const allowedServiceTypes = (practitionerProfile?.service_types?.length > 0)
     ? serviceTypeOptions.filter(opt => practitionerProfile.service_types.includes(opt.code))
@@ -183,7 +185,8 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
         status: '1',
         type: 'DI',
         location: '1',
-        groupSizeCategory: 'individual'
+        groupSizeCategory: 'individual',
+        customFields: {}
       });
     }
   }, [isOpen]);
@@ -228,8 +231,10 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
       totalTime: calculatedMinutes,
       total_time: calculatedMinutes,
       parentSignatureBase64: parentSig,
-      practitionerSignatureBase64: practitionerSig
+      practitionerSignatureBase64: practitionerSig,
+      custom_fields: formData.customFields
     };
+    delete payload.customFields;
 
     try {
       await api.post('/api/interventions', payload);
@@ -335,6 +340,25 @@ export function LogInterventionModal({ patient, isOpen, onClose, onSuccess }) {
                 ))}
               </select>
             </div>
+            {customCategories.map((cat) => {
+              const catOptions = activeOnly(dropdownOptions[cat.key] || []);
+              return (
+                <div className="space-y-2" key={cat.key}>
+                  <Label>{cat.display_name}{cat.is_required_on_log && ' *'}</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                    value={formData.customFields[cat.key] || ''}
+                    onChange={(e) => setFormData({ ...formData, customFields: { ...formData.customFields, [cat.key]: e.target.value } })}
+                    required={cat.is_required_on_log}
+                  >
+                    <option value="">Select...</option>
+                    {catOptions.map((opt) => (
+                      <option key={opt.code} value={opt.code}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-neutral-100">
