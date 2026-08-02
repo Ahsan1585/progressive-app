@@ -803,6 +803,7 @@ const getPractitionerLogs = async (req, res) => {
     let sql = `
       SELECT assessments.id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
              total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at,
+             group_size_category, form_data,
              COALESCE(an.notes_count, 0) AS notes_count
       FROM assessments
       LEFT JOIN (
@@ -1449,7 +1450,7 @@ const getVaultLogs = async (req, res) => {
     return res.status(400).json({ error: 'practitionerFolder and either batchId or startDate+endDate are required' });
   }
   try {
-    const selectCols = `id, billing_status, billing_review, service_date, status, type, location, start_time, end_time, total_time, patient_first_name, patient_last_name`;
+    const selectCols = `id, billing_status, billing_review, service_date, status, type, location, start_time, end_time, total_time, patient_first_name, patient_last_name, group_size_category, form_data`;
     const params = [['invoiced', 'declined', 'rejected']];
     let sql = `SELECT ${selectCols} FROM assessments WHERE billing_status = ANY($1::text[])`;
 

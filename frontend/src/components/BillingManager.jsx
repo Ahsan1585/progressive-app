@@ -1301,6 +1301,7 @@ export const BillingManager = () => {
                                         <th scope="col" className="py-2.5 px-3">Service Status</th>
                                         <th scope="col" className="py-2.5 px-3">Service Type</th>
                                         <th scope="col" className="py-2.5 px-3">Service Location</th>
+                                        <th scope="col" className="py-2.5 px-3">Group Size</th>
                                         <th scope="col" className="py-2.5 px-3">Start Time</th>
                                         <th scope="col" className="py-2.5 px-3">End Time</th>
                                         <th scope="col" className="py-2.5 px-3">Total Time</th>
@@ -1347,6 +1348,9 @@ export const BillingManager = () => {
                                             </td>
                                             <td className={`py-3 px-3 capitalize ${isLocked ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.location || '-'}
+                                            </td>
+                                            <td className={`py-3 px-3 capitalize ${isLocked ? 'text-slate-400' : 'text-slate-700'}`}>
+                                              {session.group_size_category || '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isLocked ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.start_time ? formatTime12h(session.start_time) : '-'}
@@ -1828,6 +1832,7 @@ export const BillingManager = () => {
                                         <th scope="col" className="py-2.5 px-3">Service Status</th>
                                         <th scope="col" className="py-2.5 px-3">Service Type</th>
                                         <th scope="col" className="py-2.5 px-3">Service Location</th>
+                                        <th scope="col" className="py-2.5 px-3">Group Size</th>
                                         <th scope="col" className="py-2.5 px-3">Start Time</th>
                                         <th scope="col" className="py-2.5 px-3">End Time</th>
                                         <th scope="col" className="py-2.5 px-3">Total Time</th>
@@ -1863,6 +1868,9 @@ export const BillingManager = () => {
                                             </td>
                                             <td className={`py-3 px-3 capitalize ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.location || '-'}
+                                            </td>
+                                            <td className={`py-3 px-3 capitalize ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                              {session.group_size_category || '-'}
                                             </td>
                                             <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
                                               {session.start_time ? formatTime12h(session.start_time) : '-'}
