@@ -49,6 +49,9 @@ async function createDropdownCategory(req, res) {
     await loadDropdownOptionsCache();
     res.status(201).json({ category: rows[0] });
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A category with that name already exists.' });
+    }
     console.error('Create dropdown category error:', err);
     res.status(500).json({ error: 'Server error' });
   }
@@ -95,18 +98,29 @@ async function deleteDropdownCategory(req, res) {
       return res.status(409).json({ error: 'This category is still mapped as a comparison field in State Compliance Reference — remove that mapping first.' });
     }
 
-    // dropdown_options.category REFERENCES dropdown_categories.key with no
-    // explicit ON DELETE clause (defaults to NO ACTION/RESTRICT per Task 1's
-    // migration), so this DELETE fails with a 23503 FK violation if any
-    // dropdown_options rows still reference this category — caught below and
-    // surfaced as a clear error instead of a raw Postgres one.
-    await pool.query('DELETE FROM dropdown_categories WHERE id = $1', [id]);
+    // Every option under this category must go too — option removal
+    // elsewhere in the app is a soft delete (is_active = false), so real
+    // dropdown_options rows always exist once a category has ever had an
+    // option added. Deleting only the category row would leave those rows
+    // behind and the FK (dropdown_options.category -> dropdown_categories.key,
+    // no ON DELETE clause) would reject it every time — "Delete category" is
+    // meant to be a real, complete removal, so both are deleted together in
+    // one transaction.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM dropdown_options WHERE category = $1', [existing[0].key]);
+      await client.query('DELETE FROM dropdown_categories WHERE id = $1', [id]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
     await loadDropdownOptionsCache();
     res.status(204).send();
   } catch (err) {
-    if (err.code === '23503') {
-      return res.status(409).json({ error: 'This category still has options defined — remove them first.' });
-    }
     console.error('Delete dropdown category error:', err);
     res.status(500).json({ error: 'Server error' });
   }
