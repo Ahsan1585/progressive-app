@@ -11,12 +11,17 @@ const EMPTY = { service_type: [], service_status: [], location: [], group_size: 
 // the full list so a since-deactivated code still shows its label.
 export function useDropdownOptions() {
   const [options, setOptions] = useState(EMPTY);
+  const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refetch = useCallback(async () => {
     try {
-      const response = await api.get('/api/dropdown-options');
-      setOptions(response.data.options);
+      const [optionsRes, categoriesRes] = await Promise.all([
+        api.get('/api/dropdown-options'),
+        api.get('/api/dropdown-options/categories'),
+      ]);
+      setOptions(optionsRes.data.options);
+      setCategories(categoriesRes.data.categories);
     } catch (error) {
       console.error('Failed to fetch dropdown options', error);
     } finally {
@@ -26,7 +31,7 @@ export function useDropdownOptions() {
 
   useEffect(() => { refetch(); }, [refetch]);
 
-  return { options, isLoading, refetch };
+  return { options, categories, isLoading, refetch };
 }
 
 export const activeOnly = (list) => (list || []).filter((o) => o.is_active);
