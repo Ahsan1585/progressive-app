@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MessageCircle } from 'lucide-react';
+import { Search, MessageCircle, Mail } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,7 @@ export const RegisterPractitionerForm = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [reactivatingId, setReactivatingId] = useState(null);
+  const [resendingId, setResendingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
   const [viewingPhoto, setViewingPhoto] = useState(null); // { url, name } or null
   const [reviewingContact, setReviewingContact] = useState(null); // member object with a pending contact change
@@ -101,7 +102,6 @@ export const RegisterPractitionerForm = () => {
     firstName: '',
     lastName: '',
     email: '',
-    password: '',
     payRate: '',
     positionTitle: '',
     serviceTypes: [],
@@ -253,6 +253,18 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
+  const handleResendInvite = async (id) => {
+    setResendingId(id);
+    try {
+      await api.post(`/api/auth/staff/${id}/resend-invite`);
+      showAlert('A new activation link has been sent.');
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Failed to resend the activation link.');
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   const handleReactivate = async (id) => {
     setReactivatingId(id);
     try {
@@ -271,11 +283,10 @@ export const RegisterPractitionerForm = () => {
       await api.patch(`/api/auth/staff/${id}/role`, { roleId: newRoleId });
       // The server derives the legacy 'ceo' | 'staff' tier from the
       // selected role's is_system flag — mirror that here for the
-      // optimistic local update (getAllStaff doesn't return role_id, so
-      // this is the best available approximation without a refetch).
+      // optimistic local update.
       const selectedRole = roles.find(r => r.id === newRoleId);
       const legacyRole = selectedRole?.is_system ? 'ceo' : 'staff';
-      setStaffList(prev => prev.map(s => s.id === id ? { ...s, role: legacyRole } : s));
+      setStaffList(prev => prev.map(s => s.id === id ? { ...s, role: legacyRole, role_id: newRoleId, role_name: selectedRole?.name } : s));
     } catch {
       showAlert('Failed to update role.');
     } finally {
@@ -339,7 +350,6 @@ export const RegisterPractitionerForm = () => {
         firstName: regForm.firstName.trim(),
         lastName: regForm.lastName.trim(),
         email: regForm.email.trim(),
-        tempPassword: regForm.password,
         payRate: regForm.payRate,
         position_title: regForm.positionTitle,
         service_types: regForm.serviceTypes,
@@ -362,7 +372,7 @@ export const RegisterPractitionerForm = () => {
       if (response.data.success || response.status === 201) {
         showAlert('Account successfully created!');
         setRegForm({
-          firstName: '', lastName: '', email: '', password: '',
+          firstName: '', lastName: '', email: '',
           payRate: '', positionTitle: '', serviceTypes: [], address: '', phoneNumber: '', ssn: '',
           role: 'practitioner', roleId: ''
         });
@@ -611,6 +621,16 @@ export const RegisterPractitionerForm = () => {
                               )}
                             </button>
                           )}
+                          {member.is_pending_activation && (canManageRoles || hasPermission('register_new_user')) && (
+                            <button
+                              onClick={() => handleResendInvite(member.id)}
+                              disabled={resendingId === member.id}
+                              className="p-1.5 rounded-lg text-slate-700 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40 cursor-pointer"
+                              title="Resend activation link"
+                            >
+                              <Mail className="w-4 h-4" />
+                            </button>
+                          )}
                           {/* Mirrors updateStaffProfile's backend rule: editing
                               needs staff_directory_edit, and without
                               staff_directory_edit_role only Practitioner
@@ -816,17 +836,8 @@ export const RegisterPractitionerForm = () => {
             </div>
           </div>
 
-          <div className={`grid gap-4 ${regForm.positionTitle === 'Office Staff' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Temporary Password</Label>
-              <PasswordInput
-                required
-                placeholder="••••••••"
-                value={regForm.password}
-                onChange={(e) => setRegForm({...regForm, password: e.target.value})}
-              />
-            </div>
-            {regForm.positionTitle !== 'Office Staff' && (
+          {regForm.positionTitle !== 'Office Staff' && (
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
               <Input
@@ -839,8 +850,8 @@ export const RegisterPractitionerForm = () => {
                 onChange={(e) => setRegForm({...regForm, payRate: e.target.value})}
               />
             </div>
-            )}
           </div>
+          )}
 
           <div className="pt-4 flex gap-3">
             <Button

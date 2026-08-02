@@ -25,6 +25,7 @@ const forgotPasswordLimiter = rateLimit({
 
 const {
   provisionPractitioner,
+  resendInvite,
   activateAccount,
   getCompanyDisplayName,
   getCompanyStatus,
@@ -59,6 +60,10 @@ const activateLimiter = rateLimit({
 // Anyone with register_new_user can register new accounts
 // (backend enforces non-admin/non-role-editors → practitioner only)
 router.post('/register-practitioner', protect, loadPermissions, requirePermission('register_new_user'), provisionPractitioner);
+
+// Resend an activation link for an account that hasn't activated yet
+// (e.g. the original 7-day link expired) — same permission as inviting.
+router.post('/staff/:id/resend-invite', protect, loadPermissions, requirePermission('register_new_user'), resendInvite);
 
 // View all staff (staff_directory_view)
 router.get('/staff', protect, loadPermissions, requirePermission('staff_directory_view'), getAllStaff);

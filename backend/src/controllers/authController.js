@@ -140,6 +140,48 @@ const provisionPractitioner = async (req, res) => {
   }
 };
 
+// --- Function 1b: Resend an activation link for an account still awaiting
+// first-time activation (password_hash === INVITE_PENDING) — covers the
+// case where the original 7-day link expired before the invitee used it.
+// Reuses the exact same token-generation/email path as provisionPractitioner,
+// just against an existing row instead of a freshly inserted one. ---
+const resendInvite = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, first_name, last_name, email, password_hash FROM practitioners WHERE id = $1',
+      [id]
+    );
+    const target = rows[0];
+    if (!target) return res.status(404).json({ error: 'Staff member not found.' });
+    if (target.password_hash !== INVITE_PENDING) {
+      return res.status(400).json({ error: 'This account has already been activated.' });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(rawToken);
+    const tokenExpiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
+
+    await pool.query(
+      'UPDATE practitioners SET reset_token_hash = $1, reset_token_expires = $2 WHERE id = $3',
+      [tokenHash, tokenExpiresAt, id]
+    );
+
+    const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
+    const companyName = companyRows[0]?.display_name || 'Izaya EIS';
+    const slug = req.practitioner.slug;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
+    const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
+
+    await sendInviteEmail(target.email, { activateUrl, companyName });
+
+    res.json({ success: true, message: 'Activation link resent.' });
+  } catch (error) {
+    console.error('Resend invite error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // Public, read-only, no-PHI lookup used only so an activation/login/reset
 // page can greet the user with "...for Progressive Steps NJ" before they've
 // entered any credentials — reads straight from the platform registry, not
@@ -435,11 +477,13 @@ const getAllStaff = async (req, res) => {
       `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.role_id, r.name AS role_name,
               p.position_title, p.service_types,
               p.pay_rate, p.address, p.phone_number, p.created_at, p.is_active, p.profile_picture,
+              (p.password_hash = $1) AS is_pending_activation,
               pcu.address AS pending_address, pcu.phone_number AS pending_phone_number, pcu.submitted_at AS pending_submitted_at
        FROM practitioners p
        LEFT JOIN roles r ON r.id = p.role_id
        LEFT JOIN pending_contact_updates pcu ON pcu.practitioner_id = p.id
-       ORDER BY p.created_at DESC`
+       ORDER BY p.created_at DESC`,
+      [INVITE_PENDING]
     );
     res.json({ staff: rows });
   } catch (error) {
@@ -674,6 +718,7 @@ async function getMe(req, res) {
 
 module.exports = {
   provisionPractitioner,
+  resendInvite,
   activateAccount,
   getCompanyDisplayName,
   getCompanyStatus,
