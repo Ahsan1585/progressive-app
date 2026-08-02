@@ -35,6 +35,7 @@ const todayIso = localTodayIso;
 const SECTIONS = [
   { id: "details", label: "Details" },
   { id: "codes", label: "Codes" },
+  { id: "notes", label: "Notes" },
   { id: "signatures", label: "Signatures" },
 ] as const;
 
@@ -312,6 +313,10 @@ export default function LogIntervention() {
               />
             );
           })}
+        </div>
+
+        <div ref={(el) => { sectionRefs.current.notes = el; }} className="space-y-4">
+          <h2 className="text-[15px] font-semibold text-ink">Notes</h2>
           <Field id="note" label="Notes" optional>
             <Textarea
               placeholder="Add any context on this session..."
