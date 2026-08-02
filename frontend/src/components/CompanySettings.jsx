@@ -45,6 +45,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
   const [mapping, setMapping] = useState({});
   const [removedFields, setRemovedFields] = useState(new Set());
   const [customFields, setCustomFields] = useState([]); // [{ label, header }] — state-only extra fields beyond the fixed 11
+  const [customCategories, setCustomCategories] = useState([]); // active company-defined dropdown categories, for the compareTo picker
   const [isLoadingMapping, setIsLoadingMapping] = useState(false);
   const [isApplyingMapping, setIsApplyingMapping] = useState(false);
 
@@ -87,6 +88,15 @@ export const CompanySettings = ({ onSettingsChange }) => {
   };
 
   useEffect(() => { fetchSettings(); }, []);
+
+  // Fetched independently of the main dropdowns manager (which only mounts
+  // once its own tab is active) — this component needs the list any time
+  // the compliance-mapping screen is open, regardless of which tab that is.
+  useEffect(() => {
+    api.get('/api/dropdown-options/categories')
+      .then((res) => setCustomCategories((res.data.categories || []).filter((c) => c.is_custom && c.is_active)))
+      .catch(() => setCustomCategories([]));
+  }, []);
 
   const setField = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -558,6 +568,13 @@ export const CompanySettings = ({ onSettingsChange }) => {
                                 <option value="patient_dob">Patient DOB</option>
                                 <option value="patient_county">Patient County</option>
                               </optgroup>
+                              {customCategories.length > 0 && (
+                                <optgroup label="Custom Categories">
+                                  {customCategories.map((cat) => (
+                                    <option key={cat.key} value={`custom_category:${cat.key}`}>{cat.display_name}</option>
+                                  ))}
+                                </optgroup>
+                              )}
                             </select>
                           </td>
                           <td className="px-3 py-2">
