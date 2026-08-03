@@ -82,14 +82,21 @@ export function AddPatientModal({
       if (isEditMode && patient) {
         await api.put(`/api/patients/${patient.id}`, values);
       } else {
-        await api.post("/api/patients/register", values);
+        const res = await api.post("/api/patients/register", values);
+        // A Child ID already registered by another practitioner attaches to
+        // that same shared record rather than failing — worth a distinct
+        // message so it doesn't read like an ordinary "added" confirmation.
+        if (res.data?.linked) {
+          showAlert(res.data.message || "This child was already registered — linked to your patient list.");
+        }
       }
       onPatientAdded();
       form.reset();
       setOpen(false);
     } catch (error) {
       console.error("Submission failed:", error);
-      showAlert(`Failed to ${isEditMode ? "update" : "register"} patient. Check console for details.`);
+      const message = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      showAlert(message || `Failed to ${isEditMode ? "update" : "register"} patient. Check console for details.`);
     }
   };
 

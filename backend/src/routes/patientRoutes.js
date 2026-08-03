@@ -7,7 +7,7 @@ const { pool } = require('../config/db');
 const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
-const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, deletePatient, getPractitionerStats } = require('../controllers/patientController');
+const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats } = require('../controllers/patientController');
 const { protect } = require('../middleware/authMiddleware');
 
 // Route to register a new patient
@@ -31,9 +31,6 @@ router.delete('/logs/:id', protect, deleteLog);
 
 // Practitioner's own quick stats — placed before /:id wildcard to avoid route conflict
 router.get('/practitioner-stats', protect, getPractitionerStats);
-
-// Route to delete a patient (and their assessments)
-router.delete('/:id', protect, deletePatient);
 
 // Route to get a specific patient's assessments/interventions
 router.get('/:id/assessments', protect, getPatientAssessments);

@@ -232,17 +232,22 @@ const getAllPatients = async (req, res) => {
     }
 
     const params = [];
+    // One row per (child, practitioner) attachment — a child shared across
+    // multiple practitioners now legitimately appears once per practitioner,
+    // each with its own status (patient_practitioners), not the child's own
+    // now-legacy patients.status.
     let sql = `
       SELECT pt.id, pt.first_name, pt.middle_name, pt.last_name, pt.dob, pt.county, pt.child_id,
-             pt.status, pt.created_at, pt.practitioner_id,
+             pp.status, pt.created_at, pp.practitioner_id,
              jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name) AS practitioners
       FROM patients pt
-      JOIN practitioners p ON p.id = pt.practitioner_id
+      JOIN patient_practitioners pp ON pp.patient_id = pt.id
+      JOIN practitioners p ON p.id = pp.practitioner_id
       WHERE 1=1
     `;
 
-    if (status && status !== 'all') { params.push(status); sql += ` AND pt.status = $${params.length}`; }
-    if (practitionerIds) { params.push(practitionerIds); sql += ` AND pt.practitioner_id = ANY($${params.length}::int[])`; }
+    if (status && status !== 'all') { params.push(status); sql += ` AND pp.status = $${params.length}`; }
+    if (practitionerIds) { params.push(practitionerIds); sql += ` AND pp.practitioner_id = ANY($${params.length}::int[])`; }
     if (patientSearch && patientSearch.trim()) {
       const term = patientSearch.trim();
       params.push(`%${term}%`);

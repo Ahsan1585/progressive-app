@@ -143,7 +143,7 @@ app.post('/api/interventions', protect, async (req, res) => {
 
     // Ownership check: the patient must belong to the requesting practitioner
     const { rows: ownedRows } = await pool.query(
-      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      'SELECT patient_id FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2',
       [patientId, trustedPractitionerId]
     );
     if (!ownedRows[0]) {
@@ -553,16 +553,18 @@ app.get('/api/interventions/:patientId', protect, async (req, res) => {
   const { patientId } = req.params;
   const practitionerId = req.practitioner.practitionerId;
   try {
-    // Ownership check: only return assessments for a patient owned by the requester
+    // Ownership check: only return assessments for a patient the requester is attached to
     const { rows: ownedRows } = await pool.query(
-      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      'SELECT patient_id FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2',
       [patientId, practitionerId]
     );
     if (!ownedRows[0]) return res.status(403).json({ error: 'Not authorized for this patient' });
 
+    // Scoped to this practitioner's own encounters — a patient shared with
+    // other practitioners doesn't expose their encounter history here.
     const { rows } = await pool.query(
-      'SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date DESC',
-      [patientId]
+      'SELECT * FROM assessments WHERE patient_id = $1 AND practitioner_id = $2 ORDER BY service_date DESC',
+      [patientId, practitionerId]
     );
     res.json(rows);
   } catch (error) {

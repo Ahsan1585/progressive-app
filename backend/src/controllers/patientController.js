@@ -20,6 +20,39 @@ const registerPatient = async (req, res) => {
 
     const practitionerId = req.practitioner.practitionerId;
 
+    // Multiple practitioners often serve the same child for different
+    // services — if this Child ID is already registered (by anyone in this
+    // company), attach this practitioner to that SAME shared record instead
+    // of failing/duplicating it. Each practitioner's own encounter history
+    // stays exactly as private as it already was (assessments.practitioner_id).
+    const { rows: existingRows } = await pool.query(
+      'SELECT * FROM patients WHERE child_id = $1',
+      [validatedData.childId]
+    );
+    const existing = existingRows[0];
+
+    if (existing) {
+      const { rows: alreadyAttached } = await pool.query(
+        'SELECT 1 FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2',
+        [existing.id, practitionerId]
+      );
+      if (alreadyAttached[0]) {
+        return res.status(409).json({ error: 'This child is already in your patient list.' });
+      }
+
+      await pool.query(
+        'INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2)',
+        [existing.id, practitionerId]
+      );
+
+      logAudit({ req, action: 'patient_attach', resourceType: 'patient', resourceId: existing.id });
+      return res.status(201).json({
+        message: 'This child was already registered — linked to your patient list.',
+        linked: true,
+        data: existing,
+      });
+    }
+
     // 3. Insert into Postgres
     const { rows } = await pool.query(
       `INSERT INTO patients (first_name, middle_name, last_name, dob, county, child_id, practitioner_id, parent_name, parent_email)
@@ -36,6 +69,10 @@ const registerPatient = async (req, res) => {
         validatedData.parentName || null,
         validatedData.parentEmail || null,
       ]
+    );
+    await pool.query(
+      'INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2)',
+      [rows[0].id, practitionerId]
     );
 
     // 4. Send success response
@@ -63,11 +100,15 @@ const getPatients = async (req, res) => {
     // Ensure we only fetch patients for THIS practitioner
     const practitionerId = req.practitioner.practitionerId;
 
+    // pp.status (per-practitioner) is selected after p.* so it overrides
+    // patients.status in the resulting row — active/inactive is this
+    // practitioner's own relationship with the child, not the shared record.
     const { rows: patients } = await pool.query(
-      `SELECT p.*,
-              (SELECT MAX(a.service_date) FROM assessments a WHERE a.patient_id = p.id) AS last_service_date
+      `SELECT p.*, pp.status,
+              (SELECT MAX(a.service_date) FROM assessments a WHERE a.patient_id = p.id AND a.practitioner_id = $1) AS last_service_date
        FROM patients p
-       WHERE p.practitioner_id = $1`,
+       JOIN patient_practitioners pp ON pp.patient_id = p.id
+       WHERE pp.practitioner_id = $1`,
       [practitionerId]
     );
 
@@ -84,7 +125,7 @@ const updatePatient = async (req, res) => {
     const { id } = req.params;
 
     const { rows: ownedRows } = await pool.query(
-      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
       [id, practitionerId]
     );
     if (!ownedRows[0]) return res.status(404).json({ error: 'Patient not found' });
@@ -129,19 +170,19 @@ const updatePatientStatus = async (req, res) => {
       return res.status(400).json({ error: `Status must be one of: ${VALID_PATIENT_STATUSES.join(', ')}` });
     }
 
-    const { rows: ownedRows } = await pool.query(
-      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
-      [id, practitionerId]
+    // Status is per-practitioner (patient_practitioners), not on the shared
+    // patients row — one practitioner marking a shared child inactive must
+    // not affect any other practitioner's own relationship with that child.
+    const { rows: updatedAttachment } = await pool.query(
+      'UPDATE patient_practitioners SET status = $1 WHERE patient_id = $2 AND practitioner_id = $3 RETURNING patient_id',
+      [status, id, practitionerId]
     );
-    if (!ownedRows[0]) return res.status(404).json({ error: 'Patient not found' });
+    if (!updatedAttachment[0]) return res.status(404).json({ error: 'Patient not found' });
 
-    const { rows } = await pool.query(
-      'UPDATE patients SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
-    );
+    const { rows } = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
 
     logAudit({ req, action: 'patient_status_update', resourceType: 'patient', resourceId: id, details: { status } });
-    res.json({ message: 'Patient status updated', data: rows[0] });
+    res.json({ message: 'Patient status updated', data: { ...rows[0], status } });
   } catch (error) {
     console.error('Error updating patient status:', error);
     res.status(500).json({ error: 'Failed to update patient status' });
@@ -156,7 +197,7 @@ const getPatientAssessments = async (req, res) => {
 
     // Ownership check: the patient must belong to the requesting practitioner
     const { rows: ownedRows } = await pool.query(
-      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
+      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
       [patientId, practitionerId]
     );
     if (!ownedRows[0]) return res.status(403).json({ error: 'Not authorized for this patient' });
@@ -364,25 +405,6 @@ const deleteLog = async (req, res) => {
   }
 };
 
-const deletePatient = async (req, res) => {
-  const practitionerId = req.practitioner.practitionerId;
-  const { id } = req.params;
-  try {
-    const { rows: patientRows } = await pool.query(
-      'SELECT id FROM patients WHERE id = $1 AND practitioner_id = $2',
-      [id, practitionerId]
-    );
-    if (!patientRows[0]) return res.status(404).json({ error: 'Patient not found' });
-
-    await pool.query('DELETE FROM patients WHERE id = $1', [id]);
-    logAudit({ req, action: 'patient_delete', resourceType: 'patient', resourceId: id });
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting patient:', error);
-    res.status(500).json({ error: 'Failed to delete patient' });
-  }
-};
-
 const getPractitionerStats = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
@@ -409,4 +431,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, deletePatient, getPractitionerStats };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats };

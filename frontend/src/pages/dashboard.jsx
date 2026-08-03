@@ -35,7 +35,6 @@ const Dashboard = () => {
   const [isAcknowledging, setIsAcknowledging] = useState(null);
   const [responseDrafts, setResponseDrafts] = useState({});
 
-  const [deletingPatientId, setDeletingPatientId] = useState(null);
   const [deletingLogId, setDeletingLogId] = useState(null);
 
   // Signature dropdown
@@ -177,20 +176,6 @@ const Dashboard = () => {
       showAlert('Failed to resubmit. Please try again.');
     } finally {
       setIsResubmitting(false);
-    }
-  };
-
-  const handleDeletePatient = async (patient) => {
-    if (!(await showConfirm(`Remove ${patient.first_name} ${patient.last_name} from your patient list?`))) return;
-    setDeletingPatientId(patient.id);
-    try {
-      await api.delete(`/api/patients/${patient.id}`);
-      if (selectedPatient?.id === patient.id) setSelectedPatient(null);
-      setPatients(prev => prev.filter(p => p.id !== patient.id));
-    } catch (err) {
-      showAlert('Failed to delete patient. Please try again.');
-    } finally {
-      setDeletingPatientId(null);
     }
   };
 
@@ -405,18 +390,6 @@ const Dashboard = () => {
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); handleDeletePatient(p); }}
-                    disabled={deletingPatientId === p.id}
-                    className={`absolute top-2.5 right-2.5 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 cursor-pointer ${
-                      isSelected ? 'hover:bg-blue-500 text-blue-100' : 'hover:bg-red-50 text-slate-400 hover:text-red-500'
-                    }`}
-                    title="Delete patient"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
                 </div>

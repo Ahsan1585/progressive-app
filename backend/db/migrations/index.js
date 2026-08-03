@@ -13,6 +13,7 @@ const MIGRATIONS = [
   'add_invoice_overdue_status.sql',
   'add_roles_permissions.sql',
   'add_dropdown_categories.sql',
+  'add_patient_practitioners.sql',
 ];
 
 module.exports = { MIGRATIONS };

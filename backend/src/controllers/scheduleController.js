@@ -45,7 +45,12 @@ const todayIso = () => {
 };
 
 const loadOwnedPatientAndPractitioner = async (patientId, practitionerId) => {
-  const patientResult = await pool.query('SELECT * FROM patients WHERE id = $1 AND practitioner_id = $2', [patientId, practitionerId]);
+  const patientResult = await pool.query(
+    `SELECT p.* FROM patients p
+     JOIN patient_practitioners pp ON pp.patient_id = p.id
+     WHERE p.id = $1 AND pp.practitioner_id = $2`,
+    [patientId, practitionerId]
+  );
   if (patientResult.rows.length === 0) return null;
   const practitionerResult = await pool.query('SELECT first_name, last_name FROM practitioners WHERE id = $1', [practitionerId]);
   return { patient: patientResult.rows[0], practitioner: practitionerResult.rows[0] };

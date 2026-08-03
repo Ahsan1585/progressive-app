@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { useToast } from "@/components/ui/toast";
 import type { Patient, ApiErrorBody } from "@/types";
 
 interface FormState {
@@ -37,6 +38,7 @@ const EMPTY_FORM: FormState = {
 export default function AddPatient() {
   const navigate = useNavigate();
   const { fetchPatients } = useAppData();
+  const { showToast } = useToast();
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<Partial<Record<keyof FormState, string>>>({});
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -68,8 +70,14 @@ export default function AddPatient() {
 
     setSubmitting(true);
     try {
-      const res = await api.post<{ message: string; data: Patient }>("/api/patients/register", form);
+      const res = await api.post<{ message: string; data: Patient; linked?: boolean }>("/api/patients/register", form);
       await fetchPatients();
+      // A Child ID already registered by another practitioner attaches to
+      // that same shared record rather than failing — worth flagging so it
+      // doesn't read like an ordinary "added" confirmation.
+      if (res.data.linked) {
+        showToast(res.data.message || "This child was already registered — linked to your patient list.");
+      }
       navigate(`/patients/${res.data.data.id}`, { replace: true });
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody | { error: unknown } } }).response?.data as
