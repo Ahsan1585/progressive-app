@@ -37,21 +37,30 @@ const seedComparisonTestData = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Wipe previously seeded data (assessments -> patient_practitioners -> patients -> practitioners)
+    // 1. Wipe previously seeded data (assessments -> patient_practitioners -> patients -> practitioners).
+    // child_id is left exactly as given (no prefix) so it can match a real
+    // compliance-reference document by its real state-issued ID — so a
+    // seeded patient is instead identified by being linked ONLY to seed
+    // practitioners (never a real one), not by any marker on its own row.
     const { rows: oldPracRows } = await client.query(
       `SELECT id FROM practitioners WHERE email LIKE 'seed-%'`
     );
     const oldPracIds = oldPracRows.map((r) => r.id);
     if (oldPracIds.length > 0) {
+      const { rows: seedOnlyPatientRows } = await client.query(
+        `SELECT patient_id FROM patient_practitioners
+         GROUP BY patient_id
+         HAVING bool_and(practitioner_id = ANY($1::int[]))`,
+        [oldPracIds]
+      );
+      const seedOnlyPatientIds = seedOnlyPatientRows.map((r) => r.patient_id);
+
       await client.query(`DELETE FROM assessment_notes WHERE author_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(`DELETE FROM assessments WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(`DELETE FROM patient_practitioners WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
-      // Only remove patients left with no remaining practitioner link (avoids
-      // deleting a real patient that a seeded practitioner happened to share).
-      await client.query(
-        `DELETE FROM patients WHERE child_id LIKE 'SEED-%'
-           AND id NOT IN (SELECT patient_id FROM patient_practitioners)`
-      );
+      if (seedOnlyPatientIds.length > 0) {
+        await client.query(`DELETE FROM patients WHERE id = ANY($1::int[])`, [seedOnlyPatientIds]);
+      }
       await client.query(`DELETE FROM practitioners WHERE id = ANY($1::int[])`, [oldPracIds]);
     }
 
@@ -83,12 +92,11 @@ const seedComparisonTestData = async (req, res) => {
     // against it in the sessions payload.
     const patientIdByChildId = {};
     for (const c of children) {
-      const seededChildId = `SEED-${c.childId}`;
       const { rows } = await client.query(
         `INSERT INTO patients (first_name, last_name, dob, county, child_id, status)
          VALUES ($1, $2, $3, $4, $5, 'active')
          RETURNING id`,
-        [c.firstName, c.lastName, c.dob, c.county || 'Essex', seededChildId]
+        [c.firstName, c.lastName, c.dob, c.county || 'Essex', c.childId]
       );
       patientIdByChildId[c.childId] = rows[0].id;
     }
