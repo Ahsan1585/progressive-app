@@ -32,6 +32,7 @@ const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
 const signupRoutes = require('./src/routes/signupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
 const roleRoutes = require('./src/routes/roleRoutes');
+const testDataRoutes = require('./src/routes/testDataRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
 const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
 const { platformPool } = require('./src/config/platformDb');
@@ -77,6 +78,7 @@ app.use(express.urlencoded({ limit: '20mb', extended: true }));
 // --- Modular Routes ---
 app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/dev', testDataRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/billing', billingRoutes); // 🌟 NEW: Mounted billing routes to fix the 404 error!
 app.use('/api/messages', messageRoutes);

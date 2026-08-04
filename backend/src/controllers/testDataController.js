@@ -1,0 +1,164 @@
+const bcrypt = require('bcryptjs');
+const { pool } = require('../config/db');
+const { logAudit } = require('../utils/auditLog');
+
+// A distinct, easy-to-spot marker so seeded rows can always be found and
+// wiped again on the next run, without touching any real data in the
+// tenant. Every practitioner/patient this endpoint creates carries it.
+const SEED_MARKER = '[SEED]';
+const SEED_PASSWORD = 'TestData@2026';
+
+// 1x1 transparent PNG — assessments.parent_signature/practitioner_signature
+// are NOT NULL and some code paths (PDF generation) call pdfDoc.embedPng on
+// them, so a placeholder needs to be a real, valid PNG rather than plain text.
+const PLACEHOLDER_SIGNATURE =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+/**
+ * POST /api/dev/seed-comparison-test-data
+ * CEO-only. Body shape:
+ * {
+ *   practitioners: [{ email, firstName, lastName, positionTitle, payRate, serviceTypes: [] }],
+ *   children: [{ childId, firstName, lastName, dob, county }],
+ *   sessions: [{
+ *     childId, practitionerEmail, serviceDate, startTime, endTime, totalTime,
+ *     serviceType, location, groupSize, discipline, notes
+ *   }]
+ * }
+ *
+ * Idempotent: first deletes every previously seeded row (practitioners
+ * whose email starts with "seed-", and their patients/assessments via FK
+ * cascade-by-hand), then recreates everything fresh from the payload.
+ */
+const seedComparisonTestData = async (req, res) => {
+  const { practitioners = [], children = [], sessions = [] } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Wipe previously seeded data (assessments -> patient_practitioners -> patients -> practitioners)
+    const { rows: oldPracRows } = await client.query(
+      `SELECT id FROM practitioners WHERE email LIKE 'seed-%'`
+    );
+    const oldPracIds = oldPracRows.map((r) => r.id);
+    if (oldPracIds.length > 0) {
+      await client.query(`DELETE FROM assessment_notes WHERE author_id = ANY($1::int[])`, [oldPracIds]);
+      await client.query(`DELETE FROM assessments WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
+      await client.query(`DELETE FROM patient_practitioners WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
+      // Only remove patients left with no remaining practitioner link (avoids
+      // deleting a real patient that a seeded practitioner happened to share).
+      await client.query(
+        `DELETE FROM patients WHERE child_id LIKE 'SEED-%'
+           AND id NOT IN (SELECT patient_id FROM patient_practitioners)`
+      );
+      await client.query(`DELETE FROM practitioners WHERE id = ANY($1::int[])`, [oldPracIds]);
+    }
+
+    // 2. Create practitioners with a real password set directly (test-only
+    // shortcut — bypasses the email-invite activation flow on purpose).
+    const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
+    const practitionerIdByEmail = {};
+    for (const p of practitioners) {
+      const seededEmail = `seed-${p.email.trim().toLowerCase()}`;
+      const { rows } = await client.query(
+        `INSERT INTO practitioners
+           (first_name, last_name, email, password_hash, requires_password_change, role, position_title, pay_rate, service_types, is_active)
+         VALUES ($1, $2, $3, $4, false, 'practitioner', $5, $6, $7, true)
+         RETURNING id`,
+        [
+          `${SEED_MARKER} ${p.firstName}`,
+          p.lastName,
+          seededEmail,
+          passwordHash,
+          p.positionTitle || 'Therapist',
+          p.payRate || 50,
+          p.serviceTypes || [],
+        ]
+      );
+      practitionerIdByEmail[p.email.trim().toLowerCase()] = rows[0].id;
+    }
+
+    // 3. Create children (patients) + link each to every practitioner listed
+    // against it in the sessions payload.
+    const patientIdByChildId = {};
+    for (const c of children) {
+      const seededChildId = `SEED-${c.childId}`;
+      const { rows } = await client.query(
+        `INSERT INTO patients (first_name, last_name, dob, county, child_id, status)
+         VALUES ($1, $2, $3, $4, $5, 'active')
+         RETURNING id`,
+        [c.firstName, c.lastName, c.dob, c.county || 'Essex', seededChildId]
+      );
+      patientIdByChildId[c.childId] = rows[0].id;
+    }
+
+    const linked = new Set();
+    for (const s of sessions) {
+      const patientId = patientIdByChildId[s.childId];
+      const practitionerId = practitionerIdByEmail[s.practitionerEmail.trim().toLowerCase()];
+      const linkKey = `${patientId}:${practitionerId}`;
+      if (patientId && practitionerId && !linked.has(linkKey)) {
+        await client.query(
+          `INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2)`,
+          [patientId, practitionerId]
+        );
+        linked.add(linkKey);
+      }
+    }
+
+    // 4. Create the assessments (logged sessions)
+    let sessionsCreated = 0;
+    for (const s of sessions) {
+      const patientId = patientIdByChildId[s.childId];
+      const practitionerId = practitionerIdByEmail[s.practitionerEmail.trim().toLowerCase()];
+      if (!patientId || !practitionerId) continue;
+
+      const child = children.find((c) => c.childId === s.childId);
+      const prac = practitioners.find((p) => p.email.trim().toLowerCase() === s.practitionerEmail.trim().toLowerCase());
+
+      await client.query(
+        `INSERT INTO assessments
+           (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
+            practitioner_first_name, practitioner_last_name, practitioner_discipline,
+            service_date, start_time, end_time, total_time, status, type, location,
+            parent_signature, practitioner_signature, form_data)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', $14, $15, $16, $17, $18)`,
+        [
+          patientId, practitionerId,
+          child?.firstName, child?.lastName, child?.dob, child?.county || 'Essex',
+          prac?.firstName, prac?.lastName, s.discipline || null,
+          s.serviceDate, s.startTime || null, s.endTime || null, s.totalTime || 0,
+          s.serviceType || null, s.location || null,
+          PLACEHOLDER_SIGNATURE, PLACEHOLDER_SIGNATURE,
+          JSON.stringify({ custom_fields: {}, seed_group_size_label: s.groupSize || null, seed_notes: s.notes || null }),
+        ]
+      );
+      sessionsCreated += 1;
+    }
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req,
+      action: 'seed_comparison_test_data',
+      resourceType: 'test_data',
+      details: { practitioners: practitioners.length, children: children.length, sessions: sessionsCreated },
+    });
+
+    res.json({
+      success: true,
+      message: 'Test data seeded successfully.',
+      credentials: practitioners.map((p) => ({ email: `seed-${p.email.trim().toLowerCase()}`, password: SEED_PASSWORD })),
+      counts: { practitioners: practitioners.length, children: children.length, sessions: sessionsCreated },
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to seed comparison test data:', error);
+    res.status(500).json({ error: 'Failed to seed test data', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { seedComparisonTestData };
