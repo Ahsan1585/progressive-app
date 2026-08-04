@@ -12,6 +12,8 @@ const {
   confirmPaymentMethod,
   generateInvoice,
   payInvoice,
+  getOutstandingInvoicesHandler,
+  payAllOutstanding,
   runScheduledBilling,
   runOverdueSweep,
 } = require('../controllers/subscriptionController');
@@ -29,6 +31,8 @@ router.post('/payment-method/setup-intent', ...ceoOnly, createSetupIntent);
 router.post('/payment-method/confirm', ...ceoOnly, confirmPaymentMethod);
 router.post('/invoices/generate', ...ceoOnly, generateInvoice);
 router.post('/invoices/:id/pay', ...ceoOnly, payInvoice);
+router.get('/invoices/outstanding', ...ceoOnly, getOutstandingInvoicesHandler);
+router.post('/invoices/pay-outstanding', ...ceoOnly, payAllOutstanding);
 
 // Cloud Scheduler target (automatic monthly billing run, see index.js and
 // subscriptionController.runScheduledBilling) — deliberately NOT behind

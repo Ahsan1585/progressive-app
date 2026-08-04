@@ -181,29 +181,43 @@ export const SubscriptionBilling = () => {
   const [downloadingId, setDownloadingId] = useState(null);
   const [isPayingBill, setIsPayingBill] = useState(false);
 
-  // Most recent invoice that still has money owed on it — that's what's
-  // due, with the due date set to the 15th of the month after the period it
-  // covers. Status (pending/overdue/failed) is tracked server-side now —
-  // the backend flips pending/failed -> overdue itself once that due date
-  // passes (see markOverdueInvoices in subscriptionBilling.js), so this is
-  // just reading the persisted lifecycle state, not recomputing it.
-  const currentBillDue = useMemo(
-    () => invoices.find((inv) => inv.status === 'pending' || inv.status === 'failed' || inv.status === 'overdue') || null,
+  // Every invoice that still has money owed on it — there can be more than
+  // one (e.g. an older overdue month never settled before a newer period
+  // closed). All of them are charged together as a single combined payment
+  // (see handlePayOutstanding/payAllOutstanding), oldest period first, and
+  // shown broken out line-by-line so that combined total is never a black
+  // box. Status (pending/overdue/failed) is tracked server-side — the
+  // backend flips pending/failed -> overdue itself once each invoice's own
+  // due date passes (see markOverdueInvoices in subscriptionBilling.js), so
+  // this is just reading the persisted lifecycle state, not recomputing it.
+  const outstandingInvoices = useMemo(
+    () => invoices
+      .filter((inv) => inv.status === 'pending' || inv.status === 'failed' || inv.status === 'overdue')
+      .slice()
+      .sort((a, b) => a.period_start.localeCompare(b.period_start)),
     [invoices]
   );
-  const currentBillDueDate = useMemo(() => {
-    if (!currentBillDue) return null;
-    const end = new Date(`${currentBillDue.period_end}T00:00:00Z`);
+  const outstandingTotal = useMemo(
+    () => Math.round(outstandingInvoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0) * 100) / 100,
+    [outstandingInvoices]
+  );
+  // The oldest unpaid invoice's due date — the one that's been outstanding
+  // longest, so it's the most meaningful single date to show alongside the
+  // combined total.
+  const outstandingDueDate = useMemo(() => {
+    if (outstandingInvoices.length === 0) return null;
+    const end = new Date(`${outstandingInvoices[0].period_end}T00:00:00Z`);
     const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
     return due.toISOString().slice(0, 10);
-  }, [currentBillDue]);
-  const isCurrentBillOverdue = currentBillDue?.status === 'overdue';
+  }, [outstandingInvoices]);
+  const hasOverdueInvoice = outstandingInvoices.some((inv) => inv.status === 'overdue');
+  const hasFailedInvoice = outstandingInvoices.some((inv) => inv.status === 'failed');
 
   // A heads-up that another bill is coming, shown once we're late enough
   // into the current period's month that its own invoice is coming soon —
-  // only worth surfacing if the prior bill is still sitting unpaid, so it
+  // only worth surfacing if a prior bill is still sitting unpaid, so it
   // doesn't pile up silently on top of it.
-  const showUpcomingBillNotice = currentBillDue && summary && new Date().getDate() > 20;
+  const showUpcomingBillNotice = outstandingInvoices.length > 0 && summary && new Date().getDate() > 20;
   const upcomingBillDueDate = useMemo(() => {
     if (!summary) return null;
     const end = new Date(`${summary.periodEnd}T00:00:00Z`);
@@ -267,15 +281,24 @@ export const SubscriptionBilling = () => {
     }
   };
 
-  const handlePayBill = async () => {
-    if (!currentBillDue) return;
-    const confirmed = await showConfirm(`Charge the saved payment method ${money(currentBillDue.total_amount)} for this bill now?`);
+  const handlePayOutstanding = async () => {
+    if (outstandingInvoices.length === 0) return;
+    const confirmed = await showConfirm(
+      outstandingInvoices.length > 1
+        ? `Charge the saved payment method ${money(outstandingTotal)} total, covering ${outstandingInvoices.length} unpaid invoices?`
+        : `Charge the saved payment method ${money(outstandingTotal)} for this bill now?`
+    );
     if (!confirmed) return;
     setIsPayingBill(true);
     setToast(null);
     try {
-      const { data } = await api.post(`/api/subscription/invoices/${currentBillDue.id}/pay`);
-      setToast({ type: 'success', message: `Payment successful — invoice marked as paid.` });
+      await api.post('/api/subscription/invoices/pay-outstanding');
+      setToast({
+        type: 'success',
+        message: outstandingInvoices.length > 1
+          ? `Payment successful — ${outstandingInvoices.length} invoices marked as paid.`
+          : 'Payment successful — invoice marked as paid.',
+      });
       const { data: invoicesData } = await api.get('/api/subscription/invoices');
       setInvoices(invoicesData.invoices);
     } catch (error) {
@@ -363,38 +386,71 @@ export const SubscriptionBilling = () => {
         </div>
       </div>
 
-      {/* CURRENT BILL DUE */}
-      {currentBillDue && (
+      {/* BILL DUE — combines every unpaid invoice into one payable total,
+          broken out line-by-line so the total is never a black box. */}
+      {outstandingInvoices.length > 0 && (
         <div className="bg-white border-4 border-teal-500 rounded-2xl p-5 shadow-md shadow-teal-200">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2.5 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center"><DollarSign className="w-4 h-4 text-teal-600" /></div>
-                <span className="text-[13px] font-semibold text-slate-600">Current Bill Due</span>
+                <span className="text-[13px] font-semibold text-slate-600">
+                  {outstandingInvoices.length > 1 ? 'Total Amount Due' : 'Current Bill Due'}
+                </span>
               </div>
-              <div className="text-4xl font-bold text-teal-700 tracking-tight mt-1.5">{money(currentBillDue.total_amount)}</div>
-              <div className="text-sm text-slate-500 mt-1.5">For {formatPeriod(currentBillDue.period_start, currentBillDue.period_end)} &middot; due {formatDate(currentBillDueDate)}</div>
-              <button
-                type="button"
-                onClick={() => handleDownloadInvoicePdf(currentBillDue)}
-                disabled={downloadingId === currentBillDue.id}
-                className="inline-flex items-center gap-1 text-sm font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-wait mt-2"
-              >
-                {downloadingId === currentBillDue.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} View Bill
-              </button>
+              <div className="text-4xl font-bold text-teal-700 tracking-tight mt-1.5">{money(outstandingTotal)}</div>
+              {outstandingInvoices.length === 1 ? (
+                <div className="text-sm text-slate-500 mt-1.5">For {formatPeriod(outstandingInvoices[0].period_start, outstandingInvoices[0].period_end)} &middot; due {formatDate(outstandingDueDate)}</div>
+              ) : (
+                <div className="text-sm text-slate-500 mt-1.5">Combines {outstandingInvoices.length} unpaid invoices &middot; oldest due {formatDate(outstandingDueDate)}</div>
+              )}
             </div>
             <div className="flex flex-col items-end gap-3">
-              {isCurrentBillOverdue && (
+              {hasOverdueInvoice && (
                 <span className="text-xs font-bold border px-2.5 py-1 rounded-full bg-red-50 text-red-700 border-red-200">Overdue</span>
               )}
-              {currentBillDue.status === 'failed' && (
+              {hasFailedInvoice && (
                 <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES.failed}`}>Failed</span>
               )}
-              <Button size="lg" onClick={handlePayBill} disabled={isPayingBill} className="h-12 px-8 text-base">
+              <Button size="lg" onClick={handlePayOutstanding} disabled={isPayingBill} className="h-12 px-8 text-base">
                 {isPayingBill ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : null}
-                Pay Bill
+                Pay {money(outstandingTotal)}
               </Button>
             </div>
+          </div>
+
+          {/* How this total is calculated — always shown, even for the
+              common single-invoice case, so "why is this the total" is
+              always answered right here rather than requiring a trip to
+              Invoice History. */}
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">How this total is calculated</div>
+            {outstandingInvoices.map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600">{formatPeriod(inv.period_start, inv.period_end)}</span>
+                  {inv.status === 'overdue' && <span className="text-[10px] font-bold uppercase text-red-600">Overdue</span>}
+                  {inv.status === 'failed' && <span className="text-[10px] font-bold uppercase text-red-600">Failed</span>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-slate-800">{money(inv.total_amount)}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadInvoicePdf(inv)}
+                    disabled={downloadingId === inv.id}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+                  >
+                    {downloadingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} PDF
+                  </button>
+                </div>
+              </div>
+            ))}
+            {outstandingInvoices.length > 1 && (
+              <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-slate-200">
+                <span className="text-slate-700">Total due now</span>
+                <span className="text-teal-700">{money(outstandingTotal)}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

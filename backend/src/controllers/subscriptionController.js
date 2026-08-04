@@ -344,6 +344,98 @@ const payInvoice = async (req, res) => {
   }
 };
 
+// Manual "Pay Bill" button (ceo) when there's more than one outstanding
+// invoice (e.g. an overdue older month sitting alongside the current one) —
+// charges every unpaid invoice's total as a SINGLE combined Stripe payment
+// rather than one charge per invoice, then marks all of them paid together
+// under that one payment intent. getOutstandingInvoices (below) is the same
+// list the frontend shows broken out line-by-line so the combined total is
+// never a black box.
+const getOutstandingInvoices = async () => {
+  await markOverdueInvoices();
+  const { rows } = await pool.query(
+    `SELECT id, period_start, period_end, active_practitioner_count, office_staff_count,
+            extra_staff_seats, total_amount, status, paid_at, created_at
+     FROM subscription_invoices
+     WHERE status IN ('pending', 'failed', 'overdue')
+     ORDER BY period_start ASC`
+  );
+  return rows;
+};
+
+const getOutstandingInvoicesHandler = async (req, res) => {
+  try {
+    const invoices = await getOutstandingInvoices();
+    const total = invoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0);
+    res.json({ success: true, invoices, total: Math.round(total * 100) / 100 });
+  } catch (error) {
+    console.error('Error fetching outstanding invoices:', error);
+    res.status(500).json({ error: 'Failed to fetch outstanding invoices' });
+  }
+};
+
+const payAllOutstanding = async (req, res) => {
+  try {
+    const invoices = await getOutstandingInvoices();
+    if (invoices.length === 0) {
+      return res.status(400).json({ error: 'There are no outstanding invoices to pay.' });
+    }
+
+    const stripe = getStripeClient();
+    const settings = await getSubscriptionSettings();
+    if (!stripe || !settings.stripeCustomerId || !settings.defaultPaymentMethodId) {
+      return res.status(400).json({ error: 'No payment method is on file yet — add one before paying this bill.' });
+    }
+
+    const totalAmount = invoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0);
+    const invoiceIds = invoices.map((inv) => inv.id);
+    const periodsDescription = invoices.map((inv) => `${inv.period_start} to ${inv.period_end}`).join(', ');
+
+    let paidNow = false;
+    let failureReason = null;
+    let stripePaymentIntentId = null;
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(totalAmount * 100),
+        currency: 'usd',
+        customer: settings.stripeCustomerId,
+        payment_method: settings.defaultPaymentMethodId,
+        off_session: true,
+        confirm: true,
+        description: `Izaya subscription — ${invoices.length} invoice${invoices.length > 1 ? 's' : ''} (${periodsDescription})`,
+        metadata: { subscription_invoice_ids: invoiceIds.join(',') },
+      });
+      stripePaymentIntentId = paymentIntent.id;
+      paidNow = paymentIntent.status === 'succeeded';
+    } catch (chargeError) {
+      console.error('Combined subscription charge failed:', chargeError.message);
+      failureReason = chargeError.message;
+    }
+
+    const { rows: updated } = await pool.query(
+      `UPDATE subscription_invoices
+       SET status = $1, stripe_payment_intent_id = $2, failure_reason = $3,
+           paid_at = CASE WHEN $1 = 'paid' THEN now() ELSE NULL END
+       WHERE id = ANY($4::uuid[])
+       RETURNING *`,
+      [paidNow ? 'paid' : 'failed', stripePaymentIntentId, failureReason, invoiceIds]
+    );
+
+    logAudit({
+      req, action: 'subscription_invoices_paid_combined', resourceType: 'subscription_invoice',
+      details: { invoiceIds, totalAmount, status: paidNow ? 'paid' : 'failed' },
+    });
+
+    if (!paidNow) {
+      return res.status(402).json({ error: failureReason || 'Payment did not succeed.', invoices: updated });
+    }
+    res.json({ success: true, invoices: updated, total: Math.round(totalAmount * 100) / 100 });
+  } catch (error) {
+    console.error('Error paying combined subscription invoices:', error);
+    res.status(500).json({ error: 'Failed to pay outstanding invoices' });
+  }
+};
+
 // Automatic monthly run — hit by Cloud Scheduler on the 1st of each month
 // to close out the previous calendar month (invoiceDueDate then gives a
 // genuine ~2-week grace period to the 15th, rather than landing generation
@@ -487,6 +579,8 @@ const stripeWebhook = async (req, res) => {
 };
 
 module.exports = {
+  getOutstandingInvoicesHandler,
+  payAllOutstanding,
   getConfig,
   getSummary,
   getInvoices,
