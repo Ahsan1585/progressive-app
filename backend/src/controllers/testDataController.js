@@ -2,11 +2,16 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 
-// A distinct, easy-to-spot marker so seeded rows can always be found and
-// wiped again on the next run, without touching any real data in the
-// tenant. Every practitioner/patient this endpoint creates carries it.
-const SEED_MARKER = '[SEED]';
 const SEED_PASSWORD = 'TestData@2026';
+
+// The real "Group Size" dropdown category (add_dropdown_options.sql) has
+// exactly these two codes/labels — map incoming free-text labels to the
+// real code so it lands in assessments.group_size_category like a normal
+// submission would, instead of a made-up field.
+const GROUP_SIZE_LABEL_TO_CODE = {
+  'Direct Child Service - Individual': 'individual',
+  'Consultation/Facilitation with Others': 'consultation',
+};
 
 // 1x1 transparent PNG — assessments.parent_signature/practitioner_signature
 // are NOT NULL and some code paths (PDF generation) call pdfDoc.embedPng on
@@ -76,7 +81,7 @@ const seedComparisonTestData = async (req, res) => {
          VALUES ($1, $2, $3, $4, false, 'practitioner', $5, $6, $7, true)
          RETURNING id`,
         [
-          `${SEED_MARKER} ${p.firstName}`,
+          p.firstName,
           p.lastName,
           seededEmail,
           passwordHash,
@@ -125,23 +130,35 @@ const seedComparisonTestData = async (req, res) => {
       const child = children.find((c) => c.childId === s.childId);
       const prac = practitioners.find((p) => p.email.trim().toLowerCase() === s.practitionerEmail.trim().toLowerCase());
 
-      await client.query(
+      const groupSizeCode = GROUP_SIZE_LABEL_TO_CODE[s.groupSize] || null;
+
+      const { rows: insertedRows } = await client.query(
         `INSERT INTO assessments
            (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
             practitioner_first_name, practitioner_last_name, practitioner_discipline,
-            service_date, start_time, end_time, total_time, status, type, location,
+            service_date, start_time, end_time, total_time, status, type, location, group_size_category,
             parent_signature, practitioner_signature, form_data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', $14, $15, $16, $17, $18)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', $14, $15, $16, $17, $18, $19)
+         RETURNING id`,
         [
           patientId, practitionerId,
           child?.firstName, child?.lastName, child?.dob, child?.county || 'Essex',
           prac?.firstName, prac?.lastName, s.discipline || null,
           s.serviceDate, s.startTime || null, s.endTime || null, s.totalTime || 0,
-          s.serviceType || null, s.location || null,
+          s.serviceType || null, s.location || null, groupSizeCode,
           PLACEHOLDER_SIGNATURE, PLACEHOLDER_SIGNATURE,
-          JSON.stringify({ custom_fields: {}, seed_group_size_label: s.groupSize || null, seed_notes: s.notes || null }),
+          JSON.stringify({ custom_fields: {} }),
         ]
       );
+
+      if (s.notes && s.notes.trim()) {
+        await client.query(
+          `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+           VALUES ($1, $2, 'practitioner', $3)`,
+          [insertedRows[0].id, practitionerId, s.notes.trim()]
+        );
+      }
+
       sessionsCreated += 1;
     }
 
