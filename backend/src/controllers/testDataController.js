@@ -96,6 +96,7 @@ const seedComparisonTestData = async (req, res) => {
         `DELETE FROM billing_locks WHERE practitioner_id = ANY($1::int[]) OR locked_by = ANY($1::int[])`,
         [oldPracIds]
       );
+      await client.query(`DELETE FROM billing_batches WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
       if (seedOnlyPatientIds.length > 0) {
         // Compliance Analysis lazily backfills compliance_state_logs.patient_id
         // to point at whatever patient matches its child_id — unlink (not
