@@ -97,6 +97,14 @@ const seedComparisonTestData = async (req, res) => {
         [oldPracIds]
       );
       if (seedOnlyPatientIds.length > 0) {
+        // Compliance Analysis lazily backfills compliance_state_logs.patient_id
+        // to point at whatever patient matches its child_id — unlink (not
+        // delete) those state-reference rows so the real reference data
+        // survives and can re-link to a fresh patient on the next run.
+        await client.query(
+          `UPDATE compliance_state_logs SET patient_id = NULL WHERE patient_id = ANY($1::int[])`,
+          [seedOnlyPatientIds]
+        );
         await client.query(`DELETE FROM patients WHERE id = ANY($1::int[])`, [seedOnlyPatientIds]);
       }
       await client.query(`DELETE FROM practitioners WHERE id = ANY($1::int[])`, [oldPracIds]);
