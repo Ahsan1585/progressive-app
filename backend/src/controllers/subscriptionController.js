@@ -344,8 +344,10 @@ const payInvoice = async (req, res) => {
   }
 };
 
-// Automatic monthly run — hit by Cloud Scheduler on the 15th of each month
-// to close out the previous calendar month. Not JWT-protected (Cloud
+// Automatic monthly run — hit by Cloud Scheduler on the 1st of each month
+// to close out the previous calendar month (invoiceDueDate then gives a
+// genuine ~2-week grace period to the 15th, rather than landing generation
+// and due-date on the same day). Not JWT-protected (Cloud
 // Scheduler has no user session); instead gated on a shared secret header
 // so this can't be triggered by an arbitrary request. Fails closed: if
 // CRON_SECRET isn't configured, every request is rejected rather than the
