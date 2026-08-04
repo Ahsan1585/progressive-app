@@ -733,7 +733,24 @@ export const RegisterPractitionerForm = () => {
             <Label className="text-sm font-semibold text-slate-700">Discipline / Position Title</Label>
             <select
               value={regForm.positionTitle}
-              onChange={(e) => setRegForm({...regForm, positionTitle: e.target.value})}
+              onChange={(e) => {
+                const nextPositionTitle = e.target.value;
+                // Selecting Office Staff hides the "Practitioner" option
+                // from the Account Role selector below. If that selector's
+                // value was still the default 'practitioner', the <select>
+                // would end up showing no matching <option> — the browser
+                // silently falls back to visually highlighting whichever
+                // option renders first (Admin, since it sorts first), while
+                // regForm.role/roleId never actually update. That let an
+                // admin appear to select "Admin" and unknowingly submit a
+                // Practitioner registration instead. Force an explicit
+                // re-selection instead of leaving a stale, now-invalid value.
+                if (canManageRoles && nextPositionTitle === 'Office Staff' && regForm.role === 'practitioner') {
+                  setRegForm({...regForm, positionTitle: nextPositionTitle, role: 'staff', roleId: ''});
+                } else {
+                  setRegForm({...regForm, positionTitle: nextPositionTitle});
+                }
+              }}
               className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required={regForm.role === 'practitioner'}
             >
@@ -793,8 +810,13 @@ export const RegisterPractitionerForm = () => {
                 className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
+                {/* An empty-value option is always present so the <select>'s
+                    value can never end up matching zero options — that
+                    mismatch is what let the browser silently auto-highlight
+                    an option (Admin, since it sorts first) without regForm
+                    actually changing. */}
+                <option value="" disabled>{roles.length === 0 ? 'Loading roles...' : 'Select a role...'}</option>
                 {regForm.positionTitle !== 'Office Staff' && <option value="practitioner">Practitioner</option>}
-                {roles.length === 0 && <option value="" disabled>Loading roles...</option>}
                 {roles.map(r => (
                   <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
