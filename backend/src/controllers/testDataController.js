@@ -4,10 +4,35 @@ const { logAudit } = require('../utils/auditLog');
 
 const SEED_PASSWORD = 'TestData@2026';
 
-// The real "Group Size" dropdown category (add_dropdown_options.sql) has
-// exactly these two codes/labels — map incoming free-text labels to the
-// real code so it lands in assessments.group_size_category like a normal
-// submission would, instead of a made-up field.
+// Real dropdown_options codes (add_dropdown_options.sql) for the 4 base
+// NJEIS categories. assessments.type holds the DISCIPLINE code (this
+// category is literally named 'service_type' in the DB despite the column
+// being called `type`); assessments.status holds the NJEIS visit-status
+// code (what happened during the visit — "Direct Child Service", "Family
+// Cancelled", etc. — despite the category being named 'service_status');
+// assessments.location and .group_size_category are the other two. Storing
+// a raw label instead of its code here breaks Compliance Analysis matching
+// silently, since the comparison always operates on codes.
+const DISCIPLINE_LABEL_TO_CODE = {
+  'Evaluation': 'EV', 'Assessment': 'AS', 'IFSP Meeting': 'IFSP', 'Audiology': 'AU',
+  'Developmental Intervention': 'DI', 'Family Training': 'FT', 'Health Service': 'HS',
+  'Medical Service': 'MS', 'Nursing': 'NU', 'Nutrition': 'NT', 'Occupational Therapy': 'OT',
+  'Physical Therapy': 'PT', 'Psychological': 'PSY', 'Speech Language Therapy': 'SLP',
+  'Social Work': 'SW', 'Vision': 'VI', 'Childcare/Respite': 'CC',
+  'Interpreter/Translator': 'I/T', 'Foreign Language Interpreter': 'I/T',
+  'Escort/Security': 'ES', 'Transition Planning Conference': 'TPC',
+};
+const VISIT_STATUS_LABEL_TO_CODE = {
+  'Direct Child Service': '1', 'Practitioner Cancelled (inc weather related)': '2',
+  'Family Cancelled (inc weather related)': '3', 'Make Up Direct Child Service': '4',
+  'Family Missed (within 3 hours)': '5', 'Team Mtg – IFSP': 'IFSP',
+  'Transition Planning Conference': 'TPC', 'Bilingual Interpretation': 'IT',
+};
+const LOCATION_LABEL_TO_CODE = {
+  'Home': '1', 'Residential Facility': '2', 'Service Provider Clinic/Office': '3',
+  'Hospital (Inpatient)': '4', 'EC Program - Children with Disabilities': '5',
+  'EC Program - Inclusive Community': '6', 'DCP&P Office': '7', 'Phone/Video Conferencing': '8',
+};
 const GROUP_SIZE_LABEL_TO_CODE = {
   'Direct Child Service - Individual': 'individual',
   'Consultation/Facilitation with Others': 'consultation',
@@ -27,7 +52,11 @@ const PLACEHOLDER_SIGNATURE =
  *   children: [{ childId, firstName, lastName, dob, county }],
  *   sessions: [{
  *     childId, practitionerEmail, serviceDate, startTime, endTime, totalTime,
- *     serviceType, location, groupSize, discipline, notes
+ *     discipline (e.g. "Developmental Intervention" -> assessments.type),
+ *     visitStatus (e.g. "Direct Child Service" -> assessments.status),
+ *     location (e.g. "Home" -> assessments.location),
+ *     groupSize (e.g. "Direct Child Service - Individual" -> group_size_category),
+ *     loggedDate (YYYY-MM-DD, -> assessments.completed_at), notes
  *   }]
  * }
  *
@@ -134,24 +163,28 @@ const seedComparisonTestData = async (req, res) => {
       const child = children.find((c) => c.childId === s.childId);
       const prac = practitioners.find((p) => p.email.trim().toLowerCase() === s.practitionerEmail.trim().toLowerCase());
 
+      const disciplineCode = DISCIPLINE_LABEL_TO_CODE[s.discipline] || null;
+      const visitStatusCode = VISIT_STATUS_LABEL_TO_CODE[s.visitStatus] || null;
+      const locationCode = s.location ? (LOCATION_LABEL_TO_CODE[s.location] || null) : null;
       const groupSizeCode = GROUP_SIZE_LABEL_TO_CODE[s.groupSize] || null;
+      const completedAt = s.loggedDate ? new Date(`${s.loggedDate}T12:00:00Z`) : null;
 
       const { rows: insertedRows } = await client.query(
         `INSERT INTO assessments
            (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
             practitioner_first_name, practitioner_last_name, practitioner_discipline,
             service_date, start_time, end_time, total_time, status, type, location, group_size_category,
-            parent_signature, practitioner_signature, form_data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', $14, $15, $16, $17, $18, $19)
+            parent_signature, practitioner_signature, form_data, completed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, COALESCE($21, now()))
          RETURNING id`,
         [
           patientId, practitionerId,
           child?.firstName, child?.lastName, child?.dob, child?.county || 'Essex',
           prac?.firstName, prac?.lastName, s.discipline || null,
           s.serviceDate, s.startTime || null, s.endTime || null, s.totalTime || 0,
-          s.serviceType || null, s.location || null, groupSizeCode,
+          visitStatusCode, disciplineCode, locationCode, groupSizeCode,
           PLACEHOLDER_SIGNATURE, PLACEHOLDER_SIGNATURE,
-          JSON.stringify({ custom_fields: {} }),
+          JSON.stringify({ custom_fields: {} }), completedAt,
         ]
       );
 
