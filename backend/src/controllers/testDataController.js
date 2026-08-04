@@ -63,6 +63,10 @@ const seedComparisonTestData = async (req, res) => {
       await client.query(`DELETE FROM assessment_notes WHERE author_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(`DELETE FROM assessments WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(`DELETE FROM patient_practitioners WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
+      await client.query(
+        `DELETE FROM billing_locks WHERE practitioner_id = ANY($1::int[]) OR locked_by = ANY($1::int[])`,
+        [oldPracIds]
+      );
       if (seedOnlyPatientIds.length > 0) {
         await client.query(`DELETE FROM patients WHERE id = ANY($1::int[])`, [seedOnlyPatientIds]);
       }
