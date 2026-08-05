@@ -440,8 +440,11 @@ export const BillingBatchReview = ({
               onRelease={() => onRelease(p.practitioner_id)}
               logActions={logActions}
               formatTime={formatTime}
-              detailSessionId={detail?.practitionerId === p.practitioner_id ? detail.sessionId : null}
-              scrollSyncSessionId={detail?.practitionerId === p.practitioner_id ? scrollSyncSessionId : null}
+              detailSessionId={
+                detail?.practitionerId === p.practitioner_id
+                  ? (detailTab === 'analysis' ? scrollSyncSessionId : detail.sessionId)
+                  : null
+              }
               registerSessionRow={registerSessionRow}
               onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
               processingId={processingId}
@@ -551,7 +554,7 @@ export const BillingBatchReview = ({
 function PractitionerGroup({
   containerRef, practitioner, isExpanded, onToggle, sessions, isLoadingSessions,
   currentUserId, isAdmin, onLock, onRelease, logActions, formatTime,
-  detailSessionId, scrollSyncSessionId, registerSessionRow, onSelectSession,
+  detailSessionId, registerSessionRow, onSelectSession,
   processingId, handleGenerateAndIssue, handleSendToCompleted,
 }) {
   const isLockedByMe = !!practitioner.locked_by_id && practitioner.locked_by_id === currentUserId;
@@ -638,24 +641,19 @@ function PractitionerGroup({
                 : isOnHold ? 'bg-violet-50 text-violet-600'
                 : isApproved ? 'bg-emerald-50 text-emerald-600'
                 : 'bg-slate-100 text-slate-500';
+              // Single highlight, one meaning: "the log currently in focus."
+              // On the Compliance Analysis tab that's driven by scroll
+              // position (detailSessionId is fed scrollSyncSessionId there
+              // — see where PractitionerGroup is rendered); everywhere else
+              // it's whichever log was actually clicked. Never both at once.
               const isSelected = detailSessionId === s.id;
-              // Distinct from isSelected (which log is open in Session
-              // Detail): this is which log's comparison card is currently
-              // scrolled into view over in Compliance Analysis — a lighter,
-              // violet-tinted highlight (matching that tab's own accent
-              // color) so the two "this is what you're looking at" signals
-              // stay visually distinguishable rather than fighting for the
-              // same blue treatment.
-              const isScrollSynced = !isSelected && scrollSyncSessionId === s.id;
               return (
                 <div
                   key={s.id}
                   ref={(el) => registerSessionRow?.(s.id, el)}
                   onClick={() => onSelectSession(s.id)}
                   className={`grid grid-cols-3 items-center gap-3 pl-3 pr-4 py-3.5 border-t border-slate-100 border-l-4 cursor-pointer transition-colors ${
-                    isSelected ? 'bg-blue-200 border-l-blue-600'
-                      : isScrollSynced ? 'bg-violet-50 border-l-violet-500'
-                      : 'border-l-transparent hover:bg-slate-50'
+                    isSelected ? 'bg-blue-200 border-l-blue-600' : 'border-l-transparent hover:bg-slate-50'
                   }`}
                 >
                   {/* Column 1: patient + date */}
