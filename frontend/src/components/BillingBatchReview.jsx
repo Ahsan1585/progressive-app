@@ -177,6 +177,32 @@ export const BillingBatchReview = ({
     const offset = targetRect.top - containerRect.top + container.scrollTop;
     container.scrollTo({ top: offset, behavior: 'smooth' });
   };
+
+  // Scroll-sync between Compliance Analysis's right-hand comparison cards
+  // and the left queue: as a card scrolls into view, its matching left row
+  // is highlighted and scrolled into view too, so it's obvious which log
+  // on the left you're currently looking at on the right. sessionRowRefs is
+  // the session-row equivalent of groupRefs above, registered by
+  // PractitionerGroup per row; the scroll math mirrors scrollGroupToTop for
+  // the same nested-flex-layout reason (scrollIntoView isn't reliable here).
+  const sessionRowRefs = useRef({});
+  const registerSessionRow = (sessionId, el) => { sessionRowRefs.current[sessionId] = el; };
+  const [scrollSyncSessionId, setScrollSyncSessionId] = useState(null);
+  const analysisScrollRef = useRef(null);
+  useEffect(() => {
+    if (scrollSyncSessionId == null) return;
+    const container = queueScrollRef.current;
+    const target = sessionRowRefs.current[scrollSyncSessionId];
+    if (!container || !target) return;
+    const targetRect = target.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    // Only scroll if the row isn't already fully visible — avoids fighting
+    // a row that's already on-screen with a needless smooth-scroll jitter.
+    const alreadyVisible = targetRect.top >= containerRect.top && targetRect.bottom <= containerRect.bottom;
+    if (alreadyVisible) return;
+    const offset = targetRect.top - containerRect.top + container.scrollTop - containerRect.height / 2 + targetRect.height / 2;
+    container.scrollTo({ top: offset, behavior: 'smooth' });
+  }, [scrollSyncSessionId]);
   const expandedGroupsRef = useRef(expandedGroups);
   useEffect(() => { expandedGroupsRef.current = expandedGroups; }, [expandedGroups]);
   useEffect(() => {
@@ -242,6 +268,10 @@ export const BillingBatchReview = ({
   const selectSession = (practitionerId, sessionId) => {
     setDetail({ practitionerId, sessionId });
     setDetailTab('session');
+    // Clear any stale Compliance Analysis scroll-sync highlight — this
+    // click already moves off that tab, and the newly-selected row gets
+    // its own (stronger) isSelected highlight instead.
+    setScrollSyncSessionId(null);
   };
 
   // Wrap every session-mutating action so the local period-scoped cache
@@ -411,6 +441,8 @@ export const BillingBatchReview = ({
               logActions={logActions}
               formatTime={formatTime}
               detailSessionId={detail?.practitionerId === p.practitioner_id ? detail.sessionId : null}
+              scrollSyncSessionId={detail?.practitionerId === p.practitioner_id ? scrollSyncSessionId : null}
+              registerSessionRow={registerSessionRow}
               onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
               processingId={processingId}
               handleGenerateAndIssue={wrappedGenerateAndIssue}
@@ -436,10 +468,10 @@ export const BillingBatchReview = ({
             </p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-8">
+          <div ref={analysisScrollRef} className="flex-1 overflow-y-auto p-8">
             <div className="flex gap-2 border-b border-slate-200 mb-6">
               <button
-                onClick={() => setDetailTab('session')}
+                onClick={() => { setDetailTab('session'); setScrollSyncSessionId(null); }}
                 className={`px-3 pb-3 text-base font-bold border-b-2 -mb-px cursor-pointer transition-colors ${
                   detailTab === 'session' ? 'border-blue-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
@@ -455,7 +487,7 @@ export const BillingBatchReview = ({
                 <Sparkles className="size-4" /> Compliance Analysis
               </button>
               <button
-                onClick={() => setDetailTab('matching')}
+                onClick={() => { setDetailTab('matching'); setScrollSyncSessionId(null); }}
                 className={`px-3 pb-3 text-base font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
                   detailTab === 'matching' ? 'border-emerald-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
@@ -478,6 +510,8 @@ export const BillingBatchReview = ({
                 handleReleaseHold={wrappedReleaseHold}
                 handleInlineReturnReject={wrappedInlineReturnReject}
                 isAdmin={isAdmin}
+                scrollRootRef={analysisScrollRef}
+                onVisibleSessionChange={setScrollSyncSessionId}
               />
             ) : detailTab === 'matching' ? (
               <ComplianceMatchingSettings isAdmin={isAdmin} />
@@ -517,7 +551,7 @@ export const BillingBatchReview = ({
 function PractitionerGroup({
   containerRef, practitioner, isExpanded, onToggle, sessions, isLoadingSessions,
   currentUserId, isAdmin, onLock, onRelease, logActions, formatTime,
-  detailSessionId, onSelectSession,
+  detailSessionId, scrollSyncSessionId, registerSessionRow, onSelectSession,
   processingId, handleGenerateAndIssue, handleSendToCompleted,
 }) {
   const isLockedByMe = !!practitioner.locked_by_id && practitioner.locked_by_id === currentUserId;
@@ -605,12 +639,23 @@ function PractitionerGroup({
                 : isApproved ? 'bg-emerald-50 text-emerald-600'
                 : 'bg-slate-100 text-slate-500';
               const isSelected = detailSessionId === s.id;
+              // Distinct from isSelected (which log is open in Session
+              // Detail): this is which log's comparison card is currently
+              // scrolled into view over in Compliance Analysis — a lighter,
+              // violet-tinted highlight (matching that tab's own accent
+              // color) so the two "this is what you're looking at" signals
+              // stay visually distinguishable rather than fighting for the
+              // same blue treatment.
+              const isScrollSynced = !isSelected && scrollSyncSessionId === s.id;
               return (
                 <div
                   key={s.id}
+                  ref={(el) => registerSessionRow?.(s.id, el)}
                   onClick={() => onSelectSession(s.id)}
                   className={`grid grid-cols-3 items-center gap-3 pl-3 pr-4 py-3.5 border-t border-slate-100 border-l-4 cursor-pointer transition-colors ${
-                    isSelected ? 'bg-blue-200 border-l-blue-600' : 'border-l-transparent hover:bg-slate-50'
+                    isSelected ? 'bg-blue-200 border-l-blue-600'
+                      : isScrollSynced ? 'bg-violet-50 border-l-violet-500'
+                      : 'border-l-transparent hover:bg-slate-50'
                   }`}
                 >
                   {/* Column 1: patient + date */}
@@ -1270,9 +1315,16 @@ function ComplianceMatchingSettings({ isAdmin }) {
 function ComplianceAnalysisPreview({
   sessions, practitioner, practitionerId, periodStart, periodEnd, logActions,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleInlineReturnReject,
-  isAdmin,
+  isAdmin, scrollRootRef, onVisibleSessionChange,
 }) {
   const practitionerName = practitioner ? `${practitioner.first_name} ${practitioner.last_name}` : '-';
+  // Scroll-spy: reports whichever comparison card currently sits in a thin
+  // band around the vertical center of the scrollable panel, so the parent
+  // can highlight/scroll the matching row in the left-hand queue. rootMargin
+  // shrinks the observed area to that center band instead of the whole
+  // panel — without it, a tall card would register as "visible" the moment
+  // any sliver of it appeared, well before it's actually the one in focus.
+  const cardRefs = useRef({});
   // { session, practitionerId, type: 'return'|'reject' } | null — the popup
   // for entering the required note before a Return/Reject goes through.
   const [pendingNoteAction, setPendingNoteAction] = useState(null);
@@ -1492,6 +1544,23 @@ function ComplianceAnalysisPreview({
     : statFilter === 'matched' ? sessions.filter(s => !isSessionFlagged(s) && !isSessionMissing(s))
     : sessions;
 
+  useEffect(() => {
+    if (!onVisibleSessionChange || !scrollRootRef?.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.find((e) => e.isIntersecting);
+        if (hit) onVisibleSessionChange(Number(hit.target.dataset.sessionId));
+      },
+      { root: scrollRootRef.current, rootMargin: '-40% 0px -40% 0px', threshold: 0 }
+    );
+    Object.values(cardRefs.current).forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+    // Depends on `sessions`/`statFilter` (what actually changes which cards
+    // exist) rather than the freshly-filtered `visibleSessions` array, which
+    // gets a new reference every render and would otherwise reconnect the
+    // observer on every keystroke elsewhere in this component.
+  }, [sessions, statFilter, scrollRootRef, onVisibleSessionChange]);
+
   // Once a session's fields match the state record cleanly (matched, not
   // flagged), there's nothing left for a biller to review — auto-approve it
   // so it moves straight to Approved / awaiting report generation, same as
@@ -1693,7 +1762,12 @@ function ComplianceAnalysisPreview({
             : 'bg-slate-50 border-slate-200';
 
           return (
-            <div key={s.id} className={`rounded-xl overflow-hidden ${cardBorderClass}`}>
+            <div
+              key={s.id}
+              ref={(el) => { cardRefs.current[s.id] = el; }}
+              data-session-id={s.id}
+              className={`rounded-xl overflow-hidden ${cardBorderClass}`}
+            >
               <div className={`flex items-center justify-between px-4 py-2.5 border-b ${cardHeaderClass}`}>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
