@@ -901,30 +901,127 @@ const FIELD_TO_MAPPING_KEY = {
   logged_date: 'logged_date', ifsp_event_id: 'ifsp_event_id',
 };
 
-// Multiple same-day sessions for a patient — pick the candidate whose
-// start_time AND end_time are jointly closest to ours. Two duplicate
-// sessions can share an identical start_time (e.g. both logged at 10:00 but
-// ending at different times) — scoring on start_time alone ties at 0 for
-// every candidate in that case, silently cross-pairing the wrong
-// duplicates; end_time breaks that tie.
+// Pairwise cost between one of our sessions and one state-log candidate for
+// the same patient+date, lower = better match. A null-vs-real time
+// mismatch (e.g. our cancelled visit logged no time, but this candidate has
+// a real time — or vice versa) is scored as a heavy, explicit penalty
+// rather than being invisible to scoring — this is the exact bug this
+// replaces: silently treating "can't compare" as "neutral" let a session
+// with no comparable time blindly latch onto whichever candidate happened
+// to come first, even when a same-day sibling session had a real,
+// obviously-correct time match against that exact candidate. Verified
+// against a real production case: two same-day sessions for one patient (a
+// cancelled visit with no time, and a real 60-minute visit) had two state
+// records (one blank, one with matching real times) — the null-time
+// session's old "neutral" scoring let it grab the real-timed candidate
+// first, leaving the real-timed session incorrectly paired with the blank
+// one. NULL_TIME_MISMATCH_PENALTY (1440 minutes = a full day, far larger
+// than any two real times in the same day can differ) guarantees a
+// same-nullness pairing always wins over a cross pairing, so the correct
+// result no longer depends on which session happens to be evaluated first.
+const NULL_TIME_MISMATCH_PENALTY = 1440;
+function toMinutesOfDay(hhmm) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+function scoreCandidatePair(session, candidate) {
+  const ourStart = toMinutesOfDay(session.start_time);
+  const ourEnd = toMinutesOfDay(session.end_time);
+  const cStart = toMinutesOfDay(candidate.start_time);
+  const cEnd = toMinutesOfDay(candidate.end_time);
+  let score = 0;
+  score += (ourStart != null && cStart != null) ? Math.abs(cStart - ourStart)
+    : (ourStart == null && cStart == null) ? 0
+    : NULL_TIME_MISMATCH_PENALTY;
+  score += (ourEnd != null && cEnd != null) ? Math.abs(cEnd - ourEnd)
+    : (ourEnd == null && cEnd == null) ? 0
+    : NULL_TIME_MISMATCH_PENALTY;
+  return score;
+}
+
+// Single-session lookup (used by computeSessionCompliance, where there's no
+// sibling-session bookkeeping to worry about) — picks whichever candidate
+// scores best against this one session.
 function pickBestCandidate(session, candidates) {
   if (candidates.length === 0) return null;
   if (candidates.length === 1) return candidates[0];
-  const toMinutes = (hhmm) => { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
-  const ourStart = toMinutes(session.start_time);
-  const ourEnd = toMinutes(session.end_time);
   let bestScore = Infinity;
   let match = null;
   for (const c of candidates) {
-    const cStart = toMinutes(c.start_time);
-    const cEnd = toMinutes(c.end_time);
-    let score = 0;
-    let comparable = false;
-    if (ourStart != null && cStart != null) { score += Math.abs(cStart - ourStart); comparable = true; }
-    if (ourEnd != null && cEnd != null) { score += Math.abs(cEnd - ourEnd); comparable = true; }
-    if (comparable && score < bestScore) { bestScore = score; match = c; }
+    const score = scoreCandidatePair(session, c);
+    if (score < bestScore) { bestScore = score; match = c; }
   }
-  return match || candidates[0];
+  return match;
+}
+
+// Optimal one-to-one assignment of a patient+date group's sessions to that
+// same group's state-log candidates — replaces a greedy "whichever session
+// is processed first claims its best candidate" approach (used by the
+// batch getComplianceAnalysis loop below), which is exactly what let
+// processing order determine the (wrong) outcome in the bug this fixes.
+// Brute-forces every permutation of candidates onto sessions and keeps the
+// lowest-total-cost assignment — correct regardless of iteration order.
+// Real same-day duplicate counts for one patient are always tiny (2-3,
+// essentially never more), so this is cheap; MAX_OPTIMAL_GROUP_SIZE guards
+// against a pathological import forcing a factorial blowup by falling back
+// to a simple greedy pass (still using the corrected per-pair scoring,
+// just not globally optimal) instead of hanging the request.
+const MAX_OPTIMAL_GROUP_SIZE = 6;
+function assignGroupCandidates(groupSessions, groupCandidates) {
+  const assignment = new Map(); // session.id -> candidate | null
+  if (groupCandidates.length === 0) {
+    groupSessions.forEach((s) => assignment.set(s.id, null));
+    return assignment;
+  }
+  if (groupSessions.length === 1 && groupCandidates.length === 1) {
+    assignment.set(groupSessions[0].id, groupCandidates[0]);
+    return assignment;
+  }
+  if (Math.max(groupSessions.length, groupCandidates.length) > MAX_OPTIMAL_GROUP_SIZE) {
+    const used = new Set();
+    for (const s of groupSessions) {
+      let best = null;
+      let bestScore = Infinity;
+      for (const c of groupCandidates) {
+        if (used.has(c.id)) continue;
+        const score = scoreCandidatePair(s, c);
+        if (score < bestScore) { bestScore = score; best = c; }
+      }
+      if (best) used.add(best.id);
+      assignment.set(s.id, best);
+    }
+    return assignment;
+  }
+
+  const size = Math.max(groupSessions.length, groupCandidates.length);
+  const paddedSessions = [...groupSessions, ...Array(size - groupSessions.length).fill(null)];
+  const paddedCandidates = [...groupCandidates, ...Array(size - groupCandidates.length).fill(null)];
+
+  let bestTotal = Infinity;
+  let bestMapping = null;
+  const swap = (arr, i, j) => { const t = arr[i]; arr[i] = arr[j]; arr[j] = t; };
+  const permute = (arr, k) => {
+    if (k === arr.length) {
+      let total = 0;
+      for (let i = 0; i < size; i++) {
+        if (paddedSessions[i] && arr[i]) total += scoreCandidatePair(paddedSessions[i], arr[i]);
+      }
+      if (total < bestTotal) { bestTotal = total; bestMapping = arr.slice(); }
+      return;
+    }
+    for (let i = k; i < arr.length; i++) {
+      swap(arr, k, i);
+      permute(arr, k + 1);
+      swap(arr, k, i);
+    }
+  };
+  permute(paddedCandidates, 0);
+
+  for (let i = 0; i < size; i++) {
+    if (paddedSessions[i]) assignment.set(paddedSessions[i].id, bestMapping[i] || null);
+  }
+  return assignment;
 }
 
 // Compares two HH:MM strings within a tolerance (minutes) driven by the
@@ -1335,27 +1432,38 @@ const getComplianceAnalysis = async (req, res) => {
       );
     });
 
-    // Group state rows by patient_id + service_date so each session can be
-    // matched against only its same-day candidates. `date` columns come back
-    // as plain 'YYYY-MM-DD' strings, not JS Date objects — see the DATE type
-    // parser override in config/db.js — so these are compared as strings.
+    // Group state rows AND sessions by patient_id + service_date so a
+    // same-day group with several sessions and several candidates gets
+    // assigned as a whole via assignGroupCandidates (see its comment) —
+    // never one session at a time, which is what let processing order
+    // determine the outcome. `date` columns come back as plain 'YYYY-MM-DD'
+    // strings, not JS Date objects — see the DATE type parser override in
+    // config/db.js — so these are compared as strings.
     const stateByKey = new Map();
     for (const log of stateLogs) {
       const key = `${log.patient_id}:${log.service_date}`;
       if (!stateByKey.has(key)) stateByKey.set(key, []);
       stateByKey.get(key).push(log);
     }
+    const sessionsByKey = new Map();
+    for (const session of sessions) {
+      const key = `${session.patient_id}:${session.service_date}`;
+      if (!sessionsByKey.has(key)) sessionsByKey.set(key, []);
+      sessionsByKey.get(key).push(session);
+    }
+    const matchBySessionId = new Map();
+    for (const [key, groupSessions] of sessionsByKey) {
+      const groupCandidates = stateByKey.get(key) || [];
+      const assignment = assignGroupCandidates(groupSessions, groupCandidates);
+      for (const [sessionId, candidate] of assignment) matchBySessionId.set(sessionId, candidate);
+    }
 
     const overridesByField = await loadOverridesByField();
     const ackByKey = await loadAcknowledgments(sessions.map((s) => s.id));
 
-    const usedStateLogIds = new Set();
     const results = {};
     for (const session of sessions) {
-      const key = `${session.patient_id}:${session.service_date}`;
-      const candidates = (stateByKey.get(key) || []).filter((l) => !usedStateLogIds.has(l.id));
-      const match = pickBestCandidate(session, candidates);
-      if (match) usedStateLogIds.add(match.id);
+      const match = matchBySessionId.get(session.id) || null;
 
       const fields = buildFieldsForSession(session, match, { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey });
       const flagged = fields.some((f) => f.match === false);
@@ -1375,11 +1483,11 @@ const getComplianceAnalysis = async (req, res) => {
     }
 
     // A duplicate log (same patient/date/time/type/location submitted
-    // twice) only ever has ONE state record to match against — whichever
-    // session the loop above reaches first claims it via usedStateLogIds,
-    // leaving the other with no candidate left. That's not genuinely
-    // "missing from the state," it's our own duplicate, so flag it as such
-    // instead of implying the state never recorded the session at all.
+    // twice) only ever has ONE state record to match against — the group
+    // assignment above gives that one candidate to whichever duplicate
+    // scores best, leaving the other with no candidate at all. That's not
+    // genuinely "missing from the state," it's our own duplicate, so flag
+    // it as such instead of implying the state never recorded the session.
     for (const session of sessions) {
       const result = results[session.id];
       if (result.matched) continue;
