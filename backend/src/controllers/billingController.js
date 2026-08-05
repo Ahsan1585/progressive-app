@@ -665,6 +665,16 @@ const updateLogStatus = async (req, res) => {
         "UPDATE assessments SET billing_status = $1, billing_review = $2, hold_note = NULL, held_at = NULL WHERE id = $3",
         [status, review || null, assessmentId]
       );
+      // Going back to a genuinely unreviewed state means any one-time
+      // Allow clicked on THIS log no longer applies — otherwise a real
+      // mismatch that was accidentally allowed once would stay silently
+      // cleared forever, even after being sent back for fresh re-review.
+      // Only the per-log acknowledgment is cleared here — a reusable
+      // learned rule (compliance_match_overrides) is a standing,
+      // cross-log decision and is untouched by resetting one log.
+      if (!review) {
+        await pool.query('DELETE FROM compliance_field_acknowledgments WHERE assessment_id = $1', [assessmentId]);
+      }
     } else {
       await pool.query('UPDATE assessments SET billing_status = $1 WHERE id = $2', [status, assessmentId]);
     }
