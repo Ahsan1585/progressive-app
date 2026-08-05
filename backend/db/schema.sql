@@ -321,10 +321,10 @@ CREATE TABLE company_settings (
 -- compliance_state_logs: FK -> patients. Parsed rows from the currently
 -- attached compliance_doc Excel (backend/src/constants/njeis.js maps the
 -- state's free-text Service/Location/Group Size columns to our codes at
--- parse time). Holds a rolling 60-day window keyed off service_date, not a
+-- parse time). Holds a rolling 90-day window keyed off service_date, not a
 -- single-file snapshot — each monthly upload only replaces its own covered
 -- date range (company/companyController.js applyComplianceDocMapping), and
--- rows older than 60 days are purged automatically on every upload and on
+-- rows older than 90 days are purged automatically on every upload and on
 -- every Compliance Analysis read (billingController.js getComplianceAnalysis).
 -- patient_id is resolved at parse time via patients.child_id (nullable — a
 -- state row for a child not in our system still gets stored, surfaced as unmatched).

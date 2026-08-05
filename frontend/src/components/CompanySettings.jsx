@@ -457,7 +457,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
           <div className="flex items-start gap-2.5 bg-sky-50 border border-sky-200 rounded-xl px-3.5 py-3 text-xs text-sky-700">
             <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
             <span>
-              <span className="font-bold">Each month, use Replace</span> to attach the new state file — it keeps everything from the last 60 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 60 days (by service date) drops off automatically. <span className="font-bold">Remove</span> is only for starting over completely — it clears all state compliance data, not just this file.
+              <span className="font-bold">Each month, use Replace</span> to attach the new state file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically. <span className="font-bold">Remove</span> is only for starting over completely — it clears all state compliance data, not just this file.
             </span>
           </div>
         )}
@@ -643,7 +643,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
             </p>
             <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-3 text-xs text-slate-600 space-y-1.5">
               <p className="font-bold text-slate-700">If you're just uploading next month's file, use Replace instead</p>
-              <p>Replace keeps a rolling 60 days of compliance data on file. Each time you replace, it only swaps out that file's own dates and automatically drops anything older than 60 days — nothing needs to be cleared manually. Remove is only for a full reset (e.g. the wrong file was uploaded).</p>
+              <p>Replace keeps a rolling 90 days of compliance data on file. Each time you replace, it only swaps out that file's own dates and automatically drops anything older than 90 days — nothing needs to be cleared manually. Remove is only for a full reset (e.g. the wrong file was uploaded).</p>
             </div>
           </DialogDescription>
           <div className="flex justify-end gap-2 pt-2">
