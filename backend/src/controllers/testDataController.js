@@ -20,11 +20,12 @@ const DISCIPLINE_LABEL_TO_CODE = {
   'Physical Therapy': 'PT', 'Psychological': 'PSY', 'Speech Language Therapy': 'SLP',
   'Social Work': 'SW', 'Vision': 'VI', 'Childcare/Respite': 'CC',
   'Interpreter/Translator': 'I/T', 'Foreign Language Interpreter': 'I/T',
-  'Escort/Security': 'ES', 'Transition Planning Conference': 'TPC',
+  'Escort/Security': 'ES', 'Transition Planning Conference': 'TPC', 'IFSP': 'IFSP',
 };
 const VISIT_STATUS_LABEL_TO_CODE = {
   'Direct Child Service': '1', 'Practitioner Cancelled (inc weather related)': '2',
   'Family Cancelled (inc weather related)': '3', 'Make Up Direct Child Service': '4',
+  'Makeup Direct Child Service': '4',
   'Family Missed (within 3 hours)': '5', 'Team Mtg – IFSP': 'IFSP',
   'Transition Planning Conference': 'TPC', 'Bilingual Interpretation': 'IT',
 };
