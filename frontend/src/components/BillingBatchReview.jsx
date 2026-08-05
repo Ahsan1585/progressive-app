@@ -1094,12 +1094,6 @@ function ActionButton({ label, icon, onClick, active, tone }) {
   );
 }
 
-// Mirrors backend/src/controllers/billingController.js's
-// LEARNABLE_COMPLIANCE_FIELDS — used only to tailor the confirmation
-// message before Allow, since a learnable field's Allow persists a reusable
-// rule while everything else is a one-off allow for this log only.
-const LEARNABLE_COMPLIANCE_FIELD_KEYS = ['service_type', 'location', 'group_size', 'child_name', 'practitioner_name'];
-
 // Mirrors complianceLearningController.js's hasWordOverlap — a learnable
 // field only actually becomes a reusable rule server-side if the two values
 // share at least one word (a plausible labeling variant, not a genuinely
@@ -1298,14 +1292,16 @@ function ComplianceAnalysisPreview({
   const [isDecidingMissing, setIsDecidingMissing] = useState(false);
 
   // Billing confirms a flagged field is actually fine — clears it for this
-  // log (and, for the 5 learnable fields, teaches the system the pairing so
-  // it stops flagging it for every future log too). Updates `analysis` in
-  // place so the row flips from flagged to allowed without a full re-fetch.
-  // Requires an explicit confirmation first — for a learnable field this is
-  // a standing rule applied to every future log, not just this one, so it's
+  // log (and, for any field carrying `_learn` metadata — the base fixed
+  // fields plus any custom field tied via compareTo to one of our real
+  // bounded vocabularies — teaches the system the pairing so it stops
+  // flagging it for every future log too). Updates `analysis` in place so
+  // the row flips from flagged to allowed without a full re-fetch. Requires
+  // an explicit confirmation first — for a learnable field this is a
+  // standing rule applied to every future log, not just this one, so it's
   // worth a real "are you sure" rather than a single accidental click.
   const handleAllowField = async (sessionId, field) => {
-    const isLearnable = LEARNABLE_COMPLIANCE_FIELD_KEYS.includes(field.key) && hasWordOverlap(field.ours, field.state);
+    const isLearnable = !!field._learn && hasWordOverlap(field.ours, field.state);
     const confirmMessage = isLearnable
       ? `Allow "${field.label}"? Our value "${field.ours || '-'}" will be remembered as matching the state's "${field.state || '-'}" — every future log with this same mismatch will auto-match too, until removed from Compliance Matching.`
       : `You are only allowing "${field.label}" as a one-time allow for this log, based on your review — this will not be used to teach the system for future logs.`;

@@ -22,12 +22,6 @@ const { logAudit } = require('../utils/auditLog');
 const { normalizeForMatch, scoredNamesMatch } = require('../utils/textMatch');
 const path = require('path');
 
-// The 5 fields where a billing-confirmed mismatch generalizes into a
-// reusable rule (compliance_match_overrides) — everything else (time
-// fields, custom fields) is only ever a one-off per-log acknowledgment,
-// since a clerical typo on a specific date rarely recurs the same way.
-const LEARNABLE_COMPLIANCE_FIELDS = ['service_type', 'location', 'group_size', 'child_name', 'practitioner_name'];
-
 // --- 1. NEW Standardized Path Helper ---
 const getStoragePath = (practitioner, type) => {
   const date = new Date();
@@ -1083,11 +1077,14 @@ function buildFieldsForSession(session, match, ctx) {
     },
     // User-added custom fields (Company Information's "Add custom field")
     // are state-side only by default — no equivalent on our side, so always
-    // informational. A custom field can optionally be tied to one of our
-    // real comparable fields (compareTo), which turns it into a genuine
-    // match/mismatch verdict. Custom fields are acknowledgment-only, never
-    // learned — they're admin-defined and less predictable than the 5 core
-    // fixed fields.
+    // informational (no `_learn`, acknowledgment-only). A custom field can
+    // optionally be tied to one of our real comparable fields (compareTo),
+    // which turns it into a genuine match/mismatch verdict — and, because
+    // that means its state text is drawn from a bounded, predictable
+    // vocabulary just like the base fields, it also gets `_learn` metadata
+    // so an "Allow" persists a reusable rule the same way (e.g. the state's
+    // "Makeup Direct Child Service" vs our "Make Up Direct Child Service" —
+    // the same wording variant every time this status code appears).
     ...Object.entries(match.extra_fields || {}).map(([label, value]) => {
       const compareTo = customFieldsByLabel.get(label)?.compareTo;
       if (compareTo === 'service_type') {
@@ -1097,6 +1094,7 @@ function buildFieldsForSession(session, match, ctx) {
           ours: session.type ? serviceCodeLabel(session.type) : null,
           state: stateCode ? serviceCodeLabel(stateCode) : value,
           match: !!session.type && !!stateCode && session.type === stateCode,
+          _learn: { ourValue: session.type, stateValueRaw: value },
         };
       }
       if (compareTo === 'location') {
@@ -1106,6 +1104,7 @@ function buildFieldsForSession(session, match, ctx) {
           ours: session.location ? locationCodeLabel(session.location) : null,
           state: stateCode ? locationCodeLabel(stateCode) : value,
           match: !!session.location && !!stateCode && session.location === stateCode,
+          _learn: { ourValue: session.location, stateValueRaw: value },
         };
       }
       if (compareTo === 'group_size') {
@@ -1115,6 +1114,7 @@ function buildFieldsForSession(session, match, ctx) {
           ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null,
           state: stateCode ? groupSizeCodeLabel(stateCode) : value,
           match: !!session.group_size_category && !!stateCode && session.group_size_category === stateCode,
+          _learn: { ourValue: session.group_size_category, stateValueRaw: value },
         };
       }
       if (compareTo === 'service_status') {
@@ -1124,6 +1124,7 @@ function buildFieldsForSession(session, match, ctx) {
           ours: session.status ? statusCodeLabel(session.status) : null,
           state: stateCode ? statusCodeLabel(stateCode) : value,
           match: !!session.status && !!stateCode && session.status === stateCode,
+          _learn: { ourValue: session.status, stateValueRaw: value },
         };
       }
       if (compareTo === 'practitioner_discipline') {
@@ -1134,6 +1135,7 @@ function buildFieldsForSession(session, match, ctx) {
           ours: session.practitioner_discipline || null,
           state: value,
           match: !!ourCode && !!stateCode && ourCode === stateCode,
+          _learn: { ourValue: session.practitioner_discipline, stateValueRaw: value },
         };
       }
       if (compareTo === 'patient_county') {
@@ -1182,6 +1184,7 @@ function buildFieldsForSession(session, match, ctx) {
           ours: ourCode ? codeLabel(categoryKey, ourCode) : null,
           state: stateCode ? codeLabel(categoryKey, stateCode) : value,
           match: !!ourCode && !!stateCode && ourCode === stateCode,
+          _learn: { ourValue: ourCode, stateValueRaw: value },
         };
       }
       return { key: `custom:${label}`, label, ours: null, state: value, match: null };
@@ -1907,5 +1910,4 @@ module.exports = {
   sendMissingToAdmin,
   getActionRequiredLogs,
   decideMissingInEims,
-  LEARNABLE_COMPLIANCE_FIELDS,
 };
