@@ -92,7 +92,13 @@ const seedComparisonTestData = async (req, res) => {
       );
       const seedOnlyPatientIds = seedOnlyPatientRows.map((r) => r.patient_id);
 
-      await client.query(`DELETE FROM assessment_notes WHERE author_id = ANY($1::int[])`, [oldPracIds]);
+      // Delete by assessment_id, not just author_id — a note left by a
+      // reviewing admin (not a seed practitioner) on one of these
+      // assessments would otherwise survive and block the assessment delete.
+      await client.query(
+        `DELETE FROM assessment_notes WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[]))`,
+        [oldPracIds]
+      );
       await client.query(`DELETE FROM assessments WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(`DELETE FROM patient_practitioners WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(
