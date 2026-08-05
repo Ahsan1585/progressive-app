@@ -44,16 +44,12 @@ function getMonthPeriods(monthValue) {
   return periods.map(p => ({ ...p, elapsed: todayStr > p.end }));
 }
 
-// --- Beta "Batch Review" view for Pending Bills: a master-detail layout
-// (a scrollable list of ALL practitioners with pending logs on the left —
-// same as the legacy table, just laid out as collapsible/lockable groups —
-// and session detail with one-click actions on the right) over the exact
-// same data/handlers the legacy table already uses. Every action here calls
-// the same functions passed down from BillingManager, which call the same
-// backend endpoints either way — this is a presentation layer, not a
-// second workflow.
+// --- "Batch Review" view for Pending Bills: a master-detail layout (a
+// scrollable list of every practitioner with pending logs on the left, laid
+// out as collapsible/lockable groups, and session detail with one-click
+// actions on the right). Every action here calls the same functions passed
+// down from BillingManager, which call the same backend endpoints.
 export const BillingBatchReview = ({
-  practitioners,
   currentUserId, isAdmin, processingLogId, processingId,
   logActions, setLogActions,
   handleLock, handleRelease, handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleReconcile,
