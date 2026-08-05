@@ -104,6 +104,10 @@ const seedComparisonTestData = async (req, res) => {
         `DELETE FROM assessment_notes WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[]))`,
         [oldPracIds]
       );
+      await client.query(
+        `DELETE FROM compliance_field_acknowledgments WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[]))`,
+        [oldPracIds]
+      );
       await client.query(`DELETE FROM assessments WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(`DELETE FROM patient_practitioners WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
       await client.query(
@@ -279,6 +283,10 @@ const wipeAllSeedData = async (req, res) => {
 
       await client.query(
         `DELETE FROM assessment_notes WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[]))`,
+        [oldPracIds]
+      );
+      await client.query(
+        `DELETE FROM compliance_field_acknowledgments WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[]))`,
         [oldPracIds]
       );
       await client.query(`DELETE FROM assessments WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
