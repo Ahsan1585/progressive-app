@@ -63,9 +63,12 @@ const PLACEHOLDER_SIGNATURE =
  *   }]
  * }
  *
- * Idempotent: first deletes every previously seeded row (practitioners
- * whose email starts with "seed-", and their patients/assessments via FK
- * cascade-by-hand), then recreates everything fresh from the payload.
+ * Idempotent per-practitioner: only wipes and recreates the practitioners
+ * actually named in THIS call's `practitioners` list (matched by email) —
+ * any other previously-seeded practitioner from an earlier call (e.g. a
+ * different dataset added in a separate request) is left completely
+ * untouched, so multiple test datasets can accumulate across calls without
+ * one wiping out another.
  */
 const seedComparisonTestData = async (req, res) => {
   const { practitioners = [], children = [], sessions = [] } = req.body;
@@ -74,14 +77,16 @@ const seedComparisonTestData = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Wipe previously seeded data (assessments -> patient_practitioners -> patients -> practitioners).
+    // 1. Wipe only the practitioners THIS call is about to recreate
+    // (assessments -> patient_practitioners -> patients -> practitioners).
     // child_id is left exactly as given (no prefix) so it can match a real
     // compliance-reference document by its real state-issued ID — so a
     // seeded patient is instead identified by being linked ONLY to seed
     // practitioners (never a real one), not by any marker on its own row.
-    const { rows: oldPracRows } = await client.query(
-      `SELECT id FROM practitioners WHERE email LIKE 'seed-%'`
-    );
+    const incomingEmails = practitioners.map((p) => `seed-${p.email.trim().toLowerCase()}`);
+    const { rows: oldPracRows } = incomingEmails.length
+      ? await client.query(`SELECT id FROM practitioners WHERE email = ANY($1::text[])`, [incomingEmails])
+      : { rows: [] };
     const oldPracIds = oldPracRows.map((r) => r.id);
     if (oldPracIds.length > 0) {
       const { rows: seedOnlyPatientRows } = await client.query(
@@ -145,15 +150,20 @@ const seedComparisonTestData = async (req, res) => {
     }
 
     // 3. Create children (patients) + link each to every practitioner listed
-    // against it in the sessions payload.
+    // against it in the sessions payload. A child_id can already exist from
+    // an earlier seed call for a different practitioner (e.g. the same real
+    // child seen by two practitioners in the spreadsheet) — ON CONFLICT DO
+    // NOTHING + a follow-up SELECT reuses that existing patient row instead
+    // of erroring on the UNIQUE(child_id) constraint.
     const patientIdByChildId = {};
     for (const c of children) {
-      const { rows } = await client.query(
+      await client.query(
         `INSERT INTO patients (first_name, last_name, dob, county, child_id, status)
          VALUES ($1, $2, $3, $4, $5, 'active')
-         RETURNING id`,
+         ON CONFLICT (child_id) DO NOTHING`,
         [c.firstName, c.lastName, c.dob, c.county || 'Essex', c.childId]
       );
+      const { rows } = await client.query('SELECT id FROM patients WHERE child_id = $1', [c.childId]);
       patientIdByChildId[c.childId] = rows[0].id;
     }
 
@@ -164,7 +174,7 @@ const seedComparisonTestData = async (req, res) => {
       const linkKey = `${patientId}:${practitionerId}`;
       if (patientId && practitionerId && !linked.has(linkKey)) {
         await client.query(
-          `INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2)`,
+          `INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
           [patientId, practitionerId]
         );
         linked.add(linkKey);
