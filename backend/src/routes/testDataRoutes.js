@@ -3,13 +3,14 @@ const router = express.Router();
 
 const { pool } = require('../config/db');
 const { protect, requireRole } = require('../middleware/authMiddleware');
-const { seedComparisonTestData } = require('../controllers/testDataController');
+const { seedComparisonTestData, wipeAllSeedData } = require('../controllers/testDataController');
 
 // Test-data seeding is only wired up at all when ENABLE_TEST_SEED=true is
 // set on the backend — set this in Cloud Run only while actively testing,
 // then unset it. CEO-only on top of that, same as other admin-only routes.
 if (process.env.ENABLE_TEST_SEED === 'true') {
   router.post('/seed-comparison-test-data', protect, requireRole(['ceo']), seedComparisonTestData);
+  router.post('/wipe-all-seed-data', protect, requireRole(['ceo']), wipeAllSeedData);
 
   // Read-only diagnostic: shows exactly what's in compliance_state_logs for
   // a given child ID, to distinguish "row never parsed from the doc" from

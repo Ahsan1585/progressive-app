@@ -251,4 +251,70 @@ const seedComparisonTestData = async (req, res) => {
   }
 };
 
-module.exports = { seedComparisonTestData };
+/**
+ * POST /api/dev/wipe-all-seed-data
+ * CEO-only. Removes every practitioner ever created by seedComparisonTestData
+ * (email LIKE 'seed-%') and their assessments/patient links, using the exact
+ * same cascade-safe deletion steps as the per-call wipe above, just against
+ * every seed practitioner instead of only the ones named in a payload.
+ */
+const wipeAllSeedData = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: oldPracRows } = await client.query(`SELECT id FROM practitioners WHERE email LIKE 'seed-%'`);
+    const oldPracIds = oldPracRows.map((r) => r.id);
+
+    let wipedPatients = 0;
+    if (oldPracIds.length > 0) {
+      const { rows: seedOnlyPatientRows } = await client.query(
+        `SELECT patient_id FROM patient_practitioners
+         GROUP BY patient_id
+         HAVING bool_and(practitioner_id = ANY($1::int[]))`,
+        [oldPracIds]
+      );
+      const seedOnlyPatientIds = seedOnlyPatientRows.map((r) => r.patient_id);
+      wipedPatients = seedOnlyPatientIds.length;
+
+      await client.query(
+        `DELETE FROM assessment_notes WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[]))`,
+        [oldPracIds]
+      );
+      await client.query(`DELETE FROM assessments WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
+      await client.query(`DELETE FROM patient_practitioners WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
+      await client.query(
+        `DELETE FROM billing_locks WHERE practitioner_id = ANY($1::int[]) OR locked_by = ANY($1::int[])`,
+        [oldPracIds]
+      );
+      await client.query(`DELETE FROM billing_batches WHERE practitioner_id = ANY($1::int[])`, [oldPracIds]);
+      if (seedOnlyPatientIds.length > 0) {
+        await client.query(
+          `UPDATE compliance_state_logs SET patient_id = NULL WHERE patient_id = ANY($1::int[])`,
+          [seedOnlyPatientIds]
+        );
+        await client.query(`DELETE FROM patients WHERE id = ANY($1::int[])`, [seedOnlyPatientIds]);
+      }
+      await client.query(`DELETE FROM practitioners WHERE id = ANY($1::int[])`, [oldPracIds]);
+    }
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req,
+      action: 'wipe_all_seed_data',
+      resourceType: 'test_data',
+      details: { practitionersRemoved: oldPracIds.length, patientsRemoved: wipedPatients },
+    });
+
+    res.json({ success: true, practitionersRemoved: oldPracIds.length, patientsRemoved: wipedPatients });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to wipe seed data:', error);
+    res.status(500).json({ error: 'Failed to wipe seed data', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { seedComparisonTestData, wipeAllSeedData };
