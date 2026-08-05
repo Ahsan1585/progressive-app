@@ -33,10 +33,12 @@ const LOCATION_LABEL_TO_CODE = {
   'Home': '1', 'Residential Facility': '2', 'Service Provider Clinic/Office': '3',
   'Hospital (Inpatient)': '4', 'EC Program - Children with Disabilities': '5',
   'EC Program - Inclusive Community': '6', 'DCP&P Office': '7', 'Phone/Video Conferencing': '8',
+  'Telehealth': '9',
 };
 const GROUP_SIZE_LABEL_TO_CODE = {
   'Direct Child Service - Individual': 'individual',
   'Consultation/Facilitation with Others': 'consultation',
+  'Evaluation/Assessment': 'evaluation',
 };
 
 // 1x1 transparent PNG — assessments.parent_signature/practitioner_signature
