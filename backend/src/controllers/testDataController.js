@@ -325,4 +325,76 @@ const wipeAllSeedData = async (req, res) => {
   }
 };
 
-module.exports = { seedComparisonTestData, wipeAllSeedData };
+/**
+ * POST /api/dev/hard-delete-practitioner
+ * CEO-only. Body: { practitionerId }
+ *
+ * A genuine hard delete — the app's own "Delete staff" action
+ * (authController.deleteStaffMember) only ever soft-deactivates
+ * (is_active = false), by design, matching how patient deletion was
+ * removed in favor of deactivation. This is for cleaning up a manually-
+ * created scratch/test account (not seed-% prefixed, so wipeAllSeedData
+ * doesn't touch it) that the user wants actually gone, logs included.
+ * Clears every table with a foreign key to practitioners.id before the
+ * final delete, same dependencies discovered while cleaning up test data.
+ */
+const hardDeletePractitioner = async (req, res) => {
+  const { practitionerId } = req.body;
+  if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: existing } = await client.query('SELECT id, first_name, last_name FROM practitioners WHERE id = $1', [practitionerId]);
+    if (!existing[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Practitioner not found' });
+    }
+
+    await client.query(
+      `DELETE FROM assessment_notes WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = $1) OR author_id = $1`,
+      [practitionerId]
+    );
+    await client.query(
+      `DELETE FROM compliance_field_acknowledgments WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = $1) OR allowed_by = $1`,
+      [practitionerId]
+    );
+    const { rows: deletedAssessments } = await client.query(
+      'DELETE FROM assessments WHERE practitioner_id = $1 RETURNING id',
+      [practitionerId]
+    );
+    await client.query('DELETE FROM patient_practitioners WHERE practitioner_id = $1', [practitionerId]);
+    await client.query('DELETE FROM billing_locks WHERE practitioner_id = $1 OR locked_by = $1', [practitionerId]);
+    await client.query('DELETE FROM billing_batches WHERE practitioner_id = $1', [practitionerId]);
+    await client.query('DELETE FROM pending_contact_updates WHERE practitioner_id = $1', [practitionerId]);
+    await client.query('DELETE FROM messages WHERE practitioner_id = $1 OR sender_id = $1', [practitionerId]);
+    await client.query('DELETE FROM scheduled_sessions WHERE practitioner_id = $1', [practitionerId]);
+    await client.query('DELETE FROM master_reports WHERE practitioner_id = $1', [practitionerId]);
+    await client.query('DELETE FROM compliance_match_overrides WHERE created_by = $1', [practitionerId]);
+    await client.query('DELETE FROM session_drafts WHERE practitioner_id = $1', [practitionerId]);
+    await client.query('UPDATE patients SET practitioner_id = NULL WHERE practitioner_id = $1', [practitionerId]);
+    // audit_logs.actor_id has ON DELETE SET NULL already — no manual cleanup needed.
+    await client.query('DELETE FROM practitioners WHERE id = $1', [practitionerId]);
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req,
+      action: 'hard_delete_practitioner',
+      resourceType: 'practitioner',
+      resourceId: practitionerId,
+      details: { name: `${existing[0].first_name} ${existing[0].last_name}`, assessmentsRemoved: deletedAssessments.length },
+    });
+
+    res.json({ success: true, practitionerId, assessmentsRemoved: deletedAssessments.length });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to hard-delete practitioner:', error);
+    res.status(500).json({ error: 'Failed to delete practitioner', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { seedComparisonTestData, wipeAllSeedData, hardDeletePractitioner };
