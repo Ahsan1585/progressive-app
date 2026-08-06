@@ -21,6 +21,7 @@ const DISCIPLINE_LABEL_TO_CODE = {
   'Social Work': 'SW', 'Vision': 'VI', 'Childcare/Respite': 'CC',
   'Interpreter/Translator': 'I/T', 'Foreign Language Interpreter': 'I/T',
   'Escort/Security': 'ES', 'Transition Planning Conference': 'TPC', 'IFSP': 'IFSP', 'TPC': 'TPC',
+  'Speech Therapy': 'SLP', 'Team Meetings': 'IFSP',
 };
 const VISIT_STATUS_LABEL_TO_CODE = {
   'Direct Child Service': '1', 'Practitioner Cancelled (inc weather related)': '2',
@@ -28,6 +29,7 @@ const VISIT_STATUS_LABEL_TO_CODE = {
   'Makeup Direct Child Service': '4',
   'Family Missed (within 3 hours)': '5', 'Team Mtg – IFSP': 'IFSP',
   'Transition Planning Conference': 'TPC', 'Bilingual Interpretation': 'IT',
+  'Makeup Bilingual Interpretation': 'IT-M', 'Family/Training/Education Service': 'FTE',
 };
 const LOCATION_LABEL_TO_CODE = {
   'Home': '1', 'Residential Facility': '2', 'Service Provider Clinic/Office': '3',
