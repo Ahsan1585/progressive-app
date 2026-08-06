@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
+const { generateSignaturePng } = require('../utils/fakeSignature');
 
 const SEED_PASSWORD = 'TestData@2026';
 
@@ -450,9 +451,45 @@ const randomizeSeedPractitionerDetails = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/dev/randomize-seed-signatures
+ * CEO-only. Assigns a fresh, independently-random signature PNG to both
+ * parent_signature and practitioner_signature on every assessment logged
+ * by a seed-% practitioner, so seeded test logs don't all show the exact
+ * same placeholder signature.
+ */
+const randomizeSeedSignatures = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.id FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
+       WHERE p.email LIKE 'seed-%'`
+    );
+    for (const { id } of rows) {
+      await pool.query(
+        `UPDATE assessments SET parent_signature = $1, practitioner_signature = $2 WHERE id = $3`,
+        [generateSignaturePng(), generateSignaturePng(), id]
+      );
+    }
+
+    logAudit({
+      req,
+      action: 'randomize_seed_signatures',
+      resourceType: 'test_data',
+      details: { assessmentsUpdated: rows.length },
+    });
+
+    res.json({ success: true, assessmentsUpdated: rows.length });
+  } catch (error) {
+    console.error('Failed to randomize seed signatures:', error);
+    res.status(500).json({ error: 'Failed to randomize signatures', detail: error.message });
+  }
+};
+
 module.exports = {
   seedComparisonTestData,
   wipeAllSeedData,
   hardDeletePractitioner,
   randomizeSeedPractitionerDetails,
+  randomizeSeedSignatures,
 };
