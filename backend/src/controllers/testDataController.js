@@ -399,4 +399,60 @@ const hardDeletePractitioner = async (req, res) => {
   }
 };
 
-module.exports = { seedComparisonTestData, wipeAllSeedData, hardDeletePractitioner };
+const STREET_NAMES = [
+  'Maple Ave', 'Oak St', 'Cedar Ln', 'Elm St', 'Washington Blvd', 'Park Pl',
+  'Franklin Ave', 'Lincoln St', 'Sunset Dr', 'River Rd', 'Highland Ave', 'Willow Way',
+];
+const NJ_CITIES = [
+  { city: 'Newark', zip: '07102' }, { city: 'Camden', zip: '08102' },
+  { city: 'Trenton', zip: '08608' }, { city: 'Jersey City', zip: '07302' },
+  { city: 'Cherry Hill', zip: '08002' }, { city: 'Edison', zip: '08817' },
+  { city: 'Paterson', zip: '07501' }, { city: 'Elizabeth', zip: '07201' },
+];
+const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomAddress = () => {
+  const { city, zip } = NJ_CITIES[randInt(0, NJ_CITIES.length - 1)];
+  const street = STREET_NAMES[randInt(0, STREET_NAMES.length - 1)];
+  return `${randInt(100, 9999)} ${street}, ${city}, NJ ${zip}`;
+};
+const randomSsn = () => `${randInt(100, 899)}-${randInt(10, 99)}-${randInt(1000, 9999)}`;
+const randomPhone = () => `(${randInt(200, 973)}) ${randInt(200, 999)}-${randInt(1000, 9999)}`;
+
+/**
+ * POST /api/dev/randomize-seed-practitioner-details
+ * CEO-only. Assigns a random fake NJ address, SSN, and phone number to every
+ * practitioner created by seedComparisonTestData (email LIKE 'seed-%') —
+ * these are fake practitioners tied to anonymized/synthetic test data, so
+ * fake identity fields fill out the profile for UI testing without any real
+ * PII involved.
+ */
+const randomizeSeedPractitionerDetails = async (req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT id FROM practitioners WHERE email LIKE 'seed-%'`);
+    for (const { id } of rows) {
+      await pool.query(
+        `UPDATE practitioners SET address = $1, ssn = $2, phone_number = $3 WHERE id = $4`,
+        [randomAddress(), randomSsn(), randomPhone(), id]
+      );
+    }
+
+    logAudit({
+      req,
+      action: 'randomize_seed_practitioner_details',
+      resourceType: 'test_data',
+      details: { practitionersUpdated: rows.length },
+    });
+
+    res.json({ success: true, practitionersUpdated: rows.length });
+  } catch (error) {
+    console.error('Failed to randomize seed practitioner details:', error);
+    res.status(500).json({ error: 'Failed to randomize practitioner details', detail: error.message });
+  }
+};
+
+module.exports = {
+  seedComparisonTestData,
+  wipeAllSeedData,
+  hardDeletePractitioner,
+  randomizeSeedPractitionerDetails,
+};
