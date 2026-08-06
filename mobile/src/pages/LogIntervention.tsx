@@ -16,7 +16,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
 import { cn } from "@/lib/utils";
-import type { ApiErrorBody } from "@/types";
+import type { ApiErrorBody, SessionDraft } from "@/types";
 
 interface FormState {
   date: string;
@@ -79,11 +79,44 @@ export default function LogIntervention() {
   const [touched, setTouched] = React.useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const [savingDraft, setSavingDraft] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<string>("details");
 
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Landing on this screen always reflects whatever was last saved for this
+  // child — a draft if one exists, otherwise a blank form. Runs once per
+  // patientId; a fetch failure fails silently to a blank form rather than
+  // blocking logging a fresh session over a draft-loading problem.
+  React.useEffect(() => {
+    if (!patientId) return;
+    (async () => {
+      try {
+        const res = await api.get<{ success: boolean; draft: SessionDraft | null }>(`/api/session-drafts/${patientId}`);
+        const draft = res.data.draft;
+        if (!draft) return;
+        const saved = draft.formData as Partial<FormState> & { zeroTime?: boolean };
+        setForm((f) => ({
+          date: saved.date ?? f.date,
+          startTime: saved.startTime ?? f.startTime,
+          endTime: saved.endTime ?? f.endTime,
+          status: saved.status ?? f.status,
+          type: saved.type ?? f.type,
+          location: saved.location ?? f.location,
+          groupSizeCategory: saved.groupSizeCategory ?? f.groupSizeCategory,
+          customFields: saved.customFields ?? f.customFields,
+          note: saved.note ?? f.note,
+        }));
+        if (saved.zeroTime) setZeroTime(true);
+        if (draft.parentSignatureBase64) setParentSig(draft.parentSignatureBase64);
+        if (draft.practitionerSignatureBase64) setPractitionerSig(draft.practitionerSignatureBase64);
+      } catch {
+        // Fails silently — screen just shows a blank form, same as if no draft existed.
+      }
+    })();
+  }, [patientId]);
 
   const totalMinutes = calculateTotalMinutes(form.startTime, form.endTime);
 
@@ -194,6 +227,29 @@ export default function LogIntervention() {
       setServerError(body?.error || "There was an error saving the encounter. Your entries have been kept.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Unlike Submit, this never validates — a draft can be as incomplete as
+  // just a patient selected with nothing else filled in yet. Always
+  // available regardless of how complete the form already is.
+  const handleSaveDraft = async () => {
+    setServerError(null);
+    setSavingDraft(true);
+    try {
+      await api.post("/api/session-drafts", {
+        patientId: patient?.id,
+        formData: { ...form, zeroTime },
+        parentSignatureBase64: parentSig,
+        practitionerSignatureBase64: practitionerSig,
+      });
+      showToast("Draft saved.");
+      navigate(`/patients/${patientId}`, { replace: true });
+    } catch (err) {
+      const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
+      setServerError(body?.error || "There was an error saving the draft. Your entries have been kept.");
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -364,11 +420,21 @@ export default function LogIntervention() {
             size="lg"
             variant="outline"
             onClick={handleBack}
-            disabled={submitting}
+            disabled={submitting || savingDraft}
           >
             Cancel
           </Button>
-          <Button className="flex-1" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting}>
+          <Button
+            className="flex-1"
+            size="lg"
+            variant="outline"
+            onClick={handleSaveDraft}
+            loading={savingDraft}
+            disabled={submitting || savingDraft}
+          >
+            Save Draft
+          </Button>
+          <Button className="flex-1" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting || savingDraft}>
             Save encounter
           </Button>
         </div>

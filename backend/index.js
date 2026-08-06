@@ -33,6 +33,7 @@ const signupRoutes = require('./src/routes/signupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
 const roleRoutes = require('./src/routes/roleRoutes');
 const testDataRoutes = require('./src/routes/testDataRoutes');
+const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
 const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
 const { platformPool } = require('./src/config/platformDb');
@@ -79,6 +80,7 @@ app.use(express.urlencoded({ limit: '20mb', extended: true }));
 app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/dev', testDataRoutes);
+app.use('/api/session-drafts', sessionDraftsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/billing', billingRoutes); // 🌟 NEW: Mounted billing routes to fix the 404 error!
 app.use('/api/messages', messageRoutes);
@@ -190,6 +192,14 @@ app.post('/api/interventions', protect, async (req, res) => {
         [insertedRows[0].id, trustedPractitionerId, req.practitioner.role, note.trim()]
       );
     }
+
+    // A real, submitted log supersedes any in-progress draft for this same
+    // child — clear it now rather than leaving a stale draft the
+    // practitioner would otherwise have to notice and delete themselves.
+    await pool.query(
+      'DELETE FROM session_drafts WHERE practitioner_id = $1 AND patient_id = $2',
+      [trustedPractitionerId, patientId]
+    );
 
     res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: insertedRows });
   } catch (error) {

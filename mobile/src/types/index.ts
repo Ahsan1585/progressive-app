@@ -155,6 +155,26 @@ export interface RejectedLog {
   acknowledged_at: string | null;
 }
 
+// Summary shape for the Home screen's draft list — matches
+// sessionDraftsController.js's listDrafts response.
+export interface SessionDraftSummary {
+  patient_id: string;
+  patient_first_name: string;
+  patient_last_name: string;
+  updated_at: string;
+}
+
+// Full draft shape for pre-filling LogIntervention — matches
+// sessionDraftsController.js's getDraft response. form_data mirrors
+// LogIntervention's FormState exactly, but kept loosely typed here since a
+// draft can be partially filled (any field may be missing).
+export interface SessionDraft {
+  formData: Record<string, unknown>;
+  parentSignatureBase64: string | null;
+  practitionerSignatureBase64: string | null;
+  updatedAt: string;
+}
+
 export interface PractitionerProfile {
   id: string;
   first_name: string;

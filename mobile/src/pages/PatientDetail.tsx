@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2, PencilLine } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -13,7 +13,7 @@ import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h } from "@/utils/time";
-import type { Assessment, ScheduledSession } from "@/types";
+import type { Assessment, ScheduledSession, SessionDraft } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +35,8 @@ export default function PatientDetail() {
   const [deleteTarget, setDeleteTarget] = React.useState<Assessment | null>(null);
   const [isDeletingLog, setIsDeletingLog] = React.useState(false);
 
+  const [draft, setDraft] = React.useState<SessionDraft | null>(null);
+
   const fetchSessions = React.useCallback(async () => {
     if (!id) return;
     try {
@@ -45,9 +47,20 @@ export default function PatientDetail() {
     }
   }, [id]);
 
+  const fetchDraft = React.useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await api.get<{ success: boolean; draft: SessionDraft | null }>(`/api/session-drafts/${id}`);
+      setDraft(res.data.draft);
+    } catch {
+      // Non-critical — the resume-draft banner just stays hidden.
+    }
+  }, [id]);
+
   React.useEffect(() => {
     fetchSessions();
-  }, [fetchSessions]);
+    fetchDraft();
+  }, [fetchSessions, fetchDraft]);
 
   // Arriving here from Home's "Schedule a session" link (via the Patients
   // tab's scheduleIntent hand-off) opens the sheet immediately instead of
@@ -181,6 +194,23 @@ export default function PatientDetail() {
               </div>
             </div>
           </div>
+        )}
+
+        {draft && (
+          <button
+            type="button"
+            onClick={() => navigate(`/patients/${id}/log`)}
+            className="press-scale mb-4 flex w-full items-center gap-3 rounded-card border border-border bg-surface p-3 text-left shadow-[var(--elev-rest)]"
+          >
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
+              <PencilLine className="size-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-ink">Resume draft</p>
+              <p className="text-xs text-ink-muted">You have an unfinished session log for this child.</p>
+            </div>
+            <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+          </button>
         )}
 
         {/* Sticky "Log Session" primary action — always reachable without scrolling. */}

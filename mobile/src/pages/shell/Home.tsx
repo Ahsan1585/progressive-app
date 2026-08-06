@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, MapPin, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, MapPin, PencilLine, RefreshCw, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
 import { StatTile } from "@/components/StatTile";
@@ -9,6 +9,20 @@ import { Button } from "@/components/ui/button";
 import { formatTime12h } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { ScheduledSession } from "@/types";
+
+// Coarse relative-time label for a draft's last-saved timestamp (e.g. "2
+// hours ago", "3 days ago") — good enough for "how stale is this draft",
+// no need for a precise duration.
+function timeAgo(isoString: string): string {
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+}
 
 // Buckets upcoming sessions into calendar-relative groups (Today / Tomorrow /
 // weekday name within the next week / "Mon D" beyond that). Sessions arrive
@@ -42,6 +56,7 @@ export default function Home() {
   const {
     stats, statsLoading, statsError, fetchStats,
     rejectedLogs, rejectedLoading, fetchRejectedLogs,
+    drafts, draftsLoading, fetchDrafts,
     patients, patientsLoading, fetchPatients,
     upcomingSessions, upcomingSessionsLoading, fetchUpcomingSessions,
     companyName,
@@ -52,7 +67,7 @@ export default function Home() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchPatients(), fetchUpcomingSessions()]);
+      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchDrafts(), fetchPatients(), fetchUpcomingSessions()]);
     } finally {
       setRefreshing(false);
     }
@@ -67,9 +82,10 @@ export default function Home() {
   React.useEffect(() => {
     fetchStats();
     fetchRejectedLogs();
+    fetchDrafts();
     fetchPatients();
     fetchUpcomingSessions();
-  }, [fetchStats, fetchRejectedLogs, fetchPatients, fetchUpcomingSessions]);
+  }, [fetchStats, fetchRejectedLogs, fetchDrafts, fetchPatients, fetchUpcomingSessions]);
 
   const scheduleGroups = React.useMemo(() => groupSessionsByDay(upcomingSessions), [upcomingSessions]);
 
@@ -157,6 +173,34 @@ export default function Home() {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {!draftsLoading && drafts.length > 0 && (
+        <div className="mb-6">
+          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">Continue where you left off</p>
+          <ul role="list" className="space-y-2">
+            {drafts.map((d) => (
+              <li key={d.patient_id}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/patients/${d.patient_id}/log`)}
+                  className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-3 text-left shadow-[var(--elev-rest)]"
+                >
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
+                    <PencilLine className="size-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold capitalize text-ink">
+                      {d.patient_first_name} {d.patient_last_name}
+                    </p>
+                    <p className="text-xs text-ink-muted">Draft saved {timeAgo(d.updated_at)}</p>
+                  </div>
+                  <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

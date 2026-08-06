@@ -1,6 +1,6 @@
 import * as React from "react";
 import api from "@/api/axiosInstance";
-import type { DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession } from "@/types";
+import type { DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession, SessionDraftSummary } from "@/types";
 
 const EMPTY_DROPDOWN_OPTIONS: DropdownOptionsByCategory = { service_type: [], service_status: [], location: [], group_size: [] };
 
@@ -26,6 +26,10 @@ interface AppDataContextValue {
   rejectedLoading: boolean;
   rejectedError: string | null;
   fetchRejectedLogs: (opts?: { silent?: boolean }) => Promise<void>;
+
+  drafts: SessionDraftSummary[];
+  draftsLoading: boolean;
+  fetchDrafts: (opts?: { silent?: boolean }) => Promise<void>;
 
   stats: PractitionerStats | null;
   statsLoading: boolean;
@@ -79,6 +83,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [rejectedLogs, setRejectedLogs] = React.useState<RejectedLog[]>([]);
   const [rejectedLoading, setRejectedLoading] = React.useState(true);
   const [rejectedError, setRejectedError] = React.useState<string | null>(null);
+
+  const [drafts, setDrafts] = React.useState<SessionDraftSummary[]>([]);
+  const [draftsLoading, setDraftsLoading] = React.useState(true);
 
   const [stats, setStats] = React.useState<PractitionerStats | null>(null);
   const [statsLoading, setStatsLoading] = React.useState(true);
@@ -134,6 +141,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (!silent) setRejectedError("Couldn't load your rejected/returned logs.");
     } finally {
       if (!silent) setRejectedLoading(false);
+    }
+  }, []);
+
+  const fetchDrafts = React.useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) setDraftsLoading(true);
+    try {
+      const res = await api.get<{ success: boolean; drafts: SessionDraftSummary[] }>("/api/session-drafts");
+      setDrafts(res.data.drafts || []);
+    } catch {
+      // Non-critical — the "Continue where you left off" card just stays empty until retried.
+    } finally {
+      if (!silent) setDraftsLoading(false);
     }
   }, []);
 
@@ -201,12 +220,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     fetchPatients();
     fetchProfile();
     fetchRejectedLogs();
+    fetchDrafts();
     fetchStats();
     fetchUnreadMessageCount();
     fetchUpcomingSessions();
     fetchCompanyBranding();
     fetchDropdownOptions();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions]);
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchDrafts, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions]);
 
   // Keep Inbox live — a log billing just returned should appear without the
   // practitioner having to leave the app and come back. Mirrors the admin
@@ -242,6 +262,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       rejectedLoading,
       rejectedError,
       fetchRejectedLogs,
+      drafts,
+      draftsLoading,
+      fetchDrafts,
       stats,
       statsLoading,
       statsError,
@@ -278,6 +301,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       rejectedLoading,
       rejectedError,
       fetchRejectedLogs,
+      drafts,
+      draftsLoading,
+      fetchDrafts,
       stats,
       statsLoading,
       statsError,
