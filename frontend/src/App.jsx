@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import Home from './pages/marketing/Home';
+import HowItWorks from './pages/marketing/HowItWorks';
+import PractitionerApp from './pages/marketing/PractitionerApp';
+import Contact from './pages/marketing/Contact';
 import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
@@ -26,7 +30,7 @@ function IdleLogout() {
       if (localStorage.getItem('token')) {
         localStorage.removeItem('token');
         localStorage.removeItem('role');
-        window.location.assign(import.meta.env.BASE_URL); // '/eis/' — this app is served under that base path, not the domain root
+        window.location.assign(`${import.meta.env.BASE_URL}login`); // '/eis/login' — dumping an idled-out user on the marketing homepage instead of the sign-in form would be a bad landing
       }
     };
     const reset = () => {
@@ -48,12 +52,12 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
 
-  if (!token) return <Navigate to="/" replace />;
+  if (!token) return <Navigate to="/login" replace />;
 
   if (allowedRoles && !allowedRoles.includes(role)) {
     return ADMIN_ROLES.includes(role)
       ? <Navigate to="/admin-dashboard" replace />
-      : <Navigate to="/" replace />;
+      : <Navigate to="/login" replace />;
   }
 
   return element;
@@ -65,7 +69,11 @@ function App() {
       <IdleLogout />
       <DialogHost />
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/download" element={<PractitionerApp />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

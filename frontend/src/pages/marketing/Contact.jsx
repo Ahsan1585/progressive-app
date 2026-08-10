@@ -1,0 +1,101 @@
+import { useState } from 'react';
+import { MarketingLayout } from '../../components/marketing/MarketingLayout';
+import api from '@/api/axiosInstance';
+
+const PHONE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg>;
+const MAIL_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16v16H4z" /><path d="M22 6l-10 7L2 6" /></svg>;
+const PIN_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>;
+
+export default function Contact() {
+  const [form, setForm] = useState({
+    fullName: '', workEmail: '', agencyName: '', phone: '', practitionerCount: '', message: '',
+  });
+  const [status, setStatus] = useState('idle'); // idle | submitting | success | error
+  const [error, setError] = useState('');
+
+  const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus('submitting');
+    setError('');
+    try {
+      await api.post('/api/contact', form);
+      setStatus('success');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Something went wrong. Please try again.');
+      setStatus('error');
+    }
+  };
+
+  return (
+    <MarketingLayout>
+      <section className="mk-hero-band">
+        <div className="mk-hero-band-inner">
+          <div className="mk-eyebrow">Schedule a demo</div>
+          <h1>Let us show you the workflow</h1>
+          <p className="mk-sub">
+            Tell us a little about your agency and we'll set up a 30-minute walkthrough of EI Simplified — session logging, exception review, SEVF, and invoicing.
+          </p>
+        </div>
+      </section>
+
+      <section className="mk-section" style={{ paddingTop: 40 }}>
+        <div className="mk-section-inner mk-contact-grid">
+          <div className="mk-contact-form">
+            {status === 'success' ? (
+              <div className="mk-form-banner mk-success">
+                Thanks — we've received your request and will be in touch shortly.
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} noValidate>
+                {status === 'error' && <div className="mk-form-banner mk-error">{error}</div>}
+                <div className="mk-form-row">
+                  <div className="mk-field">
+                    <label htmlFor="contact-name">Full name *</label>
+                    <input id="contact-name" type="text" value={form.fullName} onChange={update('fullName')} required />
+                  </div>
+                  <div className="mk-field">
+                    <label htmlFor="contact-email">Work email *</label>
+                    <input id="contact-email" type="email" value={form.workEmail} onChange={update('workEmail')} required />
+                  </div>
+                </div>
+                <div className="mk-form-row">
+                  <div className="mk-field">
+                    <label htmlFor="contact-agency">Agency / company *</label>
+                    <input id="contact-agency" type="text" value={form.agencyName} onChange={update('agencyName')} required />
+                  </div>
+                  <div className="mk-field">
+                    <label htmlFor="contact-phone">Phone</label>
+                    <input id="contact-phone" type="tel" value={form.phone} onChange={update('phone')} />
+                  </div>
+                </div>
+                <div className="mk-field">
+                  <label htmlFor="contact-count">How many practitioners?</label>
+                  <input id="contact-count" type="text" placeholder="e.g. 25" value={form.practitionerCount} onChange={update('practitionerCount')} />
+                </div>
+                <div className="mk-field">
+                  <label htmlFor="contact-message">What would you like to see?</label>
+                  <textarea id="contact-message" placeholder="Tell us about your current billing process and where it slows down" value={form.message} onChange={update('message')} />
+                </div>
+                <button type="submit" className="mk-btn-primary" disabled={status === 'submitting'} style={{ width: '100%', justifyContent: 'center' }}>
+                  {status === 'submitting' ? 'Sending…' : 'Send request'}
+                </button>
+              </form>
+            )}
+          </div>
+
+          <div className="mk-contact-direct">
+            <h3>Talk to us directly</h3>
+            <p>Prefer a phone call? We're happy to answer questions about compliance, onboarding, or how EI Simplified fits alongside your current systems.</p>
+            <div className="mk-contact-direct-list">
+              <div className="mk-contact-direct-item">{PHONE_ICON}<a href="tel:+14057402647">(405) 740-2647</a></div>
+              <div className="mk-contact-direct-item">{MAIL_ICON}<a href="mailto:support@izayaedge.com">support@izayaedge.com</a></div>
+              <div className="mk-contact-direct-item">{PIN_ICON}<span>Old Bridge, NJ 08857</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </MarketingLayout>
+  );
+}

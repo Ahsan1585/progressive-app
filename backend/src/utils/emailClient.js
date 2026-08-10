@@ -243,4 +243,50 @@ const sendSessionScheduledEmail = async (toEmail, {
   });
 };
 
-module.exports = { sendPasswordResetEmail, sendInviteEmail, sendSignupConfirmationEmail, sendSessionScheduledEmail };
+const sendContactRequestEmail = async ({
+  fullName, workEmail, agencyName, phone, practitionerCount, message,
+}) => {
+  const to = process.env.CONTACT_TO_EMAIL || 'support@izayaedge.com';
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping contact/demo request email send.');
+    return;
+  }
+  const detailRow = (label, value) => (value ? `
+    <tr>
+      <td style="padding:9px 0; font-family:${SANS}; font-size:12.5px; color:${COLORS.slate}; width:130px; vertical-align:top;">${label}</td>
+      <td style="padding:9px 0; font-family:${SANS}; font-size:13.5px; font-weight:600; color:${COLORS.navy};">${value}</td>
+    </tr>` : '');
+  const bodyHtml = `
+    <p style="margin:0 0 4px;">New demo request from the marketing site.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0; border-top:1px solid ${COLORS.line}; border-bottom:1px solid ${COLORS.line};">
+      ${detailRow('Name', fullName)}
+      ${detailRow('Work email', `<a href="mailto:${workEmail}" style="color:${COLORS.teal};">${workEmail}</a>`)}
+      ${detailRow('Agency', agencyName)}
+      ${detailRow('Phone', phone)}
+      ${detailRow('Practitioners', practitionerCount)}
+    </table>
+    ${message ? `<p style="margin:0; white-space:pre-wrap;">${message}</p>` : ''}
+  `;
+  const html = emailShell({
+    preheader: `Demo request from ${agencyName || fullName}`,
+    eyebrow: 'Demo Request',
+    heading: 'Let us show you the workflow',
+    bodyHtml,
+    footnote: '',
+  });
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to,
+    replyTo: workEmail,
+    subject: `Demo request — ${agencyName || fullName}`,
+    html,
+  });
+};
+
+module.exports = {
+  sendPasswordResetEmail,
+  sendInviteEmail,
+  sendSignupConfirmationEmail,
+  sendSessionScheduledEmail,
+  sendContactRequestEmail,
+};

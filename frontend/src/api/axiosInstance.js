@@ -20,7 +20,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('role');
-      const loginPath = import.meta.env.BASE_URL; // '/eis/' — this app is served under that base path, not the domain root
+      const loginPath = `${import.meta.env.BASE_URL}login`; // '/eis/login' — this app is served under that base path, not the domain root
       if (window.location.pathname !== loginPath) {
         window.location.assign(loginPath);
       }
