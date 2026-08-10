@@ -12,6 +12,8 @@ import '@fontsource-variable/fraunces';
 import '@fontsource-variable/inter';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
+import screenshotLogSession from '@/assets/screenshot-log-session.png';
+import screenshotBillingReview from '@/assets/screenshot-billing-review.png';
 
 const QR_HOST = new URL(MOBILE_APP_INSTALL_URL).host;
 
@@ -394,44 +396,11 @@ const Login = () => {
         .il-moat-caption h3{ font-family:'Fraunces Variable', serif; font-weight:600; font-size:18px; margin:0 0 6px; }
         .il-moat-caption p{ font-size:12.5px; color:rgba(255,255,255,0.6); margin:0; }
 
-        .il-d1{ position:absolute; inset:0; }
-        .il-d1-log{ position:absolute; left:30px; top:70px; width:120px; background:#fff; border-radius:10px; padding:11px; box-shadow:0 10px 24px rgba(0,0,0,0.25); animation: ilD1logmove 3.2s ease-in-out infinite; }
-        .il-d1-log .il-ln{ height:6px; background:var(--il-line); border-radius:3px; margin-bottom:6px; }
-        .il-d1-log .il-ln:nth-child(1){ width:70%; background:var(--il-sky); }
-        .il-d1-log .il-ln:nth-child(2){ width:90%; }
-        .il-d1-log .il-ln:nth-child(3){ width:50%; margin-bottom:0; }
-        @keyframes ilD1logmove{ 0%,20%{ transform:translateX(0); opacity:1; } 55%,100%{ transform:translateX(150px); opacity:0.15; } }
-
-        .il-d1-arrow{ position:absolute; left:158px; top:118px; width:60px; height:2px; background:var(--il-mint); opacity:0; animation: ilD1arrow 3.2s ease-in-out infinite; }
-        .il-d1-arrow::after{ content:""; position:absolute; right:-1px; top:-4px; width:8px; height:8px; border-top:2px solid var(--il-mint); border-right:2px solid var(--il-mint); transform:rotate(45deg); }
-        @keyframes ilD1arrow{ 0%,25%{ opacity:0; } 40%,70%{ opacity:1; } 90%,100%{ opacity:0; } }
-
-        .il-d1-form{ position:absolute; right:30px; top:44px; width:150px; background:#fff; border-radius:10px; padding:14px; box-shadow:0 10px 24px rgba(0,0,0,0.25); }
-        .il-d1-form .il-fh{ font-family:'IBM Plex Mono', monospace; font-size:8px; color:var(--il-slate-light); margin-bottom:8px; }
-        .il-d1-form .il-fl{ height:5px; background:var(--il-line); border-radius:3px; margin-bottom:5px; width:0%; animation: ilD1fill 3.2s ease-in-out infinite; }
-        .il-d1-form .il-fl:nth-child(2){ animation-delay:0.05s; }
-        .il-d1-form .il-fl:nth-child(3){ animation-delay:0.15s; }
-        .il-d1-form .il-fl:nth-child(4){ animation-delay:0.25s; }
-        .il-d1-form .il-fl:nth-child(5){ animation-delay:0.35s; }
-        @keyframes ilD1fill{ 0%,40%{ width:0%; background:var(--il-line); } 65%,100%{ width:88%; background:var(--il-mint); } }
-        .il-d1-sig{ margin-top:10px; height:24px; border-top:1px dashed var(--il-line); position:relative; }
-        .il-d1-sig svg{ position:absolute; top:2px; left:0; width:60px; height:20px; }
-        .il-d1-sig path{ stroke:var(--il-navy); stroke-width:2; fill:none; stroke-dasharray:80; stroke-dashoffset:80; animation: ilD1sign 3.2s ease-in-out infinite; }
-        @keyframes ilD1sign{ 0%,60%{ stroke-dashoffset:80; } 90%,100%{ stroke-dashoffset:0; } }
-
-        .il-d2{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-        .il-d2-sheet{ width:220px; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 10px 24px rgba(0,0,0,0.25); }
-        .il-d2-row{ display:flex; }
-        .il-d2-cell{ flex:1; padding:8px 6px; font-size:8px; font-family:'IBM Plex Mono', monospace; color:var(--il-slate); border:1px solid var(--il-paper); text-align:center; }
-        .il-d2-head .il-d2-cell{ background:var(--il-paper); font-weight:700; color:var(--il-navy); }
-        .il-d2-head .il-d2-cell:nth-child(2){ animation: ilD2flag 3.6s ease-in-out infinite; }
-        @keyframes ilD2flag{
-          0%,30%{ background:var(--il-paper); color:var(--il-navy); }
-          40%,60%{ background:rgba(214,95,76,0.18); color:var(--il-coral); }
-          75%,100%{ background:rgba(47,191,159,0.18); color:var(--il-teal); }
-        }
-        .il-d2-badge{ position:absolute; top:14px; right:14px; display:flex; align-items:center; gap:5px; font-size:9px; font-weight:700; padding:4px 9px; border-radius:999px; opacity:0; animation: ilD2badge 3.6s ease-in-out infinite; }
-        @keyframes ilD2badge{ 0%,35%{ opacity:0; transform:translateY(-4px); } 42%,62%{ opacity:1; transform:translateY(0); background:rgba(214,95,76,0.9); color:#fff; } 63%,73%{opacity:1; background:rgba(47,191,159,0.95); color:#fff;} 78%,100%{ opacity:0; } }
+        .il-moat-shot{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+        .il-shot-phone{ height:196px; width:auto; aspect-ratio:447/812; border-radius:20px; border:5px solid #0C1D2C; background:#0C1D2C; overflow:hidden; box-shadow:0 16px 34px rgba(0,0,0,0.4); }
+        .il-shot-phone img{ width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
+        .il-shot-panel{ width:88%; height:188px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); box-shadow:0 16px 34px rgba(0,0,0,0.4); }
+        .il-shot-panel img{ width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
 
         /* ============ FEATURES ============ */
         .il-features{ padding:70px 48px; background:var(--il-card); border-top:1px solid var(--il-line); border-bottom:1px solid var(--il-line); }
@@ -563,7 +532,7 @@ const Login = () => {
         }
 
         @media (prefers-reduced-motion: reduce){
-          .il-hero-badge, .izaya-landing h1, .il-hero-sub, .il-hero-checklist, .il-auth-wrap, .il-flow-pulse, .il-fn-dot, .il-d1-log, .il-d1-arrow, .il-d1-fl, .il-d1-sig path, .il-d2-head .il-d2-cell, .il-d2-badge{
+          .il-hero-badge, .izaya-landing h1, .il-hero-sub, .il-hero-checklist, .il-auth-wrap, .il-flow-pulse, .il-fn-dot{
             animation:none !important; opacity:1 !important; transform:none !important;
           }
         }
@@ -711,42 +680,35 @@ const Login = () => {
       <section className="il-moat" id="moat">
         <div className="il-moat-inner">
           <div className="il-moat-head il-reveal">
-            <div className="il-tag">Inside the Automated Steps</div>
-            <h2>How the form fills itself</h2>
+            <div className="il-tag">Real Product, Real Screens</div>
+            <h2>See it in action — not a mockup</h2>
           </div>
           <div className="il-moat-grid">
             <div className="il-moat-card il-reveal">
               <div className="il-moat-stage">
-                <div className="il-d1">
-                  <div className="il-d1-log"><div className="il-ln"></div><div className="il-ln"></div><div className="il-ln"></div></div>
-                  <div className="il-d1-arrow"></div>
-                  <div className="il-d1-form">
-                    <div className="il-fh">NJEIS-020</div>
-                    <div className="il-fl"></div><div className="il-fl"></div><div className="il-fl"></div><div className="il-fl"></div><div className="il-fl"></div>
-                    <div className="il-d1-sig"><svg viewBox="0 0 60 20"><path d="M2 14 C 8 4, 14 18, 20 8 S 32 4, 38 12 S 50 6, 56 10" /></svg></div>
+                <div className="il-moat-shot">
+                  <div className="il-shot-phone">
+                    <img src={screenshotLogSession} alt="The real Izaya Log Session screen on a practitioner's phone" loading="lazy" />
                   </div>
                 </div>
               </div>
               <div className="il-moat-caption">
-                <h3>One log. Form filled, signed, done.</h3>
-                <p>No re-typing into the state PDF — ever.</p>
+                <h3>Logged right from the field.</h3>
+                <p>Service codes, time, and notes — captured on the practitioner's own phone.</p>
               </div>
             </div>
 
             <div className="il-moat-card il-reveal">
               <div className="il-moat-stage">
-                <div className="il-d2">
-                  <div className="il-d2-sheet">
-                    <div className="il-d2-row il-d2-head"><div className="il-d2-cell">Date</div><div className="il-d2-cell">Svc Code</div><div className="il-d2-cell">Hrs</div></div>
-                    <div className="il-d2-row"><div className="il-d2-cell">7/14</div><div className="il-d2-cell">DI</div><div className="il-d2-cell">1.0</div></div>
-                    <div className="il-d2-row"><div className="il-d2-cell">7/15</div><div className="il-d2-cell">SLP</div><div className="il-d2-cell">0.5</div></div>
+                <div className="il-moat-shot">
+                  <div className="il-shot-panel">
+                    <img src={screenshotBillingReview} alt="The real Izaya Billing review panel with Compliance Matching and Approve, Return, Reject, or Hold" loading="lazy" />
                   </div>
-                  <div className="il-d2-badge">Header changed</div>
                 </div>
               </div>
               <div className="il-moat-caption">
-                <h3>State changes a column. We notice.</h3>
-                <p>Flagged for review — never silently wrong.</p>
+                <h3>Matches approve. Exceptions land here.</h3>
+                <p>One review panel — Compliance Matching, then Approve, Return, Reject, or Hold.</p>
               </div>
             </div>
           </div>
