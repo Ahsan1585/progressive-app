@@ -151,10 +151,11 @@ function excelDateToISO(value) {
 }
 
 // State exports don't guarantee identical Child ID formatting run to run
-// (case, stray leading/trailing/internal whitespace) — normalize before
-// comparing so a cosmetic difference doesn't silently zero out every match.
+// (case, stray whitespace, hyphens, or other punctuation a state system
+// might include) — strip everything but letters/digits before comparing so
+// a cosmetic formatting difference doesn't silently zero out a match.
 function normalizeChildId(value) {
-  return (value || '').toString().trim().toUpperCase().replace(/\s+/g, '');
+  return (value || '').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
 function cellToText(value) {
@@ -395,8 +396,8 @@ const applyComplianceDocMapping = async (req, res) => {
     }
     const { rows: patientRows } = childIds.size
       ? await pool.query(
-          `SELECT id, child_id, UPPER(REGEXP_REPLACE(child_id, '\\s+', '', 'g')) AS norm_child_id
-           FROM patients WHERE UPPER(REGEXP_REPLACE(child_id, '\\s+', '', 'g')) = ANY($1)`,
+          `SELECT id, child_id, UPPER(REGEXP_REPLACE(child_id, '[^A-Za-z0-9]', '', 'g')) AS norm_child_id
+           FROM patients WHERE UPPER(REGEXP_REPLACE(child_id, '[^A-Za-z0-9]', '', 'g')) = ANY($1)`,
           [[...childIds]]
         )
       : { rows: [] };

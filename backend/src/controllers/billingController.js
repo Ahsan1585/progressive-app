@@ -1402,8 +1402,8 @@ const getComplianceAnalysis = async (req, res) => {
       SET patient_id = patients.id
       FROM patients
       WHERE compliance_state_logs.patient_id IS NULL
-        AND UPPER(REGEXP_REPLACE(compliance_state_logs.child_id, '\\s+', '', 'g'))
-          = UPPER(REGEXP_REPLACE(patients.child_id, '\\s+', '', 'g'))
+        AND UPPER(REGEXP_REPLACE(compliance_state_logs.child_id, '[^A-Za-z0-9]', '', 'g'))
+          = UPPER(REGEXP_REPLACE(patients.child_id, '[^A-Za-z0-9]', '', 'g'))
     `);
 
     const patientIds = [...new Set(sessions.map((s) => s.patient_id).filter(Boolean))];

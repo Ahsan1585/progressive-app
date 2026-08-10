@@ -30,7 +30,7 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
       `SELECT id, patient_id, child_id, child_name, practitioner_name, service_date,
               start_time, end_time, service_label, location_label, group_size_label
        FROM compliance_state_logs
-       WHERE ($1::text IS NULL OR UPPER(REGEXP_REPLACE(child_id, '\\s+', '', 'g')) = UPPER(REGEXP_REPLACE($1, '\\s+', '', 'g')))
+       WHERE ($1::text IS NULL OR UPPER(REGEXP_REPLACE(child_id, '[^A-Za-z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($1, '[^A-Za-z0-9]', '', 'g')))
        ORDER BY service_date ASC
        LIMIT 50`,
       [childId || null]
