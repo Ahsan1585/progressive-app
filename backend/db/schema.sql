@@ -311,6 +311,13 @@ CREATE TABLE company_settings (
   -- "confirmed" status and Compliance Analysis correctly reflect that the
   -- newly-uploaded file hasn't actually been re-applied yet.
   compliance_doc_applied_path text,
+  -- Snapshot of the month-by-month breakdown of compliance_state_logs,
+  -- computed once when a file's mapping is applied (applyComplianceDocMapping)
+  -- and cleared on Remove. Deliberately a frozen snapshot, not a live query —
+  -- it reflects "what this upload put on file," and intentionally stays on
+  -- screen unchanged until the next upload replaces it, even as the 90-day
+  -- retention purge (elsewhere) quietly ages rows out in the background.
+  compliance_doc_analysis jsonb,
   updated_at timestamp with time zone DEFAULT now()
 );
 -- No hardcoded seed row here (this file is applied to every new tenant

@@ -17,6 +17,24 @@ const MAX_COMPLIANCE_DOC_BASE64_LENGTH = 14_500_000; // ~10.5MB decoded
 const COMPLIANCE_DOC_PREFIX = 'company/compliance-reference/';
 const COMPLIANCE_DOC_EXTENSIONS = ['.xlsx', '.xls'];
 
+// Month-by-month snapshot of what's currently in compliance_state_logs.
+// Shared by applyComplianceDocMapping (runs inside its transaction, so takes
+// a client) and refreshComplianceDocAnalysis (runs standalone against pool,
+// for a doc that was applied before this snapshot existed, or to manually
+// re-sync the frozen table against the background 90-day purge on demand).
+async function computeComplianceDocAnalysis(queryable) {
+  const { rows: months } = await queryable.query(
+    `SELECT to_char(date_trunc('month', service_date), 'YYYY-MM') AS month,
+            COUNT(*)::int AS record_count,
+            MIN(service_date) AS earliest_date,
+            MAX(service_date) AS latest_date
+     FROM compliance_state_logs
+     GROUP BY date_trunc('month', service_date)
+     ORDER BY date_trunc('month', service_date)`
+  );
+  return { generatedAt: new Date().toISOString(), months };
+}
+
 const getCompanySettings = async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM company_settings WHERE id = 1');
@@ -466,9 +484,18 @@ const applyComplianceDocMapping = async (req, res) => {
           row
         );
       }
+
+      // Month-by-month snapshot of what's now on file — a frozen point-in-time
+      // read, not a live view, so it stays on screen exactly as-is (per the
+      // 90-day purge above continuing to run silently in the background)
+      // until the next upload replaces it, or Refresh is clicked. Surfaces
+      // the actual current data coverage, which the retention copy alone
+      // doesn't show anyone.
+      const complianceDocAnalysis = await computeComplianceDocAnalysis(client);
+
       await client.query(
-        `UPDATE company_settings SET compliance_doc_column_mapping = $1, compliance_doc_custom_fields = $2, compliance_doc_removed_fields = $3, compliance_doc_applied_path = $4, updated_at = now() WHERE id = 1`,
-        [JSON.stringify(mapping), JSON.stringify(customFields), JSON.stringify(removedFields), path]
+        `UPDATE company_settings SET compliance_doc_column_mapping = $1, compliance_doc_custom_fields = $2, compliance_doc_removed_fields = $3, compliance_doc_applied_path = $4, compliance_doc_analysis = $5, updated_at = now() WHERE id = 1`,
+        [JSON.stringify(mapping), JSON.stringify(customFields), JSON.stringify(removedFields), path, JSON.stringify(complianceDocAnalysis)]
       );
       await client.query('COMMIT');
     } catch (err) {
@@ -510,6 +537,7 @@ const removeComplianceDoc = async (req, res) => {
          compliance_doc_custom_fields = '[]',
          compliance_doc_removed_fields = '[]',
          compliance_doc_applied_path = NULL,
+         compliance_doc_analysis = NULL,
          updated_at = now()
        WHERE id = 1
        RETURNING *`
@@ -523,6 +551,32 @@ const removeComplianceDoc = async (req, res) => {
   } catch (error) {
     console.error('Error removing compliance document:', error);
     res.status(500).json({ error: 'Failed to remove compliance document' });
+  }
+};
+
+// Recomputes and re-stores the month-by-month snapshot on demand, without
+// touching the file/mapping/90-day purge — covers a doc that was applied
+// before this feature existed (so compliance_doc_analysis is still NULL),
+// and lets an admin manually re-sync the frozen table against the
+// background purge without waiting for the next Replace.
+const refreshComplianceDocAnalysis = async (req, res) => {
+  try {
+    const { rows: existing } = await pool.query('SELECT compliance_doc_applied_path FROM company_settings WHERE id = 1');
+    if (!existing[0]?.compliance_doc_applied_path) {
+      return res.status(404).json({ error: 'No confirmed compliance document on file to summarize' });
+    }
+
+    const complianceDocAnalysis = await computeComplianceDocAnalysis(pool);
+    const { rows } = await pool.query(
+      `UPDATE company_settings SET compliance_doc_analysis = $1, updated_at = now() WHERE id = 1 RETURNING *`,
+      [JSON.stringify(complianceDocAnalysis)]
+    );
+
+    logAudit({ req, action: 'compliance_doc_refresh_analysis', resourceType: 'compliance_doc', resourceId: null });
+    res.json({ success: true, settings: rows[0] });
+  } catch (error) {
+    console.error('Error refreshing compliance document analysis:', error);
+    res.status(500).json({ error: 'Failed to refresh data summary' });
   }
 };
 
@@ -550,5 +604,6 @@ module.exports = {
   getComplianceDocMapping,
   applyComplianceDocMapping,
   removeComplianceDoc,
+  refreshComplianceDocAnalysis,
   getComplianceDocDownloadUrl,
 };

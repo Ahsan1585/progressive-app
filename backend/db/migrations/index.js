@@ -16,6 +16,7 @@ const MIGRATIONS = [
   'add_patient_practitioners.sql',
   'drop_group_size_category_check.sql',
   'add_session_drafts.sql',
+  'add_compliance_doc_analysis.sql',
 ];
 
 module.exports = { MIGRATIONS };

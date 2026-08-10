@@ -30,11 +30,13 @@ export const CompanySettings = ({ onSettingsChange }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [logo, setLogo] = useState(null);
   const [complianceDoc, setComplianceDoc] = useState(null); // { filename, size, uploaded_at, hasMapping } | null
+  const [complianceAnalysis, setComplianceAnalysis] = useState(null); // { generatedAt, months: [{month, recordCount, earliestDate, latestDate}] } | null
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingComplianceDoc, setIsUploadingComplianceDoc] = useState(false);
   const [isRemovingComplianceDoc, setIsRemovingComplianceDoc] = useState(false);
+  const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
 
@@ -73,6 +75,10 @@ export const CompanySettings = ({ onSettingsChange }) => {
         && !!settings.compliance_doc_applied_path
         && settings.compliance_doc_applied_path === settings.compliance_doc_path,
     } : null);
+    // Frozen snapshot from the last successful upload+apply — see the
+    // compliance_doc_analysis column comment in schema.sql for why this
+    // doesn't live-update between uploads.
+    setComplianceAnalysis(settings.compliance_doc_analysis || null);
   };
 
   const fetchSettings = async () => {
@@ -260,6 +266,20 @@ export const CompanySettings = ({ onSettingsChange }) => {
       setToast({ type: 'error', message: error.response?.data?.error || 'Failed to apply column mapping.' });
     } finally {
       setIsApplyingMapping(false);
+    }
+  };
+
+  const handleRefreshAnalysis = async () => {
+    setIsRefreshingAnalysis(true);
+    setToast(null);
+    try {
+      const response = await api.post('/api/company/compliance-doc/refresh-analysis');
+      applySettings(response.data.settings);
+      setToast({ type: 'success', message: 'Data summary refreshed.' });
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to refresh data summary.' });
+    } finally {
+      setIsRefreshingAnalysis(false);
     }
   };
 
@@ -459,6 +479,66 @@ export const CompanySettings = ({ onSettingsChange }) => {
             <span>
               <span className="font-bold">Each month, use Replace</span> to attach the new state file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically. <span className="font-bold">Remove</span> is only for starting over completely — it clears all state compliance data, not just this file.
             </span>
+          </div>
+        )}
+
+        {complianceDoc?.hasMapping && !complianceAnalysis?.months?.length && (
+          <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5">
+            <p className="text-xs text-slate-500">
+              No data summary on file yet for this document — generate one from what's currently loaded.
+            </p>
+            <Button onClick={handleRefreshAnalysis} disabled={isRefreshingAnalysis} variant="outline" size="sm" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold flex-shrink-0">
+              {isRefreshingAnalysis ? 'Generating...' : 'Generate data summary'}
+            </Button>
+          </div>
+        )}
+
+        {complianceAnalysis?.months?.length > 0 && (
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Data currently on file</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  From the last confirmed upload — updates the next time a file is applied, or when refreshed.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {complianceAnalysis.generatedAt && (
+                  <span className="text-[11px] text-slate-400">
+                    As of {new Date(complianceAnalysis.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                )}
+                <Button onClick={handleRefreshAnalysis} disabled={isRefreshingAnalysis} variant="outline" size="sm" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold">
+                  {isRefreshingAnalysis ? 'Refreshing...' : 'Refresh'}
+                </Button>
+              </div>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                  <th className="px-4 py-2">Month</th>
+                  <th className="px-4 py-2">Records</th>
+                  <th className="px-4 py-2">Earliest service date</th>
+                  <th className="px-4 py-2">Latest service date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {complianceAnalysis.months.map((row) => (
+                  <tr key={row.month} className="border-b border-slate-50 last:border-0">
+                    <td className="px-4 py-2.5 font-semibold text-slate-800">
+                      {new Date(`${row.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-600">{row.record_count}</td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      {row.earliest_date && new Date(row.earliest_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      {row.latest_date && new Date(row.latest_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 

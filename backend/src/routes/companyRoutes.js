@@ -11,6 +11,7 @@ const {
   getComplianceDocMapping,
   applyComplianceDocMapping,
   removeComplianceDoc,
+  refreshComplianceDocAnalysis,
   getComplianceDocDownloadUrl,
 } = require('../controllers/companyController');
 
@@ -20,7 +21,7 @@ const readGuard = [protect, loadPermissions, requireOfficeStaff];
 // Write: 'ceo' only (labeled "Admin" in the UI) — mirrors the Company
 // Information tab itself being ceo-only.
 const brandingWriteGuard = [protect, requireRole(['ceo'])]; // PUT /, PUT /logo — stays Admin-exclusive per spec
-const complianceDocGuard = [protect, loadPermissions, requirePermission('company_info_compliance_doc')]; // PUT /compliance-doc, GET /compliance-doc/mapping, POST /compliance-doc/apply-mapping, DELETE /compliance-doc
+const complianceDocGuard = [protect, loadPermissions, requirePermission('company_info_compliance_doc')]; // PUT /compliance-doc, GET /compliance-doc/mapping, POST /compliance-doc/apply-mapping, POST /compliance-doc/refresh-analysis, DELETE /compliance-doc
 
 router.get('/', ...readGuard, getCompanySettings);
 // Any authenticated role (practitioners included) — just the display
@@ -31,6 +32,7 @@ router.put('/logo', ...brandingWriteGuard, updateCompanyLogo);
 router.put('/compliance-doc', ...complianceDocGuard, uploadComplianceDoc);
 router.get('/compliance-doc/mapping', ...complianceDocGuard, getComplianceDocMapping);
 router.post('/compliance-doc/apply-mapping', ...complianceDocGuard, applyComplianceDocMapping);
+router.post('/compliance-doc/refresh-analysis', ...complianceDocGuard, refreshComplianceDocAnalysis);
 router.delete('/compliance-doc', ...complianceDocGuard, removeComplianceDoc);
 // Read-guarded (not write) — Billing needs to download/view the reference
 // document from the Compliance Analysis preview, not just Admin.
