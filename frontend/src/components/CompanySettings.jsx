@@ -185,7 +185,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
       applySettings(response.data.settings);
       setMappingInfo(null);
       setShowRemoveConfirm(false);
-      setToast({ type: 'success', message: 'Compliance document removed — all state compliance data has been cleared.' });
+      setToast({ type: 'success', message: 'Compliance document removed — all EIMS compliance data has been cleared.' });
     } catch (error) {
       setToast({ type: 'error', message: error.response?.data?.error || 'Failed to remove document.' });
     } finally {
@@ -310,7 +310,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
           {activeTab === 'info'
             ? 'This is the one place your practice details live. Update it here and it flows everywhere else — the dashboard header, generated forms, and every new practitioner you add in Staff Directory.'
             : activeTab === 'compliance'
-            ? "Attach and manage the state's required-documentation Excel file used to run Compliance Analysis against practitioner-logged sessions."
+            ? "Attach and manage the EIMS records Excel file used to run Compliance Analysis against practitioner-logged sessions."
             : 'Control the Service Type, Service Status, Location, and Group Size options practitioners choose from when logging a session.'}
         </p>
       </div>
@@ -332,7 +332,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
             activeTab === 'compliance' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          State Compliance Reference
+          EIMS Compliance Reference
         </button>
         <button
           type="button"
@@ -432,9 +432,9 @@ export const CompanySettings = ({ onSettingsChange }) => {
       {activeTab === 'compliance' && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7 space-y-4">
         <div>
-          <h2 className="text-base font-bold text-slate-800">State Compliance Reference</h2>
+          <h2 className="text-base font-bold text-slate-800">EIMS Compliance Reference</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Attach the state's required-documentation Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+            Attach the EIMS records Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
           </p>
         </div>
 
@@ -463,7 +463,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
                 {isLoadingMapping ? 'Loading...' : 'Review column matching'}
               </Button>
               <label className="text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-2 rounded-lg cursor-pointer hover:bg-teal-100 transition-colors">
-                {isUploadingComplianceDoc ? 'Uploading...' : 'Replace'}
+                {isUploadingComplianceDoc ? 'Uploading...' : 'Add files'}
                 <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleComplianceDocSelect} disabled={isUploadingComplianceDoc} />
               </label>
               <Button onClick={() => setShowRemoveConfirm(true)} disabled={isRemovingComplianceDoc} variant="outline" size="sm" className="cursor-pointer border-red-200 bg-white text-red-600 font-semibold hover:bg-red-50">
@@ -477,7 +477,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
           <div className="flex items-start gap-2.5 bg-sky-50 border border-sky-200 rounded-xl px-3.5 py-3 text-xs text-sky-700">
             <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
             <span>
-              <span className="font-bold">Each month, use Replace</span> to attach the new state file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically. <span className="font-bold">Remove</span> is only for starting over completely — it clears all state compliance data, not just this file.
+              <span className="font-bold">Each month, use Add files</span> to attach the new EIMS records file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically. <span className="font-bold">Remove</span> is only for starting over completely — it clears all EIMS compliance data, not just this file.
             </span>
           </div>
         )}
@@ -606,7 +606,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
               <div>
                 <h4 className="text-sm font-bold text-slate-800">Custom fields</h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Track additional data points beyond the fields above. Tie a category to a real state document column to get an actual match/mismatch check in Compliance Analysis — or leave it as informational-only to just display the state's value.
+                  Track additional data points beyond the fields above. Tie a category to a real EIMS records column to get an actual match/mismatch check in Compliance Analysis — or leave it as informational-only to just display the EIMS value.
                 </p>
               </div>
               {customFields.length > 0 && (
@@ -616,7 +616,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
                       <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         <th className="text-left px-3 py-2">Category Name</th>
                         <th className="text-left px-3 py-2">Our Data Point</th>
-                        <th className="text-left px-3 py-2">State Document Column</th>
+                        <th className="text-left px-3 py-2">EIMS Records Column</th>
                         <th className="px-3 py-2 w-10"></th>
                       </tr>
                     </thead>
@@ -715,15 +715,15 @@ export const CompanySettings = ({ onSettingsChange }) => {
       <Dialog open={showRemoveConfirm} onOpenChange={setShowRemoveConfirm}>
         <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle>Remove the state compliance document?</DialogTitle>
+            <DialogTitle>Remove the EIMS compliance document?</DialogTitle>
           </DialogHeader>
           <DialogDescription className="text-sm text-slate-600 -mt-2 space-y-3">
             <p>
-              This deletes <span className="font-semibold text-slate-800">{complianceDoc?.filename}</span>, clears its column matching, and wipes <span className="font-semibold text-slate-800">all</span> state compliance data on file — not just this file's data. Compliance Analysis will show every session as "Missing in EIMS" until a new file is uploaded and confirmed.
+              This deletes <span className="font-semibold text-slate-800">{complianceDoc?.filename}</span>, clears its column matching, and wipes <span className="font-semibold text-slate-800">all</span> EIMS compliance data on file — not just this file's data. Compliance Analysis will show every session as "Missing in EIMS" until a new file is uploaded and confirmed.
             </p>
             <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-3 text-xs text-slate-600 space-y-1.5">
-              <p className="font-bold text-slate-700">If you're just uploading next month's file, use Replace instead</p>
-              <p>Replace keeps a rolling 90 days of compliance data on file. Each time you replace, it only swaps out that file's own dates and automatically drops anything older than 90 days — nothing needs to be cleared manually. Remove is only for a full reset (e.g. the wrong file was uploaded).</p>
+              <p className="font-bold text-slate-700">If you're just uploading next month's file, use Add files instead</p>
+              <p>Add files keeps a rolling 90 days of compliance data on file. Each time you add a file, it only swaps out that file's own dates and automatically drops anything older than 90 days — nothing needs to be cleared manually. Remove is only for a full reset (e.g. the wrong file was uploaded).</p>
             </div>
           </DialogDescription>
           <div className="flex justify-end gap-2 pt-2">

@@ -809,7 +809,7 @@ function SessionDetailPanel({
 
   const [isSendingToAdmin, setIsSendingToAdmin] = useState(false);
   const handleSendToAdmin = async () => {
-    if (!(await showConfirm('Send this log to an admin for approval? It has no matching record in the state document.'))) return;
+    if (!(await showConfirm('Send this log to an admin for approval? It has no matching record in EIMS.'))) return;
     setIsSendingToAdmin(true);
     try {
       await onSendMissingToAdmin(session, practitionerId);
@@ -915,7 +915,7 @@ function SessionDetailPanel({
         {!isApproved && isMissingBlock && isAdmin && (
           <div className="rounded-lg border border-orange-200 bg-orange-50/60 px-3 py-3 mb-3 space-y-2">
             <p className="text-xs font-semibold text-orange-700 flex items-center gap-2">
-              <Ban className="size-3.5 flex-shrink-0" /> This log has no matching record in the state document. As the admin, you can decide it right here — a comment is required either way.
+              <Ban className="size-3.5 flex-shrink-0" /> This log has no matching record in EIMS. As the admin, you can decide it right here — a comment is required either way.
             </p>
             <Textarea
               placeholder="Explain your decision — this will be added to the log's notes."
@@ -937,7 +937,7 @@ function SessionDetailPanel({
           <div className="flex items-center justify-between gap-3 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
             <span className="flex items-center gap-2">
               <Ban className="size-3.5 flex-shrink-0" />
-              {complianceStatus.eimsMissingStatus === 'sent_to_admin' ? 'This log has no matching record in the state document — awaiting admin review.' : 'This log has no matching record in the state document.'}
+              {complianceStatus.eimsMissingStatus === 'sent_to_admin' ? 'This log has no matching record in EIMS — awaiting admin review.' : 'This log has no matching record in EIMS.'}
             </span>
             {complianceStatus.eimsMissingStatus !== 'sent_to_admin' && (
               <Button type="button" size="sm" onClick={handleSendToAdmin} disabled={isSendingToAdmin} className="cursor-pointer text-white bg-amber-600 hover:bg-amber-700 flex-shrink-0">
@@ -957,7 +957,7 @@ function SessionDetailPanel({
               } else if (isMissingBlock && isAdmin) {
                 showAlert('Use the comment box above to approve or reject this log.');
               } else if (isMissingBlock) {
-                showAlert('This log has no matching record in the state document — click "Send to Admin" above before it can be approved.');
+                showAlert('This log has no matching record in EIMS — click "Send to Admin" above before it can be approved.');
               } else if (complianceBlockReason) {
                 showAlert(complianceBlockReason);
               } else {
@@ -1384,7 +1384,7 @@ function ComplianceAnalysisPreview({
   // request never fired. Billing can still leave context via the log's
   // regular comment thread below if they want to.
   const handleSendMissingToAdmin = async (sessionId) => {
-    if (!(await showConfirm('Send this log to an admin for approval? It has no matching record in the state document.'))) return;
+    if (!(await showConfirm('Send this log to an admin for approval? It has no matching record in EIMS.'))) return;
     setIsSendingToAdmin(sessionId);
     try {
       await api.post('/api/billing/compliance-analysis/send-missing-to-admin', { assessmentId: sessionId });
@@ -1479,8 +1479,8 @@ function ComplianceAnalysisPreview({
     }
     if (value === 'accept' && analysis?.documentOnFile && !analysis?.results?.[session.id]?.matched && !analysis?.results?.[session.id]?.duplicateOfSessionId && analysis?.results?.[session.id]?.eimsMissingStatus !== 'approved') {
       showAlert(isAdmin
-        ? "This log has no matching record in the state document — click the \"Review & Decide\" button to approve or reject it."
-        : "This log has no matching record in the state document — click \"Send to Admin for Approval\" before it can be approved.");
+        ? "This log has no matching record in EIMS — click the \"Review & Decide\" button to approve or reject it."
+        : "This log has no matching record in EIMS — click \"Send to Admin for Approval\" before it can be approved.");
       return;
     }
     if (value === 'return' || value === 'reject') {
@@ -1626,7 +1626,7 @@ function ComplianceAnalysisPreview({
         </button>
       ) : (
         <div className="text-sm text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-4 py-3 mb-6">
-          No state document on file yet — attach one on the Company Information page.
+          No EIMS records on file yet — attach one on the Company Information page.
         </div>
       )}
 
@@ -1864,7 +1864,7 @@ function ComplianceAnalysisPreview({
                       <span className="text-sky-700 bg-sky-50 rounded px-2 py-0.5">Our Log</span>
                     </th>
                     <th className="px-4 py-2 w-[26%]">
-                      <span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">State Record</span>
+                      <span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">EIMS Record</span>
                     </th>
                     <th className="px-4 py-2 w-[16%]"></th>
                   </tr>
@@ -1876,7 +1876,7 @@ function ComplianceAnalysisPreview({
                     </tr>
                   ) : !documentReady ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-slate-400 text-xs italic" colSpan={4}>No confirmed state document to compare against</td>
+                      <td className="px-4 py-3 text-center text-slate-400 text-xs italic" colSpan={4}>No confirmed EIMS records to compare against</td>
                     </tr>
                   ) : isDuplicate ? (
                     <tr>
@@ -1886,7 +1886,7 @@ function ComplianceAnalysisPreview({
                     <>
                       {!sessionResult?.matched && (
                         <tr>
-                          <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={4}>No matching record found in the state document for this session — showing our own logged values below</td>
+                          <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={4}>No matching record found in EIMS for this session — showing our own logged values below</td>
                         </tr>
                       )}
                       {compareFields.map(f => {
@@ -1979,7 +1979,7 @@ function ComplianceAnalysisPreview({
               {adminDecideTarget === s.id && (
                 <div className="border-t px-4 py-3 space-y-2 bg-orange-50/60 border-orange-200">
                   <p className="text-xs font-semibold text-orange-700">
-                    This log has no matching record in the state document. A comment is required either way.
+                    This log has no matching record in EIMS. A comment is required either way.
                   </p>
                   <Textarea
                     autoFocus

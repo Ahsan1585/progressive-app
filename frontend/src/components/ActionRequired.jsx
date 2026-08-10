@@ -79,7 +79,7 @@ export function ActionRequired() {
         <p className="text-xs font-bold tracking-wide uppercase text-orange-600 mb-1.5">Admin</p>
         <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">Action Required</h1>
         <p className="text-base text-slate-600 max-w-2xl leading-relaxed">
-          Logs with no matching record in the state document that billing has sent up for your review. Approving or rejecting requires a comment — it's recorded on the log's notes thread either way.
+          Logs with no matching record in EIMS that billing has sent up for your review. Approving or rejecting requires a comment — it's recorded on the log's notes thread either way.
         </p>
       </div>
 

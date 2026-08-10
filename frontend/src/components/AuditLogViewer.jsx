@@ -64,7 +64,7 @@ export const AuditLogViewer = () => {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Audit Log</h1>
         <p className="text-sm text-slate-500 mt-1">
-          A record of who accessed or changed patient data, the state compliance document, and generated NJEIS/invoice/audit files — newest first.
+          A record of who accessed or changed patient data, the EIMS compliance document, and generated NJEIS/invoice/audit files — newest first.
         </p>
       </div>
 

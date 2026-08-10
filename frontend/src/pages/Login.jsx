@@ -81,7 +81,7 @@ const PIN_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 // below, which lists independent capabilities and stays unnumbered).
 const PIPELINE_STEPS = [
   { label: 'Log Submitted', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg> },
-  { label: 'Matched to State Records', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M8 12l3 3 6-7" /></svg> },
+  { label: 'Matched to EIMS Records', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M8 12l3 3 6-7" /></svg> },
   { label: 'Auto-Approved', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12l5 5L20 6" /></svg> },
   { label: 'Form Auto-Filled', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg> },
   { label: 'Invoice Generated', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg> },
@@ -93,7 +93,7 @@ const FEATURES = [
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="#0E6E67" strokeWidth="1.9"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>,
     bg: 'rgba(47,191,159,0.13)',
     title: 'Auto-Approval on Match',
-    body: 'Matches state records instantly. Only mismatches reach a human.',
+    body: 'Matches EIMS records instantly. Only mismatches reach a human.',
   },
   {
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="#2E8FC7" strokeWidth="1.9"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 16l2 2 4-4" /></svg>,
