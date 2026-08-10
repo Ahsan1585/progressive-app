@@ -600,6 +600,20 @@ const updateStaffProfile = async (req, res) => {
       params
     );
 
+    // assessments.practitioner_first_name/last_name is a denormalized
+    // snapshot taken at log time (so a later deactivation/role change
+    // doesn't rewrite history) — but a name *correction* here (e.g. a typo)
+    // should propagate, otherwise every existing log keeps the wrong name
+    // forever and Compliance Analysis can never match it against EIMS
+    // records filed under the corrected spelling.
+    if (firstName !== undefined || lastName !== undefined) {
+      const updated = updatedRows[0];
+      await pool.query(
+        `UPDATE assessments SET practitioner_first_name = $1, practitioner_last_name = $2 WHERE practitioner_id = $3`,
+        [updated.first_name, updated.last_name, id]
+      );
+    }
+
     res.json({ success: true, staff: updatedRows[0] });
   } catch (error) {
     console.error('Update staff profile error:', error);
