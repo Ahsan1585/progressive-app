@@ -82,7 +82,7 @@ const Dashboard = () => {
       console.error('Failed to fetch patients', error);
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
-        navigate('/');
+        navigate('/login');
       }
       return [];
     }
@@ -536,7 +536,7 @@ const Dashboard = () => {
             </button>
 
             <button
-              onClick={() => { localStorage.removeItem('token'); navigate('/'); }}
+              onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}
               className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
               title="Sign Out"
             >

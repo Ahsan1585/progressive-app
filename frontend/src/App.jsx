@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Home from './pages/marketing/Home';
 import HowItWorks from './pages/marketing/HowItWorks';
@@ -48,6 +48,18 @@ function IdleLogout() {
   return null;
 }
 
+// React Router doesn't reset scroll position on navigation the way a
+// traditional multi-page site does — without this, clicking an in-app link
+// from partway down a page lands the new page scrolled to that same
+// mid-page offset instead of the top.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 const ProtectedRoute = ({ element, allowedRoles }) => {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
@@ -67,6 +79,7 @@ function App() {
   return (
     <Router basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <IdleLogout />
+      <ScrollToTop />
       <DialogHost />
       <Routes>
         <Route path="/" element={<Home />} />

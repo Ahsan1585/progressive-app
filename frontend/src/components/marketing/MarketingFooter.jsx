@@ -22,7 +22,6 @@ export function MarketingFooter() {
         <div>
           <h3>Contact</h3>
           <ul>
-            <li><a href="https://www.izayaconsulting.com" target="_blank" rel="noopener noreferrer">www.izayaconsulting.com</a></li>
             <li><a href="mailto:support@izayaedge.com">support@izayaedge.com</a></li>
             <li><a href="tel:+14057402647">(405) 740-2647</a></li>
             <li>Old Bridge, NJ 08857</li>
