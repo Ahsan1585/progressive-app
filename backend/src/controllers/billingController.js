@@ -1422,15 +1422,10 @@ const getComplianceAnalysis = async (req, res) => {
     // token-wise name comparison used per-field below), not just "same
     // patient." Without this, another practitioner's sessions for a shared
     // patient showed up here as if this practitioner failed to log them.
-    const practitionerFirstName = sessions[0]?.practitioner_first_name;
-    const practitionerLastName = sessions[0]?.practitioner_last_name;
-    const stateLogs = rawStateLogs.filter((log) => {
-      const stateName = normalizeForMatch(log.practitioner_name || '');
-      if (!stateName) return false;
-      return [practitionerFirstName, practitionerLastName].every(
-        (n) => n && stateName.includes(normalizeForMatch(n))
-      );
-    });
+    const ourPractitionerNameForFilter = [sessions[0]?.practitioner_first_name, sessions[0]?.practitioner_last_name].filter(Boolean).join(' ');
+    const stateLogs = rawStateLogs.filter((log) => (
+      !!log.practitioner_name && scoredNamesMatch(ourPractitionerNameForFilter, log.practitioner_name, matchParams.wordOverlapThreshold)
+    ));
 
     // Group state rows AND sessions by patient_id + service_date so a
     // same-day group with several sessions and several candidates gets
@@ -1545,20 +1540,17 @@ async function computeSessionCompliance(assessmentId) {
   const session = sessionRows[0];
   if (!session) return { matched: false, flagged: false, fields: [], documentOnFile: true };
 
+  const matchParams = resolveStrictnessProfile(doc.compliance_strictness);
   const { rows: rawStateLogs } = await pool.query(
     'SELECT * FROM compliance_state_logs WHERE patient_id = $1 AND service_date = $2',
     [session.patient_id, session.service_date]
   );
-  const stateLogs = rawStateLogs.filter((log) => {
-    const stateName = normalizeForMatch(log.practitioner_name || '');
-    if (!stateName) return false;
-    return [session.practitioner_first_name, session.practitioner_last_name].every(
-      (n) => n && stateName.includes(normalizeForMatch(n))
-    );
-  });
+  const ourPractitionerNameForFilter = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
+  const stateLogs = rawStateLogs.filter((log) => (
+    !!log.practitioner_name && scoredNamesMatch(ourPractitionerNameForFilter, log.practitioner_name, matchParams.wordOverlapThreshold)
+  ));
 
   const match = pickBestCandidate(session, stateLogs);
-  const matchParams = resolveStrictnessProfile(doc.compliance_strictness);
   const customFieldsByLabel = new Map((doc?.compliance_doc_custom_fields || []).map((cf) => [cf.label, cf]));
   const mappedKeys = new Set(Object.entries(doc?.compliance_doc_column_mapping || {}).filter(([, header]) => header).map(([key]) => key));
   const overridesByField = await loadOverridesByField();
