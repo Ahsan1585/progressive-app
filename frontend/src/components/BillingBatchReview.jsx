@@ -648,7 +648,7 @@ function PractitionerGroup({
                   key={s.id}
                   ref={(el) => registerSessionRow?.(s.id, el)}
                   onClick={() => onSelectSession(s.id)}
-                  className={`grid grid-cols-3 items-center gap-3 pl-3 pr-4 py-3.5 border-t border-slate-100 border-l-4 cursor-pointer transition-colors ${
+                  className={`grid grid-cols-[minmax(0,1fr)_minmax(max-content,auto)_minmax(0,1fr)] items-center gap-3 pl-3 pr-4 py-3.5 border-t border-slate-100 border-l-4 cursor-pointer transition-colors ${
                     isSelected ? 'bg-blue-200 border-l-blue-600' : 'border-l-transparent hover:bg-slate-50'
                   }`}
                 >
@@ -664,7 +664,7 @@ function PractitionerGroup({
                   </div>
 
                   {/* Column 2: service codes, centered */}
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                  <div className="flex items-center justify-center gap-1.5 flex-nowrap">
                     <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Status">S:{s.status || '-'}</span>
                     <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Type">{s.type || '-'}</span>
                     <span className="font-mono text-sm font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Location">L:{s.location || '-'}</span>
