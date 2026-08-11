@@ -1815,7 +1815,8 @@ const markBatchPaid = async (req, res) => {
 
 // --- 12. Revert a Completed Batch back to Pending ---
 // Deletes the batch's SEVF + Invoice PDFs from storage, un-stamps every linked
-// assessment back to billing_status='pending', and removes the billing_batches row.
+// assessment back to billing_status='pending' with billing_review cleared (so
+// it shows as Pending, not still Approved), and removes the billing_batches row.
 // Order matters for partial-failure safety: assessments are freed first (the part
 // with real product consequence), then storage files, then the batch row last —
 // each step's failure still leaves enough state for a retry to finish cleanly.
@@ -1839,7 +1840,7 @@ const revertBillingBatch = async (req, res) => {
     }
 
     const { rows: revertedAssessments } = await pool.query(
-      "UPDATE assessments SET billing_status = 'pending', billing_batch_id = NULL WHERE billing_batch_id = $1 RETURNING id",
+      "UPDATE assessments SET billing_status = 'pending', billing_review = NULL, billing_batch_id = NULL WHERE billing_batch_id = $1 RETURNING id",
       [batchId]
     );
 
