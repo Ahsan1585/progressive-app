@@ -401,7 +401,18 @@ const applyComplianceDocMapping = async (req, res) => {
           [[...childIds]]
         )
       : { rows: [] };
-    const patientIdByChildId = new Map(patientRows.map((p) => [p.norm_child_id, p.id]));
+    // A Child ID isn't guaranteed unique in patients (e.g. duplicate patient
+    // records from a name-spelling typo, or the same child intentionally
+    // re-entered). Collapsing to a single winner here meant every duplicate
+    // OTHER than the one that happened to win silently never got a state-log
+    // match — sessions logged against it always read "Missing in EIMS" even
+    // when a real match was on file, just linked to a sibling patient row.
+    // Keep every matching patient so each duplicate gets its own linked copy.
+    const patientIdsByChildId = new Map();
+    for (const p of patientRows) {
+      if (!patientIdsByChildId.has(p.norm_child_id)) patientIdsByChildId.set(p.norm_child_id, []);
+      patientIdsByChildId.get(p.norm_child_id).push(p.id);
+    }
 
     const parsedRows = [];
     for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
@@ -432,8 +443,8 @@ const applyComplianceDocMapping = async (req, res) => {
         extraFields = Object.keys(obj).length > 0 ? obj : null;
       }
 
-      parsedRows.push([
-        patientIdByChildId.get(normalizeChildId(childId)) || null,
+      const matchingPatientIds = patientIdsByChildId.get(normalizeChildId(childId)) || [null];
+      const restOfRow = [
         childId,
         cellToText(get('child_name')),
         cellToText(get('practitioner_name')),
@@ -453,7 +464,11 @@ const applyComplianceDocMapping = async (req, res) => {
         periodStart,
         periodEnd,
         extraFields ? JSON.stringify(extraFields) : null,
-      ]);
+      ];
+      // One row per matching patient — see patientIdsByChildId above.
+      for (const patientId of matchingPatientIds) {
+        parsedRows.push([patientId, ...restOfRow]);
+      }
     }
 
     // Uploads happen roughly monthly, and a biller may still be reviewing an

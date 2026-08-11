@@ -1397,14 +1397,46 @@ const getComplianceAnalysis = async (req, res) => {
     // with patient_id NULL until the doc is re-confirmed. Re-resolving any
     // still-unlinked rows on every analysis run means a newly-added patient
     // starts matching immediately, without requiring a manual re-confirm.
-    await pool.query(`
-      UPDATE compliance_state_logs
-      SET patient_id = patients.id
-      FROM patients
-      WHERE compliance_state_logs.patient_id IS NULL
-        AND UPPER(REGEXP_REPLACE(compliance_state_logs.child_id, '[^A-Za-z0-9]', '', 'g'))
+    //
+    // A Child ID can match more than one patient row (duplicate patient from
+    // a name-spelling typo, or a child legitimately re-entered) — a plain
+    // single-row UPDATE can only point an unlinked state row at ONE of them,
+    // so any other duplicate patient's sessions would always read "Missing
+    // in EIMS" even with a real match on file. Give every matching patient
+    // its own linked copy: the first match reuses the existing row via
+    // UPDATE, and any further matches get their own duplicated row.
+    const { rows: unlinkedMatches } = await pool.query(`
+      SELECT compliance_state_logs.id AS state_log_id, patients.id AS patient_id
+      FROM compliance_state_logs
+      JOIN patients
+        ON UPPER(REGEXP_REPLACE(compliance_state_logs.child_id, '[^A-Za-z0-9]', '', 'g'))
           = UPPER(REGEXP_REPLACE(patients.child_id, '[^A-Za-z0-9]', '', 'g'))
+      WHERE compliance_state_logs.patient_id IS NULL
     `);
+    const patientIdsByStateLogId = new Map();
+    for (const { state_log_id, patient_id } of unlinkedMatches) {
+      if (!patientIdsByStateLogId.has(state_log_id)) patientIdsByStateLogId.set(state_log_id, []);
+      patientIdsByStateLogId.get(state_log_id).push(patient_id);
+    }
+    for (const [stateLogId, matchedPatientIds] of patientIdsByStateLogId) {
+      const [firstPatientId, ...restPatientIds] = matchedPatientIds;
+      await pool.query('UPDATE compliance_state_logs SET patient_id = $1 WHERE id = $2', [firstPatientId, stateLogId]);
+      for (const patientId of restPatientIds) {
+        await pool.query(
+          `INSERT INTO compliance_state_logs
+             (patient_id, child_id, child_name, practitioner_name, service_label, service_type_label,
+              group_size_label, location_label, service_date, start_time, end_time, service_minutes,
+              logged_date, ifsp_event_id, mapped_service_code, mapped_location_code, mapped_group_size_code,
+              period_start, period_end, extra_fields)
+           SELECT $1, child_id, child_name, practitioner_name, service_label, service_type_label,
+              group_size_label, location_label, service_date, start_time, end_time, service_minutes,
+              logged_date, ifsp_event_id, mapped_service_code, mapped_location_code, mapped_group_size_code,
+              period_start, period_end, extra_fields
+           FROM compliance_state_logs WHERE id = $2`,
+          [patientId, stateLogId]
+        );
+      }
+    }
 
     const patientIds = [...new Set(sessions.map((s) => s.patient_id).filter(Boolean))];
     const { rows: rawStateLogs } = await pool.query(
