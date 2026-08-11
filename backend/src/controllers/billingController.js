@@ -1520,11 +1520,33 @@ const getComplianceAnalysis = async (req, res) => {
           const otherDates = [...new Set(childRawLogs.map((log) => log.service_date))].sort();
           result.missingReason = `EIMS has ${childRawLogs.length} record(s) on file for this child, but none dated ${session.service_date}. Other dates on file: ${otherDates.join(', ')}.`;
         } else {
-          const stateNames = [...new Set(sameDateLogs.map((log) => log.practitioner_name).filter(Boolean))];
-          const ourName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
-          result.missingReason = stateNames.length
-            ? `EIMS has a record for this child on ${session.service_date}, but it's attributed to "${stateNames.join('", "')}" — didn't match our practitioner name "${ourName}" closely enough.`
-            : `EIMS has a record for this child on ${session.service_date}, but its practitioner name field is blank.`;
+          // Of the same-day, same-child EIMS rows, which ones actually
+          // cleared the practitioner-name filter (i.e. were real candidates,
+          // not excluded before matching even started)?
+          const nameMatchedLogs = sameDateLogs.filter((log) => stateLogs.includes(log));
+          if (nameMatchedLogs.length === 0) {
+            const stateNames = [...new Set(sameDateLogs.map((log) => log.practitioner_name).filter(Boolean))];
+            const ourName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
+            result.missingReason = stateNames.length
+              ? `EIMS has a record for this child on ${session.service_date}, but it's attributed to "${stateNames.join('", "')}" — didn't match our practitioner name "${ourName}" closely enough.`
+              : `EIMS has a record for this child on ${session.service_date}, but its practitioner name field is blank.`;
+          } else {
+            // A same-day, same-practitioner candidate DID exist — so this
+            // isn't a name-matching problem. The likely cause: more of our
+            // sessions were logged for this child on this date than EIMS has
+            // records for, so assignGroupCandidates (a strict one-to-one
+            // pairing) gave the available record(s) to a sibling session
+            // instead. Find who actually got it, so the reviewer sees the
+            // real cause instead of a misleading name-mismatch message.
+            const claimedBy = sessions.find((other) => {
+              const otherMatch = matchBySessionId.get(other.id);
+              return other.id !== session.id && otherMatch && nameMatchedLogs.includes(otherMatch);
+            });
+            const siblingCount = sessions.filter((s) => s.patient_id === session.patient_id && s.service_date === session.service_date).length;
+            result.missingReason = claimedBy
+              ? `EIMS has ${nameMatchedLogs.length} record(s) for this child on ${session.service_date} under the right practitioner, but it was already matched to your other ${claimedBy.start_time || 'session'}${claimedBy.end_time ? `–${claimedBy.end_time}` : ''} log for this child the same day — you logged ${siblingCount} sessions for this child on this date, EIMS only has ${nameMatchedLogs.length}.`
+              : `EIMS has a record for this child on ${session.service_date} under the right practitioner, but it didn't line up closely enough on start/end time to be selected as this session's match.`;
+          }
         }
       }
     }
