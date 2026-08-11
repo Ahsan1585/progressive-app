@@ -1886,7 +1886,12 @@ function ComplianceAnalysisPreview({
                     <>
                       {!sessionResult?.matched && (
                         <tr>
-                          <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={4}>No matching record found in EIMS for this session — showing our own logged values below</td>
+                          <td className="px-4 py-3 text-center text-orange-600 text-xs font-semibold" colSpan={4}>
+                            No matching record found in EIMS for this session — showing our own logged values below
+                            {sessionResult?.missingReason && (
+                              <div className="mt-1 text-slate-500 font-normal normal-case">{sessionResult.missingReason}</div>
+                            )}
+                          </td>
                         </tr>
                       )}
                       {compareFields.map(f => {

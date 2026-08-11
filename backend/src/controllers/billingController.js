@@ -1502,6 +1502,33 @@ const getComplianceAnalysis = async (req, res) => {
       }
     }
 
+    // For a genuinely unmatched, non-duplicate session, explain WHY no
+    // candidate was found — "no EIMS row for this child at all" vs "rows
+    // exist but none on this date" vs "a row exists on this date but its
+    // practitioner name didn't match" are three very different problems to
+    // troubleshoot, and without this a reviewer has no way to tell them
+    // apart from the UI alone.
+    for (const session of sessions) {
+      const result = results[session.id];
+      if (result.matched || result.duplicateOfSessionId) continue;
+      const childRawLogs = rawStateLogs.filter((log) => log.patient_id === session.patient_id);
+      if (childRawLogs.length === 0) {
+        result.missingReason = 'No EIMS records on file for this child at all (in the current uploaded reference file).';
+      } else {
+        const sameDateLogs = childRawLogs.filter((log) => log.service_date === session.service_date);
+        if (sameDateLogs.length === 0) {
+          const otherDates = [...new Set(childRawLogs.map((log) => log.service_date))].sort();
+          result.missingReason = `EIMS has ${childRawLogs.length} record(s) on file for this child, but none dated ${session.service_date}. Other dates on file: ${otherDates.join(', ')}.`;
+        } else {
+          const stateNames = [...new Set(sameDateLogs.map((log) => log.practitioner_name).filter(Boolean))];
+          const ourName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
+          result.missingReason = stateNames.length
+            ? `EIMS has a record for this child on ${session.service_date}, but it's attributed to "${stateNames.join('", "')}" — didn't match our practitioner name "${ourName}" closely enough.`
+            : `EIMS has a record for this child on ${session.service_date}, but its practitioner name field is blank.`;
+        }
+      }
+    }
+
     res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, strictness: doc.compliance_strictness || 'moderate', results });
   } catch (error) {
     console.error('Error running compliance analysis:', error);
