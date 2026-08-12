@@ -6,9 +6,11 @@ const {
   generateMasterReport,
   getPendingReports,
   getAuditLogs,
+  getSessionAuditLog,
   getAllPatients,
   generateAuditNJEIS,
   generateAuditReportPDF,
+  generateSessionAuditLogPDF,
   generateAuditReportExcel,
   issueInvoiceOverride
 } = require('../controllers/reportController');
@@ -25,6 +27,10 @@ router.get('/patients',            ...ceoGuard, getAllPatients);
 router.post('/audit-njeis',        ...ceoGuard, generateAuditNJEIS);
 router.post('/audit-report-pdf',   ...ceoGuard, generateAuditReportPDF);
 router.post('/audit-report-excel', ...ceoGuard, generateAuditReportExcel);
+// Standalone signed-session audit view — independent of the SEVF/NJEIS form,
+// surfaces group_size_category + both signatures (see reportController.js).
+router.get('/session-audit-log',      ...ceoGuard, getSessionAuditLog);
+router.post('/session-audit-log-pdf', ...ceoGuard, generateSessionAuditLogPDF);
 router.post('/issue-override',     ...ceoGuard, issueInvoiceOverride);
 
 module.exports = router;

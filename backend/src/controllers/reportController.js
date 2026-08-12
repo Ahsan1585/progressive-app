@@ -220,6 +220,54 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
+// 3a. Session Audit Log — standalone signed-session audit view (independent of
+// the SEVF/NJEIS form). Same practitioner/patient/date filters as getAuditLogs,
+// but also surfaces group_size_category and both signatures, which are
+// otherwise only ever drawn into the generated NJEIS PDF, never shown directly.
+const getSessionAuditLog = async (req, res) => {
+  const { practitionerSearch, patientSearch, startDate, endDate } = req.query;
+
+  try {
+    let practitionerIds = null;
+    if (practitionerSearch && practitionerSearch.trim()) {
+      practitionerIds = await resolvePractitionerIds(practitionerSearch);
+      if (practitionerIds.length === 0) return res.json({ success: true, logs: [] });
+    }
+
+    const params = [];
+    let sql = `
+      SELECT a.id, a.service_date, a.status, a.type, a.location, a.start_time, a.end_time, a.total_time,
+             a.group_size_category, a.parent_signature, a.practitioner_signature,
+             a.patient_first_name, a.patient_last_name, a.patient_id, a.practitioner_id,
+             jsonb_build_object('first_name', p.first_name, 'last_name', p.last_name, 'position_title', p.position_title) AS practitioners
+      FROM assessments a
+      JOIN practitioners p ON p.id = a.practitioner_id
+      WHERE 1=1
+    `;
+
+    if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
+    if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
+    if (patientSearch && patientSearch.trim()) {
+      const term = patientSearch.trim();
+      params.push(`%${term}%`);
+      sql += ` AND (a.patient_first_name ILIKE $${params.length} OR a.patient_last_name ILIKE $${params.length})`;
+    }
+
+    sql += ' ORDER BY a.service_date DESC LIMIT 1000';
+
+    const { rows: logs } = await pool.query(sql, params);
+    logAudit({
+      req, action: 'session_audit_log_view', resourceType: 'session_audit_log',
+      details: { practitionerSearch, patientSearch, startDate, endDate, count: logs.length },
+    });
+    res.json({ success: true, logs: logs || [] });
+  } catch (error) {
+    console.error('getSessionAuditLog error:', error);
+    res.status(500).json({ error: 'Failed to fetch session audit log' });
+  }
+};
+
 // 3b. Org-wide patient roster — every patient any practitioner has registered
 const getAllPatients = async (req, res) => {
   const { practitionerSearch, patientSearch, status } = req.query;
@@ -550,6 +598,186 @@ const generateAuditReportPDF = async (req, res) => {
 
 const ts = () => new Date().toISOString().replace(/[-:T.]/g,'').slice(0,14);
 
+// Embeds a base64 data-URL signature image into a pdf-lib document. Same
+// data-URL shape SignaturePad.jsx produces and njeisGenerator.js's
+// fetchImageBuffer/drawSignatureInField already embed for the SEVF form —
+// reimplemented locally since this table is drawn freehand (no AcroForm
+// field rectangle to anchor to like the SEVF template has).
+const embedSignatureImage = async (pdfDoc, dataUrl) => {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) return null;
+  try {
+    const buf = Buffer.from(dataUrl.split(',')[1], 'base64');
+    return (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg'))
+      ? await pdfDoc.embedJpg(buf)
+      : await pdfDoc.embedPng(buf);
+  } catch (error) {
+    console.error('embedSignatureImage error:', error);
+    return null;
+  }
+};
+
+// 5b. Session Audit Log PDF — standalone signed-session audit export.
+// Draws the same landscape-table style as generateAuditReportPDF, but with
+// taller rows so both signature images can be embedded inline per row.
+const generateSessionAuditLogPDF = async (req, res) => {
+  const { logs, filters } = req.body;
+  if (!logs || !Array.isArray(logs)) return res.status(400).json({ error: 'logs array required' });
+
+  const groupSizeLabel = { individual: 'Individual', consultation: 'Consultation' };
+
+  const filterLine = [
+    filters?.startDate && `Date: ${filters.startDate} -> ${filters.endDate || 'present'}`,
+    filters?.practitionerSearch && `Practitioner: ${filters.practitionerSearch}`,
+    filters?.patientSearch && `Patient: ${filters.patientSearch}`,
+  ].filter(Boolean).join('   |   ');
+
+  const pageSize = { width: 842, height: 595 }; // A4 landscape (points)
+  const margin = 34;
+  const contentWidth = pageSize.width - margin * 2;
+
+  const cols = [
+    { label: 'Patient Name',  w: 92,  key: 'patient' },
+    { label: 'Date',          w: 52,  key: 'date' },
+    { label: 'Start',         w: 44,  key: 'start' },
+    { label: 'End',           w: 44,  key: 'end' },
+    { label: 'Practitioner',  w: 84,  key: 'practitioner' },
+    { label: 'Status',        w: 56,  key: 'status' },
+    { label: 'Type',          w: 66,  key: 'type' },
+    { label: 'Location',      w: 66,  key: 'location' },
+    { label: 'Group Size',    w: 60,  key: 'groupSize' },
+    { label: 'Practitioner Sig', w: 84, key: 'practitionerSig' },
+    { label: 'Parent Sig',    w: 84,  key: 'parentSig' },
+  ];
+
+  const pdfDoc = await PDFDocument.create();
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const rowH = 38;
+  const headerH = 18;
+  const black = rgb(0.12, 0.16, 0.22);
+  const gray  = rgb(0.4, 0.46, 0.55);
+  const lightGray = rgb(0.97, 0.98, 0.99);
+
+  const drawTableHeader = (page, y) => {
+    page.drawRectangle({ x: margin, y: y - headerH, width: contentWidth, height: headerH, color: black });
+    let cx = margin;
+    cols.forEach(col => {
+      page.drawText(col.label.toUpperCase(), { x: cx + 4, y: y - headerH + 6, font: bold, size: 6.5, color: rgb(1,1,1) });
+      cx += col.w;
+    });
+    return y - headerH;
+  };
+
+  // Draws a signature image (or a "No signature" fallback) into a cell,
+  // enlarged ~1.5x after scaleToFit — signature canvases are mostly blank
+  // around a small stroke, so a tight fit-to-box scale reads as invisible
+  // (same issue njeisGenerator.js's drawSignatureInField works around).
+  const drawSignatureCell = async (page, dataUrl, cx, cellY, cellW, cellH) => {
+    const embedded = await embedSignatureImage(pdfDoc, dataUrl);
+    if (!embedded) {
+      page.drawText('No signature', { x: cx + 4, y: cellY + cellH / 2 - 3, font: regular, size: 7, color: gray });
+      return;
+    }
+    const fit = embedded.scaleToFit(cellW - 6, cellH - 6);
+    const w = Math.min(fit.width * 1.5, cellW - 4);
+    const h = Math.min(fit.height * 1.5, cellH - 4);
+    page.drawImage(embedded, {
+      x: cx + (cellW - w) / 2,
+      y: cellY + (cellH - h) / 2,
+      width: w,
+      height: h,
+    });
+  };
+
+  let page = pdfDoc.addPage([pageSize.width, pageSize.height]);
+  let y = pageSize.height - margin;
+
+  // ── Header ──
+  page.drawText('Session Audit Log', { x: margin, y, font: bold, size: 15, color: black });
+  const genLabel = `Generated: ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
+  const genW = regular.widthOfTextAtSize(genLabel, 9);
+  page.drawText(genLabel, { x: pageSize.width - margin - genW, y: y + 2, font: regular, size: 9, color: gray });
+  y -= 14;
+  page.drawText('Signed Session Records', { x: margin, y, font: regular, size: 9, color: gray });
+  const recLabel = `${logs.length} records`;
+  const recW = regular.widthOfTextAtSize(recLabel, 9);
+  page.drawText(recLabel, { x: pageSize.width - margin - recW, y, font: regular, size: 9, color: gray });
+  y -= 10;
+  page.drawLine({ start: { x: margin, y }, end: { x: pageSize.width - margin, y }, thickness: 1.5, color: black });
+  y -= 16;
+
+  // ── Filter line ──
+  if (filterLine) {
+    const filterBoxH = 18;
+    page.drawRectangle({ x: margin, y: y - filterBoxH, width: contentWidth, height: filterBoxH, color: lightGray, borderColor: rgb(0.89,0.91,0.94), borderWidth: 0.5 });
+    page.drawText('Filters applied: ', { x: margin + 6, y: y - filterBoxH + 6, font: bold, size: 8, color: rgb(0.28,0.34,0.42) });
+    const labelW = bold.widthOfTextAtSize('Filters applied: ', 8);
+    page.drawText(filterLine, { x: margin + 6 + labelW, y: y - filterBoxH + 6, font: regular, size: 8, color: rgb(0.28,0.34,0.42) });
+    y -= filterBoxH + 12;
+  }
+
+  // ── Table ──
+  y = drawTableHeader(page, y);
+
+  for (let i = 0; i < logs.length; i++) {
+    const l = logs[i];
+
+    if (y - rowH < margin + 20) {
+      page = pdfDoc.addPage([pageSize.width, pageSize.height]);
+      y = pageSize.height - margin;
+      page.drawText('Session Audit Log (continued)', { x: margin, y, font: bold, size: 11, color: black });
+      y -= 18;
+      y = drawTableHeader(page, y);
+    }
+
+    if (i % 2 === 1) {
+      page.drawRectangle({ x: margin, y: y - rowH, width: contentWidth, height: rowH, color: lightGray });
+    }
+
+    const [dy, dm, dd] = (l.service_date || '').split('-');
+    const dateStr = dy ? `${parseInt(dm)}/${parseInt(dd)}/${dy.slice(-2)}` : '-';
+    const textCells = {
+      patient: `${l.patient_first_name || ''} ${l.patient_last_name || ''}`.trim() || '-',
+      date: dateStr,
+      start: l.start_time ? formatTime12h(l.start_time) : '-',
+      end: l.end_time ? formatTime12h(l.end_time) : '-',
+      practitioner: `${l.practitioners?.first_name || ''} ${l.practitioners?.last_name || ''}`.trim() || '-',
+      status: l.status || '-',
+      type: l.type || '-',
+      location: l.location || '-',
+      groupSize: groupSizeLabel[l.group_size_category] || l.group_size_category || '-',
+    };
+
+    let cx = margin;
+    const rowTop = y;
+    for (const col of cols) {
+      if (col.key === 'practitionerSig') {
+        await drawSignatureCell(page, l.practitioner_signature, cx, rowTop - rowH, col.w, rowH);
+      } else if (col.key === 'parentSig') {
+        await drawSignatureCell(page, l.parent_signature, cx, rowTop - rowH, col.w, rowH);
+      } else {
+        page.drawText(String(textCells[col.key] ?? '-'), { x: cx + 4, y: rowTop - rowH / 2 - 3, font: regular, size: 7.5, color: rgb(0.2,0.24,0.3) });
+      }
+      cx += col.w;
+    }
+    y -= rowH;
+  }
+
+  // ── Footer on last page ──
+  page.drawLine({ start: { x: margin, y: margin + 12 }, end: { x: pageSize.width - margin, y: margin + 12 }, thickness: 0.5, color: rgb(0.89,0.91,0.94) });
+  const footerText = 'Session Audit Log - Confidential';
+  const footerW = regular.widthOfTextAtSize(footerText, 8);
+  page.drawText(footerText, { x: (pageSize.width - footerW) / 2, y: margin, font: regular, size: 8, color: rgb(0.58,0.64,0.72) });
+
+  const pdfBytes = await pdfDoc.save();
+
+  logAudit({ req, action: 'session_audit_log_pdf_download', resourceType: 'session_audit_log', details: { filters, logCount: logs.length } });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="session-audit-log-${ts()}.pdf"`);
+  res.send(Buffer.from(pdfBytes));
+};
+
 // 6. Generate an Excel (.xlsx) summary report from the same audit query results (logs passed from frontend)
 const generateAuditReportExcel = async (req, res) => {
   const { logs, filters } = req.body;
@@ -767,9 +995,11 @@ module.exports = {
   generateMasterReport,
   getPendingReports,
   getAuditLogs,
+  getSessionAuditLog,
   getAllPatients,
   generateAuditNJEIS,
   generateAuditReportPDF,
+  generateSessionAuditLogPDF,
   generateAuditReportExcel,
   issueInvoiceOverride
 };

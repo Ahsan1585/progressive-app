@@ -14,7 +14,13 @@ const MODULES = [
   { id: 'financial',    title: 'Financial Audit',     desc: 'Revenue & invoice tracking'   },
   { id: 'compliance',   title: 'Compliance Flags',    desc: 'Missing forms & signatures'   },
   { id: 'patients',     title: 'All Patients',        desc: 'Org-wide patient roster'      },
+  { id: 'sessionAudit', title: 'Session Audit Log',   desc: 'Signed session records for audit' },
 ];
+
+const SESSION_AUDIT_GROUP_SIZE_LABELS = {
+  individual:   'Individual',
+  consultation: 'Consultation',
+};
 
 const STATUS_LABELS = {
   pending:      'Pending',
@@ -38,6 +44,7 @@ const MODULE_TITLES = {
   financial:    'Financial Reconciliation Audit',
   compliance:   'Compliance & Exception Monitor',
   patients:     'Organization-Wide Patient Roster',
+  sessionAudit: 'Session Audit Log',
 };
 
 const PATIENT_STATUS_STYLES = {
@@ -76,6 +83,12 @@ export const MasterReports = () => {
   const [logNotes, setLogNotes]                     = useState([]);
   const [isLoadingNotes, setIsLoadingNotes]         = useState(false);
 
+  // Session Audit Log — separate result state (carries signature fields no
+  // other module's rows have) and its own PDF export + signature-enlarge modal.
+  const [auditLogRows, setAuditLogRows]             = useState(null);
+  const [sigModal, setSigModal]                     = useState(null); // { src, label } or null
+  const [isGeneratingSessionPDF, setIsGeneratingSessionPDF] = useState(false);
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   const formatTime = (minutes) => {
@@ -103,6 +116,7 @@ export const MasterReports = () => {
     setIsLoading(true);
     setLogs(null);
     setPatientRows(null);
+    setAuditLogRows(null);
     setNjeisUrl(null);
     setSelectedIds(new Set());
     try {
@@ -114,6 +128,18 @@ export const MasterReports = () => {
 
         const response = await api.get('/api/reports/patients', { params });
         setPatientRows(response.data.patients || []);
+        return;
+      }
+
+      if (activeModule === 'sessionAudit') {
+        const params = {};
+        if (practitionerSearch.trim()) params.practitionerSearch = practitionerSearch.trim();
+        if (patientSearch.trim())       params.patientSearch      = patientSearch.trim();
+        if (dateRange.start)            params.startDate          = dateRange.start;
+        if (dateRange.end)              params.endDate            = dateRange.end;
+
+        const response = await api.get('/api/reports/session-audit-log', { params });
+        setAuditLogRows(response.data.logs || []);
         return;
       }
 
@@ -223,6 +249,33 @@ export const MasterReports = () => {
     }
   };
 
+  const handleGenerateSessionAuditPDF = async () => {
+    if (!auditLogRows || auditLogRows.length === 0) return;
+    setIsGeneratingSessionPDF(true);
+    try {
+      const filters = {
+        practitionerSearch: practitionerSearch || null,
+        patientSearch:      patientSearch || null,
+        startDate:          dateRange.start || null,
+        endDate:            dateRange.end || null,
+      };
+      const response = await api.post('/api/reports/session-audit-log-pdf', { logs: auditLogRows, filters }, { responseType: 'blob' });
+      const url  = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `session-audit-log-${new Date().toISOString().slice(0,10)}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to generate session audit log PDF', error);
+      showAlert('PDF generation failed: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setIsGeneratingSessionPDF(false);
+    }
+  };
+
   const handlePrint = () => window.print();
 
   const handleReset = () => {
@@ -233,6 +286,7 @@ export const MasterReports = () => {
     setPatientStatus('all');
     setLogs(null);
     setPatientRows(null);
+    setAuditLogRows(null);
     setNjeisUrl(null);
     setSelectedIds(new Set());
   };
@@ -241,6 +295,7 @@ export const MasterReports = () => {
     setActiveModule(id);
     setLogs(null);
     setPatientRows(null);
+    setAuditLogRows(null);
     setNjeisUrl(null);
     setBillingStatus(id === 'financial' ? 'invoiced' : 'all');
     setPatientStatus('all');
@@ -335,7 +390,7 @@ export const MasterReports = () => {
       </div>
 
       {/* MODULE TABS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 print:hidden">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:hidden">
         {MODULES.map((mod) => (
           <button
             key={mod.id}
@@ -405,9 +460,10 @@ export const MasterReports = () => {
               </div>
             )}
 
-            {/* Billing Status — every module except Patients (no billing_status) and
-                Compliance (its own auto-filter already ignores this) */}
-            {activeModule !== 'patients' && activeModule !== 'compliance' && (
+            {/* Billing Status — every module except Patients (no billing_status),
+                Compliance (its own auto-filter already ignores this), and
+                Session Audit Log (scoped to audit completeness, not billing state) */}
+            {activeModule !== 'patients' && activeModule !== 'compliance' && activeModule !== 'sessionAudit' && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">Billing Status</Label>
                 <select
@@ -834,6 +890,146 @@ export const MasterReports = () => {
           )}
         </>
       )}
+
+      {/* RESULTS — Session Audit Log (standalone signed-session audit view) */}
+      {auditLogRows !== null && (
+        <div id="session-audit-print-area" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-7 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/30 print:hidden">
+            <div>
+              <h3 className="font-bold text-slate-800">Session Audit Log</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{auditLogRows.length} record{auditLogRows.length !== 1 ? 's' : ''} found</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={handleGenerateSessionAuditPDF}
+                disabled={isGeneratingSessionPDF || auditLogRows.length === 0}
+                className="bg-blue-700 hover:bg-blue-800 text-white cursor-pointer gap-1.5 disabled:opacity-50"
+              >
+                {isGeneratingSessionPDF ? (
+                  <span className="flex items-center gap-1.5">
+                    <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    Exporting…
+                  </span>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Export PDF
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handlePrint}
+                className="text-slate-600 border-slate-200 hover:bg-slate-50 cursor-pointer gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                Print
+              </Button>
+            </div>
+          </div>
+
+          {/* Print-only header */}
+          <div className="hidden print:block px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-bold text-slate-800">Session Audit Log</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              {auditLogRows.length} records
+              {dateRange.start && ` · ${dateRange.start} → ${dateRange.end || 'present'}`}
+              {practitionerSearch && ` · Practitioner: ${practitionerSearch}`}
+              {patientSearch && ` · Patient: ${patientSearch}`}
+            </p>
+          </div>
+
+          {auditLogRows.length === 0 ? (
+            <div className="py-20 text-center text-slate-500">
+              <svg className="w-12 h-12 mx-auto text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-sm font-medium">No session logs found for the selected filters.</p>
+              <p className="text-xs text-slate-400 mt-1">Try adjusting your date range or search terms.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                    <th className="py-3.5 px-4">Patient Name</th>
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Start</th>
+                    <th className="py-3.5 px-4">End</th>
+                    <th className="py-3.5 px-4">Practitioner</th>
+                    <th className="py-3.5 px-4">Service Status</th>
+                    <th className="py-3.5 px-4">Service Type</th>
+                    <th className="py-3.5 px-4">Location</th>
+                    <th className="py-3.5 px-4">Group Size</th>
+                    <th className="py-3.5 px-4 print:hidden">Practitioner Signature</th>
+                    <th className="py-3.5 px-4 print:hidden">Parent Signature</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {auditLogRows.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-slate-800">
+                        {log.patient_first_name} {log.patient_last_name}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 font-mono text-xs">{formatDate(log.service_date)}</td>
+                      <td className="py-3 px-4 text-slate-600 text-xs">{log.start_time ? formatTime12h(log.start_time) : '-'}</td>
+                      <td className="py-3 px-4 text-slate-600 text-xs">{log.end_time ? formatTime12h(log.end_time) : '-'}</td>
+                      <td className="py-3 px-4 text-slate-600">
+                        {log.practitioners?.first_name} {log.practitioners?.last_name}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600">{log.status || '-'}</td>
+                      <td className="py-3 px-4 text-slate-600">{log.type || '-'}</td>
+                      <td className="py-3 px-4 capitalize text-slate-600">{log.location || '-'}</td>
+                      <td className="py-3 px-4 text-slate-600">{SESSION_AUDIT_GROUP_SIZE_LABELS[log.group_size_category] || log.group_size_category || '-'}</td>
+                      <td className="py-3 px-4 print:hidden">
+                        {log.practitioner_signature ? (
+                          <img
+                            src={log.practitioner_signature}
+                            alt="Practitioner signature"
+                            className="h-8 w-16 object-contain border border-slate-200 rounded cursor-pointer hover:ring-2 hover:ring-blue-300 bg-white"
+                            onClick={() => setSigModal({ src: log.practitioner_signature, label: `Practitioner Signature — ${log.patient_first_name} ${log.patient_last_name} · ${formatDate(log.service_date)}` })}
+                          />
+                        ) : <span className="text-slate-300 text-xs">-</span>}
+                      </td>
+                      <td className="py-3 px-4 print:hidden">
+                        {log.parent_signature ? (
+                          <img
+                            src={log.parent_signature}
+                            alt="Parent signature"
+                            className="h-8 w-16 object-contain border border-slate-200 rounded cursor-pointer hover:ring-2 hover:ring-blue-300 bg-white"
+                            onClick={() => setSigModal({ src: log.parent_signature, label: `Parent Signature — ${log.patient_first_name} ${log.patient_last_name} · ${formatDate(log.service_date)}` })}
+                          />
+                        ) : <span className="text-slate-300 text-xs">-</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 bg-slate-50">
+                    <td colSpan={11} className="py-3 px-4 text-xs text-slate-500 font-medium">
+                      {auditLogRows.length} record{auditLogRows.length !== 1 ? 's' : ''}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SIGNATURE ENLARGE MODAL — Session Audit Log thumbnails */}
+      <Dialog open={!!sigModal} onOpenChange={(open) => { if (!open) setSigModal(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{sigModal?.label}</DialogTitle>
+          </DialogHeader>
+          {sigModal && (
+            <img src={sigModal.src} alt="Signature" className="w-full border border-slate-200 rounded bg-slate-50" />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* NOTES HISTORY MODAL — full return/resubmit note back-and-forth for one log */}
       <Dialog open={!!notesModal} onOpenChange={(open) => { if (!open) closeNotesModal(); }}>
