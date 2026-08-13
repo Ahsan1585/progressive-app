@@ -81,6 +81,10 @@ const listDrafts = async (req, res) => {
        ORDER BY sd.updated_at DESC`,
       [practitionerId]
     );
+    // This list changes on nearly every screen (create/update/delete a
+    // draft, submit one, hit the 2-per-child cap) — a conditional-GET 304
+    // risks a client displaying a stale cached copy of it.
+    res.set('Cache-Control', 'no-store');
     res.json({ success: true, drafts: rows });
   } catch (error) {
     console.error('Failed to list session drafts:', error);
@@ -101,6 +105,10 @@ const listDraftsForPatient = async (req, res) => {
       `SELECT id, updated_at FROM session_drafts WHERE practitioner_id = $1 AND patient_id = $2 ORDER BY updated_at DESC`,
       [practitionerId, patientId]
     );
+    // Same reasoning as listDrafts — this is also what the "Log Session"
+    // cap-check gates read fresh, so a stale 304 here could let a 3rd draft
+    // slip through instead of blocking it.
+    res.set('Cache-Control', 'no-store');
     res.json({ success: true, drafts: rows });
   } catch (error) {
     console.error('Failed to list drafts for patient:', error);
@@ -119,6 +127,7 @@ const getDraft = async (req, res) => {
        FROM session_drafts WHERE id = $1 AND practitioner_id = $2`,
       [draftId, practitionerId]
     );
+    res.set('Cache-Control', 'no-store');
     if (!rows[0]) return res.json({ success: true, draft: null });
     res.json({
       success: true,

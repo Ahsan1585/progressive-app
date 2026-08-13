@@ -3,18 +3,21 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { CalendarPlus, ClipboardList, Search, Plus, Users, X } from "lucide-react";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useToast } from "@/components/ui/toast";
+import api from "@/api/axiosInstance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { filterPatients } from "@/utils/roster";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
+import type { SessionDraftListItem } from "@/types";
 
 type StatusFilter = "all" | "active" | "inactive";
 
 export default function Roster() {
-  const { patients, patientsLoading, patientsError, fetchPatients, drafts } = useAppData();
+  const { patients, patientsLoading, patientsError, fetchPatients } = useAppData();
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("active");
+  const [checkingPatientId, setCheckingPatientId] = React.useState<string | null>(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
   const location = useLocation();
@@ -22,14 +25,31 @@ export default function Roster() {
   const logIntent = Boolean(state?.logIntent);
   const scheduleIntent = Boolean(state?.scheduleIntent);
 
-  const goToPatient = (patientId: string) => {
+  const goToPatient = async (patientId: string) => {
     if (logIntent) {
-      const draftCount = drafts.filter((d) => d.patient_id === patientId).length;
-      if (draftCount >= MAX_DRAFTS_PER_PATIENT) {
-        showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
-        return;
+      // The app-wide cached draft list (useAppData's `drafts`) is only as
+      // fresh as the last time Home fetched it — tapping through quickly
+      // enough can beat that fetch, letting a 3rd draft slip past the cap.
+      // This is the one place that actually gates entry, so it checks the
+      // real count fresh, right now, instead of trusting the cache.
+      if (checkingPatientId) return;
+      setCheckingPatientId(patientId);
+      try {
+        const res = await api.get<{ success: boolean; drafts: SessionDraftListItem[] }>(`/api/session-drafts/patient/${patientId}`);
+        const draftCount = res.data.drafts?.length ?? 0;
+        if (draftCount >= MAX_DRAFTS_PER_PATIENT) {
+          showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
+          return;
+        }
+        navigate(`/patients/${patientId}/log`);
+      } catch {
+        // Fails open to PatientDetail (which does its own fresh check before
+        // its own "Log Session" button navigates) rather than silently
+        // blocking a legitimate new log over a network hiccup.
+        navigate(`/patients/${patientId}`);
+      } finally {
+        setCheckingPatientId(null);
       }
-      navigate(`/patients/${patientId}/log`);
     } else if (scheduleIntent) {
       navigate(`/patients/${patientId}`, { state: { scheduleIntent: true } });
     } else {
@@ -162,7 +182,8 @@ export default function Roster() {
                 <button
                   type="button"
                   onClick={() => goToPatient(p.id)}
-                  className="press-scale flex w-full items-center justify-between rounded-card border border-border bg-surface p-3.5 text-left shadow-[var(--elev-rest)]"
+                  disabled={checkingPatientId === p.id}
+                  className="press-scale flex w-full items-center justify-between rounded-card border border-border bg-surface p-3.5 text-left shadow-[var(--elev-rest)] disabled:opacity-60"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-[15px] font-semibold capitalize text-ink">

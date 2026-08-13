@@ -39,6 +39,7 @@ export default function PatientDetail() {
   const [drafts, setDrafts] = React.useState<SessionDraftListItem[]>([]);
   const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
   const [isDiscardingDraft, setIsDiscardingDraft] = React.useState(false);
+  const [checkingNewLog, setCheckingNewLog] = React.useState(false);
 
   const fetchSessions = React.useCallback(async () => {
     if (!id) return;
@@ -80,12 +81,28 @@ export default function PatientDetail() {
     }
   };
 
-  const handleStartNewLog = () => {
-    if (drafts.length >= MAX_DRAFTS_PER_PATIENT) {
-      showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
-      return;
+  // Re-checks fresh rather than trusting `drafts` (set once on mount) — a
+  // tap that lands before that initial fetch resolves would otherwise read
+  // the still-empty initial state and let a 3rd draft slip past the cap.
+  const handleStartNewLog = async () => {
+    if (!id || checkingNewLog) return;
+    setCheckingNewLog(true);
+    try {
+      const res = await api.get<{ success: boolean; drafts: SessionDraftListItem[] }>(`/api/session-drafts/patient/${id}`);
+      const current = res.data.drafts || [];
+      setDrafts(current);
+      if (current.length >= MAX_DRAFTS_PER_PATIENT) {
+        showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
+        return;
+      }
+      navigate(`/patients/${id}/log`);
+    } catch {
+      // Fails open — the backend still enforces the real cap on save, this
+      // preemptive check is purely a UX convenience.
+      navigate(`/patients/${id}/log`);
+    } finally {
+      setCheckingNewLog(false);
     }
-    navigate(`/patients/${id}/log`);
   };
 
   // Arriving here from Home's "Schedule a session" link (via the Patients
@@ -258,7 +275,7 @@ export default function PatientDetail() {
           <Button
             className="w-full"
             size="lg"
-            disabled={patient?.status === "inactive"}
+            disabled={patient?.status === "inactive" || checkingNewLog}
             onClick={handleStartNewLog}
           >
             <Plus className="size-4" aria-hidden="true" />
