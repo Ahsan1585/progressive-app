@@ -530,10 +530,10 @@ export const CompanySettings = ({ onSettingsChange }) => {
                     </td>
                     <td className="px-4 py-2.5 text-slate-600">{row.record_count}</td>
                     <td className="px-4 py-2.5 text-slate-600">
-                      {row.earliest_date && new Date(row.earliest_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {row.earliest_date && new Date(`${row.earliest_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-2.5 text-slate-600">
-                      {row.latest_date && new Date(row.latest_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {row.latest_date && new Date(`${row.latest_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
                   </tr>
                 ))}
