@@ -611,6 +611,57 @@ const getComplianceDocDownloadUrl = async (req, res) => {
   }
 };
 
+// Exports the compliance_state_logs rows for one month bucket from the
+// "Data currently on file" table as an Excel workbook — lets a user pull
+// back out exactly what's currently on file for a given month within the
+// rolling 90-day window, independent of whichever raw upload(s) produced it
+// (a month's data can span more than one upload once older files purge).
+const downloadComplianceMonthData = async (req, res) => {
+  const { month } = req.query; // 'YYYY-MM'
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'A valid month (YYYY-MM) is required' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT child_id, child_name, practitioner_name, service_date, start_time, end_time,
+              service_label, location_label, group_size_label, logged_date, ifsp_event_id
+       FROM compliance_state_logs
+       WHERE to_char(service_date, 'YYYY-MM') = $1
+       ORDER BY service_date ASC, child_name ASC`,
+      [month]
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(month);
+    sheet.columns = [
+      { header: 'Child ID', key: 'child_id', width: 16 },
+      { header: 'Child Name', key: 'child_name', width: 24 },
+      { header: 'Practitioner', key: 'practitioner_name', width: 24 },
+      { header: 'Service Date', key: 'service_date', width: 14 },
+      { header: 'Start Time', key: 'start_time', width: 12 },
+      { header: 'End Time', key: 'end_time', width: 12 },
+      { header: 'Service', key: 'service_label', width: 26 },
+      { header: 'Location', key: 'location_label', width: 22 },
+      { header: 'Group Size', key: 'group_size_label', width: 26 },
+      { header: 'Logged Date', key: 'logged_date', width: 14 },
+      { header: 'IFSP Event ID', key: 'ifsp_event_id', width: 16 },
+    ];
+    sheet.getRow(1).font = { bold: true };
+    for (const row of rows) sheet.addRow(row);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    logAudit({ req, action: 'compliance_month_data_download', resourceType: 'compliance_doc', details: { month, recordCount: rows.length } });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="compliance-data-${month}.xlsx"`);
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('Error generating compliance month data export:', error);
+    res.status(500).json({ error: 'Failed to generate month data export' });
+  }
+};
+
 module.exports = {
   getCompanySettings,
   getCompanyBranding,
@@ -622,4 +673,5 @@ module.exports = {
   removeComplianceDoc,
   refreshComplianceDocAnalysis,
   getComplianceDocDownloadUrl,
+  downloadComplianceMonthData,
 };

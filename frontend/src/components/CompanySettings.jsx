@@ -37,6 +37,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
   const [isUploadingComplianceDoc, setIsUploadingComplianceDoc] = useState(false);
   const [isRemovingComplianceDoc, setIsRemovingComplianceDoc] = useState(false);
   const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
+  const [downloadingMonth, setDownloadingMonth] = useState(null); // 'YYYY-MM' currently downloading, or null
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
 
@@ -292,6 +293,28 @@ export const CompanySettings = ({ onSettingsChange }) => {
     }
   };
 
+  // Downloads what's currently on file for one month bucket (compliance_state_logs),
+  // not the raw uploaded file — a month can span more than one upload once older
+  // files age out of the rolling 90-day window.
+  const handleDownloadMonthData = async (month) => {
+    setDownloadingMonth(month);
+    try {
+      const response = await api.get('/api/company/compliance-doc/month-data', { params: { month }, responseType: 'blob' });
+      const url  = window.URL.createObjectURL(new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `compliance-data-${month}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to download month data.' });
+    } finally {
+      setDownloadingMonth(null);
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (!bytes) return '';
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -520,6 +543,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
                   <th className="px-4 py-2">Records</th>
                   <th className="px-4 py-2">Earliest service date</th>
                   <th className="px-4 py-2">Latest service date</th>
+                  <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -534,6 +558,16 @@ export const CompanySettings = ({ onSettingsChange }) => {
                     </td>
                     <td className="px-4 py-2.5 text-slate-600">
                       {row.latest_date && new Date(`${row.latest_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadMonthData(row.month)}
+                        disabled={downloadingMonth === row.month}
+                        className="text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+                      >
+                        {downloadingMonth === row.month ? 'Downloading…' : 'Download'}
+                      </button>
                     </td>
                   </tr>
                 ))}

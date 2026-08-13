@@ -13,6 +13,7 @@ const {
   removeComplianceDoc,
   refreshComplianceDocAnalysis,
   getComplianceDocDownloadUrl,
+  downloadComplianceMonthData,
 } = require('../controllers/companyController');
 
 // Read: every admin-portal role — the sidebar shows the company logo/name
@@ -37,5 +38,8 @@ router.delete('/compliance-doc', ...complianceDocGuard, removeComplianceDoc);
 // Read-guarded (not write) — Billing needs to download/view the reference
 // document from the Compliance Analysis preview, not just Admin.
 router.get('/compliance-doc/download', ...readGuard, getComplianceDocDownloadUrl);
+// Per-month export of what's currently on file (compliance_state_logs), not
+// the raw uploaded file — same read-level access as the raw-file download above.
+router.get('/compliance-doc/month-data', ...readGuard, downloadComplianceMonthData);
 
 module.exports = router;
