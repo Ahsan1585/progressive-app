@@ -17,6 +17,7 @@ const MIGRATIONS = [
   'drop_group_size_category_check.sql',
   'add_session_drafts.sql',
   'add_compliance_doc_analysis.sql',
+  'allow_two_session_drafts.sql',
 ];
 
 module.exports = { MIGRATIONS };

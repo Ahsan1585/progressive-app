@@ -9,23 +9,9 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import api from "@/api/axiosInstance";
-import { formatTime12h } from "@/utils/time";
+import { formatTime12h, timeAgo } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { ScheduledSession } from "@/types";
-
-// Coarse relative-time label for a draft's last-saved timestamp (e.g. "2
-// hours ago", "3 days ago") — good enough for "how stale is this draft",
-// no need for a precise duration.
-function timeAgo(isoString: string): string {
-  const diffMs = Date.now() - new Date(isoString).getTime();
-  const diffMinutes = Math.round(diffMs / 60000);
-  if (diffMinutes < 1) return "just now";
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-  const diffDays = Math.round(diffHours / 24);
-  return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-}
 
 // Buckets upcoming sessions into calendar-relative groups (Today / Tomorrow /
 // weekday name within the next week / "Mon D" beyond that). Sessions arrive
@@ -67,14 +53,14 @@ export default function Home() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [refreshing, setRefreshing] = React.useState(false);
-  const [discardTarget, setDiscardTarget] = React.useState<{ patient_id: string; name: string } | null>(null);
+  const [discardTarget, setDiscardTarget] = React.useState<{ id: string; name: string } | null>(null);
   const [isDiscarding, setIsDiscarding] = React.useState(false);
 
   const handleDiscardDraft = async () => {
     if (!discardTarget) return;
     setIsDiscarding(true);
     try {
-      await api.delete(`/api/session-drafts/${discardTarget.patient_id}`);
+      await api.delete(`/api/session-drafts/${discardTarget.id}`);
       showToast("Draft discarded.");
       setDiscardTarget(null);
       fetchDrafts({ silent: true });
@@ -203,12 +189,12 @@ export default function Home() {
           <ul role="list" className="space-y-2">
             {drafts.map((d) => (
               <li
-                key={d.patient_id}
+                key={d.id}
                 className="flex items-center gap-1 rounded-card border border-border bg-surface pr-1 shadow-[var(--elev-rest)]"
               >
                 <button
                   type="button"
-                  onClick={() => navigate(`/patients/${d.patient_id}/log`)}
+                  onClick={() => navigate(`/patients/${d.patient_id}/log?draftId=${d.id}`)}
                   className="press-scale flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
                 >
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
@@ -226,7 +212,7 @@ export default function Home() {
                   type="button"
                   aria-label="Discard draft"
                   onClick={() =>
-                    setDiscardTarget({ patient_id: d.patient_id, name: `${d.patient_first_name} ${d.patient_last_name}`.trim() })
+                    setDiscardTarget({ id: d.id, name: `${d.patient_first_name} ${d.patient_last_name}`.trim() })
                   }
                   className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
                 >

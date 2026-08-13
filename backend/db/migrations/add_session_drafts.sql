@@ -6,8 +6,10 @@
 -- draft is structurally incapable of ever showing up in billing, Compliance
 -- Analysis, or Master Reports, all of which only ever query assessments.
 --
--- One draft per (practitioner, child): saving a new draft for a child that
--- already has one overwrites it (see sessionDraftsController.js's upsert).
+-- Originally one draft per (practitioner, child), enforced by the unique
+-- constraint below — raised to 2 per child by
+-- allow_two_session_drafts.sql, which drops it. See
+-- sessionDraftsController.js for the current cap logic.
 --
 -- Apply with: psql "<connection string>" -f backend/db/migrations/add_session_drafts.sql
 

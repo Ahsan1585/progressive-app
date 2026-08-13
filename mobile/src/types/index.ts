@@ -156,11 +156,21 @@ export interface RejectedLog {
 }
 
 // Summary shape for the Home screen's draft list — matches
-// sessionDraftsController.js's listDrafts response.
+// sessionDraftsController.js's listDrafts response. A child can have up to
+// 2 drafts (see MAX_DRAFTS_PER_PATIENT), so patient_id is NOT unique here —
+// `id` is the actual draft identity.
 export interface SessionDraftSummary {
+  id: string;
   patient_id: string;
   patient_first_name: string;
   patient_last_name: string;
+  updated_at: string;
+}
+
+// Lightweight shape for one child's own draft list (PatientDetail's "Resume
+// draft" section) — matches listDraftsForPatient's response.
+export interface SessionDraftListItem {
+  id: string;
   updated_at: string;
 }
 

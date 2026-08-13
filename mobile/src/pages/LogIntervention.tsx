@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,12 @@ const SECTIONS = [
 
 export default function LogIntervention() {
   const { id: patientId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  // Only set when resuming a specific saved draft (from the Home or Patient
+  // Detail draft lists) — tapping "Log Session" directly always starts
+  // blank, since a child can now have up to 2 concurrent drafts and there's
+  // no longer a single "the" draft to auto-resume.
+  const draftId = searchParams.get("draftId");
   const navigate = useNavigate();
   const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories } = useAppData();
   const { practitioner } = useAuth();
@@ -86,15 +92,16 @@ export default function LogIntervention() {
 
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Landing on this screen always reflects whatever was last saved for this
-  // child — a draft if one exists, otherwise a blank form. Runs once per
-  // patientId; a fetch failure fails silently to a blank form rather than
-  // blocking logging a fresh session over a draft-loading problem.
+  // Only pre-fills when navigated here with a specific draftId (resuming a
+  // saved draft from a list) — otherwise the form starts blank, even if this
+  // child already has drafts saved. A fetch failure fails silently to a
+  // blank form rather than blocking logging a fresh session over a
+  // draft-loading problem.
   React.useEffect(() => {
-    if (!patientId) return;
+    if (!draftId) return;
     (async () => {
       try {
-        const res = await api.get<{ success: boolean; draft: SessionDraft | null }>(`/api/session-drafts/${patientId}`);
+        const res = await api.get<{ success: boolean; draft: SessionDraft | null }>(`/api/session-drafts/${draftId}`);
         const draft = res.data.draft;
         if (!draft) return;
         const saved = draft.formData as Partial<FormState> & { zeroTime?: boolean };
@@ -116,7 +123,7 @@ export default function LogIntervention() {
         // Fails silently — screen just shows a blank form, same as if no draft existed.
       }
     })();
-  }, [patientId]);
+  }, [draftId]);
 
   const totalMinutes = calculateTotalMinutes(form.startTime, form.endTime);
 
@@ -220,6 +227,17 @@ export default function LogIntervention() {
         note: form.note,
       });
 
+      // The encounter is fully saved now — if this session was resumed from
+      // a draft, that draft would otherwise linger as a stale, already-
+      // submitted row silently eating one of the child's 2 draft slots.
+      if (draftId) {
+        try {
+          await api.delete(`/api/session-drafts/${draftId}`);
+        } catch {
+          // Non-critical — the encounter itself is already saved successfully.
+        }
+      }
+
       showToast("Encounter saved.");
       navigate(`/patients/${patientId}`, { replace: true });
     } catch (err) {
@@ -232,13 +250,17 @@ export default function LogIntervention() {
 
   // Unlike Submit, this never validates — a draft can be as incomplete as
   // just a patient selected with nothing else filled in yet. Always
-  // available regardless of how complete the form already is.
+  // available regardless of how complete the form already is. Passing
+  // draftId (when resuming an existing draft) updates it in place instead of
+  // creating a second one; omitting it creates a new draft, subject to the
+  // per-child cap enforced server-side.
   const handleSaveDraft = async () => {
     setServerError(null);
     setSavingDraft(true);
     try {
       await api.post("/api/session-drafts", {
         patientId: patient?.id,
+        draftId: draftId || undefined,
         formData: { ...form, zeroTime },
         parentSignatureBase64: parentSig,
         practitionerSignatureBase64: practitionerSig,

@@ -12,8 +12,9 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
-import { formatSafeDate, formatTime12h } from "@/utils/time";
-import type { Assessment, ScheduledSession, SessionDraft } from "@/types";
+import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
+import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
+import type { Assessment, ScheduledSession, SessionDraftListItem } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -35,8 +36,8 @@ export default function PatientDetail() {
   const [deleteTarget, setDeleteTarget] = React.useState<Assessment | null>(null);
   const [isDeletingLog, setIsDeletingLog] = React.useState(false);
 
-  const [draft, setDraft] = React.useState<SessionDraft | null>(null);
-  const [confirmDiscardDraft, setConfirmDiscardDraft] = React.useState(false);
+  const [drafts, setDrafts] = React.useState<SessionDraftListItem[]>([]);
+  const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
   const [isDiscardingDraft, setIsDiscardingDraft] = React.useState(false);
 
   const fetchSessions = React.useCallback(async () => {
@@ -49,11 +50,11 @@ export default function PatientDetail() {
     }
   }, [id]);
 
-  const fetchDraft = React.useCallback(async () => {
+  const fetchDrafts = React.useCallback(async () => {
     if (!id) return;
     try {
-      const res = await api.get<{ success: boolean; draft: SessionDraft | null }>(`/api/session-drafts/${id}`);
-      setDraft(res.data.draft);
+      const res = await api.get<{ success: boolean; drafts: SessionDraftListItem[] }>(`/api/session-drafts/patient/${id}`);
+      setDrafts(res.data.drafts || []);
     } catch {
       // Non-critical — the resume-draft banner just stays hidden.
     }
@@ -61,22 +62,30 @@ export default function PatientDetail() {
 
   React.useEffect(() => {
     fetchSessions();
-    fetchDraft();
-  }, [fetchSessions, fetchDraft]);
+    fetchDrafts();
+  }, [fetchSessions, fetchDrafts]);
 
   const handleDiscardDraft = async () => {
-    if (!id) return;
+    if (!discardDraftTarget) return;
     setIsDiscardingDraft(true);
     try {
-      await api.delete(`/api/session-drafts/${id}`);
-      setDraft(null);
+      await api.delete(`/api/session-drafts/${discardDraftTarget}`);
+      setDrafts((prev) => prev.filter((d) => d.id !== discardDraftTarget));
       showToast("Draft discarded.");
-      setConfirmDiscardDraft(false);
+      setDiscardDraftTarget(null);
     } catch {
       showToast("Couldn't discard draft. Try again.");
     } finally {
       setIsDiscardingDraft(false);
     }
+  };
+
+  const handleStartNewLog = () => {
+    if (drafts.length >= MAX_DRAFTS_PER_PATIENT) {
+      showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
+      return;
+    }
+    navigate(`/patients/${id}/log`);
   };
 
   // Arriving here from Home's "Schedule a session" link (via the Patients
@@ -213,30 +222,34 @@ export default function PatientDetail() {
           </div>
         )}
 
-        {draft && (
-          <div className="mb-4 flex items-center gap-1 rounded-card border border-border bg-surface pr-1 shadow-[var(--elev-rest)]">
-            <button
-              type="button"
-              onClick={() => navigate(`/patients/${id}/log`)}
-              className="press-scale flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
-            >
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
-                <PencilLine className="size-5" aria-hidden="true" />
+        {drafts.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {drafts.map((d) => (
+              <div key={d.id} className="flex items-center gap-1 rounded-card border border-border bg-surface pr-1 shadow-[var(--elev-rest)]">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/patients/${id}/log?draftId=${d.id}`)}
+                  className="press-scale flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
+                >
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
+                    <PencilLine className="size-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-ink">Resume draft</p>
+                    <p className="text-xs text-ink-muted">Saved {timeAgo(d.updated_at)}</p>
+                  </div>
+                  <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Discard draft"
+                  onClick={() => setDiscardDraftTarget(d.id)}
+                  className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
+                >
+                  <Trash2 className="size-4" aria-hidden="true" />
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-ink">Resume draft</p>
-                <p className="text-xs text-ink-muted">You have an unfinished session log for this child.</p>
-              </div>
-              <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              aria-label="Discard draft"
-              onClick={() => setConfirmDiscardDraft(true)}
-              className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </button>
+            ))}
           </div>
         )}
 
@@ -246,7 +259,7 @@ export default function PatientDetail() {
             className="w-full"
             size="lg"
             disabled={patient?.status === "inactive"}
-            onClick={() => navigate(`/patients/${id}/log`)}
+            onClick={handleStartNewLog}
           >
             <Plus className="size-4" aria-hidden="true" />
             Log Session
@@ -403,10 +416,10 @@ export default function PatientDetail() {
       />
 
       <ConfirmDialog
-        open={confirmDiscardDraft}
-        onOpenChange={setConfirmDiscardDraft}
+        open={!!discardDraftTarget}
+        onOpenChange={(open) => { if (!open) setDiscardDraftTarget(null); }}
         title="Discard this draft?"
-        description="This will permanently delete the saved draft for this child. This cannot be undone."
+        description="This will permanently delete this saved draft. This cannot be undone."
         confirmLabel="Discard"
         destructive
         loading={isDiscardingDraft}

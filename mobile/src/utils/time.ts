@@ -42,3 +42,18 @@ export const localTodayIso = (): string => {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 };
+
+// Coarse relative-time label (e.g. "2 hours ago", "3 days ago") — good
+// enough for "how stale is this draft", no need for a precise duration.
+// Shared by Home's draft list and PatientDetail's "Resume draft" list, since
+// a child can now have up to 2 concurrent drafts that need to be told apart.
+export const timeAgo = (isoString: string): string => {
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+};

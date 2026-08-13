@@ -2,27 +2,39 @@ import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CalendarPlus, ClipboardList, Search, Plus, Users, X } from "lucide-react";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { filterPatients } from "@/utils/roster";
+import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
 
 type StatusFilter = "all" | "active" | "inactive";
 
 export default function Roster() {
-  const { patients, patientsLoading, patientsError, fetchPatients } = useAppData();
+  const { patients, patientsLoading, patientsError, fetchPatients, drafts } = useAppData();
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("active");
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const location = useLocation();
   const state = location.state as { logIntent?: boolean; scheduleIntent?: boolean } | null;
   const logIntent = Boolean(state?.logIntent);
   const scheduleIntent = Boolean(state?.scheduleIntent);
 
   const goToPatient = (patientId: string) => {
-    if (logIntent) navigate(`/patients/${patientId}/log`);
-    else if (scheduleIntent) navigate(`/patients/${patientId}`, { state: { scheduleIntent: true } });
-    else navigate(`/patients/${patientId}`);
+    if (logIntent) {
+      const draftCount = drafts.filter((d) => d.patient_id === patientId).length;
+      if (draftCount >= MAX_DRAFTS_PER_PATIENT) {
+        showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
+        return;
+      }
+      navigate(`/patients/${patientId}/log`);
+    } else if (scheduleIntent) {
+      navigate(`/patients/${patientId}`, { state: { scheduleIntent: true } });
+    } else {
+      navigate(`/patients/${patientId}`);
+    }
   };
 
   const byStatus = statusFilter === "all" ? patients : patients.filter((p) => (p.status || "active") === statusFilter);
