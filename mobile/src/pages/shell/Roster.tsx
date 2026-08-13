@@ -2,7 +2,7 @@ import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CalendarPlus, ClipboardList, Search, Plus, Users, X } from "lucide-react";
 import { useAppData } from "@/contexts/AppDataContext";
-import { useToast } from "@/components/ui/toast";
+import { DraftCapDialog } from "@/components/DraftCapDialog";
 import api from "@/api/axiosInstance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
@@ -18,8 +18,8 @@ export default function Roster() {
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("active");
   const [checkingPatientId, setCheckingPatientId] = React.useState<string | null>(null);
+  const [draftCapPatientName, setDraftCapPatientName] = React.useState<string | null>(null);
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const location = useLocation();
   const state = location.state as { logIntent?: boolean; scheduleIntent?: boolean } | null;
   const logIntent = Boolean(state?.logIntent);
@@ -38,7 +38,8 @@ export default function Roster() {
         const res = await api.get<{ success: boolean; drafts: SessionDraftListItem[] }>(`/api/session-drafts/patient/${patientId}`);
         const draftCount = res.data.drafts?.length ?? 0;
         if (draftCount >= MAX_DRAFTS_PER_PATIENT) {
-          showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
+          const p = patients.find((pt) => pt.id === patientId);
+          setDraftCapPatientName(p ? `${p.first_name} ${p.last_name}`.trim() : null);
           return;
         }
         navigate(`/patients/${patientId}/log`);
@@ -205,6 +206,12 @@ export default function Roster() {
           </ul>
         )}
       </div>
+
+      <DraftCapDialog
+        open={!!draftCapPatientName}
+        onOpenChange={(open) => { if (!open) setDraftCapPatientName(null); }}
+        patientName={draftCapPatientName ?? undefined}
+      />
     </div>
   );
 }

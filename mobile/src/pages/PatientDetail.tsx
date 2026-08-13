@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DraftCapDialog } from "@/components/DraftCapDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
@@ -40,6 +41,7 @@ export default function PatientDetail() {
   const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
   const [isDiscardingDraft, setIsDiscardingDraft] = React.useState(false);
   const [checkingNewLog, setCheckingNewLog] = React.useState(false);
+  const [draftCapDialogOpen, setDraftCapDialogOpen] = React.useState(false);
 
   const fetchSessions = React.useCallback(async () => {
     if (!id) return;
@@ -92,7 +94,7 @@ export default function PatientDetail() {
       const current = res.data.drafts || [];
       setDrafts(current);
       if (current.length >= MAX_DRAFTS_PER_PATIENT) {
-        showToast(`This child already has ${MAX_DRAFTS_PER_PATIENT} saved drafts. Finish or discard one before starting another.`);
+        setDraftCapDialogOpen(true);
         return;
       }
       navigate(`/patients/${id}/log`);
@@ -441,6 +443,12 @@ export default function PatientDetail() {
         destructive
         loading={isDiscardingDraft}
         onConfirm={handleDiscardDraft}
+      />
+
+      <DraftCapDialog
+        open={draftCapDialogOpen}
+        onOpenChange={setDraftCapDialogOpen}
+        patientName={patient ? `${patient.first_name} ${patient.last_name}`.trim() : undefined}
       />
     </PushScreen>
   );
