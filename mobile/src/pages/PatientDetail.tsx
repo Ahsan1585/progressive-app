@@ -36,6 +36,8 @@ export default function PatientDetail() {
   const [isDeletingLog, setIsDeletingLog] = React.useState(false);
 
   const [draft, setDraft] = React.useState<SessionDraft | null>(null);
+  const [confirmDiscardDraft, setConfirmDiscardDraft] = React.useState(false);
+  const [isDiscardingDraft, setIsDiscardingDraft] = React.useState(false);
 
   const fetchSessions = React.useCallback(async () => {
     if (!id) return;
@@ -61,6 +63,21 @@ export default function PatientDetail() {
     fetchSessions();
     fetchDraft();
   }, [fetchSessions, fetchDraft]);
+
+  const handleDiscardDraft = async () => {
+    if (!id) return;
+    setIsDiscardingDraft(true);
+    try {
+      await api.delete(`/api/session-drafts/${id}`);
+      setDraft(null);
+      showToast("Draft discarded.");
+      setConfirmDiscardDraft(false);
+    } catch {
+      showToast("Couldn't discard draft. Try again.");
+    } finally {
+      setIsDiscardingDraft(false);
+    }
+  };
 
   // Arriving here from Home's "Schedule a session" link (via the Patients
   // tab's scheduleIntent hand-off) opens the sheet immediately instead of
@@ -197,20 +214,30 @@ export default function PatientDetail() {
         )}
 
         {draft && (
-          <button
-            type="button"
-            onClick={() => navigate(`/patients/${id}/log`)}
-            className="press-scale mb-4 flex w-full items-center gap-3 rounded-card border border-border bg-surface p-3 text-left shadow-[var(--elev-rest)]"
-          >
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
-              <PencilLine className="size-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-ink">Resume draft</p>
-              <p className="text-xs text-ink-muted">You have an unfinished session log for this child.</p>
-            </div>
-            <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
-          </button>
+          <div className="mb-4 flex items-center gap-1 rounded-card border border-border bg-surface pr-1 shadow-[var(--elev-rest)]">
+            <button
+              type="button"
+              onClick={() => navigate(`/patients/${id}/log`)}
+              className="press-scale flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
+            >
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
+                <PencilLine className="size-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ink">Resume draft</p>
+                <p className="text-xs text-ink-muted">You have an unfinished session log for this child.</p>
+              </div>
+              <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Discard draft"
+              onClick={() => setConfirmDiscardDraft(true)}
+              className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </button>
+          </div>
         )}
 
         {/* Sticky "Log Session" primary action — always reachable without scrolling. */}
@@ -373,6 +400,17 @@ export default function PatientDetail() {
         destructive
         loading={isDeletingLog}
         onConfirm={handleDeleteLog}
+      />
+
+      <ConfirmDialog
+        open={confirmDiscardDraft}
+        onOpenChange={setConfirmDiscardDraft}
+        title="Discard this draft?"
+        description="This will permanently delete the saved draft for this child. This cannot be undone."
+        confirmLabel="Discard"
+        destructive
+        loading={isDiscardingDraft}
+        onConfirm={handleDiscardDraft}
       />
     </PushScreen>
   );

@@ -1,11 +1,14 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, MapPin, PencilLine, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, MapPin, PencilLine, RefreshCw, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
 import { StatTile } from "@/components/StatTile";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/ui/toast";
+import api from "@/api/axiosInstance";
 import { formatTime12h } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { ScheduledSession } from "@/types";
@@ -62,7 +65,25 @@ export default function Home() {
     companyName,
   } = useAppData();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [discardTarget, setDiscardTarget] = React.useState<{ patient_id: string; name: string } | null>(null);
+  const [isDiscarding, setIsDiscarding] = React.useState(false);
+
+  const handleDiscardDraft = async () => {
+    if (!discardTarget) return;
+    setIsDiscarding(true);
+    try {
+      await api.delete(`/api/session-drafts/${discardTarget.patient_id}`);
+      showToast("Draft discarded.");
+      setDiscardTarget(null);
+      fetchDrafts({ silent: true });
+    } catch {
+      showToast("Couldn't discard draft. Try again.");
+    } finally {
+      setIsDiscarding(false);
+    }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -181,11 +202,14 @@ export default function Home() {
           <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">Continue where you left off</p>
           <ul role="list" className="space-y-2">
             {drafts.map((d) => (
-              <li key={d.patient_id}>
+              <li
+                key={d.patient_id}
+                className="flex items-center gap-1 rounded-card border border-border bg-surface pr-1 shadow-[var(--elev-rest)]"
+              >
                 <button
                   type="button"
                   onClick={() => navigate(`/patients/${d.patient_id}/log`)}
-                  className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-3 text-left shadow-[var(--elev-rest)]"
+                  className="press-scale flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
                 >
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
                     <PencilLine className="size-5" aria-hidden="true" />
@@ -197,6 +221,16 @@ export default function Home() {
                     <p className="text-xs text-ink-muted">Draft saved {timeAgo(d.updated_at)}</p>
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Discard draft"
+                  onClick={() =>
+                    setDiscardTarget({ patient_id: d.patient_id, name: `${d.patient_first_name} ${d.patient_last_name}`.trim() })
+                  }
+                  className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
+                >
+                  <Trash2 className="size-4" aria-hidden="true" />
                 </button>
               </li>
             ))}
@@ -326,6 +360,17 @@ export default function Home() {
           Log a Session
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={!!discardTarget}
+        onOpenChange={(open) => { if (!open) setDiscardTarget(null); }}
+        title="Discard this draft?"
+        description={`This will permanently delete the saved draft for ${discardTarget?.name ?? "this child"}. This cannot be undone.`}
+        confirmLabel="Discard"
+        destructive
+        loading={isDiscarding}
+        onConfirm={handleDiscardDraft}
+      />
     </div>
   );
 }
