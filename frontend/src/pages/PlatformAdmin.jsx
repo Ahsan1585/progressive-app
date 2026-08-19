@@ -4,6 +4,27 @@ import { Loader2, Plus, Ban, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { IzayaWordmark } from '@/components/marketing/IzayaMark';
+
+// Same lockup as the marketing site's nav (IzayaMark.jsx), but styled
+// inline here rather than via marketing.css's `.mk-page` scoped selectors —
+// this page is a standalone Tailwind-only utility, not part of that page
+// tree, so it can't rely on that stylesheet being loaded.
+function BrandHeader() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
+      <IzayaWordmark className="platform-admin-wordmark w-8 h-8" />
+      <style>{`
+        .platform-admin-wordmark .ilg-n { stroke: #132A3E; fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
+        .platform-admin-wordmark .ilg-m { stroke: #2FBF9F; fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
+        .platform-admin-wordmark .ilg-node { fill: #2FBF9F; }
+      `}</style>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: '#5C6B73', paddingLeft: 14, borderLeft: '1px solid #E2EAE8' }}>
+        Early Intervention Simplified
+      </span>
+    </div>
+  );
+}
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -43,7 +64,9 @@ function KeyPrompt({ onUnlocked }) {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-slate-50 p-4">
+    <div className="flex h-screen flex-col bg-slate-50">
+      <BrandHeader />
+      <div className="flex flex-1 items-center justify-center p-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-lg p-8">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
@@ -61,6 +84,7 @@ function KeyPrompt({ onUnlocked }) {
           Unlock
         </Button>
       </form>
+      </div>
     </div>
   );
 }
@@ -72,17 +96,59 @@ const STATUS_STYLES = {
   cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
 };
 
+// Local YYYY-MM-DD for an <input type="date">, defaulting to the company's
+// current trial_ends_at (so opening the editor shows what's already set,
+// not today) or otherwise today.
+function toDateInputValue(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+function TrialEndEditor({ company, client, onSaved }) {
+  const [date, setDate] = useState(() => toDateInputValue(company.trial_ends_at));
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    if (!date) return;
+    setIsSaving(true);
+    setError('');
+    try {
+      // End of that day, not midnight UTC — a date picked as "today" should
+      // still count as not-yet-expired for the rest of that day.
+      const trialEndsAt = new Date(`${date}T23:59:59`).toISOString();
+      await client.post(`/api/platform/companies/${company.slug}/trial-end`, { trialEndsAt });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8 w-[150px] text-xs" />
+      <Button type="button" size="sm" variant="outline" disabled={isSaving || !date} onClick={handleSave} className="h-8">
+        {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Set'}
+      </Button>
+      {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+    </div>
+  );
+}
+
 function CompaniesTable({ apiKey }) {
   const client = platformApi(apiKey);
   const [companies, setCompanies] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const fetchCompanies = () => {
     client.get('/api/platform/companies')
       .then(({ data }) => setCompanies(data.companies))
       .catch(() => setError('Failed to load companies.'));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
+
+  useEffect(() => { fetchCompanies(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const daysLeft = (trialEndsAt) => {
     if (!trialEndsAt) return null;
@@ -107,6 +173,7 @@ function CompaniesTable({ apiKey }) {
               <th className="text-left px-4 py-3">Status</th>
               <th className="text-left px-4 py-3">Trial ends</th>
               <th className="text-left px-4 py-3">Created</th>
+              <th className="text-left px-4 py-3">Set trial end date</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -127,6 +194,9 @@ function CompaniesTable({ apiKey }) {
                       : '—'}
                   </td>
                   <td className="px-4 py-3 text-slate-500">{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3">
+                    <TrialEndEditor company={c} client={client} onSaved={fetchCompanies} />
+                  </td>
                 </tr>
               );
             })}
@@ -274,7 +344,9 @@ export default function PlatformAdmin() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-10">
+    <div className="min-h-screen bg-slate-50">
+      <BrandHeader />
+      <div className="p-6 md:p-10">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-slate-900">Platform Admin</h1>
@@ -293,6 +365,7 @@ export default function PlatformAdmin() {
         </div>
 
         {tab === 'companies' ? <CompaniesTable apiKey={apiKey} /> : <PromoCodeManager apiKey={apiKey} />}
+      </div>
       </div>
     </div>
   );

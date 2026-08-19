@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode } = require('../controllers/platformAdminController');
+const { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate } = require('../controllers/platformAdminController');
 
 // Not a real admin auth system for this phase — a bare shared-secret
 // header, intentionally unpolished (superseded by Phase 3's setup
@@ -14,6 +14,7 @@ function requirePlatformAdminKey(req, res, next) {
 }
 
 router.get('/companies', requirePlatformAdminKey, listCompanies);
+router.post('/companies/:slug/trial-end', requirePlatformAdminKey, setTrialEndDate);
 router.get('/promo-codes', requirePlatformAdminKey, listPromoCodes);
 router.post('/promo-codes', requirePlatformAdminKey, createPromoCode);
 router.post('/promo-codes/:id/deactivate', requirePlatformAdminKey, deactivatePromoCode);

@@ -69,4 +69,30 @@ const deactivatePromoCode = async (req, res) => {
   }
 };
 
-module.exports = { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode };
+// Manual override for a specific tenant's trial_ends_at — the same lever a
+// promo code redemption pulls, just picked directly rather than via a code.
+// Also flips status back to 'trial' so a suspended/cancelled company (or one
+// that's simply not on a trial at all) actually re-enters the trial gate
+// with the new date, rather than the date being written but having no
+// effect (see authMiddleware.js — the gate only reads trial_ends_at when
+// status = 'trial').
+const setTrialEndDate = async (req, res) => {
+  const { trialEndsAt } = req.body;
+  if (!trialEndsAt || Number.isNaN(new Date(trialEndsAt).getTime())) {
+    return res.status(400).json({ error: 'A valid trialEndsAt date is required.' });
+  }
+  try {
+    const { rows } = await platformPool.query(
+      `UPDATE companies SET trial_ends_at = $1, status = 'trial', updated_at = now()
+       WHERE slug = $2 RETURNING slug, status, trial_ends_at`,
+      [trialEndsAt, req.params.slug]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Company not found' });
+    res.json({ success: true, company: rows[0] });
+  } catch (error) {
+    console.error('Error setting trial end date:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate };
