@@ -17,11 +17,20 @@ const MAX_COMPLIANCE_DOC_BASE64_LENGTH = 14_500_000; // ~10.5MB decoded
 const COMPLIANCE_DOC_PREFIX = 'company/compliance-reference/';
 const COMPLIANCE_DOC_EXTENSIONS = ['.xlsx', '.xls'];
 
-// Month-by-month snapshot of what's currently in compliance_state_logs.
+// Month-by-month snapshot of what's currently in compliance_state_logs,
+// scoped live to the rolling 90-day window. The physical DELETE that
+// enforces retention only runs when a new file is applied
+// (applyComplianceDocMapping), not continuously — so between uploads, rows
+// older than 90 days can still be sitting in the table. Filtering by
+// service_date here (rather than counting every row physically present)
+// means the count is always what's actually "in scope" right now, and
+// naturally shrinks day by day as the window rolls forward, independent of
+// whenever the last physical purge happened to run. downloadComplianceMonthData
+// applies the identical filter so the two always agree.
 // Shared by applyComplianceDocMapping (runs inside its transaction, so takes
 // a client) and refreshComplianceDocAnalysis (runs standalone against pool,
 // for a doc that was applied before this snapshot existed, or to manually
-// re-sync the frozen table against the background 90-day purge on demand).
+// re-sync the frozen table against the current 90-day window on demand).
 async function computeComplianceDocAnalysis(queryable) {
   const { rows: months } = await queryable.query(
     `SELECT to_char(date_trunc('month', service_date), 'YYYY-MM') AS month,
@@ -29,6 +38,7 @@ async function computeComplianceDocAnalysis(queryable) {
             MIN(service_date) AS earliest_date,
             MAX(service_date) AS latest_date
      FROM compliance_state_logs
+     WHERE service_date >= CURRENT_DATE - INTERVAL '90 days'
      GROUP BY date_trunc('month', service_date)
      ORDER BY date_trunc('month', service_date)`
   );
@@ -648,6 +658,10 @@ const deleteComplianceMonthData = async (req, res) => {
 // back out exactly what's currently on file for a given month within the
 // rolling 90-day window, independent of whichever raw upload(s) produced it
 // (a month's data can span more than one upload once older files purge).
+// Same live 90-day filter as computeComplianceDocAnalysis above, so this
+// always exports exactly what the displayed record_count says it will —
+// see that function's comment for why a live filter (not just "whatever's
+// physically in the table") is needed here.
 const downloadComplianceMonthData = async (req, res) => {
   const { month } = req.query; // 'YYYY-MM'
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
@@ -660,6 +674,7 @@ const downloadComplianceMonthData = async (req, res) => {
               service_label, location_label, group_size_label, logged_date, ifsp_event_id
        FROM compliance_state_logs
        WHERE to_char(service_date, 'YYYY-MM') = $1
+         AND service_date >= CURRENT_DATE - INTERVAL '90 days'
        ORDER BY service_date ASC, child_name ASC`,
       [month]
     );
