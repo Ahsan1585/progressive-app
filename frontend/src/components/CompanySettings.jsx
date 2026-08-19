@@ -38,6 +38,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
   const [isRemovingComplianceDoc, setIsRemovingComplianceDoc] = useState(false);
   const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
   const [downloadingMonth, setDownloadingMonth] = useState(null); // 'YYYY-MM' currently downloading, or null
+  const [deletingMonth, setDeletingMonth] = useState(null); // 'YYYY-MM' currently deleting, or null
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
 
@@ -315,6 +316,27 @@ export const CompanySettings = ({ onSettingsChange }) => {
     }
   };
 
+  // Deletes just one month's rows out of compliance_state_logs — narrower
+  // than the "Remove" button above, which wipes the whole compliance doc
+  // and every month with it. Useful for discarding one bad/stale month
+  // without starting over completely.
+  const handleDeleteMonthData = async (row) => {
+    const label = new Date(`${row.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    if (!(await showConfirm(`Delete all ${row.record_count} record${row.record_count === 1 ? '' : 's'} on file for ${label}? This can't be undone — you'd need to re-upload a file covering that month to get it back.`))) {
+      return;
+    }
+    setDeletingMonth(row.month);
+    try {
+      const response = await api.delete(`/api/company/compliance-doc/month-data/${row.month}`);
+      applySettings(response.data.settings);
+      setToast({ type: 'success', message: `${label} deleted.` });
+    } catch (error) {
+      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to delete month data.' });
+    } finally {
+      setDeletingMonth(null);
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (!bytes) return '';
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -559,7 +581,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
                     <td className="px-4 py-2.5 text-slate-600">
                       {row.latest_date && new Date(`${row.latest_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-4 py-2.5 text-right whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => handleDownloadMonthData(row.month)}
@@ -567,6 +589,14 @@ export const CompanySettings = ({ onSettingsChange }) => {
                         className="text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
                       >
                         {downloadingMonth === row.month ? 'Downloading…' : 'Download'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMonthData(row)}
+                        disabled={deletingMonth === row.month}
+                        className="ml-3 text-xs font-semibold text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+                      >
+                        {deletingMonth === row.month ? 'Deleting…' : 'Delete'}
                       </button>
                     </td>
                   </tr>

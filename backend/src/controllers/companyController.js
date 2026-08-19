@@ -611,6 +611,38 @@ const getComplianceDocDownloadUrl = async (req, res) => {
   }
 };
 
+// Deletes only one month's rows out of compliance_state_logs — a narrower
+// version of removeComplianceDoc's full wipe, for a user who wants to
+// discard just one bad/stale month rather than starting over completely.
+// Recomputes and re-stores compliance_doc_analysis in the same request so
+// the "Data currently on file" table reflects the deletion immediately,
+// same as refreshComplianceDocAnalysis does after a Refresh click.
+const deleteComplianceMonthData = async (req, res) => {
+  const { month } = req.params; // 'YYYY-MM'
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'A valid month (YYYY-MM) is required' });
+  }
+
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM compliance_state_logs WHERE to_char(service_date, 'YYYY-MM') = $1`,
+      [month]
+    );
+
+    const complianceDocAnalysis = await computeComplianceDocAnalysis(pool);
+    const { rows } = await pool.query(
+      `UPDATE company_settings SET compliance_doc_analysis = $1, updated_at = now() WHERE id = 1 RETURNING *`,
+      [JSON.stringify(complianceDocAnalysis)]
+    );
+
+    logAudit({ req, action: 'compliance_doc_delete_month', resourceType: 'compliance_doc', resourceId: month, details: { month, deletedCount: rowCount } });
+    res.json({ success: true, deletedCount: rowCount, settings: rows[0] });
+  } catch (error) {
+    console.error('Error deleting compliance month data:', error);
+    res.status(500).json({ error: 'Failed to delete month data' });
+  }
+};
+
 // Exports the compliance_state_logs rows for one month bucket from the
 // "Data currently on file" table as an Excel workbook — lets a user pull
 // back out exactly what's currently on file for a given month within the
@@ -674,4 +706,5 @@ module.exports = {
   refreshComplianceDocAnalysis,
   getComplianceDocDownloadUrl,
   downloadComplianceMonthData,
+  deleteComplianceMonthData,
 };

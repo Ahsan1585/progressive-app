@@ -14,6 +14,7 @@ const {
   refreshComplianceDocAnalysis,
   getComplianceDocDownloadUrl,
   downloadComplianceMonthData,
+  deleteComplianceMonthData,
 } = require('../controllers/companyController');
 
 // Read: every admin-portal role — the sidebar shows the company logo/name
@@ -41,5 +42,9 @@ router.get('/compliance-doc/download', ...readGuard, getComplianceDocDownloadUrl
 // Per-month export of what's currently on file (compliance_state_logs), not
 // the raw uploaded file — same read-level access as the raw-file download above.
 router.get('/compliance-doc/month-data', ...readGuard, downloadComplianceMonthData);
+// Deletes just one month's rows from the "Data currently on file" table —
+// same write-level access as the full Remove above, since this is
+// destructive too, just narrower in scope.
+router.delete('/compliance-doc/month-data/:month', ...complianceDocGuard, deleteComplianceMonthData);
 
 module.exports = router;
