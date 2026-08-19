@@ -65,6 +65,78 @@ function KeyPrompt({ onUnlocked }) {
   );
 }
 
+const STATUS_STYLES = {
+  trial: 'bg-amber-50 text-amber-700 border-amber-200',
+  active: 'bg-teal-50 text-teal-700 border-teal-200',
+  suspended: 'bg-red-50 text-red-700 border-red-200',
+  cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
+};
+
+function CompaniesTable({ apiKey }) {
+  const client = platformApi(apiKey);
+  const [companies, setCompanies] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    client.get('/api/platform/companies')
+      .then(({ data }) => setCompanies(data.companies))
+      .catch(() => setError('Failed to load companies.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const daysLeft = (trialEndsAt) => {
+    if (!trialEndsAt) return null;
+    return Math.ceil((new Date(trialEndsAt) - new Date()) / (24 * 60 * 60 * 1000));
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      {error && <p className="p-6 text-sm text-red-600 font-medium">{error}</p>}
+      {companies === null && !error && (
+        <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+      )}
+      {companies && companies.length === 0 && (
+        <p className="p-6 text-sm text-slate-500">No companies yet.</p>
+      )}
+      {companies && companies.length > 0 && (
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th className="text-left px-4 py-3">Company</th>
+              <th className="text-left px-4 py-3">Company code</th>
+              <th className="text-left px-4 py-3">Status</th>
+              <th className="text-left px-4 py-3">Trial ends</th>
+              <th className="text-left px-4 py-3">Created</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {companies.map((c) => {
+              const left = c.status === 'trial' ? daysLeft(c.trial_ends_at) : null;
+              return (
+                <tr key={c.slug}>
+                  <td className="px-4 py-3 font-semibold text-slate-800">{c.display_name}</td>
+                  <td className="px-4 py-3 font-mono text-slate-500">{c.slug}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[c.status] || STATUS_STYLES.cancelled}`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {c.trial_ends_at
+                      ? `${new Date(c.trial_ends_at).toLocaleDateString()}${left !== null ? (left >= 0 ? ` (${left}d left)` : ` (expired ${Math.abs(left)}d ago)`) : ''}`
+                      : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{new Date(c.created_at).toLocaleDateString()}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function PromoCodeManager({ apiKey }) {
   const client = platformApi(apiKey);
   const [codes, setCodes] = useState(null);
@@ -109,10 +181,7 @@ function PromoCodeManager({ apiKey }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-10">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-xl font-bold text-slate-900">Promo Codes</h1>
-
+    <div className="space-y-6">
         <form onSubmit={handleCreate} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="pc-code">Code</Label>
@@ -190,17 +259,41 @@ function PromoCodeManager({ apiKey }) {
             </table>
           )}
         </div>
-      </div>
     </div>
   );
 }
 
+const TABS = { companies: 'Companies', promoCodes: 'Promo Codes' };
+
 export default function PlatformAdmin() {
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('platformAdminKey') || '');
+  const [tab, setTab] = useState('companies');
 
   if (!apiKey) {
     return <KeyPrompt onUnlocked={setApiKey} />;
   }
 
-  return <PromoCodeManager apiKey={apiKey} />;
+  return (
+    <div className="min-h-screen bg-slate-50 p-6 md:p-10">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-slate-900">Platform Admin</h1>
+          <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+            {Object.entries(TABS).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {tab === 'companies' ? <CompaniesTable apiKey={apiKey} /> : <PromoCodeManager apiKey={apiKey} />}
+      </div>
+    </div>
+  );
 }
