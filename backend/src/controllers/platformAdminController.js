@@ -71,23 +71,28 @@ const deactivatePromoCode = async (req, res) => {
 
 // Manual override for a specific tenant's trial_ends_at — the same lever a
 // promo code redemption pulls, just picked directly rather than via a code.
-// Also flips status back to 'trial' so a suspended/cancelled company (or one
-// that's simply not on a trial at all) actually re-enters the trial gate
-// with the new date, rather than the date being written but having no
-// effect (see authMiddleware.js — the gate only reads trial_ends_at when
-// status = 'trial').
+// Restricted to companies already on status = 'trial' — this is meant to
+// adjust when an existing trial ends, not to silently demote a paying
+// ('active'), suspended, or cancelled company back onto a trial clock. A
+// company that needs to start a trial from scratch is a different, separate
+// action this endpoint deliberately doesn't perform.
 const setTrialEndDate = async (req, res) => {
   const { trialEndsAt } = req.body;
   if (!trialEndsAt || Number.isNaN(new Date(trialEndsAt).getTime())) {
     return res.status(400).json({ error: 'A valid trialEndsAt date is required.' });
   }
   try {
+    const { rows: existing } = await platformPool.query('SELECT status FROM companies WHERE slug = $1', [req.params.slug]);
+    if (!existing[0]) return res.status(404).json({ error: 'Company not found' });
+    if (existing[0].status !== 'trial') {
+      return res.status(400).json({ error: `Only companies currently on a trial can have their trial end date set (this one is ${existing[0].status}).` });
+    }
+
     const { rows } = await platformPool.query(
-      `UPDATE companies SET trial_ends_at = $1, status = 'trial', updated_at = now()
+      `UPDATE companies SET trial_ends_at = $1, updated_at = now()
        WHERE slug = $2 RETURNING slug, status, trial_ends_at`,
       [trialEndsAt, req.params.slug]
     );
-    if (!rows[0]) return res.status(404).json({ error: 'Company not found' });
     res.json({ success: true, company: rows[0] });
   } catch (error) {
     console.error('Error setting trial end date:', error);

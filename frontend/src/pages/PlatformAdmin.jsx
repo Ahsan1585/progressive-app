@@ -109,6 +109,15 @@ function TrialEndEditor({ company, client, onSaved }) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Only a company already on a trial has a trial end date to adjust —
+  // setting one on an active/suspended/cancelled company would silently
+  // demote it back onto a trial clock, which is a different, more
+  // consequential action than this control is meant for (see the matching
+  // guard in setTrialEndDate, platformAdminController.js).
+  if (company.status !== 'trial') {
+    return <span className="text-xs text-slate-400">Not on a trial</span>;
+  }
+
   const handleSave = async () => {
     if (!date) return;
     setIsSaving(true);
