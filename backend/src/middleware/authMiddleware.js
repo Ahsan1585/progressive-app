@@ -43,8 +43,14 @@ const protect = (req, res, next) => {
       const isSuspended = company.status === 'suspended';
       const isSubscriptionRoute = req.originalUrl.startsWith('/api/subscription');
       const ceoException = decoded.role === 'ceo' && isSubscriptionRoute;
+      // Every role needs these two reachable regardless of trial/suspension
+      // status, same reasoning as the BAA exemption below: the frontend
+      // can't render the right blocking screen (or the sidebar/permissions
+      // that survive it) if the very call that reports the block also gets
+      // blocked itself.
+      const isMeOrStatusRoute = req.originalUrl.startsWith('/api/auth/me') || req.originalUrl.startsWith('/api/auth/company-status');
 
-      if ((trialExpired || isSuspended) && !ceoException) {
+      if ((trialExpired || isSuspended) && !ceoException && !isMeOrStatusRoute) {
         return res.status(402).json({
           error: trialExpired
             ? 'Your free trial has ended — add a payment method to continue.'

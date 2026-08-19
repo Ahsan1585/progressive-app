@@ -13,6 +13,7 @@ import SignupWizard from './pages/SignupWizard';
 import SignupConfirm from './pages/SignupConfirm';
 import ActivateAccount from './pages/ActivateAccount';
 import AdminDashboard from './pages/AdminDashboard';
+import PlatformAdmin from './pages/PlatformAdmin';
 import { DialogHost } from './components/DialogHost';
 
 // Office-side accounts. Phase 2 collapsed the old fine-grained staff role strings
@@ -101,6 +102,8 @@ function App() {
           path="/admin-dashboard"
           element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={ADMIN_ROLES} />}
         />
+        {/* Not tenant-scoped — its own shared-secret gate (KeyPrompt), no ProtectedRoute/JWT involved. See platformAdminRoutes.js. */}
+        <Route path="/platform-admin" element={<PlatformAdmin />} />
       </Routes>
     </Router>
   );

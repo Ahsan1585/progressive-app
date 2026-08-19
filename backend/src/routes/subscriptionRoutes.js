@@ -10,6 +10,7 @@ const {
   getPaymentMethod,
   createSetupIntent,
   confirmPaymentMethod,
+  redeemPromoCode,
   generateInvoice,
   payInvoice,
   getOutstandingInvoicesHandler,
@@ -29,6 +30,7 @@ router.get('/invoices/:id/pdf', ...ceoOnly, getInvoicePdf);
 router.get('/payment-method', ...ceoOnly, getPaymentMethod);
 router.post('/payment-method/setup-intent', ...ceoOnly, createSetupIntent);
 router.post('/payment-method/confirm', ...ceoOnly, confirmPaymentMethod);
+router.post('/redeem-promo', ...ceoOnly, redeemPromoCode);
 router.post('/invoices/generate', ...ceoOnly, generateInvoice);
 router.post('/invoices/:id/pay', ...ceoOnly, payInvoice);
 router.get('/invoices/outstanding', ...ceoOnly, getOutstandingInvoicesHandler);

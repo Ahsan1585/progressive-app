@@ -176,6 +176,17 @@ const confirmPaymentMethod = async (req, res) => {
       ]
     );
 
+    // A payment method on file is what actually clears the trial-expired/
+    // suspended 402 gate in authMiddleware.js (that gate reads `companies.status`
+    // fresh on every request) — without this, a ceo could save a card here
+    // and still be blocked from every other route immediately afterward.
+    // Only trial -> active; a suspended company needs a human to lift that
+    // separately, adding a card isn't sufficient on its own for that case.
+    await platformPool.query(
+      `UPDATE companies SET status = 'active', updated_at = now() WHERE tenant_db_name = $1 AND status = 'trial'`,
+      [getCurrentTenantDb()]
+    );
+
     logAudit({ req, action: 'subscription_payment_method_updated', resourceType: 'subscription', resourceId: '1', details: { brand: card.brand, last4: card.last4 } });
     res.json({ success: true });
   } catch (error) {
@@ -578,6 +589,85 @@ const stripeWebhook = async (req, res) => {
   }
 };
 
+// Redeemed from the trial-expired/suspended blocking screen (TrialGate.jsx)
+// as the other way out besides adding a payment method. Reachable during a
+// trial-expired state because this whole controller sits behind
+// authMiddleware's `/api/subscription` ceo exception (see authMiddleware.js).
+// Only touches this company's own row, matched by tenant_db_name the same
+// way confirmPaymentMethod/ensureStripeCustomer already do — a ceo can only
+// ever affect their own tenant, never needs to (and can't) name another.
+const redeemPromoCode = async (req, res) => {
+  const raw = req.body?.code;
+  const code = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+  if (!code) {
+    return res.status(400).json({ error: 'A promo code is required.' });
+  }
+  try {
+    const { rows: promoRows } = await platformPool.query(
+      `SELECT id, days_extension, max_redemptions, redemption_count, is_active, expires_at
+       FROM promo_codes WHERE code = $1`,
+      [code]
+    );
+    const promo = promoRows[0];
+    if (!promo || !promo.is_active) {
+      return res.status(404).json({ error: 'That promo code is not valid.' });
+    }
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'That promo code has expired.' });
+    }
+    if (promo.max_redemptions !== null && promo.redemption_count >= promo.max_redemptions) {
+      return res.status(400).json({ error: 'That promo code has already been fully redeemed.' });
+    }
+
+    const { rows: companyRows } = await platformPool.query(
+      'SELECT id, status, trial_ends_at FROM companies WHERE tenant_db_name = $1',
+      [getCurrentTenantDb()]
+    );
+    const company = companyRows[0];
+    if (!company) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+    // Promo codes extend a trial — they're not a way to lift a suspension
+    // (that needs a human to resolve) and don't apply once a real paid
+    // subscription is already active.
+    if (company.status !== 'trial') {
+      return res.status(400).json({ error: `Promo codes can only be redeemed during a free trial (this account is currently ${company.status}).` });
+    }
+
+    try {
+      await platformPool.query(
+        'INSERT INTO promo_code_redemptions (promo_code_id, company_id, days_extended) VALUES ($1, $2, $3)',
+        [promo.id, company.id, promo.days_extension]
+      );
+    } catch (error) {
+      if (error.code === '23505') { // unique_violation — already redeemed by this company
+        return res.status(409).json({ error: 'This company has already redeemed that promo code.' });
+      }
+      throw error;
+    }
+
+    // Extend from whichever is later, today or the existing trial_ends_at —
+    // a code always adds real days from the moment it's redeemed, rather
+    // than compounding onto a date that may already be long past.
+    const { rows: updatedRows } = await platformPool.query(
+      `UPDATE companies
+       SET trial_ends_at = GREATEST(now(), COALESCE(trial_ends_at, now())) + ($1 || ' days')::interval,
+           status = 'trial',
+           updated_at = now()
+       WHERE id = $2
+       RETURNING trial_ends_at`,
+      [promo.days_extension, company.id]
+    );
+    await platformPool.query('UPDATE promo_codes SET redemption_count = redemption_count + 1 WHERE id = $1', [promo.id]);
+
+    logAudit({ req, action: 'subscription_promo_code_redeemed', resourceType: 'subscription', resourceId: '1', details: { code, daysExtension: promo.days_extension } });
+    res.json({ success: true, trialEndsAt: updatedRows[0].trial_ends_at });
+  } catch (error) {
+    console.error('Error redeeming promo code:', error);
+    res.status(500).json({ error: 'Failed to redeem promo code' });
+  }
+};
+
 module.exports = {
   getOutstandingInvoicesHandler,
   payAllOutstanding,
@@ -588,6 +678,7 @@ module.exports = {
   getPaymentMethod,
   createSetupIntent,
   confirmPaymentMethod,
+  redeemPromoCode,
   generateInvoice,
   payInvoice,
   runScheduledBilling,

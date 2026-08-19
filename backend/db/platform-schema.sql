@@ -59,3 +59,34 @@ CREATE TABLE IF NOT EXISTS pending_signups (
   CONSTRAINT pending_signups_slug_key UNIQUE (slug)
 );
 CREATE INDEX IF NOT EXISTS pending_signups_confirm_token_hash_idx ON pending_signups (confirm_token_hash);
+
+-- Promo codes a ceo can redeem (from the trial-expired/suspended blocking
+-- screen — see TrialGate.jsx) to extend their own company's trial_ends_at.
+-- Managed via the bare-shared-secret platform-admin routes (platformAdminRoutes.js),
+-- same unpolished Phase-1 auth as the rest of that surface.
+CREATE TABLE IF NOT EXISTS promo_codes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text NOT NULL,
+  days_extension integer NOT NULL,
+  max_redemptions integer, -- NULL = unlimited
+  redemption_count integer NOT NULL DEFAULT 0,
+  is_active boolean NOT NULL DEFAULT true,
+  expires_at timestamptz, -- NULL = never expires
+  note text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT promo_codes_code_key UNIQUE (code),
+  CONSTRAINT promo_codes_days_extension_check CHECK (days_extension > 0)
+);
+CREATE INDEX IF NOT EXISTS promo_codes_code_idx ON promo_codes (code);
+
+-- One row per successful redemption — an audit trail (who/when/how many
+-- days) and what stops the same company redeeming the same code twice.
+CREATE TABLE IF NOT EXISTS promo_code_redemptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  promo_code_id uuid NOT NULL REFERENCES promo_codes(id),
+  company_id uuid NOT NULL REFERENCES companies(id),
+  days_extended integer NOT NULL,
+  redeemed_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT promo_code_redemptions_unique_per_company UNIQUE (promo_code_id, company_id)
+);
+CREATE INDEX IF NOT EXISTS promo_code_redemptions_company_id_idx ON promo_code_redemptions (company_id);

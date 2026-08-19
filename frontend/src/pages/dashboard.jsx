@@ -11,6 +11,7 @@ import { showAlert, showConfirm } from '@/utils/dialogStore';
 import izayaLogo from '@/assets/izaya-logo.png';
 import { useDropdownOptions, activeOnly, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
 import { BaaGate } from '@/components/BaaGate';
+import { TrialGate } from '@/components/TrialGate';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState([]);
@@ -296,6 +297,7 @@ const Dashboard = () => {
   }).slice(0, 5);
 
   return (
+    <TrialGate>
     <BaaGate>
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900 font-sans">
 
@@ -1072,6 +1074,7 @@ const Dashboard = () => {
       )}
     </div>
     </BaaGate>
+    </TrialGate>
   );
 };
 

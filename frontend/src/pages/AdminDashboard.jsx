@@ -11,6 +11,7 @@ import RoleManagement from '@/pages/RoleManagement';
 import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
 import { TrialStatusBanner } from '@/components/TrialStatusBanner';
 import { BaaGate } from '@/components/BaaGate';
+import { TrialGate } from '@/components/TrialGate';
 import izayaLogo from '@/assets/izaya-logo.png';
 
 // A tab's value is either a single permission key, or an array of keys with
@@ -142,6 +143,7 @@ const AdminDashboard = () => {
   };
 
   return (
+    <TrialGate>
     <BaaGate>
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900 print:h-auto print:overflow-visible print:block">
 
@@ -382,6 +384,7 @@ const AdminDashboard = () => {
       <IdleTimeoutWarning onLogout={handleLogout} />
     </div>
     </BaaGate>
+    </TrialGate>
   );
 };
 
