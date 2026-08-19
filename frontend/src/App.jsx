@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SESSION_EXPIRED_EVENT, clearSessionAndNotify } from './api/axiosInstance';
 import Login from './pages/Login';
 import Home from './pages/marketing/Home';
@@ -137,21 +137,38 @@ const WEB_ROUTES = (
 );
 
 function App() {
-  // BASE_URL is "./" for the desktop build (see vite.config.js) — a router
-  // basename of "." is invalid, so the desktop build always uses "" (the
-  // app is effectively served from the webview's root either way). The web
-  // build keeps deriving it from BASE_URL exactly as before ("/eis").
-  const basename = IS_DESKTOP ? '' : import.meta.env.BASE_URL.replace(/\/$/, "");
+  // Desktop build uses HashRouter, not BrowserRouter — verified empirically
+  // (blank-page bug caught during Phase 6 packaging) that BrowserRouter's
+  // pushState under file:// rewrites the address bar to an absolute path
+  // like file:///C:/login, which is invalid relative to the app's actual
+  // directory and breaks routing/asset resolution entirely. HashRouter
+  // keeps all routing in the URL fragment (file:///.../index.html#/login),
+  // which never touches the real file:// path at all. The web build is
+  // unaffected — it keeps BrowserRouter with the basename it always had.
+  if (IS_DESKTOP) {
+    return (
+      <HashRouter>
+        <IdleLogout />
+        <SessionExpiredListener />
+        <ScrollToTop />
+        <DialogHost />
+        <Routes>
+          {DESKTOP_ROUTES}
+        </Routes>
+      </HashRouter>
+    );
+  }
+
   return (
-    <Router basename={basename}>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <IdleLogout />
       <SessionExpiredListener />
       <ScrollToTop />
       <DialogHost />
       <Routes>
-        {IS_DESKTOP ? DESKTOP_ROUTES : WEB_ROUTES}
+        {WEB_ROUTES}
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
 
