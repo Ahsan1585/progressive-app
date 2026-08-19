@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Loader2, Plus, Ban, KeyRound } from 'lucide-react';
+import { Loader2, Plus, Ban, KeyRound, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -352,6 +352,11 @@ export default function PlatformAdmin() {
     return <KeyPrompt onUnlocked={setApiKey} />;
   }
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('platformAdminKey');
+    setApiKey('');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <BrandHeader />
@@ -359,17 +364,22 @@ export default function PlatformAdmin() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-slate-900">Platform Admin</h1>
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
-            {Object.entries(TABS).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+              {Object.entries(TABS).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTab(key)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
+            </Button>
           </div>
         </div>
 
