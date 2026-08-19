@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { SESSION_EXPIRED_EVENT, clearSessionAndNotify } from './api/axiosInstance';
 import Login from './pages/Login';
 import Home from './pages/marketing/Home';
 import HowItWorks from './pages/marketing/HowItWorks';
@@ -21,22 +22,38 @@ import { DialogHost } from './components/DialogHost';
 // what each of them can actually DO is now decided by their role's permissions, not this list.
 const ADMIN_ROLES = ['ceo', 'staff'];
 
+// Set only by the desktop (Electron) build's env file (frontend/.env.desktop) —
+// absent in the web build, so every check below defaults to today's behavior.
+const IS_DESKTOP = import.meta.env.VITE_BUILD_TARGET === 'desktop';
+
 // HIPAA automatic logoff: clear the session and return to login after inactivity.
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+// Both idle-timeout here and the axios 401 interceptor (api/axiosInstance.js)
+// need to end up at the same place: session cleared, user on /login.
+// Previously each did its own `window.location.assign(`${BASE_URL}login`)`
+// hard redirect — besides duplicating the logic, that hardcoded path breaks
+// under the desktop build's relative ("./") base (BASE_URL becomes "./", so
+// the old string would resolve to nonsense). SESSION_EXPIRED_EVENT and
+// clearSessionAndNotify live in axiosInstance.js (session state's natural
+// owner) and are shared here so both triggers funnel through one
+// base-path-agnostic router navigation instead of two hardcoded redirects.
+function SessionExpiredListener() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const handler = () => navigate('/login');
+    window.addEventListener(SESSION_EXPIRED_EVENT, handler);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handler);
+  }, [navigate]);
+  return null;
+}
 
 function IdleLogout() {
   useEffect(() => {
     let timer;
-    const logout = () => {
-      if (localStorage.getItem('token')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        window.location.assign(`${import.meta.env.BASE_URL}login`); // '/eis/login' — dumping an idled-out user on the marketing homepage instead of the sign-in form would be a bad landing
-      }
-    };
     const reset = () => {
       clearTimeout(timer);
-      timer = setTimeout(logout, IDLE_TIMEOUT_MS);
+      timer = setTimeout(clearSessionAndNotify, IDLE_TIMEOUT_MS);
     };
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
     events.forEach(e => window.addEventListener(e, reset, { passive: true }));
@@ -76,34 +93,63 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
   return element;
 };
 
+// Desktop (Electron) build ships only the CEO/staff admin-dashboard flow —
+// no marketing site, no practitioner /dashboard (practitioners use the
+// separate mobile/ PWA), no /platform-admin. Trimming these out of the
+// route table means their page modules aren't reachable, keeping the
+// desktop installer's bundle smaller.
+const DESKTOP_ROUTES = (
+  <>
+    <Route path="/login" element={<Login />} />
+    <Route path="/change-password" element={<ChangePassword />} />
+    <Route
+      path="/admin-dashboard"
+      element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={ADMIN_ROLES} />}
+    />
+    <Route path="*" element={<Navigate to="/login" replace />} />
+  </>
+);
+
+const WEB_ROUTES = (
+  <>
+    <Route path="/" element={<Home />} />
+    <Route path="/how-it-works" element={<HowItWorks />} />
+    <Route path="/download" element={<PractitionerApp />} />
+    <Route path="/contact" element={<Contact />} />
+    <Route path="/login" element={<Login />} />
+    <Route path="/change-password" element={<ChangePassword />} />
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/signup" element={<SignupWizard />} />
+    <Route path="/signup/confirm/:token" element={<SignupConfirm />} />
+    <Route path="/:companySlug/activate/:token" element={<ActivateAccount />} />
+    <Route
+      path="/dashboard"
+      element={<ProtectedRoute element={<Dashboard />} allowedRoles={['practitioner']} />}
+    />
+    <Route
+      path="/admin-dashboard"
+      element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={ADMIN_ROLES} />}
+    />
+    {/* Not tenant-scoped — its own shared-secret gate (KeyPrompt), no ProtectedRoute/JWT involved. See platformAdminRoutes.js. */}
+    <Route path="/platform-admin" element={<PlatformAdmin />} />
+  </>
+);
+
 function App() {
+  // BASE_URL is "./" for the desktop build (see vite.config.js) — a router
+  // basename of "." is invalid, so the desktop build always uses "" (the
+  // app is effectively served from the webview's root either way). The web
+  // build keeps deriving it from BASE_URL exactly as before ("/eis").
+  const basename = IS_DESKTOP ? '' : import.meta.env.BASE_URL.replace(/\/$/, "");
   return (
-    <Router basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+    <Router basename={basename}>
       <IdleLogout />
+      <SessionExpiredListener />
       <ScrollToTop />
       <DialogHost />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/how-it-works" element={<HowItWorks />} />
-        <Route path="/download" element={<PractitionerApp />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/signup" element={<SignupWizard />} />
-        <Route path="/signup/confirm/:token" element={<SignupConfirm />} />
-        <Route path="/:companySlug/activate/:token" element={<ActivateAccount />} />
-        <Route
-          path="/dashboard"
-          element={<ProtectedRoute element={<Dashboard />} allowedRoles={['practitioner']} />}
-        />
-        <Route
-          path="/admin-dashboard"
-          element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={ADMIN_ROLES} />}
-        />
-        {/* Not tenant-scoped — its own shared-secret gate (KeyPrompt), no ProtectedRoute/JWT involved. See platformAdminRoutes.js. */}
-        <Route path="/platform-admin" element={<PlatformAdmin />} />
+        {IS_DESKTOP ? DESKTOP_ROUTES : WEB_ROUTES}
       </Routes>
     </Router>
   );
