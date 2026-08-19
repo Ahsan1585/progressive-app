@@ -343,6 +343,20 @@ export const CompanySettings = ({ onSettingsChange }) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // Each row is one calendar-month bucket, so earliest/latest always share a
+  // month and year — this makes the 90-day retention window visible at a
+  // glance (e.g. a partial "May 21-31, 2026" immediately shows only the
+  // last part of May is still on file, vs. a full "Jun 1-30, 2026").
+  const formatMonthRange = (earliest, latest) => {
+    if (!earliest || !latest) return '—';
+    const e = new Date(`${earliest}T00:00:00`);
+    const l = new Date(`${latest}T00:00:00`);
+    const month = e.toLocaleDateString('en-US', { month: 'short' });
+    const year = e.getFullYear();
+    if (earliest === latest) return `${month} ${e.getDate()}, ${year}`;
+    return `${month} ${e.getDate()}-${l.getDate()}, ${year}`;
+  };
+
   if (isLoading) {
     return <div className="py-20 text-center text-slate-500">Loading company information...</div>;
   }
@@ -563,8 +577,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
                   <th className="px-4 py-2">Month</th>
                   <th className="px-4 py-2">Records</th>
-                  <th className="px-4 py-2">Earliest service date</th>
-                  <th className="px-4 py-2">Latest service date</th>
+                  <th className="px-4 py-2">Date range on file</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
@@ -576,10 +589,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
                     </td>
                     <td className="px-4 py-2.5 text-slate-600">{row.record_count}</td>
                     <td className="px-4 py-2.5 text-slate-600">
-                      {row.earliest_date && new Date(`${row.earliest_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-600">
-                      {row.latest_date && new Date(`${row.latest_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {formatMonthRange(row.earliest_date, row.latest_date)}
                     </td>
                     <td className="px-4 py-2.5 text-right whitespace-nowrap">
                       <button
