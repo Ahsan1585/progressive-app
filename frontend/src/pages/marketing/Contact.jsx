@@ -88,7 +88,7 @@ export default function Contact() {
             <h3>Talk to us directly</h3>
             <p>Prefer a phone call? We're happy to answer questions about compliance, onboarding, or how Izaya EISimplified™ fits alongside your current systems.</p>
             <div className="mk-contact-direct-list">
-              <div className="mk-contact-direct-item">{PHONE_ICON}<a href="tel:+14057402647">(405) 740-2647</a></div>
+              <div className="mk-contact-direct-item">{PHONE_ICON}<a href="tel:+14054737367">(405) 473-7367</a></div>
               <div className="mk-contact-direct-item">{MAIL_ICON}<a href="mailto:support@izayaedge.com">support@izayaedge.com</a></div>
             </div>
           </div>
