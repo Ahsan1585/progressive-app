@@ -43,10 +43,9 @@
 }
 .mk-nav-brand { display: flex; align-items: flex-start; text-decoration: none; }
 .mk-nav-logo { width: 110px; height: auto; display: block; flex-shrink: 0; }
-/* Same treatment as the hero's .mk-accent ("done in minutes.") — Sora
-   Variable at heading weight, teal accent color — scaled down to sit
-   beside the wordmark as a compact "EIS" mark instead of a full heading. */
-.mk-nav-eis { font-family: 'Sora Variable', sans-serif; font-weight: 800; letter-spacing: -0.02em; color: var(--mk-teal); font-size: 20px; line-height: 1; }
+/* "EIS" mark itself is now rendered by BrandWordmarkRow (IzayaMark.jsx)
+   with inline styles, not a CSS class — kept portable to non-.mk-page
+   contexts. Nothing to style here anymore. */
 .mk-nav-slogan { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--mk-slate); }
 .mk-page .ilg-n { stroke: var(--mk-navy); fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
 .mk-page .ilg-m { stroke: var(--mk-mint); fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }

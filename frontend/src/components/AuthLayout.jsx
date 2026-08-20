@@ -1,5 +1,5 @@
 import { Lock, ShieldCheck, Smartphone, Download } from 'lucide-react';
-import izayaLogo from '@/assets/izaya-logo.png';
+import { BrandLockup } from '@/components/BrandLockup';
 
 // The practitioner mobile app is a separate deployment (its own PWA install
 // flow lives there — Android gets a native install prompt, iOS gets "Add to
@@ -71,10 +71,7 @@ export function AuthLayout({ children }) {
           <div className="hidden md:block h-1 bg-gradient-to-r from-cyan-600 to-teal-500" />
           <div className="px-6 pt-8 pb-6 md:p-8">
             <div className="flex flex-col items-center justify-center mb-6 md:mb-8 text-center">
-              <img src={izayaLogo} alt="Izaya" className="h-9 w-auto mb-3" />
-              <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">
-                Early Intervention Simplified
-              </p>
+              <BrandLockup size="lg" align="center" />
             </div>
 
             {/* Trust bar — mobile only, inline in the card */}

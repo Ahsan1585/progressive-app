@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
-import izayaLogo from "@/assets/izaya-logo.png";
+import { BrandLockup } from "@/components/shell/BrandLockup";
 
 // Scoped override of the app's tokens for the pre-auth stack: Izaya teal
 // instead of the app-wide Clinical Trust Blue for the --primary family, and
@@ -112,10 +112,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
       <div className="flex flex-1 flex-col bg-white px-6 pt-8 pb-6">
         <div className="mb-4 flex flex-col items-center text-center">
-          <img src={izayaLogo} alt="Izaya" className="mb-3 h-8 w-auto" />
-          <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">
-            Early Intervention Simplified
-          </p>
+          <BrandLockup size="lg" align="center" />
         </div>
 
         <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700">

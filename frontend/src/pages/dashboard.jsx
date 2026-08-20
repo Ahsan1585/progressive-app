@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import SignaturePad from '@/components/SignaturePad';
 import { formatTime12h } from '@/utils/formatTime';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
-import izayaLogo from '@/assets/izaya-logo.png';
+import { BrandLockup } from '@/components/BrandLockup';
 import { useDropdownOptions, activeOnly, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
 import { BaaGate } from '@/components/BaaGate';
 import { TrialGate } from '@/components/TrialGate';
@@ -417,9 +417,8 @@ const Dashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <div className="hidden sm:flex flex-col items-start gap-0.5">
-              <img src={izayaLogo} alt="" className="h-5 w-auto" />
-              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide leading-none whitespace-nowrap">Early Intervention Simplified</span>
+            <div className="hidden sm:flex">
+              <BrandLockup size="sm" />
             </div>
             {selectedPatient && (
               <button

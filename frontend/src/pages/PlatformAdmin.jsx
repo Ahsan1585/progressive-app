@@ -4,24 +4,15 @@ import { Loader2, Plus, Ban, KeyRound, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { IzayaWordmark } from '@/components/marketing/IzayaMark';
+import { BrandLockup } from '@/components/BrandLockup';
 
-// Same lockup as the marketing site's nav (IzayaMark.jsx), but styled
-// inline here rather than via marketing.css's `.mk-page` scoped selectors —
-// this page is a standalone Tailwind-only utility, not part of that page
-// tree, so it can't rely on that stylesheet being loaded.
+// Same lockup as every other authenticated-app header (BrandLockup.jsx) —
+// this page doesn't load marketing.css, but BrandLockup is inline-styled
+// throughout so it doesn't need to.
 function BrandHeader() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
-      <IzayaWordmark className="platform-admin-wordmark w-8 h-8" />
-      <style>{`
-        .platform-admin-wordmark .ilg-n { stroke: #132A3E; fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
-        .platform-admin-wordmark .ilg-m { stroke: #2FBF9F; fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
-        .platform-admin-wordmark .ilg-node { fill: #2FBF9F; }
-      `}</style>
-      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: '#5C6B73', paddingLeft: 14, borderLeft: '1px solid #E2EAE8' }}>
-        Early Intervention Simplified
-      </span>
+    <div style={{ padding: '18px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
+      <BrandLockup size="sm" />
     </div>
   );
 }

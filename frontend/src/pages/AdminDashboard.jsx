@@ -12,7 +12,7 @@ import { IdleTimeoutWarning } from '@/components/IdleTimeoutWarning';
 import { TrialStatusBanner } from '@/components/TrialStatusBanner';
 import { BaaGate } from '@/components/BaaGate';
 import { TrialGate } from '@/components/TrialGate';
-import izayaLogo from '@/assets/izaya-logo.png';
+import { BrandLockup } from '@/components/BrandLockup';
 
 // A tab's value is either a single permission key, or an array of keys with
 // any-of semantics (the tab shows if the user holds at least one of them —
@@ -318,9 +318,8 @@ const AdminDashboard = () => {
         )}
 
         <div className="p-4 border-t border-slate-100 flex flex-col items-center">
-          <img src={izayaLogo} alt="Izaya" className="h-5 w-auto mb-1.5" />
-          <p className="text-xs text-slate-700 text-center font-medium">Securely Powered by Izaya</p>
-          <p className="text-[10px] text-slate-700 text-center font-medium tracking-wide uppercase mt-0.5">Early Intervention Simplified</p>
+          <BrandLockup size="sm" align="center" />
+          <p className="text-xs text-slate-700 text-center font-medium mt-1.5">Securely Powered by Izaya</p>
         </div>
       </aside>
 
@@ -338,9 +337,8 @@ const AdminDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <div className="hidden sm:flex flex-col items-center gap-0.5">
-              <img src={izayaLogo} alt="" className="h-5 w-auto" />
-              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide leading-none whitespace-nowrap">Early Intervention Simplified</span>
+            <div className="hidden sm:flex">
+              <BrandLockup size="sm" />
             </div>
           </div>
           <h2 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-slate-800 capitalize tracking-tight whitespace-nowrap">
