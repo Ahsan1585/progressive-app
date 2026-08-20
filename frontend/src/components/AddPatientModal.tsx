@@ -40,6 +40,7 @@ export function AddPatientModal({
   onOpenChange,
   showTrigger = true,
   patient,
+  editUrl,
 }: {
   onPatientAdded: () => void;
   open?: boolean;
@@ -47,6 +48,10 @@ export function AddPatientModal({
   showTrigger?: boolean;
   /** When provided, the modal edits this patient instead of registering a new one. */
   patient?: EditablePatient | null;
+  /** Overrides the PUT endpoint used in edit mode (defaults to the practitioner-owned
+   * /api/patients/:id, which is ownership-scoped). Used by the office-wide Staff
+   * Directory editor, which needs to edit any child regardless of who registered them. */
+  editUrl?: (id: number | string) => string;
 }) {
   const isEditMode = !!patient;
   const [internalOpen, setInternalOpen] = useState(false);
@@ -80,7 +85,7 @@ export function AddPatientModal({
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       if (isEditMode && patient) {
-        await api.put(`/api/patients/${patient.id}`, values);
+        await api.put(editUrl ? editUrl(patient.id) : `/api/patients/${patient.id}`, values);
       } else {
         const res = await api.post("/api/patients/register", values);
         // A Child ID already registered by another practitioner attaches to

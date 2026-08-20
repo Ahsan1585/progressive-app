@@ -8,7 +8,14 @@ const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
 const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats } = require('../controllers/patientController');
-const { protect } = require('../middleware/authMiddleware');
+const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
+const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
+
+// Staff Directory > All Children — office-wide (not ownership-scoped), placed
+// before the /:id wildcard routes below to avoid route conflicts.
+router.get('/directory/all', protect, loadPermissions, requirePermission('staff_directory_view'), listDirectoryPatients);
+router.put('/directory/:id', protect, loadPermissions, requirePermission('staff_directory_edit'), updateDirectoryPatient);
+router.patch('/directory/:id/practitioner', protect, loadPermissions, requirePermission('staff_directory_edit'), reassignDirectoryPatientPractitioner);
 
 // Route to register a new patient
 router.post('/register', protect, registerPatient);

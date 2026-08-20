@@ -9,6 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StaffChatPopover } from '@/components/StaffChatPopover';
 import { ActionRequired } from '@/components/ActionRequired';
+import { StaffDirectoryChildren } from '@/components/StaffDirectoryChildren';
 import { showAlert } from '@/utils/dialogStore';
 import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
 
@@ -436,6 +437,19 @@ export const RegisterPractitionerForm = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
           Register New User
+        </button>
+        <button
+          onClick={() => setActiveTab('children')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === 'children'
+              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-blue-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <svg className={`w-4 h-4 ${activeTab === 'children' ? 'text-blue-600' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          All Children
         </button>
         {canApproveActions && (
           <button
@@ -897,7 +911,12 @@ export const RegisterPractitionerForm = () => {
       </div>
       )}
 
-      {/* ── SECTION 3: ACTION REQUIRED (ceo-only) ── */}
+      {/* ── SECTION 3: ALL CHILDREN ── */}
+      {activeTab === 'children' && (
+        <StaffDirectoryChildren />
+      )}
+
+      {/* ── SECTION 4: ACTION REQUIRED (ceo-only) ── */}
       {activeTab === 'actionRequired' && canApproveActions && (
         <ActionRequired />
       )}
