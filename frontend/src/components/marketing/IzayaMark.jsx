@@ -25,8 +25,11 @@ export function IzayaWordmark({ className }) {
 
 export function MarketingBrand({ className }) {
   return (
-    <span className={className} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-      <IzayaWordmark className="mk-nav-logo" />
+    <span className={className} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <IzayaWordmark className="mk-nav-logo" />
+        <span className="mk-nav-eis">EIS</span>
+      </span>
       <span className="mk-nav-slogan">Early Intervention Simplified</span>
     </span>
   );
