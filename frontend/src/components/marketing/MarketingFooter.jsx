@@ -24,12 +24,11 @@ export function MarketingFooter() {
           <ul>
             <li><a href="mailto:support@izayaedge.com">support@izayaedge.com</a></li>
             <li><a href="tel:+14057402647">(405) 740-2647</a></li>
-            <li>Old Bridge, NJ 08857</li>
           </ul>
         </div>
       </div>
       <p className="mk-footer-bottom">
-        © {new Date().getFullYear()} Izaya Consulting. Izaya EISimplified™ is a trademark of Izaya Consulting.
+        © {new Date().getFullYear()} Izaya Consulting LLC. Izaya EISimplified™ is a trademark of Izaya Consulting LLC.
       </p>
     </footer>
   );
