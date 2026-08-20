@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Search, ChevronDown } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { AddPatientModal } from '@/components/AddPatientModal';
@@ -32,6 +33,91 @@ const formatDob = (dob) => {
   const d = new Date(dob);
   return Number.isNaN(d.getTime()) ? dob : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
+
+// Practitioner rosters run long enough (dozens of names) that scanning a
+// plain <select> is slow — this swaps in a type-to-filter list instead.
+// Renders its panel through a portal at position: fixed (measured from the
+// trigger button) rather than absolute, since the table's overflow-x-auto
+// wrapper would otherwise clip a dropdown that opens near its edge.
+function PractitionerCombobox({ options, valueId, onSelect, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [panelStyle, setPanelStyle] = useState(null);
+  const btnRef = useRef(null);
+  const panelRef = useRef(null);
+
+  const current = options.find((o) => o.id === valueId);
+  const filtered = options.filter((o) => norm(`${o.first_name} ${o.last_name}`).includes(norm(search)));
+
+  const openPanel = () => {
+    if (disabled) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPanelStyle({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 200) });
+    setSearch('');
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleClick = (e) => {
+      if (panelRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={openPanel}
+        disabled={disabled}
+        className={`inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 ${disabled ? 'opacity-50 cursor-wait' : ''}`}
+      >
+        {current ? `${current.first_name} ${current.last_name}` : 'Unassigned'}
+        <ChevronDown className="size-3.5 text-slate-400" />
+      </button>
+
+      {open && panelStyle && createPortal(
+        <div
+          ref={panelRef}
+          style={{ position: 'fixed', top: panelStyle.top, left: panelStyle.left, width: panelStyle.width }}
+          className="z-50 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden"
+        >
+          <div className="p-1.5 border-b border-slate-100">
+            <Input
+              autoFocus
+              type="text"
+              placeholder="Search practitioners..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-7 text-xs"
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-slate-400">No practitioners match.</div>
+            ) : (
+              filtered.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => { setOpen(false); onSelect(o.id); }}
+                  className={`w-full text-left px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 ${o.id === valueId ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700'}`}
+                >
+                  {o.first_name} {o.last_name}
+                </button>
+              ))
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 export function StaffDirectoryChildren() {
   const [me, setMe] = useState(null);
@@ -167,17 +253,12 @@ export function StaffDirectoryChildren() {
                     <td className="px-4 py-3 text-slate-500">{child.county}</td>
                     <td className="px-4 py-3">
                       {canEdit ? (
-                        <select
-                          value={active?.id || ''}
-                          onChange={(e) => handleReassign(child.id, e.target.value)}
+                        <PractitionerCombobox
+                          options={practitionerOptions}
+                          valueId={active?.id}
+                          onSelect={(id) => handleReassign(child.id, id)}
                           disabled={reassigningId === child.id}
-                          className={`text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-100 text-slate-700 border-slate-200 ${reassigningId === child.id ? 'opacity-50 cursor-wait' : ''}`}
-                        >
-                          <option value="" disabled>Unassigned</option>
-                          {practitionerOptions.map((p) => (
-                            <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
-                          ))}
-                        </select>
+                        />
                       ) : (
                         <span className="text-slate-600">{active ? `${active.first_name} ${active.last_name}` : '—'}</span>
                       )}
