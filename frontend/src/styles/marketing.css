@@ -96,12 +96,12 @@
 .mk-home-hero-media { position: relative; }
 @media (min-width: 1021px) { .mk-home-hero-media { margin-left: -64px; } }
 .mk-home-hero-photo {
-  width: 100%; aspect-ratio: 4/5; overflow: hidden;
+  width: 100%; aspect-ratio: 1114 / 960; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.5) 16%, black 38%);
-  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.5) 16%, black 38%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.55) 8%, black 20%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.55) 8%, black 20%);
 }
-.mk-home-hero-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 68% center; display: block; }
+.mk-home-hero-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 .mk-home-hero-photo-fallback { text-align: center; color: var(--mk-slate); font-size: 12.5px; padding: 24px; }
 .mk-home-hero-badge {
   position: absolute; bottom: -18px; right: -14px;
