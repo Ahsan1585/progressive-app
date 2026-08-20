@@ -9,6 +9,7 @@
     { "source": "/eis/icons.svg", "destination": "/icons.svg" },
     { "source": "/eis/email-logo.png", "destination": "/email-logo.png" },
     { "source": "/eis/hero-practitioner.jpg", "destination": "/hero-practitioner.jpg" },
+    { "source": "/eis/practitionerfamily.png", "destination": "/practitionerfamily.png" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
