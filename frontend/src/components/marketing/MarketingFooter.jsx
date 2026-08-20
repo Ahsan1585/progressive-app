@@ -8,7 +8,7 @@ export function MarketingFooter() {
         <div>
           <MarketingBrand className="mk-footer-brand" />
           <p className="mk-footer-blurb">
-            EI Simplified automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children.
+            Izaya EISimplified automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children.
           </p>
         </div>
         <div>
@@ -29,7 +29,7 @@ export function MarketingFooter() {
         </div>
       </div>
       <p className="mk-footer-bottom">
-        © {new Date().getFullYear()} Izaya Consulting. EI Simplified is a trademark of Izaya Consulting.
+        © {new Date().getFullYear()} Izaya Consulting. Izaya EISimplified is a trademark of Izaya Consulting.
       </p>
     </footer>
   );

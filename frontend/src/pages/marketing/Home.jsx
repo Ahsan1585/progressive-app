@@ -53,7 +53,7 @@ export default function Home() {
             <div className="mk-eyebrow">Smart billing platform</div>
             <h1>Weeks of billing work,<br /><span className="mk-accent">done in minutes.</span></h1>
             <p className="mk-home-hero-sub">
-              EI Simplified™ is the billing platform built for early intervention agencies. Your practitioners log a session — the system handles validation, SEVF, and invoicing.
+              Izaya EISimplified™ is the billing platform built for early intervention agencies. Your practitioners log a session — the system handles validation, SEVF, and invoicing.
             </p>
             <div className="mk-home-hero-ctas">
               <Link to="/contact" className="mk-btn-primary">
@@ -92,7 +92,7 @@ export default function Home() {
             <div className="mk-eyebrow">The core idea</div>
             <h2 style={{ fontSize: 'clamp(24px, 2.8vw, 32px)', marginBottom: 14 }}>Log a session. The system handles the rest.</h2>
             <p style={{ fontSize: 15, color: 'var(--mk-body)', lineHeight: 1.6 }}>
-              Practitioners simply log a session on their phone. EI Simplified automatically validates entries, flags exceptions, approves error-free logs, and generates SEVF forms and invoices — without a single spreadsheet.
+              Practitioners simply log a session on their phone. Izaya EISimplified automatically validates entries, flags exceptions, approves error-free logs, and generates SEVF forms and invoices — without a single spreadsheet.
             </p>
           </div>
           <div className="mk-checklist">
@@ -159,7 +159,7 @@ export default function Home() {
         <div className="mk-section-inner">
           <div className="mk-steps-head">
             <div>
-              <div className="mk-eyebrow">How EI Simplified works</div>
+              <div className="mk-eyebrow">How Izaya EISimplified works</div>
               <h2 style={{ fontSize: 'clamp(24px, 2.8vw, 32px)' }}>Six steps, one uninterrupted flow</h2>
             </div>
             <Link to="/how-it-works" className="mk-btn-text">See the full walkthrough →</Link>
@@ -193,7 +193,7 @@ export default function Home() {
           <div className="mk-cta-band">
             <div>
               <h2>Weeks of billing work.<br />Done in minutes.</h2>
-              <p>Let us show you how EI Simplified™ can transform your billing workflow — from session log to SEVF and invoice.</p>
+              <p>Let us show you how Izaya EISimplified™ can transform your billing workflow — from session log to SEVF and invoice.</p>
             </div>
             <div className="mk-cta-band-actions">
               <Link to="/contact" className="mk-btn-primary">Schedule a demo today</Link>

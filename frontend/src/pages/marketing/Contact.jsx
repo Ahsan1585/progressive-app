@@ -35,7 +35,7 @@ export default function Contact() {
           <div className="mk-eyebrow">Schedule a demo</div>
           <h1>Let us show you the workflow</h1>
           <p className="mk-sub">
-            Tell us a little about your agency and we'll set up a 30-minute walkthrough of EI Simplified — session logging, exception review, SEVF, and invoicing.
+            Tell us a little about your agency and we'll set up a 30-minute walkthrough of Izaya EISimplified — session logging, exception review, SEVF, and invoicing.
           </p>
         </div>
       </section>
@@ -87,7 +87,7 @@ export default function Contact() {
 
           <div className="mk-contact-direct">
             <h3>Talk to us directly</h3>
-            <p>Prefer a phone call? We're happy to answer questions about compliance, onboarding, or how EI Simplified fits alongside your current systems.</p>
+            <p>Prefer a phone call? We're happy to answer questions about compliance, onboarding, or how Izaya EISimplified fits alongside your current systems.</p>
             <div className="mk-contact-direct-list">
               <div className="mk-contact-direct-item">{PHONE_ICON}<a href="tel:+14057402647">(405) 740-2647</a></div>
               <div className="mk-contact-direct-item">{MAIL_ICON}<a href="mailto:support@izayaedge.com">support@izayaedge.com</a></div>

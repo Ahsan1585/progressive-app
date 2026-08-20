@@ -11,7 +11,7 @@ const NAV_LINKS = [
 export function MarketingNav() {
   return (
     <nav className="mk-nav">
-      <Link to="/" className="mk-nav-brand" aria-label="Izaya EI Simplified home">
+      <Link to="/" className="mk-nav-brand" aria-label="Izaya EISimplified home">
         <MarketingBrand />
       </Link>
       <div className="mk-nav-right">

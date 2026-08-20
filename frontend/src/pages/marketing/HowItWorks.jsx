@@ -48,7 +48,7 @@ export default function HowItWorks() {
           <div className="mk-eyebrow">How it works</div>
           <h1>From a session on a phone to a finished invoice</h1>
           <p className="mk-sub">
-            EI Simplified follows one continuous path. Practitioners log in the field, the platform validates and routes exceptions, and finished billing documents come out the other end.
+            Izaya EISimplified follows one continuous path. Practitioners log in the field, the platform validates and routes exceptions, and finished billing documents come out the other end.
           </p>
         </div>
       </section>
@@ -74,7 +74,7 @@ export default function HowItWorks() {
             <div className="mk-eyebrow">Exception-based review</div>
             <h3>Your billing team only sees what's actually broken</h3>
             <p style={{ fontSize: 13.5, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 12 }}>
-              Traditional early intervention billing means reviewing every single log to find the handful that are wrong. EI Simplified inverts that. Clean logs approve themselves. Flagged logs are returned to the practitioner inside the platform, with a comment, and come back corrected. Nothing sits in an inbox waiting for a reply.
+              Traditional early intervention billing means reviewing every single log to find the handful that are wrong. Izaya EISimplified inverts that. Clean logs approve themselves. Flagged logs are returned to the practitioner inside the platform, with a comment, and come back corrected. Nothing sits in an inbox waiting for a reply.
             </p>
             <p style={{ fontSize: 13.5, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
               The result is a review queue that shrinks to exceptions only — and a billing cycle that closes in a fraction of the time.

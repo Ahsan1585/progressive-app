@@ -47,7 +47,7 @@ export default function PractitionerApp() {
       <section className="mk-hero-band">
         <div className="mk-hero-band-inner">
           <div className="mk-eyebrow">Practitioner app</div>
-          <h1>Install EI Simplified on your phone</h1>
+          <h1>Install Izaya EISimplified on your phone</h1>
           <p className="mk-sub">
             The practitioner app installs straight from your browser to your home screen. No app store account, no download queue, no IT ticket.
           </p>
@@ -87,7 +87,7 @@ export default function PractitionerApp() {
                 <li><span className="mk-sn">1</span>Open the app link in Safari on your iPhone or iPad.</li>
                 <li><span className="mk-sn">2</span>Tap the Share button at the bottom of the screen.</li>
                 <li><span className="mk-sn">3</span>Scroll down and tap "Add to Home Screen".</li>
-                <li><span className="mk-sn">4</span>Tap "Add" — the EI Simplified icon appears with your other apps.</li>
+                <li><span className="mk-sn">4</span>Tap "Add" — the Izaya EISimplified icon appears with your other apps.</li>
               </ol>
             </div>
             <div>
@@ -122,7 +122,7 @@ export default function PractitionerApp() {
 
       <section className="mk-app-cta">
         <div className="mk-app-cta-inner">
-          <p style={{ maxWidth: 480 }}>Not using EI Simplified yet? See what your billing cycle looks like without the paperwork.</p>
+          <p style={{ maxWidth: 480 }}>Not using Izaya EISimplified yet? See what your billing cycle looks like without the paperwork.</p>
           <Link to="/contact" className="mk-btn-primary">Schedule a demo</Link>
         </div>
       </section>
