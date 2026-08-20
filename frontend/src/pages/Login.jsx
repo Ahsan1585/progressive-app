@@ -5,6 +5,13 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
 
 const PIN_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>;
+const CHECK_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>;
+
+const TRIAL_PERKS = [
+  'No manual SEVF or invoice prep',
+  'Clean logs approve themselves',
+  'Full setup in under a day',
+];
 
 // Phase 2: every non-practitioner office account is 'ceo' or the catch-all 'staff'.
 const ADMIN_ROLES = ['ceo', 'staff'];
@@ -56,7 +63,8 @@ const Login = () => {
   return (
     <MarketingLayout>
       <div className="mk-login-wrap">
-        <div className="mk-login-card">
+        <div className="mk-login-split">
+          <div className="mk-login-card">
           <h1>Welcome back</h1>
           <div className="mk-login-tag">{PIN_ICON}NJEIS Compliant</div>
 
@@ -115,10 +123,28 @@ const Login = () => {
           </form>
 
           <div className="mk-login-card-foot">
-            New agency? <Link to="/signup">Sign up your company</Link> and start a free 15-day trial.<br />
             Already have an account but no Company Code? Ask your agency admin.<br />
             Trouble signing in? <a href="mailto:support@izayaedge.com">support@izayaedge.com</a>
           </div>
+          </div>
+
+          <aside
+            className="mk-login-promo"
+            style={{ '--mk-login-promo-img': `url(${import.meta.env.BASE_URL}practitionerfamily.png)` }}
+          >
+            <div className="mk-login-promo-eyebrow">New to Izaya EISimplified™?</div>
+            <h2>See what your billing team has been missing.</h2>
+            <ul className="mk-login-promo-list">
+              {TRIAL_PERKS.map((perk) => (
+                <li key={perk} className="mk-login-promo-item">{CHECK_ICON}{perk}</li>
+              ))}
+            </ul>
+            <Link to="/signup" className="mk-btn-primary">
+              Start your free 15-day trial
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+            </Link>
+            <p className="mk-login-promo-note">No credit card required.</p>
+          </aside>
         </div>
       </div>
     </MarketingLayout>

@@ -265,6 +265,7 @@
 
 /* ============ LOGIN PAGE ============ */
 .mk-login-wrap { display: flex; align-items: center; justify-content: center; padding: 56px 24px 72px; }
+.mk-login-split { display: flex; align-items: stretch; justify-content: center; gap: 28px; max-width: 900px; width: 100%; flex-wrap: wrap; }
 .mk-login-card {
   position: relative; z-index: 1; background: var(--mk-card); border-radius: 22px; padding: 34px 32px 26px;
   box-shadow: 0 1px 2px rgba(19, 42, 62, 0.05), 0 28px 64px -18px rgba(19, 42, 62, 0.25);
@@ -279,6 +280,30 @@
 .mk-login-card-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--mk-line); font-size: 13.5px; color: var(--mk-body); text-align: center; line-height: 1.6; }
 .mk-login-card-foot a { color: var(--mk-teal); font-weight: 600; text-decoration: none; }
 .mk-login-card-foot a:hover { text-decoration: underline; }
+
+.mk-login-promo {
+  position: relative; z-index: 1; overflow: hidden; isolation: isolate;
+  flex: 1 1 380px; max-width: 420px; min-height: 460px;
+  border-radius: 22px; padding: 32px 30px 30px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  color: #fff;
+  background-image: linear-gradient(180deg, rgba(12, 29, 44, 0.32) 0%, rgba(12, 29, 44, 0.58) 45%, rgba(12, 29, 44, 0.95) 100%), linear-gradient(100deg, rgba(14, 110, 103, 0.4), transparent 55%), var(--mk-login-promo-img);
+  background-size: cover; background-position: center;
+  box-shadow: 0 1px 2px rgba(19, 42, 62, 0.05), 0 28px 64px -18px rgba(19, 42, 62, 0.25);
+}
+.mk-login-promo-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--mk-mint); margin-bottom: 10px; }
+.mk-login-promo h2 { color: #fff; font-size: clamp(21px, 2.2vw, 25px); line-height: 1.28; letter-spacing: -0.3px; margin-bottom: 18px; max-width: 300px; }
+.mk-login-promo-list { list-style: none; margin: 0 0 22px; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.mk-login-promo-item { display: flex; align-items: center; gap: 9px; font-size: 14.5px; font-weight: 500; color: rgba(255, 255, 255, 0.94); }
+.mk-login-promo-item svg { width: 16px; height: 16px; color: var(--mk-mint); flex-shrink: 0; }
+.mk-login-promo .mk-btn-primary { background: var(--mk-mint); box-shadow: none; color: var(--mk-navy-deep); width: fit-content; }
+.mk-login-promo .mk-btn-primary:hover { filter: brightness(1.08); }
+.mk-login-promo-note { margin: 10px 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.68); }
+@media (max-width: 900px) {
+  .mk-login-split { flex-direction: column; align-items: center; }
+  .mk-login-card, .mk-login-promo { max-width: 440px; }
+  .mk-login-promo { min-height: 340px; }
+}
 
 /* ============ MOBILE INSTALL BANNER ============ */
 .mk-mobile-banner {
