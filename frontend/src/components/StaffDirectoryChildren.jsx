@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { AddPatientModal } from '@/components/AddPatientModal';
-import { showAlert } from '@/utils/dialogStore';
+import { showAlert, showConfirm } from '@/utils/dialogStore';
 
 const norm = (s) => (s || '').toString().toLowerCase();
 
@@ -66,14 +66,27 @@ export function StaffDirectoryChildren() {
 
   const handleReassign = async (childId, practitionerId) => {
     if (!practitionerId) return;
+
+    const child = children.find((c) => c.id === childId);
+    const current = child ? activePractitioner(child) : null;
+    const target = practitionerOptions.find((p) => p.id === Number(practitionerId));
+    const childName = child ? `${child.first_name} ${child.last_name}` : 'this child';
+    const currentName = current ? `${current.first_name} ${current.last_name}` : 'no one currently assigned';
+    const targetName = target ? `${target.first_name} ${target.last_name}` : 'the selected practitioner';
+
+    const confirmed = await showConfirm(
+      `Reassign ${childName} from ${currentName} to ${targetName}?\n\nThis only changes who services this child going forward. Every past session log, SEVF form, and invoice stays attributed to the practitioner who actually performed it and will not be changed or moved.`,
+      { title: 'Reassign practitioner', confirmLabel: 'Reassign' }
+    );
+    if (!confirmed) return;
+
     setReassigningId(childId);
     try {
       await api.patch(`/api/patients/directory/${childId}/practitioner`, { practitionerId: Number(practitionerId) });
-      const assigned = practitionerOptions.find((p) => p.id === Number(practitionerId));
       setChildren((prev) => prev.map((c) => {
         if (c.id !== childId) return c;
         const others = (c.practitioners || []).filter((p) => p.id !== Number(practitionerId)).map((p) => ({ ...p, status: 'inactive' }));
-        return { ...c, practitioners: [...others, { id: Number(practitionerId), first_name: assigned?.first_name, last_name: assigned?.last_name, status: 'active' }] };
+        return { ...c, practitioners: [...others, { id: Number(practitionerId), first_name: target?.first_name, last_name: target?.last_name, status: 'active' }] };
       }));
     } catch {
       showAlert('Failed to reassign practitioner.');
