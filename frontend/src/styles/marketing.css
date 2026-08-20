@@ -211,7 +211,7 @@
 /* ============ FOOTER ============ */
 .mk-footer { border-top: 1px solid var(--mk-line); background: var(--mk-card); padding: 48px 48px 32px; }
 .mk-footer-inner { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 40px; }
-.mk-footer-brand { display: flex; align-items: center; margin-bottom: 14px; }
+.mk-footer-brand { display: flex; align-items: flex-start; margin-bottom: 14px; }
 .mk-footer-brand .mk-nav-logo { width: 88px; }
 .mk-footer-brand .mk-nav-slogan { display: none; }
 .mk-footer-blurb { font-size: 14px; color: var(--mk-slate); line-height: 1.6; max-width: 320px; }
