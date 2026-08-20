@@ -67,14 +67,13 @@ export default function Home() {
 
           <div className="mk-home-hero-media">
             <div className="mk-home-hero-photo">
-              {/* TODO: swap in the real hero photo at /hero-practitioner.jpg (see frontend/public/) */}
               <img
-                src={`${import.meta.env.BASE_URL}hero-practitioner.jpg`}
-                alt="Early intervention practitioner logging a session on her phone"
+                src={`${import.meta.env.BASE_URL}practitionerfamily.png`}
+                alt="An early intervention practitioner reviewing a session log on a tablet while a family plays with their child in the background"
                 onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }}
               />
               <div className="mk-home-hero-photo-fallback" style={{ display: 'none' }}>
-                Add hero photo at<br /><code>frontend/public/hero-practitioner.jpg</code>
+                Add hero photo at<br /><code>frontend/public/practitionerfamily.png</code>
               </div>
             </div>
             <div className="mk-home-hero-badge">
