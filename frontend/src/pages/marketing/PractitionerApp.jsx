@@ -31,7 +31,7 @@ function InstallQR() {
     <div className="mk-qr-tile">
       <div className="mk-qr" aria-label={`QR code linking to ${QR_HOST}`}>
         {failed ? (
-          <span style={{ fontSize: 12, color: 'var(--mk-slate)' }}>Visit<br /><b>{QR_HOST}</b><br />on your phone</span>
+          <span style={{ fontSize: 13, color: 'var(--mk-slate)' }}>Visit<br /><b>{QR_HOST}</b><br />on your phone</span>
         ) : (
           <canvas ref={canvasRef} width={184} height={184} />
         )}
@@ -60,7 +60,7 @@ export default function PractitionerApp() {
           <div>
             <div className="mk-eyebrow">Two ways in</div>
             <h2 style={{ fontSize: 'clamp(22px, 2.6vw, 30px)', marginBottom: 12 }}>Scan the code, or open the link</h2>
-            <p style={{ fontSize: 14, color: 'var(--mk-body)', lineHeight: 1.6, marginBottom: 20 }}>
+            <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginBottom: 20 }}>
               Point your phone camera at the QR code, or tap the button below if you're already reading this on the device you'll use for sessions. Then follow the install steps for your phone.
             </p>
             <div className="mk-download-actions">

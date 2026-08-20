@@ -89,8 +89,8 @@ export default function Home() {
         <div className="mk-section-inner mk-idea-grid">
           <div>
             <div className="mk-eyebrow">The core idea</div>
-            <h2 style={{ fontSize: 'clamp(24px, 2.8vw, 32px)', marginBottom: 14 }}>Log a session. The system handles the rest.</h2>
-            <p style={{ fontSize: 15, color: 'var(--mk-body)', lineHeight: 1.6 }}>
+            <h2 style={{ fontSize: 'clamp(26px, 2.8vw, 32px)', marginBottom: 14 }}>Log a session. The system handles the rest.</h2>
+            <p style={{ fontSize: 17, color: 'var(--mk-body)', lineHeight: 1.6 }}>
               Practitioners simply log a session on their phone. Izaya EISimplified™ automatically validates entries, flags exceptions, approves error-free logs, and generates SEVF forms and invoices — without a single spreadsheet.
             </p>
           </div>
@@ -159,7 +159,7 @@ export default function Home() {
           <div className="mk-steps-head">
             <div>
               <div className="mk-eyebrow">How Izaya EISimplified™ works</div>
-              <h2 style={{ fontSize: 'clamp(24px, 2.8vw, 32px)' }}>Six steps, one uninterrupted flow</h2>
+              <h2 style={{ fontSize: 'clamp(26px, 2.8vw, 32px)' }}>Six steps, one uninterrupted flow</h2>
             </div>
             <Link to="/how-it-works" className="mk-btn-text">See the full walkthrough →</Link>
           </div>
