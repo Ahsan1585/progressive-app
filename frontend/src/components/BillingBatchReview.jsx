@@ -1606,7 +1606,7 @@ function ComplianceAnalysisPreview({
         <div>
           <div className="text-base font-bold text-slate-900 mb-1.5">Compliance Analysis</div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Each session below is matched to the state's reference document by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time.
+            Each session below is EIMS Matched by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time.
           </p>
         </div>
       </div>
