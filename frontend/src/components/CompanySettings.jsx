@@ -35,11 +35,9 @@ export const CompanySettings = ({ onSettingsChange }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingComplianceDoc, setIsUploadingComplianceDoc] = useState(false);
-  const [isRemovingComplianceDoc, setIsRemovingComplianceDoc] = useState(false);
   const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
   const [downloadingMonth, setDownloadingMonth] = useState(null); // 'YYYY-MM' currently downloading, or null
   const [deletingMonth, setDeletingMonth] = useState(null); // 'YYYY-MM' currently deleting, or null
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
 
   // Column-mapping screen: shown right after an upload (or reopened via
@@ -177,22 +175,6 @@ export const CompanySettings = ({ onSettingsChange }) => {
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleComplianceDocRemove = async () => {
-    setIsRemovingComplianceDoc(true);
-    setToast(null);
-    try {
-      const response = await api.delete('/api/company/compliance-doc');
-      applySettings(response.data.settings);
-      setMappingInfo(null);
-      setShowRemoveConfirm(false);
-      setToast({ type: 'success', message: 'Compliance document removed — all EIMS compliance data has been cleared.' });
-    } catch (error) {
-      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to remove document.' });
-    } finally {
-      setIsRemovingComplianceDoc(false);
-    }
   };
 
   // Pre-fills each target field with: this upload's auto-detected header,
@@ -525,9 +507,6 @@ export const CompanySettings = ({ onSettingsChange }) => {
                 {isUploadingComplianceDoc ? 'Uploading...' : 'Add files'}
                 <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleComplianceDocSelect} disabled={isUploadingComplianceDoc} />
               </label>
-              <Button onClick={() => setShowRemoveConfirm(true)} disabled={isRemovingComplianceDoc} variant="outline" size="sm" className="cursor-pointer border-red-200 bg-white text-red-600 font-semibold hover:bg-red-50">
-                {isRemovingComplianceDoc ? 'Removing...' : 'Remove'}
-              </Button>
             </div>
           </div>
         ) : null}
@@ -536,7 +515,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
           <div className="flex items-start gap-2.5 bg-sky-50 border border-sky-200 rounded-xl px-3.5 py-3 text-xs text-sky-700">
             <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
             <span>
-              <span className="font-bold">Each month, use Add files</span> to attach the new EIMS records file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically. <span className="font-bold">Remove</span> is only for starting over completely — it clears all EIMS compliance data, not just this file.
+              <span className="font-bold">Each month, use Add files</span> to attach the new EIMS records file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically.
             </span>
           </div>
         )}
@@ -785,36 +764,6 @@ export const CompanySettings = ({ onSettingsChange }) => {
       )}
 
       {activeTab === 'dropdowns' && <DropdownOptionsManager />}
-
-      <Dialog open={showRemoveConfirm} onOpenChange={setShowRemoveConfirm}>
-        <DialogContent className="sm:max-w-md bg-white">
-          <DialogHeader>
-            <DialogTitle>Remove the EIMS compliance document?</DialogTitle>
-          </DialogHeader>
-          <DialogDescription className="text-sm text-slate-600 -mt-2 space-y-3">
-            <p>
-              This deletes <span className="font-semibold text-slate-800">{complianceDoc?.filename}</span>, clears its column matching, and wipes <span className="font-semibold text-slate-800">all</span> EIMS compliance data on file — not just this file's data. Compliance Analysis will show every session as "Missing in EIMS" until a new file is uploaded and confirmed.
-            </p>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-3 text-xs text-slate-600 space-y-1.5">
-              <p className="font-bold text-slate-700">If you're just uploading next month's file, use Add files instead</p>
-              <p>Add files keeps a rolling 90 days of compliance data on file. Each time you add a file, it only swaps out that file's own dates and automatically drops anything older than 90 days — nothing needs to be cleared manually. Remove is only for a full reset (e.g. the wrong file was uploaded).</p>
-            </div>
-          </DialogDescription>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setShowRemoveConfirm(false)} className="cursor-pointer">
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleComplianceDocRemove}
-              disabled={isRemovingComplianceDoc}
-              className="cursor-pointer text-white bg-red-600 hover:bg-red-700"
-            >
-              {isRemovingComplianceDoc ? 'Removing...' : 'Remove Everything'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
