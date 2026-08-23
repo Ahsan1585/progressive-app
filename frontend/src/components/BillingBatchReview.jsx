@@ -1260,7 +1260,7 @@ function ComplianceMatchingSettings({ isAdmin }) {
               <thead>
                 <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                   <th className="text-left px-3 py-2">Field</th>
-                  <th className="text-left px-3 py-2">State's Text</th>
+                  <th className="text-left px-3 py-2">EIMS Text</th>
                   <th className="text-left px-3 py-2">Our Value</th>
                   <th className="text-left px-3 py-2">Confirmed By</th>
                   <th className="px-3 py-2 w-16"></th>
@@ -1349,7 +1349,7 @@ function ComplianceAnalysisPreview({
   const handleAllowField = async (sessionId, field) => {
     const isLearnable = !!field._learn && hasWordOverlap(field.ours, field.state);
     const confirmMessage = isLearnable
-      ? `Allow "${field.label}"? Our value "${field.ours || '-'}" will be remembered as matching the state's "${field.state || '-'}" — every future log with this same mismatch will auto-match too, until removed from Compliance Matching.`
+      ? `Allow "${field.label}"? Our value "${field.ours || '-'}" will be remembered as matching EIMS's "${field.state || '-'}" — every future log with this same mismatch will auto-match too, until removed from Compliance Matching.`
       : `You are only allowing "${field.label}" as a one-time allow for this log, based on your review — this will not be used to teach the system for future logs.`;
     if (!(await showConfirm(confirmMessage))) return;
 
@@ -1671,7 +1671,7 @@ function ComplianceAnalysisPreview({
           >
             <div className="text-2xl font-black text-emerald-600">{matchedCount}</div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-0.5">
-              Match with State
+              Match with EIMS
             </div>
           </button>
           <button
@@ -1880,7 +1880,7 @@ function ComplianceAnalysisPreview({
                     </tr>
                   ) : isDuplicate ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={4}>Duplicate of another log for this patient on this date/time — only one can match the state's single record for it</td>
+                      <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={4}>Duplicate of another log for this patient on this date/time — only one can match EIMS's single record for it</td>
                     </tr>
                   ) : (
                     <>
