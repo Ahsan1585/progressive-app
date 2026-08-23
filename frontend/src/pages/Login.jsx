@@ -139,7 +139,7 @@ const Login = () => {
                 <li key={perk} className="mk-login-promo-item">{CHECK_ICON}{perk}</li>
               ))}
             </ul>
-            <p className="mk-login-promo-note">No credit card required.</p>
+            <Link to="/contact" className="mk-btn-primary">Schedule a demo</Link>
           </aside>
         </div>
       </div>
