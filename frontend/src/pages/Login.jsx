@@ -130,7 +130,7 @@ const Login = () => {
 
           <aside
             className="mk-login-promo"
-            style={{ '--mk-login-promo-img': `url(${import.meta.env.BASE_URL}practitionerfamily.png)` }}
+            style={{ '--mk-login-promo-img': `url(${import.meta.env.BASE_URL}hero-practitioner.jpg)` }}
           >
             <div className="mk-login-promo-eyebrow">New to Izaya EISimplified™?</div>
             <h2>See what your billing team has been missing.</h2>
