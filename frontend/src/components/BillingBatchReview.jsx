@@ -1460,12 +1460,6 @@ function ComplianceAnalysisPreview({
 
   useEffect(() => { fetchAnalysis(); }, [practitionerId, periodStart, periodEnd]);
 
-  const openComplianceDoc = () => {
-    api.get('/api/company/compliance-doc/download')
-      .then(res => window.open(res.data.url, '_blank', 'noopener'))
-      .catch(() => {});
-  };
-
   // Return/Reject need a note, collected via the popup below — everything
   // else (Approve, reset to Pending, Hold, Release Hold) applies immediately.
   const handleStatusChange = async (session, value) => {
@@ -1610,25 +1604,6 @@ function ComplianceAnalysisPreview({
           </p>
         </div>
       </div>
-
-      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Reference document (from Company Information)</div>
-      {isLoadingDoc ? (
-        <div className="text-sm text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-4 py-3 mb-6">Checking…</div>
-      ) : complianceDoc ? (
-        <button
-          type="button"
-          onClick={openComplianceDoc}
-          className="w-full flex items-center gap-3 text-left text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-6 cursor-pointer hover:bg-emerald-100 transition-colors"
-        >
-          <Download className="size-4 text-emerald-700 flex-shrink-0" />
-          <span className="text-emerald-800 font-semibold">{complianceDoc.filename}</span>
-          <span className="text-emerald-600 text-xs">on file — click to download</span>
-        </button>
-      ) : (
-        <div className="text-sm text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-lg px-4 py-3 mb-6">
-          No EIMS records on file yet — attach one on the Company Information page.
-        </div>
-      )}
 
       <button
         type="button"
