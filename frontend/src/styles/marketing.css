@@ -331,16 +331,16 @@
 @media (max-width: 640px) {
   .mk-nav, .mk-hero-band, .mk-home-hero, .mk-section, .mk-app-cta, .mk-footer { padding-left: 20px; padding-right: 20px; }
   .mk-cta-band { padding: 36px 26px; }
-  .mk-nav-logo { width: 84px; }
-  .mk-eis-text { font-size: 18px; }
+  .mk-nav-logo { width: 100px; }
+  .mk-eis-text { font-size: 21px; }
   .mk-nav-right { gap: 12px; }
   .mk-nav-cta { padding: 8px 14px; font-size: 12.5px; }
 }
 
 @media (max-width: 400px) {
   .mk-nav { padding-left: 14px; padding-right: 14px; }
-  .mk-nav-logo { width: 64px; }
-  .mk-eis-text { font-size: 14px; }
+  .mk-nav-logo { width: 78px; }
+  .mk-eis-text { font-size: 16px; }
   .mk-nav-right { gap: 8px; }
   .mk-nav-login { font-size: 12px; }
   .mk-nav-cta { padding: 7px 11px; font-size: 11.5px; }
