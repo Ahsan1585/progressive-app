@@ -9,8 +9,8 @@ import { BrandWordmarkRow } from '@/components/marketing/IzayaMark';
 // "small header" or "large centered" — add a preset here rather than a
 // one-off inline override if a third size is ever needed.
 const SIZES = {
-  sm: { wordmarkClassName: 'h-5 w-auto', eisFontSize: 15, taglineFontSize: 8, gap: 1 },
-  lg: { wordmarkClassName: 'h-9 w-auto', eisFontSize: 24, taglineFontSize: 11, gap: 3 },
+  sm: { wordmarkClassName: 'h-5 w-auto', eisFontSize: 17, taglineFontSize: 8, gap: 1 },
+  lg: { wordmarkClassName: 'h-9 w-auto', eisFontSize: 31, taglineFontSize: 11, gap: 3 },
 };
 
 export function BrandLockup({ size = 'sm', align = 'flex-start', className = '' }) {

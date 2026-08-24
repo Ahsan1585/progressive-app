@@ -44,9 +44,9 @@ export function IzayaWordmark({ className }) {
 // .mk-page). "EIS" uses the logo's own mint green (IZAYA_MINT, the
 // chevron/node accent), not a different accent color, so it reads as part
 // of the mark itself.
-export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 20 }) {
+export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 27 }) {
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <span style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
       <IzayaWordmark className={wordmarkClassName} />
       <span style={{ fontFamily: "'Sora Variable', sans-serif", fontWeight: 800, letterSpacing: '-0.02em', color: IZAYA_MINT, fontSize: eisFontSize, lineHeight: 1 }}>EIS</span>
     </span>
