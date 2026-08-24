@@ -45,12 +45,17 @@
     0%, 100% { transform: rotate(-4deg); }
     50%      { transform: rotate(4deg); }
   }
+  @keyframes pulseGreenFrame {
+    0%, 100% { box-shadow: 0 10px 24px rgba(15,23,42,0.22), 0 0 0 0 rgba(13,167,107,0.35); }
+    50%      { box-shadow: 0 10px 24px rgba(15,23,42,0.22), 0 0 0 8px rgba(13,167,107,0); }
+  }
   a.btn-primary   { animation: pulseWhite 2.6s ease-in-out infinite; -webkit-animation: pulseWhite 2.6s ease-in-out infinite; }
   a.btn-secondary { animation: pulseGreen 2.6s ease-in-out infinite; -webkit-animation: pulseGreen 2.6s ease-in-out infinite; }
   .sprout-anim    { animation: sproutSway 3.4s ease-in-out infinite; -webkit-animation: sproutSway 3.4s ease-in-out infinite; transform-origin: bottom center; display: inline-table; }
+  .sig-pulse      { animation: pulseGreenFrame 2.6s ease-in-out infinite; -webkit-animation: pulseGreenFrame 2.6s ease-in-out infinite; }
 
   @media (prefers-reduced-motion: reduce) {
-    a.btn-primary, a.btn-secondary, .sprout-anim { animation: none !important; -webkit-animation: none !important; }
+    a.btn-primary, a.btn-secondary, .sprout-anim, .sig-pulse { animation: none !important; -webkit-animation: none !important; box-shadow: 0 10px 24px rgba(15,23,42,0.22) !important; }
   }
 
   @media (prefers-color-scheme: dark) {
@@ -480,7 +485,7 @@
                 <td class="px-mobile" style="padding: 28px 40px 34px 40px;">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                     <tr>
-                      <td width="52%" valign="middle" class="stack-mobile stack-pad" style="padding-right: 24px;">
+                      <td width="52%" valign="top" class="stack-mobile stack-pad" style="padding-right: 24px; padding-top: 18px;">
                         <p style="margin:0 0 8px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700;" class="navy">
                           No Paper. No Scanning.
                         </p>
@@ -488,15 +493,22 @@
                           Real Signatures, <span class="green">Captured in the Field</span>
                         </p>
                         <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px;" class="ink-body">
-                          Parents and practitioners sign right on the phone at the end of every session. Practitioners can save their signature once and reuse it — both signatures are stored with the session record automatically.
+                          Parents and practitioners sign right on the phone at the end of every session. Practitioners can save their signature once and reuse it, and both signatures are stored with the session record automatically.
                         </p>
                       </td>
                       <td width="48%" valign="top" align="center" class="stack-mobile">
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="card-border" style="border-radius:16px; margin:0 auto;"><tr>
-                          <td style="padding:8px;">
-                            <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-26.png" width="220" alt="Log Session screen showing the parent/guardian signature and the practitioner's saved signature" style="display:block; width:220px; max-width:100%; height:auto; border-radius:10px; border:0;">
-                          </td>
-                        </tr></table>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:172px; margin:0 auto;"><tr><td align="center">
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="device-bezel sig-pulse" style="border-radius: 20px; margin:0 auto;"><tr>
+                            <td style="padding: 9px 9px 12px 9px;">
+                              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="device-screen" style="border-radius:8px; overflow:hidden;"><tr>
+                                <td align="center" style="padding:0; line-height:0;">
+                                  <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-26.png" width="154" alt="Log Session screen showing the parent/guardian signature and the practitioner's saved signature" style="display:block; width:100%; max-width:154px; height:auto; border:0;">
+                                </td>
+                              </tr></table>
+                            </td>
+                          </tr></table>
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td class="device-bezel" style="width:26px; height:4px; border-radius:0 0 4px 4px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
+                        </td></tr></table>
                       </td>
                     </tr>
                   </table>
