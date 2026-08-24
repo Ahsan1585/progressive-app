@@ -44,11 +44,27 @@ export function IzayaWordmark({ className }) {
 // .mk-page). "EIS" uses the logo's own mint green (IZAYA_MINT, the
 // chevron/node accent), not a different accent color, so it reads as part
 // of the mark itself.
-export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 27 }) {
+// `eisClassName` lets a caller hand sizing over to CSS (so it can add
+// responsive breakpoints, e.g. MarketingBrand's mk-eis-text below) instead
+// of the fixed `eisFontSize` px value — when given, fontSize is left off
+// the inline style so the class (and its media queries) actually wins.
+export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 27, eisClassName }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
       <IzayaWordmark className={wordmarkClassName} />
-      <span style={{ fontFamily: "'Sora Variable', sans-serif", fontWeight: 800, letterSpacing: '-0.02em', color: IZAYA_MINT, fontSize: eisFontSize, lineHeight: 1 }}>EIS</span>
+      <span
+        className={eisClassName}
+        style={{
+          fontFamily: "'Sora Variable', sans-serif",
+          fontWeight: 800,
+          letterSpacing: '-0.02em',
+          color: IZAYA_MINT,
+          lineHeight: 1,
+          ...(eisClassName ? {} : { fontSize: eisFontSize }),
+        }}
+      >
+        EIS
+      </span>
     </span>
   );
 }
@@ -56,7 +72,7 @@ export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 27 }) {
 export function MarketingBrand({ className }) {
   return (
     <span className={className} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <BrandWordmarkRow wordmarkClassName="mk-nav-logo" />
+      <BrandWordmarkRow wordmarkClassName="mk-nav-logo" eisClassName="mk-eis-text" />
       <span className="mk-nav-slogan">Early Intervention Simplified</span>
     </span>
   );

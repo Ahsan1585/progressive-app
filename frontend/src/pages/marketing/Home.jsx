@@ -142,7 +142,7 @@ export default function Home() {
               <div className="mk-tile-row">
                 {AUTOMATED.map((a) => (
                   <div className="mk-tile" key={a.title}>
-                    {a.icon}
+                    <div className="mk-tile-icon-badge">{a.icon}</div>
                     <div className="mk-tile-title">{a.title}</div>
                     <div className="mk-tile-sub">{a.sub}</div>
                   </div>
