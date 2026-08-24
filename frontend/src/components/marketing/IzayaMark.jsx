@@ -48,7 +48,7 @@ export function IzayaWordmark({ className }) {
 // responsive breakpoints, e.g. MarketingBrand's mk-eis-text below) instead
 // of the fixed `eisFontSize` px value — when given, fontSize is left off
 // the inline style so the class (and its media queries) actually wins.
-export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 27, eisClassName }) {
+export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 23, eisClassName }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
       <IzayaWordmark className={wordmarkClassName} />

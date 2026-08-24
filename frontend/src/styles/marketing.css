@@ -48,7 +48,7 @@
    .mk-nav-logo at each breakpoint below — otherwise EIS stays fixed while
    the wordmark shrinks and ends up looking oversized on mobile. Ratio is
    ~0.87 * the wordmark's rendered height at each width. */
-.mk-eis-text { font-size: 27px; }
+.mk-eis-text { font-size: 23px; }
 .mk-nav-slogan { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--mk-slate); }
 .mk-page .ilg-n { stroke: var(--mk-navy); fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
 .mk-page .ilg-m { stroke: var(--mk-mint); fill: none; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
@@ -218,7 +218,7 @@
 .mk-footer-inner { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 40px; }
 .mk-footer-brand { display: flex; align-items: flex-start; margin-bottom: 14px; }
 .mk-footer-brand .mk-nav-logo { width: 88px; }
-.mk-footer-brand .mk-eis-text { font-size: 22px; }
+.mk-footer-brand .mk-eis-text { font-size: 19px; }
 .mk-footer-brand .mk-nav-slogan { display: none; }
 .mk-footer-blurb { font-size: 14px; color: var(--mk-slate); line-height: 1.6; max-width: 320px; }
 .mk-footer h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mk-navy); margin-bottom: 14px; }
@@ -332,6 +332,7 @@
   .mk-nav, .mk-hero-band, .mk-home-hero, .mk-section, .mk-app-cta, .mk-footer { padding-left: 20px; padding-right: 20px; }
   .mk-cta-band { padding: 36px 26px; }
   .mk-nav-logo { width: 84px; }
+  .mk-eis-text { font-size: 18px; }
   .mk-nav-right { gap: 12px; }
   .mk-nav-cta { padding: 8px 14px; font-size: 12.5px; }
 }
@@ -339,6 +340,7 @@
 @media (max-width: 400px) {
   .mk-nav { padding-left: 14px; padding-right: 14px; }
   .mk-nav-logo { width: 64px; }
+  .mk-eis-text { font-size: 14px; }
   .mk-nav-right { gap: 8px; }
   .mk-nav-login { font-size: 12px; }
   .mk-nav-cta { padding: 7px 11px; font-size: 11.5px; }
