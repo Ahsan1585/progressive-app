@@ -32,12 +32,15 @@ const SERIF = "Georgia, 'Times New Roman', serif";
 
 // Table-based "bulletproof" button — renders correctly (and stays fully
 // clickable) even in Outlook desktop, which ignores most CSS on <a> tags.
+// On mobile (see emailShell's <style> block) il-cta-table/il-cta-link go
+// full-width — a small centered button is an easy-to-miss, hard-to-tap
+// target on a phone, and this link is usually opened on one.
 function ctaButton(url, label) {
   return `
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 26px 0 0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="il-cta-table" style="margin: 26px 0 0;">
       <tr>
-        <td bgcolor="${COLORS.teal}" style="border-radius: 10px;">
-          <a href="${url}" target="_blank" style="display:inline-block; padding:14px 32px; font-family:${SANS}; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:10px;">
+        <td bgcolor="${COLORS.teal}" align="center" style="border-radius: 10px;">
+          <a href="${url}" target="_blank" class="il-cta-link" style="display:inline-block; padding:14px 32px; font-family:${SANS}; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:10px;">
             ${label}
           </a>
         </td>
@@ -51,11 +54,12 @@ function ctaButton(url, label) {
 // each column carries its own real alt text and the bold label sits right
 // under it, so the step is still fully legible in image-blocked clients
 // (Gmail/Outlook default to blocking remote images until the user clicks
-// "show images"). Stacks to one column per row automatically in narrow
-// mobile mail clients since each <td> is width="33%" with no fixed px width.
+// "show images"). A bare width="33%" <td> only shrinks on narrow screens,
+// it doesn't stack — the il-step-cell media-query rule in emailShell does
+// the actual stacking to one full-width row per step under ~480px.
 function stepGuide(steps) {
   const cell = ({ icon, alt, label, subtext }) => `
-    <td width="33%" align="center" valign="top" style="padding:0 6px;">
+    <td class="il-step-cell" width="33%" align="center" valign="top" style="padding:0 6px;">
       <img src="${icon}" width="40" height="40" alt="${alt}" style="display:block; width:40px; height:40px; margin:0 auto 10px;" />
       <div style="font-family:${SANS}; font-size:12.5px; font-weight:700; color:${COLORS.navy}; margin-bottom:3px;">${label}</div>
       <div style="font-family:${SANS}; font-size:11.5px; line-height:1.4; color:${COLORS.slate};">${subtext}</div>
@@ -90,6 +94,15 @@ function emailShell({ preheader, eyebrow, heading, bodyHtml, footnote }) {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Izaya EIS</title>
+<style>
+  @media only screen and (max-width: 480px) {
+    .il-card-pad { padding-left: 22px !important; padding-right: 22px !important; }
+    .il-step-cell { display: block !important; width: 100% !important; padding: 0 0 16px !important; }
+    .il-step-cell:last-child { padding-bottom: 0 !important; }
+    .il-cta-table { width: 100% !important; }
+    .il-cta-link { display: block !important; width: 100% !important; box-sizing: border-box !important; text-align: center !important; }
+  }
+</style>
 </head>
 <body style="margin:0; padding:0; background-color:${COLORS.paper};">
 <div style="display:none; max-height:0; overflow:hidden; opacity:0;">${preheader || ''}</div>
@@ -100,13 +113,13 @@ function emailShell({ preheader, eyebrow, heading, bodyHtml, footnote }) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background-color:${COLORS.card}; border-radius:16px;">
 <tr><td style="height:5px; line-height:5px; font-size:0; background-color:${COLORS.teal};" bgcolor="${COLORS.teal}">&nbsp;</td></tr>
 <tr>
-<td align="center" style="padding:36px 40px 6px;">
+<td align="center" class="il-card-pad" style="padding:36px 40px 6px;">
 <img src="${LOGO_URL}" width="140" alt="Izaya" style="display:block; width:140px; max-width:100%; height:auto; margin-bottom:14px;" />
 <div style="font-family:${SANS}; font-size:10.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:${COLORS.slate};">Early Intervention Simplified</div>
 </td>
 </tr>
 <tr>
-<td style="padding:22px 40px 0;">
+<td class="il-card-pad" style="padding:22px 40px 0;">
 ${eyebrow ? `<div style="font-family:${SANS}; font-size:11px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:${COLORS.mint}; margin-bottom:10px;">${eyebrow}</div>` : ''}
 <h1 style="margin:0 0 14px; font-family:${SERIF}; font-weight:600; font-size:23px; line-height:1.32; color:${COLORS.navy};">${heading}</h1>
 <div style="font-family:${SANS}; font-size:14.5px; line-height:1.65; color:${COLORS.slate};">${bodyHtml}</div>
@@ -114,7 +127,7 @@ ${eyebrow ? `<div style="font-family:${SANS}; font-size:11px; font-weight:700; l
 </tr>
 ${footnote ? `
 <tr>
-<td style="padding:28px 40px 36px;">
+<td class="il-card-pad" style="padding:28px 40px 36px;">
 <div style="border-top:1px solid ${COLORS.line}; padding-top:18px; font-family:${SANS}; font-size:12px; line-height:1.6; color:${COLORS.slate};">${footnote}</div>
 </td>
 </tr>` : `<tr><td style="padding-bottom:36px;"></td></tr>`}
