@@ -27,7 +27,7 @@ export default function PatientDetail() {
   const [resendingId, setResendingId] = React.useState<string | null>(null);
 
   const awaitingTelepracticeRequests = React.useMemo(
-    () => telepracticeRequests.filter((r) => r.patient_id === id && r.status === "awaiting_signature"),
+    () => telepracticeRequests.filter((r) => String(r.patient_id) === id && r.status === "awaiting_signature"),
     [telepracticeRequests, id]
   );
 
