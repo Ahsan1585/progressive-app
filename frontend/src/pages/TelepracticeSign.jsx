@@ -121,7 +121,7 @@ const TelepracticeSign = () => {
   if (status === 'invalid') {
     return (
       <Shell>
-        <StatusMessage icon={AlertCircle} tone="danger" title="This link isn't valid" message="Double-check the link from your email, or ask your practitioner to resend it." />
+        <StatusMessage icon={Clock} tone="warning" title="This link has expired or was already used" message="Signing links only work once and expire after 7 days. Ask your practitioner to send you a new one." />
       </Shell>
     );
   }

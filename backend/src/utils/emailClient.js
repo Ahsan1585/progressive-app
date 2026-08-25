@@ -332,6 +332,7 @@ const sendContactRequestEmail = async ({
 const sendParentSignatureRequestEmail = async (toEmail, {
   childFirstName, practitionerFirstName, serviceLabel, sessionDate, startTime, endTime,
   durationLabel, sessionTypeLabel, locationLabel, practitionerName, practitionerDisciplineLabel, signUrl,
+  isResend = false,
 }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping telepractice signature request email send.');
@@ -370,16 +371,26 @@ const sendParentSignatureRequestEmail = async (toEmail, {
   `;
   const html = emailShell({
     preheader: `A quick signature is needed for ${childFirstName}'s session on ${sessionDate}.`,
-    eyebrow: 'Signature Needed',
+    eyebrow: isResend ? 'Signature Reminder' : 'Signature Needed',
     heading: `Please review and sign ${childFirstName}'s session`,
     bodyHtml,
     footnote: 'This link is private to you and expires in 7 days. It takes less than a minute — no login, password, or app download required.',
   });
 
+  // A resend's subject is deliberately distinct from the original send's
+  // (not just re-sent verbatim) — Gmail auto-threads new mail by matching
+  // subject + participants even without In-Reply-To headers, and once
+  // threaded it collapses near-identical content between messages behind a
+  // "•••" toggle. An identical subject on every resend made the parent's
+  // actual session details disappear behind that toggle.
+  const subject = isResend
+    ? `Reminder: Please review and sign ${childFirstName}'s recent session`
+    : `Please review and sign ${childFirstName}'s recent session`;
+
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
     to: toEmail,
-    subject: `Please review and sign ${childFirstName}'s recent session`,
+    subject,
     html,
   });
 };

@@ -200,6 +200,7 @@ const resendTelepracticeSignatureRequest = async (req, res) => {
       practitionerName: `${request.practitioner_first_name} ${request.practitioner_last_name}`.trim(),
       practitionerDisciplineLabel: request.practitioner_discipline,
       signUrl,
+      isResend: true,
     });
 
     res.json({ success: true });
