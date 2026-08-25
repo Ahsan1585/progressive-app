@@ -8,6 +8,9 @@
     { "source": "/eis/favicon.png", "destination": "/favicon.png" },
     { "source": "/eis/icons.svg", "destination": "/icons.svg" },
     { "source": "/eis/email-logo.png", "destination": "/email-logo.png" },
+    { "source": "/eis/email-icon-review.png", "destination": "/email-icon-review.png" },
+    { "source": "/eis/email-icon-sign.png", "destination": "/email-icon-sign.png" },
+    { "source": "/eis/email-icon-done.png", "destination": "/email-icon-done.png" },
     { "source": "/eis/hero-practitioner.jpg", "destination": "/hero-practitioner.jpg" },
     { "source": "/eis/practitionerfamily.png", "destination": "/practitionerfamily.png" },
     { "source": "/(.*)", "destination": "/index.html" }
