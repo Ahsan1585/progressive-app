@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -21,9 +21,29 @@ export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap } = useAppData();
+  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
+  const [resendingId, setResendingId] = React.useState<string | null>(null);
+
+  const awaitingTelepracticeRequests = React.useMemo(
+    () => telepracticeRequests.filter((r) => r.patient_id === id && r.status === "awaiting_signature"),
+    [telepracticeRequests, id]
+  );
+
+  const handleResendTelepractice = async (requestId: string) => {
+    setResendingId(requestId);
+    try {
+      await api.post(`/api/telepractice-signatures/${requestId}/resend`);
+      showToast("Signing link resent to the parent.");
+      await fetchTelepracticeRequests();
+    } catch (err) {
+      const body = (err as { response?: { data?: { error?: string } } }).response?.data;
+      showToast(body?.error || "Couldn't resend the link. Please try again.");
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const { showToast } = useToast();
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
@@ -266,6 +286,31 @@ export default function PatientDetail() {
                   className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {awaitingTelepracticeRequests.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <h3 className="text-[13px] font-semibold text-ink-muted">Awaiting parent signature</h3>
+            {awaitingTelepracticeRequests.map((req) => (
+              <div key={req.id} className="flex items-center gap-3 rounded-card border border-border bg-surface p-3 shadow-[var(--elev-rest)]">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
+                  <Send className="size-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(req.service_date)}</p>
+                  <p className="text-xs text-ink-muted">Sent {timeAgo(req.resent_at || req.sent_at)} to {req.parent_email}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleResendTelepractice(req.id)}
+                  disabled={resendingId === req.id}
+                  className="press-scale shrink-0 rounded-control border border-border-strong px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
+                >
+                  {resendingId === req.id ? "Sending..." : "Resend"}
                 </button>
               </div>
             ))}

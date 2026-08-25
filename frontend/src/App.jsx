@@ -13,6 +13,7 @@ import ResetPassword from './pages/ResetPassword';
 import SignupWizard from './pages/SignupWizard';
 import SignupConfirm from './pages/SignupConfirm';
 import ActivateAccount from './pages/ActivateAccount';
+import TelepracticeSign from './pages/TelepracticeSign';
 import AdminDashboard from './pages/AdminDashboard';
 import PlatformAdmin from './pages/PlatformAdmin';
 import { DialogHost } from './components/DialogHost';
@@ -123,6 +124,8 @@ const WEB_ROUTES = (
     <Route path="/signup" element={<SignupWizard />} />
     <Route path="/signup/confirm/:token" element={<SignupConfirm />} />
     <Route path="/:companySlug/activate/:token" element={<ActivateAccount />} />
+    {/* Public, unauthenticated — a parent reaches this from the telepractice signature-request email, never from within the app. */}
+    <Route path="/:companySlug/sign/:token" element={<TelepracticeSign />} />
     <Route
       path="/dashboard"
       element={<ProtectedRoute element={<Dashboard />} allowedRoles={['practitioner']} />}

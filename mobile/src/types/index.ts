@@ -155,6 +155,54 @@ export interface RejectedLog {
   acknowledged_at: string | null;
 }
 
+// A telepractice session awaiting (or having just received) the parent's
+// remote signature — matches telepracticeSignatureController.js's
+// listTelepracticeRequests response. 'awaiting_signature' items are
+// visible-but-not-yet-actionable (shown on Patient Detail, not badge-
+// counted); 'signed' items are the practitioner's actual Inbox action item
+// ("Ready to submit" — Confirm & Submit creates the real assessment).
+export interface TelepracticeSignatureRequest {
+  id: string;
+  patient_id: string;
+  patient_first_name: string;
+  patient_last_name: string;
+  service_date: string;
+  type: string;
+  status: "awaiting_signature" | "signed";
+  parent_email: string;
+  sent_at: string;
+  resent_at: string | null;
+  resend_count: number;
+  signed_at: string | null;
+  token_expires: string;
+}
+
+// Full detail for one request, fetched on the Confirm & Submit screen —
+// matches getTelepracticeRequestDetail's response (the raw
+// telepractice_signature_requests row).
+export interface TelepracticeSignatureRequestDetail extends TelepracticeSignatureRequest {
+  patient_dob: string | null;
+  patient_county: string | null;
+  practitioner_first_name: string;
+  practitioner_last_name: string;
+  practitioner_discipline: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  total_time: number | null;
+  // Attendance status (e.g. "completed") — named session_status, distinct
+  // from this same row's own `status` field (the awaiting_signature/signed
+  // lifecycle above), matching the session_status column name in the
+  // backend table (renamed there specifically to avoid colliding with the
+  // lifecycle `status` column in the same table).
+  session_status: string;
+  location: string;
+  group_size_category: string | null;
+  form_data?: { custom_fields?: Record<string, string> } | null;
+  note: string | null;
+  practitioner_signature: string;
+  parent_signature: string | null;
+}
+
 // Summary shape for the Home screen's draft list — matches
 // sessionDraftsController.js's listDrafts response. A child can have up to
 // 2 drafts (see MAX_DRAFTS_PER_PATIENT), so patient_id is NOT unique here —

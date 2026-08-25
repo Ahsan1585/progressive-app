@@ -1,6 +1,6 @@
 import * as React from "react";
 import api from "@/api/axiosInstance";
-import type { DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession, SessionDraftSummary } from "@/types";
+import type { DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession, SessionDraftSummary, TelepracticeSignatureRequest } from "@/types";
 
 const EMPTY_DROPDOWN_OPTIONS: DropdownOptionsByCategory = { service_type: [], service_status: [], location: [], group_size: [] };
 
@@ -26,6 +26,11 @@ interface AppDataContextValue {
   rejectedLoading: boolean;
   rejectedError: string | null;
   fetchRejectedLogs: (opts?: { silent?: boolean }) => Promise<void>;
+
+  telepracticeRequests: TelepracticeSignatureRequest[];
+  telepracticeLoading: boolean;
+  telepracticeError: string | null;
+  fetchTelepracticeRequests: (opts?: { silent?: boolean }) => Promise<void>;
 
   drafts: SessionDraftSummary[];
   draftsLoading: boolean;
@@ -84,6 +89,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [rejectedLoading, setRejectedLoading] = React.useState(true);
   const [rejectedError, setRejectedError] = React.useState<string | null>(null);
 
+  const [telepracticeRequests, setTelepracticeRequests] = React.useState<TelepracticeSignatureRequest[]>([]);
+  const [telepracticeLoading, setTelepracticeLoading] = React.useState(true);
+  const [telepracticeError, setTelepracticeError] = React.useState<string | null>(null);
+
   const [drafts, setDrafts] = React.useState<SessionDraftSummary[]>([]);
   const [draftsLoading, setDraftsLoading] = React.useState(true);
 
@@ -141,6 +150,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (!silent) setRejectedError("Couldn't load your rejected/returned logs.");
     } finally {
       if (!silent) setRejectedLoading(false);
+    }
+  }, []);
+
+  const fetchTelepracticeRequests = React.useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) setTelepracticeLoading(true);
+    setTelepracticeError(null);
+    try {
+      const res = await api.get<{ success: boolean; requests: TelepracticeSignatureRequest[] }>("/api/telepractice-signatures");
+      setTelepracticeRequests(res.data.requests || []);
+    } catch {
+      if (!silent) setTelepracticeError("Couldn't load your telepractice signature requests.");
+    } finally {
+      if (!silent) setTelepracticeLoading(false);
     }
   }, []);
 
@@ -220,21 +242,26 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     fetchPatients();
     fetchProfile();
     fetchRejectedLogs();
+    fetchTelepracticeRequests();
     fetchDrafts();
     fetchStats();
     fetchUnreadMessageCount();
     fetchUpcomingSessions();
     fetchCompanyBranding();
     fetchDropdownOptions();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchDrafts, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions]);
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchTelepracticeRequests, fetchDrafts, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions]);
 
-  // Keep Inbox live — a log billing just returned should appear without the
-  // practitioner having to leave the app and come back. Mirrors the admin
-  // portal's 20s silent poll on Pending Bills.
+  // Keep Inbox live — a log billing just returned, or a parent just signing
+  // a telepractice session, should appear without the practitioner having
+  // to leave the app and come back. Mirrors the admin portal's 20s silent
+  // poll on Pending Bills.
   React.useEffect(() => {
-    const interval = setInterval(() => fetchRejectedLogs({ silent: true }), 20000);
+    const interval = setInterval(() => {
+      fetchRejectedLogs({ silent: true });
+      fetchTelepracticeRequests({ silent: true });
+    }, 20000);
     return () => clearInterval(interval);
-  }, [fetchRejectedLogs]);
+  }, [fetchRejectedLogs, fetchTelepracticeRequests]);
 
   const setSavedSignature = React.useCallback((base64: string | null) => {
     setProfile((prev) => (prev ? { ...prev, signature: base64, saved_signature: base64 } : prev));
@@ -262,6 +289,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       rejectedLoading,
       rejectedError,
       fetchRejectedLogs,
+      telepracticeRequests,
+      telepracticeLoading,
+      telepracticeError,
+      fetchTelepracticeRequests,
       drafts,
       draftsLoading,
       fetchDrafts,
@@ -301,6 +332,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       rejectedLoading,
       rejectedError,
       fetchRejectedLogs,
+      telepracticeRequests,
+      telepracticeLoading,
+      telepracticeError,
+      fetchTelepracticeRequests,
       drafts,
       draftsLoading,
       fetchDrafts,

@@ -77,6 +77,7 @@ export default function LogIntervention() {
     note: "",
   });
   const [zeroTime, setZeroTime] = React.useState(false);
+  const [isTelepractice, setIsTelepractice] = React.useState(false);
   const [parentSig, setParentSig] = React.useState<string | null>(null);
   const [practitionerSig, setPractitionerSig] = React.useState<string | null>(null);
   const [isUsingSaved, setIsUsingSaved] = React.useState(false);
@@ -155,7 +156,11 @@ export default function LogIntervention() {
   if (!form.type) missing.push("service type");
   if (!form.status) missing.push("status");
   if (!form.location) missing.push("location");
-  if (!parentSig) missing.push("parent signature");
+  if (isTelepractice) {
+    if (!patient?.parent_email) missing.push("parent email on file");
+  } else if (!parentSig) {
+    missing.push("parent signature");
+  }
   if (!practitionerSig) missing.push("practitioner signature");
   for (const cat of customCategories) {
     if (cat.is_required_on_log && !form.customFields[cat.key]) missing.push(cat.display_name.toLowerCase());
@@ -202,7 +207,7 @@ export default function LogIntervention() {
         setSavedSignature(practitionerSig);
       }
 
-      await api.post("/api/interventions", {
+      const sharedPayload = {
         patientId: patient?.id,
         practitionerId: practitioner?.id,
         patient_first_name: patient?.middle_name ? `${patient.first_name} ${patient.middle_name}` : patient?.first_name,
@@ -221,11 +226,16 @@ export default function LogIntervention() {
         groupSizeCategory: form.groupSizeCategory,
         totalTime: totalMinutes,
         total_time: totalMinutes,
-        parentSignatureBase64: parentSig,
         practitionerSignatureBase64: practitionerSig,
         custom_fields: form.customFields,
         note: form.note,
-      });
+      };
+
+      if (isTelepractice) {
+        await api.post("/api/telepractice-signatures", sharedPayload);
+      } else {
+        await api.post("/api/interventions", { ...sharedPayload, parentSignatureBase64: parentSig });
+      }
 
       // The encounter is fully saved now — if this session was resumed from
       // a draft, that draft would otherwise linger as a stale, already-
@@ -238,7 +248,11 @@ export default function LogIntervention() {
         }
       }
 
-      showToast("Encounter saved.");
+      showToast(
+        isTelepractice
+          ? `Sent to ${patient?.parent_email} — you'll see this in your Inbox once they sign.`
+          : "Encounter saved."
+      );
       navigate(`/patients/${patientId}`, { replace: true });
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
@@ -288,6 +302,23 @@ export default function LogIntervention() {
           </p>
         </div>
       )}
+
+      <div className="border-b border-border bg-surface px-4 py-3">
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-border-strong"
+            checked={isTelepractice}
+            onChange={(e) => { setIsTelepractice(e.target.checked); setTouched(true); }}
+          />
+          <span>
+            <span className="block text-[13px] font-semibold text-ink">This was a telepractice (video) session</span>
+            <span className="block text-xs text-ink-muted">
+              We&apos;ll email the parent a link to review and sign remotely instead of collecting their signature here.
+            </span>
+          </span>
+        </label>
+      </div>
 
       {/* Sticky section-chip bar */}
       <div className="sticky top-14 z-20 flex gap-2 border-b border-border bg-bg px-4 py-2.5">
@@ -406,13 +437,40 @@ export default function LogIntervention() {
 
         <div ref={(el) => { sectionRefs.current.signatures = el; }} className="space-y-6">
           <h2 className="text-[15px] font-semibold text-ink">Signatures</h2>
-          <SignatureCapture
-            label="Parent/caregiver signature"
-            instructions="Parent or caregiver signature — draw with your finger or stylus"
-            value={parentSig}
-            onChange={(v) => { setParentSig(v); setTouched(true); }}
-            error={attemptedSubmit && !parentSig ? "Parent signature is required." : null}
-          />
+          {isTelepractice ? (
+            <div className="space-y-2">
+              <p className="text-[13px] font-medium text-ink-body">Parent/caregiver signature</p>
+              {patient?.parent_email ? (
+                <div className="rounded-card border border-border bg-surface-sunken p-3.5">
+                  <p className="text-sm text-ink-body">
+                    We&apos;ll send a signing link to <span className="font-semibold text-ink">{patient.parent_email}</span> after you submit.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-card border border-danger-border bg-danger-bg p-3.5">
+                  <p className="text-sm font-semibold text-danger">No parent email on file</p>
+                  <p className="mt-1 text-sm text-danger">
+                    Add a parent email on this patient&apos;s Edit screen before submitting a telepractice session.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/patients/${patientId}/edit`)}
+                    className="press-scale mt-2 text-sm font-semibold text-danger underline"
+                  >
+                    Edit patient
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <SignatureCapture
+              label="Parent/caregiver signature"
+              instructions="Parent or caregiver signature — draw with your finger or stylus"
+              value={parentSig}
+              onChange={(v) => { setParentSig(v); setTouched(true); }}
+              error={attemptedSubmit && !parentSig ? "Parent signature is required." : null}
+            />
+          )}
           <SignatureCapture
             label="Practitioner signature"
             instructions="Practitioner signature — draw with your finger or stylus"
@@ -457,7 +515,7 @@ export default function LogIntervention() {
             Save Draft
           </Button>
           <Button className="flex-1" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting || savingDraft}>
-            Save encounter
+            {isTelepractice ? "Send to Parent to Sign" : "Save encounter"}
           </Button>
         </div>
       </div>

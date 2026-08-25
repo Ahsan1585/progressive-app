@@ -9,6 +9,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
 // copy, which gets a new hashed filename every deploy) — email clients
 // cache/reference image URLs long-term, so this one needs to never move.
 const LOGO_URL = `${FRONTEND_URL}/email-logo.png`;
+// Step-guide icons for sendParentSignatureRequestEmail's "what happens
+// next" row — same stable-path convention as LOGO_URL.
+const STEP_ICON_REVIEW_URL = `${FRONTEND_URL}/email-icon-review.png`;
+const STEP_ICON_SIGN_URL = `${FRONTEND_URL}/email-icon-sign.png`;
+const STEP_ICON_DONE_URL = `${FRONTEND_URL}/email-icon-done.png`;
 
 // Reused directly from the web app's own palette (Login.jsx's --il-* custom
 // properties) rather than a separate email-specific palette, so a
@@ -37,6 +42,27 @@ function ctaButton(url, label) {
           </a>
         </td>
       </tr>
+    </table>
+  `;
+}
+
+// 3-column "here's what happens next" step row — icon above a bold label
+// above one line of muted subtext, per column. The icon is a nice-to-have:
+// each column carries its own real alt text and the bold label sits right
+// under it, so the step is still fully legible in image-blocked clients
+// (Gmail/Outlook default to blocking remote images until the user clicks
+// "show images"). Stacks to one column per row automatically in narrow
+// mobile mail clients since each <td> is width="33%" with no fixed px width.
+function stepGuide(steps) {
+  const cell = ({ icon, alt, label, subtext }) => `
+    <td width="33%" align="center" valign="top" style="padding:0 6px;">
+      <img src="${icon}" width="40" height="40" alt="${alt}" style="display:block; width:40px; height:40px; margin:0 auto 10px;" />
+      <div style="font-family:${SANS}; font-size:12.5px; font-weight:700; color:${COLORS.navy}; margin-bottom:3px;">${label}</div>
+      <div style="font-family:${SANS}; font-size:11.5px; line-height:1.4; color:${COLORS.slate};">${subtext}</div>
+    </td>`;
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0;">
+      <tr>${steps.map(cell).join('')}</tr>
     </table>
   `;
 }
@@ -283,10 +309,73 @@ const sendContactRequestEmail = async ({
   });
 };
 
+// Sent to a parent (not an app user — no account, no context on this app)
+// after a practitioner logs a telepractice session, asking them to review
+// the session details and sign remotely. Every value here must already be
+// fully humanized by the caller (full labels, spelled-out duration, 12-hour
+// time, long-form date) — this function does no further translation, since
+// a parent must never see an internal code or abbreviation (e.g. a raw
+// service-type code, "SLP", a location code).
+const sendParentSignatureRequestEmail = async (toEmail, {
+  childFirstName, practitionerFirstName, serviceLabel, sessionDate, startTime, endTime,
+  durationLabel, sessionTypeLabel, locationLabel, practitionerName, practitionerDisciplineLabel, signUrl,
+}) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping telepractice signature request email send.');
+    return;
+  }
+
+  const detailRow = (label, value) => (value ? `
+    <tr>
+      <td style="padding:9px 0; font-family:${SANS}; font-size:12.5px; color:${COLORS.slate}; width:110px; vertical-align:top;">${label}</td>
+      <td style="padding:9px 0; font-family:${SANS}; font-size:13.5px; font-weight:600; color:${COLORS.navy};">${value}</td>
+    </tr>` : '');
+  const detailsTable = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px; border-top:1px solid ${COLORS.line}; border-bottom:1px solid ${COLORS.line};">
+      ${detailRow('Child', childFirstName)}
+      ${detailRow('Service', serviceLabel)}
+      ${detailRow('Date', sessionDate)}
+      ${detailRow('Time', startTime && endTime ? `${startTime} &ndash; ${endTime}` : '')}
+      ${detailRow('Duration', durationLabel)}
+      ${detailRow('Session Type', sessionTypeLabel)}
+      ${detailRow('Location', locationLabel)}
+      ${detailRow('Provided By', practitionerDisciplineLabel ? `${practitionerName}, ${practitionerDisciplineLabel}` : practitionerName)}
+    </table>
+  `;
+
+  const bodyHtml = `
+    <p style="margin:0 0 4px;">Because this was a telehealth (video) visit, ${practitionerFirstName} wasn't able to collect your signature in person. We just need a quick digital signature to confirm the session details below.</p>
+    ${stepGuide([
+      { icon: STEP_ICON_REVIEW_URL, alt: 'Review icon', label: 'Review the details', subtext: 'Session date, time, and service' },
+      { icon: STEP_ICON_SIGN_URL, alt: 'Sign icon', label: 'Add your signature', subtext: 'With your finger or mouse — takes seconds' },
+      { icon: STEP_ICON_DONE_URL, alt: 'Done icon', label: "You're all set", subtext: 'No account or app needed' },
+    ])}
+    ${detailsTable}
+    ${ctaButton(signUrl, 'Review & Sign Now')}
+    ${linkFallback(signUrl)}
+    <p style="margin:20px 0 0; font-size:12.5px; color:${COLORS.slate};">Questions about this session? Contact ${practitionerFirstName || 'your practitioner'} or your care team directly.</p>
+  `;
+  const html = emailShell({
+    preheader: `A quick signature is needed for ${childFirstName}'s session on ${sessionDate}.`,
+    eyebrow: 'Signature Needed',
+    heading: `Please review and sign ${childFirstName}'s session`,
+    bodyHtml,
+    footnote: 'This link is private to you and expires in 7 days. It takes less than a minute — no login, password, or app download required.',
+  });
+
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: `Please review and sign ${childFirstName}'s recent session`,
+    html,
+  });
+};
+
 module.exports = {
   sendPasswordResetEmail,
   sendInviteEmail,
   sendSignupConfirmationEmail,
   sendSessionScheduledEmail,
   sendContactRequestEmail,
+  sendParentSignatureRequestEmail,
 };

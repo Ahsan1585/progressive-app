@@ -28,6 +28,7 @@ import PatientDetail from "@/pages/PatientDetail";
 import LogIntervention from "@/pages/LogIntervention";
 import EditLog from "@/pages/EditLog";
 import ResubmitLog from "@/pages/ResubmitLog";
+import ConfirmTelepracticeLog from "@/pages/ConfirmTelepracticeLog";
 import ChangePasswordVoluntary from "@/pages/ChangePasswordVoluntary";
 import ManageSignature from "@/pages/ManageSignature";
 import EditContactInfo from "@/pages/EditContactInfo";
@@ -137,6 +138,7 @@ function App() {
               <Route path="/patients/:id/log" element={<LogIntervention />} />
               <Route path="/patients/:id/logs/:logId/edit" element={<EditLog />} />
               <Route path="/inbox/:id/resubmit" element={<ResubmitLog />} />
+              <Route path="/inbox/:id/confirm-telepractice" element={<ConfirmTelepracticeLog />} />
               <Route path="/profile/change-password" element={<ChangePasswordVoluntary />} />
               <Route path="/profile/signature" element={<ManageSignature />} />
               <Route path="/profile/contact-info" element={<EditContactInfo />} />

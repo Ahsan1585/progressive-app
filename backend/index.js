@@ -17,6 +17,7 @@ const { pool } = require('./src/config/db');
 const { runMigrations } = require('./src/config/runMigrations');
 const { sanitizeCustomFields } = require('./src/utils/customFields');
 const { getCompanyName } = require('./src/utils/companyName');
+const { createAssessmentFromPayload } = require('./src/utils/createAssessment');
 
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
@@ -35,6 +36,7 @@ const roleRoutes = require('./src/routes/roleRoutes');
 const testDataRoutes = require('./src/routes/testDataRoutes');
 const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
+const telepracticeSignatureRoutes = require('./src/routes/telepracticeSignatureRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
 const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
 const { platformPool } = require('./src/config/platformDb');
@@ -82,6 +84,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/dev', testDataRoutes);
 app.use('/api/session-drafts', sessionDraftsRoutes);
+app.use('/api/telepractice-signatures', telepracticeSignatureRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/billing', billingRoutes); // 🌟 NEW: Mounted billing routes to fix the 404 error!
 app.use('/api/messages', messageRoutes);
@@ -168,42 +171,18 @@ app.post('/api/interventions', protect, async (req, res) => {
 
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
 
-    const { rows: insertedRows } = await pool.query(
-      `INSERT INTO assessments
-         (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
-          practitioner_first_name, practitioner_last_name, practitioner_discipline,
-          service_date, start_time, end_time, total_time, status, type, location, group_size_category,
-          parent_signature, practitioner_signature, form_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-       RETURNING *`,
-      [
-        patientId, trustedPractitionerId, patient_first_name, patient_last_name, patient_dob, patient_county,
-        practitioner_first_name, practitioner_last_name, practitioner_discipline,
-        date, startTime, endTime, finalTotalTime, status, type, location, groupSizeCategory || null,
-        parentSignatureBase64, practitionerSignatureBase64,
-        JSON.stringify({ custom_fields: sanitizedCustomFields })
-      ]
-    );
+    const assessment = await createAssessmentFromPayload({
+      patientId, practitionerId: trustedPractitionerId,
+      patient_first_name, patient_last_name, patient_dob, patient_county,
+      practitioner_first_name, practitioner_last_name, practitioner_discipline,
+      date, startTime, endTime, totalTime: finalTotalTime,
+      status, type, location, groupSizeCategory,
+      parentSignatureBase64, practitionerSignatureBase64,
+      sanitizedCustomFields,
+      note, authorId: trustedPractitionerId, authorRole: req.practitioner.role,
+    });
 
-    // Optional — surfaces in the same comment thread billing/admins already
-    // see in Session Detail (getLogNotes), rather than a new separate field.
-    if (note && note.trim()) {
-      await pool.query(
-        `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
-         VALUES ($1, $2, $3, $4)`,
-        [insertedRows[0].id, trustedPractitionerId, req.practitioner.role, note.trim()]
-      );
-    }
-
-    // A real, submitted log supersedes any in-progress draft for this same
-    // child — clear it now rather than leaving a stale draft the
-    // practitioner would otherwise have to notice and delete themselves.
-    await pool.query(
-      'DELETE FROM session_drafts WHERE practitioner_id = $1 AND patient_id = $2',
-      [trustedPractitionerId, patientId]
-    );
-
-    res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: insertedRows });
+    res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: [assessment] });
   } catch (error) {
     console.error('Failed to save encounter:', error);
     res.status(500).json({ error: 'Internal Server Error' });

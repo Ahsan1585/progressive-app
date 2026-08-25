@@ -11,17 +11,7 @@ const { getCompanyName } = require('../utils/companyName');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const ExcelJS = require('exceljs');
 const { logAudit } = require('../utils/auditLog');
-
-// Converts a 24-hour "HH:MM" string into 12-hour AM/PM format for report display.
-const formatTime12h = (timeStr) => {
-  if (!timeStr) return '';
-  const [hourStr, minuteStr] = String(timeStr).split(':');
-  const hour = parseInt(hourStr, 10);
-  if (isNaN(hour)) return timeStr;
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${hour12}:${(minuteStr || '00').padStart(2, '0')} ${period}`;
-};
+const { formatTime12h } = require('../utils/formatting');
 
 // 1. Logic to generate the Master Report
 const generateMasterReport = async (req, res) => {

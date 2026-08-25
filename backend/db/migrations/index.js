@@ -18,6 +18,7 @@ const MIGRATIONS = [
   'add_session_drafts.sql',
   'add_compliance_doc_analysis.sql',
   'allow_two_session_drafts.sql',
+  'add_telepractice_signature_requests.sql',
 ];
 
 module.exports = { MIGRATIONS };
