@@ -764,6 +764,13 @@ function SessionDetailPanel({
   const isLocked = session.billing_status === 'njeis_review';
   const { options: dropdownOptions, categories } = useDropdownOptions();
   const customCategories = categories.filter((c) => c.is_custom && c.is_active);
+  // Service Codes shows the raw stored code (what NJEIS/EIMS actually
+  // expects) plus its admin-configured full name underneath, so reviewers
+  // don't have to already have every code memorized.
+  const statusCodeMap = buildCodeLabelMap(dropdownOptions.service_status);
+  const typeCodeMap = buildCodeLabelMap(dropdownOptions.service_type);
+  const locationCodeMap = buildCodeLabelMap(dropdownOptions.location);
+  const groupSizeCodeMap = buildCodeLabelMap(dropdownOptions.group_size);
   // Same isApproved pattern used everywhere else in this file (PractitionerGroup,
   // handleStatusChange) — must fall back to the persisted billing_review, not
   // just local logActions, or a log that's already Approved on the server
@@ -834,18 +841,30 @@ function SessionDetailPanel({
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
           <div className="text-[11px] font-bold uppercase text-slate-500">Status</div>
           <div className="text-base font-bold font-mono text-slate-900">{session.status || '-'}</div>
+          {session.status && statusCodeMap[session.status] && (
+            <div className="text-xs text-slate-500 mt-0.5 leading-tight">{statusCodeMap[session.status]}</div>
+          )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
           <div className="text-[11px] font-bold uppercase text-slate-500">Type</div>
           <div className="text-base font-bold font-mono text-slate-900">{session.type || '-'}</div>
+          {session.type && typeCodeMap[session.type] && (
+            <div className="text-xs text-slate-500 mt-0.5 leading-tight">{typeCodeMap[session.type]}</div>
+          )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
           <div className="text-[11px] font-bold uppercase text-slate-500">Location</div>
           <div className="text-base font-bold font-mono text-slate-900">{session.location || '-'}</div>
+          {session.location && locationCodeMap[session.location] && (
+            <div className="text-xs text-slate-500 mt-0.5 leading-tight">{locationCodeMap[session.location]}</div>
+          )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
           <div className="text-[11px] font-bold uppercase text-slate-500">Group Size</div>
           <div className="text-base font-bold font-mono text-slate-900">{session.group_size_category || '-'}</div>
+          {session.group_size_category && groupSizeCodeMap[session.group_size_category] && (
+            <div className="text-xs text-slate-500 mt-0.5 leading-tight">{groupSizeCodeMap[session.group_size_category]}</div>
+          )}
         </div>
       </div>
 
