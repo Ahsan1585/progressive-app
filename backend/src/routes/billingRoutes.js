@@ -71,7 +71,16 @@ router.get('/compliance-analysis/session-status', ...pendingGuard, getSessionCom
 // strictness lever above.
 router.post('/compliance-analysis/send-missing-to-admin', ...pendingGuard, sendMissingToAdmin);
 router.get('/action-required', protect, loadPermissions, requirePermission('action_required_approve'), getActionRequiredLogs);
-router.post('/action-required/decide', protect, loadPermissions, requirePermission('action_required_approve'), decideMissingInEims);
+// Also reachable by whoever already has Pending Bills access (billing_pending) —
+// not just the ceo's dedicated Action Required queue. A billing specialist can
+// now decide a "missing in EIMS" log directly from Session Detail instead of
+// only being able to escalate it via Send to Admin.
+router.post('/action-required/decide', protect, loadPermissions, (req, res, next) => {
+  if (req.isAdmin || req.permissions?.has('action_required_approve') || req.permissions?.has('billing_pending')) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+}, decideMissingInEims);
 router.patch('/log-status',      ...pendingGuard, updateLogStatus);
 router.post('/reject-log',       ...pendingGuard, rejectLog);
 router.post('/reconcile-log',    ...pendingGuard, reconcileLog);

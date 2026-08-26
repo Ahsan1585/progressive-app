@@ -801,8 +801,11 @@ function SessionDetailPanel({
 
   const [adminComment, setAdminComment] = useState('');
   const [isDecidingMissing, setIsDecidingMissing] = useState(false);
-  const handleAdminDecide = async (decision) => {
-    if (!adminComment.trim()) { showAlert('A comment is required to approve or reject this log.'); return; }
+  // Available to anyone who can see this panel, not just ceo/admin — a
+  // comment is optional for approving (nothing left to explain once they've
+  // seen the disclaimer and decided anyway), still required to reject.
+  const handleDecideMissing = async (decision) => {
+    if (decision === 'rejected' && !adminComment.trim()) { showAlert('A comment is required to reject this log.'); return; }
     setIsDecidingMissing(true);
     try {
       await onAdminDecideMissing(session, practitionerId, decision, adminComment.trim());
@@ -931,38 +934,37 @@ function SessionDetailPanel({
             <Ban className="size-3.5 flex-shrink-0" /> {complianceBlockReason}
           </div>
         )}
-        {!isApproved && isMissingBlock && isAdmin && (
+        {!isApproved && isMissingBlock && (
           <div className="rounded-lg border border-orange-200 bg-orange-50/60 px-3 py-3 mb-3 space-y-2">
             <p className="text-xs font-semibold text-orange-700 flex items-center gap-2">
-              <Ban className="size-3.5 flex-shrink-0" /> This log has no matching record in EIMS. As the admin, you can decide it right here — a comment is required either way.
+              <Ban className="size-3.5 flex-shrink-0" />
+              {complianceStatus.eimsMissingStatus === 'sent_to_admin'
+                ? 'This log has no matching record in EIMS — sent to an admin for review. You can still decide it yourself below.'
+                : 'This log has no matching record in EIMS. You can decide it right here, or send it to an admin instead.'}
             </p>
             <Textarea
-              placeholder="Explain your decision — this will be added to the log's notes."
+              placeholder="Add a comment (optional to approve, required to reject) — this will be added to the log's notes."
               value={adminComment}
               onChange={(e) => setAdminComment(e.target.value)}
               className="bg-white min-h-[70px]"
             />
-            <div className="flex justify-end gap-2">
-              <Button type="button" size="sm" onClick={() => handleAdminDecide('rejected')} disabled={isDecidingMissing} className="cursor-pointer text-white bg-red-600 hover:bg-red-700">
-                Reject
-              </Button>
-              <Button type="button" size="sm" onClick={() => handleAdminDecide('approved')} disabled={isDecidingMissing} className="cursor-pointer text-white bg-emerald-600 hover:bg-emerald-700">
-                {isDecidingMissing ? 'Saving...' : 'Approve'}
-              </Button>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                {!isAdmin && complianceStatus.eimsMissingStatus !== 'sent_to_admin' && (
+                  <Button type="button" size="sm" variant="outline" onClick={handleSendToAdmin} disabled={isSendingToAdmin} className="cursor-pointer">
+                    {isSendingToAdmin ? 'Sending...' : 'Send to Admin'}
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" onClick={() => handleDecideMissing('rejected')} disabled={isDecidingMissing} className="cursor-pointer text-white bg-red-600 hover:bg-red-700">
+                  Reject
+                </Button>
+                <Button type="button" size="sm" onClick={() => handleDecideMissing('approved')} disabled={isDecidingMissing} className="cursor-pointer text-white bg-emerald-600 hover:bg-emerald-700">
+                  {isDecidingMissing ? 'Saving...' : 'Approve'}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-        {!isApproved && isMissingBlock && !isAdmin && (
-          <div className="flex items-center justify-between gap-3 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
-            <span className="flex items-center gap-2">
-              <Ban className="size-3.5 flex-shrink-0" />
-              {complianceStatus.eimsMissingStatus === 'sent_to_admin' ? 'This log has no matching record in EIMS — awaiting admin review.' : 'This log has no matching record in EIMS.'}
-            </span>
-            {complianceStatus.eimsMissingStatus !== 'sent_to_admin' && (
-              <Button type="button" size="sm" onClick={handleSendToAdmin} disabled={isSendingToAdmin} className="cursor-pointer text-white bg-amber-600 hover:bg-amber-700 flex-shrink-0">
-                {isSendingToAdmin ? 'Sending...' : 'Send to Admin'}
-              </Button>
-            )}
           </div>
         )}
         <div className="grid grid-cols-4 gap-4 mb-6">
@@ -973,10 +975,8 @@ function SessionDetailPanel({
               if (isApproved) {
                 setLogActions(prev => ({ ...prev, [session.id]: '' }));
                 handleResetToPending(session, practitionerId);
-              } else if (isMissingBlock && isAdmin) {
-                showAlert('Use the comment box above to approve or reject this log.');
               } else if (isMissingBlock) {
-                showAlert('This log has no matching record in EIMS — click "Send to Admin" above before it can be approved.');
+                showAlert('Use the box above to approve or reject this log — a comment is optional to approve, required to reject.');
               } else if (complianceBlockReason) {
                 showAlert(complianceBlockReason);
               } else {
@@ -1423,12 +1423,11 @@ function ComplianceAnalysisPreview({
     }
   };
 
-  // A ceo reviewing a "Missing in EIMS" log here doesn't need to send it to
-  // themselves and go find it in Action Required — they decide it right in
-  // this same view. Approving also immediately calls handleAccept so the
-  // log moves straight to Approved in one action.
+  // Available to anyone who can see this tab, not just ceo/admin — deciding
+  // it here means not having to send it off and wait. A comment is optional
+  // to approve, still required to reject.
   const handleAdminDecideInline = async (sessionId, decision) => {
-    if (!adminDecideComment.trim()) { showAlert('A comment is required to approve or reject this log.'); return; }
+    if (decision === 'rejected' && !adminDecideComment.trim()) { showAlert('A comment is required to reject this log.'); return; }
     setIsDecidingMissing(true);
     try {
       await api.post('/api/billing/action-required/decide', { assessmentId: sessionId, decision, comment: adminDecideComment.trim() });
@@ -1792,25 +1791,30 @@ function ComplianceAnalysisPreview({
                       <span className="flex items-center gap-1 text-xs font-bold text-red-700">
                         <X className="size-3.5" /> Admin Rejected
                       </span>
-                    ) : isAdmin ? (
-                      <button
-                        type="button"
-                        onClick={() => { setAdminDecideTarget(s.id); setAdminDecideComment(''); }}
-                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 transition-colors"
-                      >
-                        Review &amp; Decide
-                      </button>
-                    ) : sessionResult.eimsMissingStatus === 'sent_to_admin' ? (
-                      <span className="text-xs font-semibold text-slate-500">Awaiting Admin Review</span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSendMissingToAdmin(s.id)}
-                        disabled={isSendingToAdmin === s.id}
-                        className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isSendingToAdmin === s.id ? 'Sending...' : 'Send to Admin for Approval'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setAdminDecideTarget(s.id); setAdminDecideComment(''); }}
+                          className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 transition-colors"
+                        >
+                          Review &amp; Decide
+                        </button>
+                        {!isAdmin && (
+                          sessionResult.eimsMissingStatus === 'sent_to_admin' ? (
+                            <span className="text-xs font-semibold text-slate-500">Awaiting Admin Review</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSendMissingToAdmin(s.id)}
+                              disabled={isSendingToAdmin === s.id}
+                              className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {isSendingToAdmin === s.id ? 'Sending...' : 'Send to Admin for Approval'}
+                            </button>
+                          )
+                        )}
+                      </div>
                     )
                   )}
                 {documentReady && !!sessionResult && (
@@ -1978,11 +1982,11 @@ function ComplianceAnalysisPreview({
               {adminDecideTarget === s.id && (
                 <div className="border-t px-4 py-3 space-y-2 bg-orange-50/60 border-orange-200">
                   <p className="text-xs font-semibold text-orange-700">
-                    This log has no matching record in EIMS. A comment is required either way.
+                    This log has no matching record in EIMS. You can decide it right here.
                   </p>
                   <Textarea
                     autoFocus
-                    placeholder="Explain your decision — this will be added to the log's notes."
+                    placeholder="Add a comment (optional to approve, required to reject) — this will be added to the log's notes."
                     value={adminDecideComment}
                     onChange={(e) => setAdminDecideComment(e.target.value)}
                     className="bg-white min-h-[80px]"

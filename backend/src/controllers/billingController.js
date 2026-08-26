@@ -2020,21 +2020,26 @@ const getActionRequiredLogs = async (req, res) => {
   }
 };
 
-// Ceo approves or rejects a "Missing in EIMS" log — step 2 (final) of the
-// send-to-admin workflow. A comment is mandatory either way: approving
-// without saying why defeats the point of a review step, and rejecting
-// needs a reason for the practitioner/billing to see. The comment always
-// goes into the same assessment_notes thread as every other log comment.
-// A reject also declines the log outright (mirrors rejectLog's permanent-
-// reject path) — an admin-rejected "missing in EIMS" log was never going to
-// become billable, so there's nothing left to leave it pending for.
+// Approves or rejects a "Missing in EIMS" log — either the ceo deciding
+// from their own Action Required queue, or (as of the direct-decide option
+// added to Session Detail) anyone with Pending Bills access deciding it
+// themselves instead of only being able to escalate via Send to Admin.
+// A comment is optional for an approval (there's nothing left to explain —
+// the reviewer already saw the missing-record disclaimer and chose to
+// approve anyway) but still required for a reject, same as every other
+// reject/return path in this app, so the practitioner/billing has a reason
+// to act on. The comment, when given, goes into the same assessment_notes
+// thread as every other log comment. A reject also declines the log
+// outright (mirrors rejectLog's permanent-reject path) — a rejected
+// "missing in EIMS" log was never going to become billable, so there's
+// nothing left to leave it pending for.
 const decideMissingInEims = async (req, res) => {
   const { assessmentId, decision, comment } = req.body;
   if (!assessmentId || !['approved', 'rejected'].includes(decision)) {
     return res.status(400).json({ error: 'assessmentId and a valid decision (approved | rejected) are required' });
   }
-  if (!comment?.trim()) {
-    return res.status(400).json({ error: 'A comment is required to approve or reject this log.' });
+  if (decision === 'rejected' && !comment?.trim()) {
+    return res.status(400).json({ error: 'A comment is required to reject this log.' });
   }
 
   try {
@@ -2060,13 +2065,15 @@ const decideMissingInEims = async (req, res) => {
       );
     }
 
-    await pool.query(
-      `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
-       VALUES ($1, $2, $3, $4)`,
-      [assessmentId, req.practitioner.practitionerId, req.practitioner.role, comment.trim()]
-    );
+    if (comment?.trim()) {
+      await pool.query(
+        `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+         VALUES ($1, $2, $3, $4)`,
+        [assessmentId, req.practitioner.practitionerId, req.practitioner.role, comment.trim()]
+      );
+    }
 
-    logAudit({ req, action: `missing_in_eims_${decision}`, resourceType: 'assessment', resourceId: assessmentId, details: { comment: comment.trim() } });
+    logAudit({ req, action: `missing_in_eims_${decision}`, resourceType: 'assessment', resourceId: assessmentId, details: { comment: comment?.trim() || null } });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deciding missing-in-EIMS log:', error);
