@@ -15,6 +15,7 @@ export default function Inbox() {
     rejectedLogs, rejectedLoading, rejectedError, fetchRejectedLogs,
     telepracticeRequests, telepracticeLoading, telepracticeError, fetchTelepracticeRequests,
     serviceTypeMap,
+    companyName,
   } = useAppData();
   const navigate = useNavigate();
   const [acknowledging, setAcknowledging] = React.useState<RejectedLog | null>(null);
@@ -39,6 +40,9 @@ export default function Inbox() {
   return (
     <div className="safe-top flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-border bg-bg px-4 pb-3 pt-5">
+        {companyName && (
+          <p className="truncate text-xs font-semibold uppercase tracking-wide text-ink-faint">{companyName}</p>
+        )}
         <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Inbox</h1>
       </header>
 

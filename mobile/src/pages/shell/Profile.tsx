@@ -10,10 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { useToast } from "@/components/ui/toast";
 import { ImageCropSheet } from "@/components/ImageCropSheet";
+import { BrandLockup } from "@/components/shell/BrandLockup";
 
 export default function Profile() {
   const { practitioner, logout } = useAuth();
-  const { profile, profileLoading, profileError, fetchProfile } = useAppData();
+  const { profile, profileLoading, profileError, fetchProfile, companyName } = useAppData();
   const navigate = useNavigate();
   const [confirmLogout, setConfirmLogout] = React.useState(false);
   const { canPromptInstall, promptInstall } = useInstallPrompt();
@@ -54,6 +55,9 @@ export default function Profile() {
   return (
     <div className="safe-top flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-border bg-bg px-4 pb-3 pt-5">
+        {companyName && (
+          <p className="truncate text-xs font-semibold uppercase tracking-wide text-ink-faint">{companyName}</p>
+        )}
         <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Profile</h1>
       </header>
 
@@ -180,6 +184,14 @@ export default function Profile() {
           <LogOut className="size-5 shrink-0 text-danger" aria-hidden="true" />
           <span className="flex-1 text-[15px] font-medium text-danger">Log out</span>
         </button>
+
+        {/* Mobile counterpart to the admin dashboard's sidebar-footer credit —
+            the app has no persistent sidebar to tuck this into, so it lives at
+            the bottom of the one screen dedicated to account/app-level info. */}
+        <div className="mt-6 flex flex-col items-center gap-1 pb-2">
+          <BrandLockup size="sm" align="center" />
+          <p className="text-xs font-medium text-ink-faint">Securely Powered by Izaya</p>
+        </div>
       </div>
       </div>
 

@@ -337,8 +337,22 @@ const AdminDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <div className="hidden sm:flex">
-              <BrandLockup size="sm" />
+            {/* The sidebar (tenant logo/name at its top, "Powered by Izaya" at its
+                bottom) is hover/toggle-reveal, not persistently visible — so this
+                bar is the one piece of chrome always on screen. It shows the
+                tenant's own identity, not Izaya's; the Izaya mark already has its
+                appropriately secondary home in the sidebar footer below. */}
+            <div className="hidden min-w-0 items-center gap-2 sm:flex">
+              {companySettings?.logo && (
+                <img
+                  src={companySettings.logo}
+                  alt=""
+                  className="h-7 w-7 flex-shrink-0 rounded-md border border-slate-200 object-cover"
+                />
+              )}
+              <span className="truncate text-sm font-semibold text-slate-800">
+                {companySettings?.display_name || 'Progressive Steps'}
+              </span>
             </div>
           </div>
           <h2 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-slate-800 capitalize tracking-tight whitespace-nowrap">

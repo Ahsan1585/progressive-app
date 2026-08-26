@@ -14,7 +14,7 @@ import type { SessionDraftListItem } from "@/types";
 type StatusFilter = "all" | "active" | "inactive";
 
 export default function Roster() {
-  const { patients, patientsLoading, patientsError, fetchPatients } = useAppData();
+  const { patients, patientsLoading, patientsError, fetchPatients, companyName } = useAppData();
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("active");
   const [checkingPatientId, setCheckingPatientId] = React.useState<string | null>(null);
@@ -73,6 +73,9 @@ export default function Roster() {
       <div className="sticky top-0 z-10 space-y-3 border-b border-border bg-bg px-4 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
+            {companyName && (
+              <p className="truncate text-xs font-semibold uppercase tracking-wide text-ink-faint">{companyName}</p>
+            )}
             <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Patients</h1>
             <p className="mt-0.5 truncate text-xs text-ink-muted">
               Tap + to add a patient · open one to log or schedule a session
