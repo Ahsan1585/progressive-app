@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Picker } from "@/components/Picker";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { TelepracticeSentDialog } from "@/components/TelepracticeSentDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,7 @@ export default function LogIntervention() {
   const [savingDraft, setSavingDraft] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = React.useState(false);
+  const [telepracticeSentOpen, setTelepracticeSentOpen] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<string>("details");
 
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -248,12 +250,16 @@ export default function LogIntervention() {
         }
       }
 
-      showToast(
-        isTelepractice
-          ? `Sent to ${patient?.parent_email} — you'll see this in your Inbox once they sign.`
-          : "Encounter saved."
-      );
-      navigate(`/patients/${patientId}`, { replace: true });
+      if (isTelepractice) {
+        // A centered dialog, not a toast — this means the session is still
+        // awaiting the parent's signature, not fully logged, so the
+        // practitioner needs to actually read it. Navigation happens once
+        // they dismiss it, not immediately.
+        setTelepracticeSentOpen(true);
+      } else {
+        showToast("Encounter saved.");
+        navigate(`/patients/${patientId}`, { replace: true });
+      }
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
       setServerError(body?.error || "There was an error saving the encounter. Your entries have been kept.");
@@ -528,6 +534,15 @@ export default function LogIntervention() {
         confirmLabel="Discard"
         destructive
         onConfirm={() => navigate(-1)}
+      />
+
+      <TelepracticeSentDialog
+        open={telepracticeSentOpen}
+        onOpenChange={(open) => {
+          setTelepracticeSentOpen(open);
+          if (!open) navigate(`/patients/${patientId}`, { replace: true });
+        }}
+        parentEmail={patient?.parent_email}
       />
     </PushScreen>
   );
