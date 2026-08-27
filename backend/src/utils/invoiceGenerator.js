@@ -158,7 +158,10 @@ const generateInvoicePDF = async (practitioner, encounters, processedBy = '', co
 
   const countyTotals = {};
   encounters.forEach(enc => {
-    const county = (enc.county || '').trim() || 'Unspecified';
+    // Uppercase for grouping — a county typed/stored as "Essex" on one
+    // patient and "ESSEX" on another must total together, not split into
+    // two separate summary lines over a capitalization difference.
+    const county = ((enc.county || '').trim() || 'Unspecified').toUpperCase();
     const hours = parseFloat(enc.total_hours) || 0;
     countyTotals[county] = (countyTotals[county] || 0) + hours;
   });
