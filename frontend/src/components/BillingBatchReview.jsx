@@ -914,9 +914,18 @@ function SessionDetailPanel({
             {isDeclined ? 'Permanently rejected — excluded from report' : 'Returned to practitioner — awaiting resubmission'}
           </span>
           {isDeclined && (
-            <Button size="sm" variant="outline" onClick={() => handleReconcile(session, practitionerId)} className="cursor-pointer gap-1 flex-shrink-0">
-              Store Log
-            </Button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Reverses a permanent rejection — same reset used to un-approve
+                  a log (billing_status back to 'pending', review cleared).
+                  Once pending, it naturally drops off the practitioner's Inbox,
+                  since that view only ever shows 'rejected'/'declined' logs. */}
+              <Button size="sm" variant="outline" onClick={() => handleResetToPending(session, practitionerId)} className="cursor-pointer gap-1">
+                Move to Pending
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => handleReconcile(session, practitionerId)} className="cursor-pointer gap-1">
+                Store Log
+              </Button>
+            </div>
           )}
         </div>
       ) : isLocked ? (
