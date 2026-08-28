@@ -383,7 +383,7 @@ export default function PatientDetail() {
           )}
         </div>
 
-        <h3 className="mb-2 text-[15px] font-semibold text-ink">Encounter history</h3>
+        <h3 className="mb-2 text-[15px] font-semibold text-ink">Session history</h3>
 
         {error ? (
           <EmptyState
@@ -401,7 +401,7 @@ export default function PatientDetail() {
             }
           />
         ) : loading ? (
-          <ul className="space-y-2" aria-label="Loading encounter history">
+          <ul className="space-y-2" aria-label="Loading session history">
             {[0, 1, 2].map((i) => (
               <li key={i}>
                 <Skeleton className="h-20 w-full" />
@@ -411,7 +411,7 @@ export default function PatientDetail() {
         ) : assessments.length === 0 ? (
           <EmptyState icon={ClipboardList} heading={`No visits logged yet for ${patient?.first_name ?? "this patient"}`} />
         ) : (
-          <ul role="list" aria-label="Encounter history" className="space-y-2">
+          <ul role="list" aria-label="Session history" className="space-y-2">
             {assessments.map((item) => (
               <li key={item.id} className="rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]">
                 <div className="flex items-start justify-between gap-2">

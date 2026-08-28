@@ -264,7 +264,7 @@ export default function LogIntervention() {
       }
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
-      setServerError(body?.error || "There was an error saving the encounter. Your entries have been kept.");
+      setServerError(body?.error || "There was an error saving the session. Your entries have been kept.");
     } finally {
       setSubmitting(false);
     }
@@ -544,7 +544,7 @@ export default function LogIntervention() {
       <ConfirmDialog
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}
-        title="Discard this encounter?"
+        title="Discard this session?"
         description="You have unsaved details or a captured signature. Leaving now will discard them."
         confirmLabel="Discard"
         destructive
