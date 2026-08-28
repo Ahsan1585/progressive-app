@@ -500,7 +500,7 @@ export default function LogIntervention() {
             {missing.length} field{missing.length > 1 ? "s" : ""} still missing
           </p>
         )}
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Button
             className="flex-1"
             size="lg"
@@ -520,7 +520,17 @@ export default function LogIntervention() {
           >
             Save Draft
           </Button>
-          <Button className="flex-1" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting || savingDraft}>
+          {/* Wider share of the row, smaller/wrapping text, no fixed height —
+              this label can also be "Send to Parent to Sign" (telepractice),
+              which never fits on one line in an even three-way split no
+              matter how small the font gets. */}
+          <Button
+            className="h-auto min-h-12 flex-[1.4] whitespace-normal py-2 text-center text-sm leading-tight"
+            size="lg"
+            onClick={handleSubmit}
+            loading={submitting}
+            disabled={submitting || savingDraft}
+          >
             {isTelepractice ? "Send to Parent to Sign" : "Save Session"}
           </Button>
         </div>
