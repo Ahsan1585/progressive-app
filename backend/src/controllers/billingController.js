@@ -1543,7 +1543,15 @@ const getComplianceAnalysis = async (req, res) => {
     // there's no ambiguity about which side "wins" — an already-invoiced
     // record is definitionally the real one, regardless of whether this
     // session would otherwise have matched the state document on its own.
-    const stillUnresolved = sessions.filter((s) => !results[s.id].matched && !results[s.id].duplicateOfSessionId);
+    //
+    // Deliberately NOT filtered on `!matched` — each analysis call re-runs
+    // its own independent EIMS matching with no memory of what a *different*
+    // earlier call already matched, so a duplicate can easily show "Match"
+    // here on its own merits even though its sibling from another batch
+    // already claimed that exact same real-world visit. Only sessions
+    // already flagged by the in-batch check above are skipped, to avoid
+    // redundant work.
+    const stillUnresolved = sessions.filter((s) => !results[s.id].duplicateOfSessionId);
     if (stillUnresolved.length > 0) {
       const { rows: historicalInvoiced } = await pool.query(
         `SELECT id, patient_id, service_date, start_time, end_time, type, location
@@ -1642,7 +1650,7 @@ async function computeSessionCompliance(assessmentId) {
   if (!documentOnFile) return { matched: false, flagged: false, fields: [], documentOnFile: false };
 
   const { rows: sessionRows } = await pool.query(
-    `SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
+    `SELECT assessments.id, patient_id, practitioner_id, service_date, start_time, end_time, total_time, type, location,
             group_size_category, patient_first_name, patient_last_name,
             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
             assessments.status, practitioner_discipline, patient_dob, patient_county,
@@ -1654,6 +1662,25 @@ async function computeSessionCompliance(assessmentId) {
   );
   const session = sessionRows[0];
   if (!session) return { matched: false, flagged: false, fields: [], documentOnFile: true };
+
+  // Same patient/date/time/type/location logged more than once (e.g. under
+  // a spelling variant of the child's name) can independently show a clean
+  // "Match" here — this check has no memory of any OTHER assessment that
+  // already claimed the same real-world visit, in this call or a past one.
+  // Block on an explicit duplicate lookup rather than trusting matched/
+  // flagged alone, the same gap that let a duplicate slip through Session
+  // Detail's Approve button despite Compliance Analysis's own duplicate
+  // detection (a separate code path from this one).
+  const { rows: duplicateRows } = await pool.query(
+    `SELECT id FROM assessments
+     WHERE practitioner_id = $1 AND patient_id = $2 AND service_date = $3
+       AND start_time IS NOT DISTINCT FROM $4 AND end_time IS NOT DISTINCT FROM $5
+       AND type = $6 AND location = $7
+       AND id != $8 AND billing_status != 'declined'
+     LIMIT 1`,
+    [session.practitioner_id, session.patient_id, session.service_date, session.start_time, session.end_time, session.type, session.location, assessmentId]
+  );
+  const duplicateOfSessionId = duplicateRows[0]?.id || null;
 
   const matchParams = resolveStrictnessProfile(doc.compliance_strictness);
   const { rows: rawStateLogs } = await pool.query(
@@ -1673,7 +1700,7 @@ async function computeSessionCompliance(assessmentId) {
 
   const fields = buildFieldsForSession(session, match, { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey });
   const flagged = fields.some((f) => f.match === false);
-  return { matched: !!match, flagged, fields, documentOnFile: true, eimsMissingStatus: session.eims_missing_status || null };
+  return { matched: !!match, flagged, fields, documentOnFile: true, eimsMissingStatus: session.eims_missing_status || null, duplicateOfSessionId };
 }
 
 // --- 10. Fetch logs for a completed vault entry (by practitioner name + date range) ---
@@ -1982,6 +2009,7 @@ const getSessionComplianceStatus = async (req, res) => {
       matched: compliance.matched,
       flagged: compliance.flagged,
       eimsMissingStatus: compliance.eimsMissingStatus || null,
+      duplicateOfSessionId: compliance.duplicateOfSessionId || null,
     });
   } catch (error) {
     console.error('Error fetching session compliance status:', error);

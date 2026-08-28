@@ -793,9 +793,17 @@ function SessionDetailPanel({
       .catch(() => { if (!cancelled) setComplianceStatus(null); });
     return () => { cancelled = true; };
   }, [session.id]);
+  // Checked ahead of matched/flagged — an independent per-session EIMS
+  // lookup has no memory of any OTHER assessment (in this batch or an
+  // already-invoiced one from a past batch) that already claimed the same
+  // real-world visit, so a duplicate can still come back with a clean
+  // "Match" here on its own merits.
+  const isDuplicateBlock = !!complianceStatus?.duplicateOfSessionId;
   const isFlaggedBlock = !!complianceStatus?.documentOnFile && complianceStatus.flagged;
-  const isMissingBlock = !!complianceStatus?.documentOnFile && !complianceStatus.matched && complianceStatus.eimsMissingStatus !== 'approved';
-  const complianceBlockReason = isFlaggedBlock
+  const isMissingBlock = !isDuplicateBlock && !!complianceStatus?.documentOnFile && !complianceStatus.matched && complianceStatus.eimsMissingStatus !== 'approved';
+  const complianceBlockReason = isDuplicateBlock
+    ? 'This log duplicates another log for this patient on the same date/time — only one can be billed. Reject or Return this one, or resolve it under Compliance Analysis.'
+    : isFlaggedBlock
     ? 'This log has flagged compliance fields — resolve them under Compliance Analysis before approving.'
     : null;
 
@@ -1769,7 +1777,16 @@ function ComplianceAnalysisPreview({
                   <span className="text-sm font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
                   <span className="text-xs text-slate-500">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
                   {documentReady && sessionResult && (
-                    sessionResult.matched ? (
+                    // Checked ahead of matched — a duplicate can independently
+                    // show a clean EIMS match on its own merits (each check has
+                    // no memory of the OTHER assessment that already claimed the
+                    // same real-world visit), so matched alone can't be trusted
+                    // to rule out "this is actually the duplicate."
+                    isDuplicate ? (
+                      <span className="flex items-center gap-1 text-xs font-bold text-orange-700">
+                        <Copy className="size-3.5" /> Duplicate log
+                      </span>
+                    ) : sessionResult.matched ? (
                       flagged ? (
                         <span className="flex items-center gap-1 text-xs font-bold text-red-700">
                           <X className="size-3.5" /> {flaggedFieldCount} field{flaggedFieldCount === 1 ? '' : 's'} flagged
@@ -1779,10 +1796,6 @@ function ComplianceAnalysisPreview({
                           <CheckCircle2 className="size-3.5" /> Match
                         </span>
                       )
-                    ) : isDuplicate ? (
-                      <span className="flex items-center gap-1 text-xs font-bold text-orange-700">
-                        <Copy className="size-3.5" /> Duplicate log
-                      </span>
                     ) : (
                       <span className="flex items-center gap-1 text-xs font-bold text-orange-600">
                         <X className="size-3.5" /> Missing in EIMS
