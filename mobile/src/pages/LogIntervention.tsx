@@ -257,7 +257,7 @@ export default function LogIntervention() {
         // they dismiss it, not immediately.
         setTelepracticeSentOpen(true);
       } else {
-        showToast("Encounter saved.");
+        showToast("Session saved.");
         navigate(`/patients/${patientId}`, { replace: true });
       }
     } catch (err) {
@@ -521,7 +521,7 @@ export default function LogIntervention() {
             Save Draft
           </Button>
           <Button className="flex-1" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting || savingDraft}>
-            {isTelepractice ? "Send to Parent to Sign" : "Save encounter"}
+            {isTelepractice ? "Send to Parent to Sign" : "Save Session"}
           </Button>
         </div>
       </div>
