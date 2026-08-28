@@ -1650,7 +1650,7 @@ async function computeSessionCompliance(assessmentId) {
   if (!documentOnFile) return { matched: false, flagged: false, fields: [], documentOnFile: false };
 
   const { rows: sessionRows } = await pool.query(
-    `SELECT assessments.id, patient_id, practitioner_id, service_date, start_time, end_time, total_time, type, location,
+    `SELECT assessments.id, patient_id, assessments.practitioner_id, service_date, start_time, end_time, total_time, type, location,
             group_size_category, patient_first_name, patient_last_name,
             practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
             assessments.status, practitioner_discipline, patient_dob, patient_county,
