@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { MasterReports } from '@/components/MasterReports';
 import { BillingManager } from '@/components/BillingManager';
@@ -58,11 +58,21 @@ const AdminDashboard = () => {
 
   const visibleTabs = me ? Object.keys(TAB_PERMISSION).filter(hasTabAccess) : [];
 
-  // activeTab stays null until permissions are fetched; once `me` resolves,
-  // derive the initial tab from visibleTabs during render (no effect needed)
-  // while still letting user clicks below override it via setActiveTab.
-  const [explicitTab, setActiveTab] = useState(null);
-  const activeTab = explicitTab ?? (me ? (visibleTabs[0] || 'billing') : null);
+  // The active tab lives in the URL (?tab=...), not plain component state —
+  // a browser refresh re-derives it from the URL instead of always landing
+  // back on the first visible tab. Falls back to the first visible tab only
+  // when there's no tab param yet, or the URL names one this user can't see
+  // (e.g. a link shared by someone with different permissions).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const activeTab = !me ? null : (urlTab && visibleTabs.includes(urlTab) ? urlTab : (visibleTabs[0] || 'billing'));
+  const setActiveTab = (tab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    }, { replace: true });
+  };
 
   const [adminProfile, setAdminProfile] = useState(null);
   const [companySettings, setCompanySettings] = useState(null);
