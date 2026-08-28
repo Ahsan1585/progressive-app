@@ -400,7 +400,12 @@ export const CompanySettings = ({ onSettingsChange }) => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7 space-y-6">
         <div className="flex items-center gap-4 pb-6 border-b border-slate-100">
           {logo ? (
-            <img src={logo} alt="Company logo" className="w-16 h-16 rounded-2xl object-cover flex-shrink-0 border border-slate-200" />
+            // object-contain, not object-cover — a company logo is almost
+            // always a wide wordmark, not a square icon, and cover crops a
+            // wide image down to an unreadable vertical sliver of its middle.
+            // Same fix applied everywhere else this logo renders (admin
+            // sidebar, admin top header).
+            <img src={logo} alt="Company logo" className="h-16 w-auto max-w-[220px] rounded-2xl object-contain flex-shrink-0 border border-slate-200 bg-white p-1.5" />
           ) : (
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-600 to-sky-600 flex items-center justify-center flex-shrink-0 text-white text-xl font-bold">
               {(form.display_name || 'PS').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}

@@ -157,10 +157,13 @@ const AdminDashboard = () => {
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
             {companySettings?.logo && (
+              // object-contain, not object-cover — a company logo is almost
+              // always a wide wordmark, not a square icon, and cover crops a
+              // wide image down to an unreadable vertical sliver of its middle.
               <img
                 src={companySettings.logo}
                 alt=""
-                className="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-slate-200"
+                className="h-10 w-auto max-w-[110px] rounded-lg object-contain flex-shrink-0 border border-slate-200 bg-white p-1"
               />
             )}
             <h1 className="min-w-0 text-lg font-bold text-slate-800 tracking-tight leading-tight">
@@ -317,16 +320,19 @@ const AdminDashboard = () => {
               </svg>
             </button>
             {/* The sidebar (tenant logo/name at its top, "Powered by Izaya" at its
-                bottom) is hover/toggle-reveal, not persistently visible — so this
-                bar is the one piece of chrome always on screen. It shows the
-                tenant's own identity, not Izaya's; the Izaya mark already has its
-                appropriately secondary home in the sidebar footer below. */}
+                bottom) only opens on demand via the hamburger, not persistently
+                visible — so this bar is the one piece of chrome always on
+                screen. It shows the tenant's own identity, not Izaya's; the
+                Izaya mark already has its appropriately secondary home in the
+                sidebar footer below. */}
             <div className="hidden min-w-0 items-center gap-2 sm:flex">
               {companySettings?.logo && (
+                // object-contain, not object-cover — see the matching note on
+                // the sidebar's own logo <img> above.
                 <img
                   src={companySettings.logo}
                   alt=""
-                  className="h-7 w-7 flex-shrink-0 rounded-md border border-slate-200 object-cover"
+                  className="h-8 w-auto max-w-[90px] flex-shrink-0 rounded-md border border-slate-200 object-contain bg-white p-0.5"
                 />
               )}
               <span className="truncate text-sm font-semibold text-slate-800">
