@@ -1534,6 +1534,40 @@ const getComplianceAnalysis = async (req, res) => {
       }
     }
 
+    // A session can also duplicate a log that was ALREADY invoiced in a
+    // different batch/period entirely — e.g. logged twice weeks apart under
+    // two spellings of the same child's name. That record settled the
+    // matter already and won't be in `sessions` at all if it falls outside
+    // the currently-selected date range, so it needs its own lookup rather
+    // than reusing the in-batch comparison above. Unlike the in-batch case,
+    // there's no ambiguity about which side "wins" — an already-invoiced
+    // record is definitionally the real one, regardless of whether this
+    // session would otherwise have matched the state document on its own.
+    const stillUnresolved = sessions.filter((s) => !results[s.id].matched && !results[s.id].duplicateOfSessionId);
+    if (stillUnresolved.length > 0) {
+      const { rows: historicalInvoiced } = await pool.query(
+        `SELECT id, patient_id, service_date, start_time, end_time, type, location
+         FROM assessments
+         WHERE practitioner_id = $1 AND billing_status = 'invoiced'`,
+        [practitionerId]
+      );
+      for (const session of stillUnresolved) {
+        const historicalDuplicate = historicalInvoiced.find((other) =>
+          other.id !== session.id
+          && other.patient_id === session.patient_id
+          && other.service_date === session.service_date
+          && other.start_time === session.start_time
+          && other.end_time === session.end_time
+          && other.type === session.type
+          && other.location === session.location
+        );
+        if (historicalDuplicate) {
+          results[session.id].duplicateOfSessionId = historicalDuplicate.id;
+          results[session.id].flagged = true;
+        }
+      }
+    }
+
     // For a genuinely unmatched, non-duplicate session, explain WHY no
     // candidate was found — "no EIMS row for this child at all" vs "rows
     // exist but none on this date" vs "a row exists on this date but its
