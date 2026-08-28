@@ -11,6 +11,7 @@ const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { getCompanyName } = require('../utils/companyName');
 const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { getDisciplineCode, mapDisciplineToCode } = require('../utils/disciplineCodes');
+const { formatTime12h } = require('../utils/formatting');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const {
@@ -272,12 +273,20 @@ const generateNJEISForms = async (req, res) => {
           setUniformText(`Service StatusRow${rowNum}`, session.status?.toString());
           setUniformText(`Service TypeRow${rowNum}`, session.type);
           setUniformText(`Service LocationRow${rowNum}`, session.location?.toString());
-          setUniformText(`Start TimeRow${rowNum}`, session.start_time);
-          setUniformText(`End TimeRow${rowNum}`, session.end_time);
+          setUniformText(`Start TimeRow${rowNum}`, formatTime12h(session.start_time));
+          setUniformText(`End TimeRow${rowNum}`, formatTime12h(session.end_time));
           setUniformText(`Total TimeRow${rowNum}`, session.total_time?.toString());
         });
 
-        setUniformText('Date', new Date().toLocaleDateString());
+        // The date next to the practitioner's certification signature is the
+        // most recent service_date among this chunk's own rows (the actual
+        // sessions listed on this specific form) — not today's date, which
+        // is just whenever this PDF happened to be generated/regenerated.
+        const chunkDates = chunk.map((s) => s.service_date).filter(Boolean).sort();
+        const lastChunkDate = chunkDates[chunkDates.length - 1];
+        setUniformText('Date', lastChunkDate
+          ? new Date(`${lastChunkDate}T00:00:00`).toLocaleDateString()
+          : new Date().toLocaleDateString());
         const pages = tempDoc.getPages();
         const firstPage = pages[0];
 
