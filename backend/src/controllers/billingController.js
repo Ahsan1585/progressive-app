@@ -1380,7 +1380,7 @@ const getComplianceAnalysis = async (req, res) => {
       SELECT assessments.id, patient_id, service_date, start_time, end_time, total_time, type, location,
              group_size_category, patient_first_name, patient_last_name,
              practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
-             assessments.status, practitioner_discipline, patient_dob, patient_county,
+             assessments.status, assessments.billing_status, practitioner_discipline, patient_dob, patient_county,
              eims_missing_status, form_data
       FROM assessments
       LEFT JOIN patients ON patients.id = assessments.patient_id
@@ -1539,6 +1539,13 @@ const getComplianceAnalysis = async (req, res) => {
       );
       if (duplicateOf) {
         result.duplicateOfSessionId = duplicateOf.id;
+        // Whether the message should say "already invoiced, this one won't
+        // be paid" vs "duplicates another log in this batch" — an in-batch
+        // pairing can itself involve an already-invoiced sibling (sessions
+        // here aren't restricted to pending only), so this must reflect the
+        // matched session's actual current status, not just which loop
+        // found it.
+        result.duplicateOfInvoiced = duplicateOf.billing_status === 'invoiced';
         result.flagged = true;
       }
     }
@@ -1580,6 +1587,7 @@ const getComplianceAnalysis = async (req, res) => {
         );
         if (historicalDuplicate) {
           results[session.id].duplicateOfSessionId = historicalDuplicate.id;
+          results[session.id].duplicateOfInvoiced = true; // guaranteed by the query's own billing_status = 'invoiced' filter
           results[session.id].flagged = true;
         }
       }
@@ -1681,15 +1689,17 @@ async function computeSessionCompliance(assessmentId) {
   // Detail's Approve button despite Compliance Analysis's own duplicate
   // detection (a separate code path from this one).
   const { rows: duplicateRows } = await pool.query(
-    `SELECT id FROM assessments
+    `SELECT id, billing_status FROM assessments
      WHERE practitioner_id = $1 AND patient_id = $2 AND service_date = $3
        AND start_time IS NOT DISTINCT FROM $4 AND end_time IS NOT DISTINCT FROM $5
        AND type = $6 AND location = $7
        AND id != $8 AND billing_status != 'declined'
+     ORDER BY (billing_status = 'invoiced') DESC
      LIMIT 1`,
     [session.practitioner_id, session.patient_id, session.service_date, session.start_time, session.end_time, session.type, session.location, assessmentId]
   );
   const duplicateOfSessionId = duplicateRows[0]?.id || null;
+  const duplicateOfInvoiced = duplicateRows[0]?.billing_status === 'invoiced';
 
   const matchParams = resolveStrictnessProfile(doc.compliance_strictness);
   const { rows: rawStateLogs } = await pool.query(
@@ -1709,7 +1719,7 @@ async function computeSessionCompliance(assessmentId) {
 
   const fields = buildFieldsForSession(session, match, { customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey });
   const flagged = fields.some((f) => f.match === false);
-  return { matched: !!match, flagged, fields, documentOnFile: true, eimsMissingStatus: session.eims_missing_status || null, duplicateOfSessionId };
+  return { matched: !!match, flagged, fields, documentOnFile: true, eimsMissingStatus: session.eims_missing_status || null, duplicateOfSessionId, duplicateOfInvoiced };
 }
 
 // --- 10. Fetch logs for a completed vault entry (by practitioner name + date range) ---
@@ -2019,6 +2029,7 @@ const getSessionComplianceStatus = async (req, res) => {
       flagged: compliance.flagged,
       eimsMissingStatus: compliance.eimsMissingStatus || null,
       duplicateOfSessionId: compliance.duplicateOfSessionId || null,
+      duplicateOfInvoiced: !!compliance.duplicateOfInvoiced,
     });
   } catch (error) {
     console.error('Error fetching session compliance status:', error);

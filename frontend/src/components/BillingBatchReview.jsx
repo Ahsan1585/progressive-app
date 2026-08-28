@@ -839,7 +839,9 @@ function SessionDetailPanel({
   const isFlaggedBlock = !!complianceStatus?.documentOnFile && complianceStatus.flagged;
   const isMissingBlock = !isDuplicateBlock && !!complianceStatus?.documentOnFile && !complianceStatus.matched && complianceStatus.eimsMissingStatus !== 'approved';
   const complianceBlockReason = isDuplicateBlock
-    ? 'This log duplicates another log for this patient on the same date/time — only one can be billed. Reject or Return this one, or resolve it under Compliance Analysis.'
+    ? (complianceStatus?.duplicateOfInvoiced
+        ? 'This session was already invoiced under another log — this one is a duplicate and will not be paid. Reject or Return it, or resolve it under Compliance Analysis.'
+        : 'This log duplicates another one in this same batch for this patient/date/time — only one can be billed. Reject or Return this one, or resolve it under Compliance Analysis.')
     : isFlaggedBlock
     ? 'This log has flagged compliance fields — resolve them under Compliance Analysis before approving.'
     : null;
@@ -1937,7 +1939,11 @@ function ComplianceAnalysisPreview({
                     </tr>
                   ) : isDuplicate ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={4}>Duplicate of another log for this patient on this date/time — only one can match EIMS's single record for it</td>
+                      <td className="px-4 py-3 text-center text-orange-700 text-xs font-semibold" colSpan={4}>
+                        {sessionResult?.duplicateOfInvoiced
+                          ? 'This session was already invoiced under another log — this one is a duplicate and will not be paid'
+                          : 'This log duplicates another one in this same batch for this patient/date/time — only one can be billed'}
+                      </td>
                     </tr>
                   ) : (
                     <>
