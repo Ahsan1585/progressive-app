@@ -66,8 +66,7 @@ const AdminDashboard = () => {
 
   const [adminProfile, setAdminProfile] = useState(null);
   const [companySettings, setCompanySettings] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile hamburger toggle
-  const [desktopNavOpen, setDesktopNavOpen] = useState(false); // desktop hover-triggered flyout nav
+  const [sidebarOpen, setSidebarOpen] = useState(false); // hamburger toggle — click only, all breakpoints
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -75,10 +74,7 @@ const AdminDashboard = () => {
     navigate('/login');
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen(o => !o);
-    setDesktopNavOpen(o => !o);
-  };
+  const toggleSidebar = () => setSidebarOpen(o => !o);
 
   useEffect(() => {
     api.get('/api/practitioner/profile')
@@ -147,33 +143,16 @@ const AdminDashboard = () => {
     <BaaGate>
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900 print:h-auto print:overflow-visible print:block">
 
-      {/* Mobile backdrop */}
+      {/* Backdrop — click outside the open sidebar to dismiss it, all breakpoints */}
       {sidebarOpen && (
-        <div className="print:hidden fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => { setSidebarOpen(false); setDesktopNavOpen(false); }} />
+        <div className="print:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Desktop hover strip — move the cursor to the left edge to reveal the nav; also tappable/focusable */}
-      <button
-        type="button"
-        onMouseEnter={() => setDesktopNavOpen(true)}
-        onClick={() => setDesktopNavOpen(true)}
-        className="group print:hidden hidden md:flex fixed inset-y-0 left-0 w-5 z-40 items-center justify-center bg-transparent hover:bg-blue-50/50 transition-colors cursor-pointer"
-        aria-label="Show navigation"
-        title="Show navigation"
-      >
-        <span className="flex items-center justify-center w-6 h-20 rounded-r-md bg-slate-100 border border-l-0 border-slate-200 shadow-sm group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
-          <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </span>
-      </button>
-
-      {/* SIDEBAR — fixed overlay on all breakpoints; desktop reveals via hover, mobile via hamburger */}
+      {/* SIDEBAR — fixed overlay on all breakpoints, opened only by clicking the hamburger button */}
       <aside
         className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg transition-transform duration-200 ${
-          sidebarOpen || desktopNavOpen ? 'translate-x-0' : '-translate-x-full'
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
-        onMouseLeave={() => { setDesktopNavOpen(false); setSidebarOpen(false); }}
       >
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
@@ -199,7 +178,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('practitioners') && (
             <button
-              onClick={() => { setActiveTab('practitioners'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+              onClick={() => { setActiveTab('practitioners'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'practitioners'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -215,7 +194,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('reports') && (
             <button
-              onClick={() => { setActiveTab('reports'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+              onClick={() => { setActiveTab('reports'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'reports'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -231,7 +210,7 @@ const AdminDashboard = () => {
 
           {visibleTabs.includes('billing') && (
             <button
-              onClick={() => { setActiveTab('billing'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+              onClick={() => { setActiveTab('billing'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'billing'
                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -255,7 +234,7 @@ const AdminDashboard = () => {
             <p className="px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Useful Links</p>
             {visibleTabs.includes('company') && (
               <button
-                onClick={() => { setActiveTab('company'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                onClick={() => { setActiveTab('company'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'company'
                     ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -270,7 +249,7 @@ const AdminDashboard = () => {
             )}
             {visibleTabs.includes('subscription') && (
               <button
-                onClick={() => { setActiveTab('subscription'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                onClick={() => { setActiveTab('subscription'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'subscription'
                     ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -285,7 +264,7 @@ const AdminDashboard = () => {
             )}
             {visibleTabs.includes('auditLog') && (
               <button
-                onClick={() => { setActiveTab('auditLog'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                onClick={() => { setActiveTab('auditLog'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'auditLog'
                     ? 'bg-blue-50 text-blue-700 border border-blue-100'
@@ -300,7 +279,7 @@ const AdminDashboard = () => {
             )}
             {visibleTabs.includes('roles') && (
               <button
-                onClick={() => { setActiveTab('roles'); setSidebarOpen(false); setDesktopNavOpen(false); }}
+                onClick={() => { setActiveTab('roles'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'roles'
                     ? 'bg-blue-50 text-blue-700 border border-blue-100'
