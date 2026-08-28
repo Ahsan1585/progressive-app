@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +11,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Picker } from "@/components/Picker";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -500,32 +502,14 @@ export default function LogIntervention() {
             {missing.length} field{missing.length > 1 ? "s" : ""} still missing
           </p>
         )}
-        <div className="flex gap-2">
+        <div className="flex">
+          {/* Split button: the primary action gets the full row (so its
+              label — "Save Session" or, for telepractice, the much longer
+              "Send to Parent to Sign" — always has room to breathe or wrap),
+              with Save Draft / Cancel tucked behind the chevron instead of
+              fighting it for space in an even three-way split. */}
           <Button
-            className="flex-1"
-            size="lg"
-            variant="outline"
-            onClick={handleBack}
-            disabled={submitting || savingDraft}
-          >
-            Cancel
-          </Button>
-          <Button
-            className="flex-1"
-            size="lg"
-            variant="outline"
-            onClick={handleSaveDraft}
-            loading={savingDraft}
-            disabled={submitting || savingDraft}
-          >
-            Save Draft
-          </Button>
-          {/* Wider share of the row, smaller/wrapping text, no fixed height —
-              this label can also be "Send to Parent to Sign" (telepractice),
-              which never fits on one line in an even three-way split no
-              matter how small the font gets. */}
-          <Button
-            className="h-auto min-h-12 flex-[1.4] whitespace-normal py-2 text-center text-sm leading-tight"
+            className="h-auto min-h-12 flex-1 whitespace-normal rounded-r-none py-2 text-center leading-tight"
             size="lg"
             onClick={handleSubmit}
             loading={submitting}
@@ -533,6 +517,27 @@ export default function LogIntervention() {
           >
             {isTelepractice ? "Send to Parent to Sign" : "Save Session"}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="lg"
+                aria-label="More options: Save Draft or Cancel"
+                disabled={submitting || savingDraft}
+                className="w-12 shrink-0 rounded-l-none border-l border-l-primary-hover px-0"
+              >
+                <ChevronDown className="size-5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="end">
+              <DropdownMenuItem onSelect={() => handleSaveDraft()} disabled={submitting || savingDraft}>
+                {savingDraft ? "Saving Draft..." : "Save Draft"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleBack} disabled={submitting || savingDraft}>
+                Cancel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
