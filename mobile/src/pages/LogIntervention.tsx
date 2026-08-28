@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Video } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,7 @@ import { Picker } from "@/components/Picker";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TelepracticeSentDialog } from "@/components/TelepracticeSentDialog";
+import { ParentEmailPromptDialog } from "@/components/ParentEmailPromptDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,7 @@ export default function LogIntervention() {
   });
   const [zeroTime, setZeroTime] = React.useState(false);
   const [isTelepractice, setIsTelepractice] = React.useState(false);
+  const [parentEmailPromptOpen, setParentEmailPromptOpen] = React.useState(false);
   const [parentSig, setParentSig] = React.useState<string | null>(null);
   const [practitionerSig, setPractitionerSig] = React.useState<string | null>(null);
   const [isUsingSaved, setIsUsingSaved] = React.useState(false);
@@ -312,16 +314,31 @@ export default function LogIntervention() {
       )}
 
       <div className="border-b border-border bg-surface px-4 py-3">
-        <label className="flex items-start gap-2.5">
+        {/* Deliberately louder than a routine checkbox row — this single
+            toggle branches the whole form's signature flow, so it needs to
+            be caught before a practitioner fills everything else in. */}
+        <label className="flex items-start gap-3 rounded-card border-2 border-primary/50 bg-primary-tint px-3.5 py-3">
           <input
             type="checkbox"
-            className="mt-0.5 h-4 w-4 rounded border-border-strong"
+            className="mt-0.5 size-5 shrink-0 rounded border-2 border-primary accent-primary"
             checked={isTelepractice}
-            onChange={(e) => { setIsTelepractice(e.target.checked); setTouched(true); }}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setIsTelepractice(checked);
+              setTouched(true);
+              // Prompt for the parent email right here instead of only
+              // surfacing it later in the Signatures section — catches the
+              // blocker the moment it becomes relevant, not several fields
+              // into the form.
+              if (checked && !patient?.parent_email) setParentEmailPromptOpen(true);
+            }}
           />
           <span>
-            <span className="block text-[13px] font-semibold text-ink">This was a telepractice (video) session</span>
-            <span className="block text-xs text-ink-muted">
+            <span className="flex items-center gap-1.5 text-[14px] font-bold text-primary">
+              <Video className="size-4 shrink-0" aria-hidden="true" />
+              Telepractice (Video) Session
+            </span>
+            <span className="mt-0.5 block text-xs font-medium text-ink-body">
               We&apos;ll email the parent a link to review and sign remotely instead of collecting their signature here.
             </span>
           </span>
@@ -550,6 +567,24 @@ export default function LogIntervention() {
         destructive
         onConfirm={() => navigate(-1)}
       />
+
+      {patient && (
+        <ParentEmailPromptDialog
+          open={parentEmailPromptOpen}
+          onOpenChange={(open) => {
+            setParentEmailPromptOpen(open);
+            // Reached only via Cancel / outside-click / Escape — a successful
+            // save closes through onSaved below instead, which leaves
+            // telepractice checked rather than reverting it.
+            if (!open) setIsTelepractice(false);
+          }}
+          patient={patient}
+          onSaved={() => {
+            setParentEmailPromptOpen(false);
+            showToast("Parent email saved.");
+          }}
+        />
+      )}
 
       <TelepracticeSentDialog
         open={telepracticeSentOpen}
