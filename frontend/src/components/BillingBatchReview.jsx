@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
@@ -62,9 +63,41 @@ export const BillingBatchReview = ({
   const [detailTab, setDetailTab] = useState('session'); // 'session' | 'analysis'
 
   // --- Billing period (Biweekly 1 / Biweekly 2 / Monthly, see getMonthPeriods) ---
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [selectedPeriod, setSelectedPeriod] = useState(null);
+  // Mirrored into the URL (?month=&period=) alongside the admin dashboard's
+  // own ?tab= — a refresh re-seeds both from the URL instead of always
+  // resetting to the current month with no period selected, so the same
+  // data just re-fetches for whatever was already being reviewed.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedMonth, setSelectedMonthState] = useState(() => searchParams.get('month') || new Date().toISOString().slice(0, 7));
   const periods = getMonthPeriods(selectedMonth);
+  const [selectedPeriod, setSelectedPeriodState] = useState(() => {
+    const urlPeriodKey = searchParams.get('period');
+    if (!urlPeriodKey) return null;
+    const found = periods.find(p => p.key === urlPeriodKey);
+    // Guard against a stale/tampered URL naming a not-yet-elapsed period —
+    // same rule the period buttons themselves enforce (disabled + locked).
+    return found && found.elapsed ? found : null;
+  });
+
+  const setSelectedMonth = (month) => {
+    setSelectedMonthState(month);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('month', month);
+      next.delete('period');
+      return next;
+    }, { replace: true });
+  };
+
+  const setSelectedPeriod = (period) => {
+    setSelectedPeriodState(period);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (period) next.set('period', period.key);
+      else next.delete('period');
+      return next;
+    }, { replace: true });
+  };
 
   // Session data is fetched locally, scoped to the selected period — kept
   // separate from BillingManager's own expandedLogs (which the legacy table
