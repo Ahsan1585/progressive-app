@@ -40,10 +40,26 @@ export default function MyInvoices() {
 
   const handleView = async (invoice: Invoice) => {
     setDownloadingId(invoice.id);
+    // iOS Safari (including an installed PWA's standalone mode) only allows
+    // window.open() to succeed when it's called synchronously within the
+    // click's own event handler — once anything is awaited first, the
+    // popup is silently blocked with no error. Android Chrome doesn't
+    // enforce this as strictly, which is why this worked there but not on
+    // iPhone. Opening a blank tab right now, before the await, and
+    // navigating it once the real URL is known keeps the open() call
+    // itself synchronous.
+    const newWindow = window.open("", "_blank");
     try {
       const res = await api.get<{ success: boolean; signedUrl: string }>(`/api/billing/my-invoices/${invoice.id}/download`);
-      window.open(res.data.signedUrl, "_blank");
+      if (newWindow) {
+        newWindow.location.href = res.data.signedUrl;
+      } else {
+        // Popups fully disabled (window.open returned null outright) —
+        // fall back to a same-tab navigation so the invoice still opens.
+        window.location.href = res.data.signedUrl;
+      }
     } catch (err) {
+      newWindow?.close();
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
       showToast(body?.error || "Couldn't open this invoice. Please try again.");
     } finally {
