@@ -2,6 +2,7 @@ const { PDFDocument } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
 const { getDisciplineCode } = require('./disciplineCodes');
+const { formatTime12h } = require('./formatting');
 
 // Helper function to convert Image
 const fetchImageBuffer = async (imageSource) => {
@@ -165,8 +166,8 @@ const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear
     fillField(`Service TypeRow${rowNum}`, encounter.type || 'DI');
     fillField(`Service LocationRow${rowNum}`, encounter.location || '1');
     
-    fillField(`Start TimeRow${rowNum}`, encounter.start_time);
-    fillField(`End TimeRow${rowNum}`, encounter.end_time);
+    fillField(`Start TimeRow${rowNum}`, formatTime12h(encounter.start_time));
+    fillField(`End TimeRow${rowNum}`, formatTime12h(encounter.end_time));
     
     const hours = encounter.total_time ? (encounter.total_time / 60).toFixed(2) : encounter.hours;
     fillField(`Total TimeRow${rowNum}`, `${hours} hrs`);
@@ -187,7 +188,22 @@ const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear
     fillField('Practitioner Signature', `${practitioner.first_name} ${practitioner.last_name}`);
   }
 
-  fillField('Date', formatShortDate(new Date().toISOString()));
+  // The date next to the practitioner's signature is the date of the most
+  // recent session actually listed in the encounter table above (rows 1
+  // through maxRows) — not today's date, which is just whenever this PDF
+  // happened to be generated/regenerated and has no bearing on when the
+  // certified services took place.
+  const encountersOnForm = encounters.slice(0, maxRows);
+  const sessionDates = encountersOnForm
+    .map((e) => e.date || e.service_date)
+    .filter(Boolean)
+    .map((raw) => ({ raw, time: new Date(raw).getTime() }))
+    .filter((d) => !isNaN(d.time));
+  const lastSessionDate = sessionDates.length > 0
+    ? sessionDates.reduce((latest, d) => (d.time > latest.time ? d : latest)).raw
+    : null;
+
+  fillField('Date', formatShortDate(lastSessionDate || new Date().toISOString()));
 
   form.flatten();
   const pdfBytes = await pdfDoc.save();
