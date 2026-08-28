@@ -295,8 +295,12 @@ export const BillingBatchReview = ({
   const wrappedGenerateAndIssue = async (practitionerId) => {
     if (!selectedPeriod) return;
     await handleGenerateAndIssue(practitionerId, { startDate: selectedPeriod.start, endDate: selectedPeriod.end });
-    await fetchPeriodLogs(practitionerId);
-    await fetchPeriodPractitioners();
+    // Silent — a non-silent refetch flips the loading flag, which swaps the
+    // list for a loading skeleton and back. That's a different DOM shape,
+    // so the scroll container resets to the top instead of staying where
+    // the specialist was reviewing.
+    await fetchPeriodLogs(practitionerId, { silent: true });
+    await fetchPeriodPractitioners({ silent: true });
   };
   const wrappedSendToCompleted = async (practitionerId) => {
     await handleSendToCompleted(practitionerId);
