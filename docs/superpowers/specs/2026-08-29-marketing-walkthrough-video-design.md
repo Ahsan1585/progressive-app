@@ -28,10 +28,13 @@ Prospective customers evaluating Izaya EIS. The video's job is to make three thi
 | 2 | Dual signature capture | 0:18–0:33 | Both signature pads on the same screen — practitioner signs, then parent signs, in the moment. |
 | 3 | Instant handoff | 0:33–0:43 | Submit → the log already sitting in the office's Pending Bills queue. |
 | 4 | Office review & billing periods | 0:43–0:58 | Admin dashboard, Billing & Invoices — the Biweekly 1 / Biweekly 2 / Monthly period picker. |
-| 5 | Automation payoff | 0:58–1:23 | Compliance Analysis — click into a log, run the analysis, see auto-matched counts clear instantly and only flagged exceptions surfaced. |
-| 6 | Closing stat | 1:23–1:33 | Brand-styled title card: "Weeks of invoice processing. Reduced to minutes." |
+| 5 | Automation payoff | 0:58–1:18 | Compliance Analysis — click into a log, run the analysis, see auto-matched counts clear instantly and only flagged exceptions surfaced. |
+| 6 | Exception handling | 1:18–1:28 | One flagged log — biller clicks "Allow" on the flagged field ([BillingBatchReview.jsx:1415](frontend/src/components/BillingBatchReview.jsx#L1415), [:1544](frontend/src/components/BillingBatchReview.jsx#L1544)) — resolved in seconds, proving "only flagged logs need attention" rather than just asserting it. |
+| 7 | The actual payoff — invoice issued | 1:28–1:43 | "Generate & Issue" ([BillingBatchReview.jsx:775-780](frontend/src/components/BillingBatchReview.jsx#L775-L780)) — click, and the real SEVF/invoice document is generated for the period. This is the concrete proof behind the "weeks to minutes" claim, not just a stat on a title card. |
+| 8 | Full-circle close | 1:43–1:53 | Quick cut back to the practitioner's own **My Invoices** screen on mobile — the new invoice already there. Bookends the video on the same persona it opened with. |
+| 9 | Closing stat | 1:53–2:03 | Brand-styled title card: "Weeks of invoice processing. Reduced to minutes." |
 
-Total runtime: roughly 90–95 seconds.
+Total runtime: roughly 2 minutes (~120 seconds).
 
 ## Script
 
@@ -41,8 +44,11 @@ Total runtime: roughly 90–95 seconds.
 | 2 | 0:18–0:33 | "Capture both signatures on the spot — practitioner and parent — right there in the visit. No paper, no follow-up, no chasing anyone down later." |
 | 3 | 0:33–0:43 | "The moment it's submitted, it's already in the office's queue — ready for review." |
 | 4 | 0:43–0:58 | "Billing runs on your schedule — biweekly or monthly — with every session organized and ready to go." |
-| 5 | 0:58–1:23 | "One click runs the analysis. Every log is instantly cross-checked against EIMS records — matches are approved automatically, and only the sessions that actually need a second look get flagged for your team." |
-| 6 | 1:23–1:33 | "What used to take weeks of manual review now takes minutes. Izaya EIS — less paperwork, more time for families." |
+| 5 | 0:58–1:18 | "One click runs the analysis. Every log is instantly cross-checked against EIMS records — matches are approved automatically." |
+| 6 | 1:18–1:28 | "The handful that do need a look are handled just as fast — one click to confirm, and it's done." |
+| 7 | 1:28–1:43 | "When the period closes, one click generates and issues every invoice — compliant, accurate, ready to send." |
+| 8 | 1:43–1:53 | "And it's already there for the practitioner to see." |
+| 9 | 1:53–2:03 | "What used to take weeks of manual review now takes minutes. Izaya EIS — less paperwork, more time for families." |
 
 ## Technical approach
 
@@ -50,7 +56,8 @@ Total runtime: roughly 90–95 seconds.
 - Admin dashboard scenes: desktop viewport (1920×1080, 2x device scale factor) against the real app logged into `tenant_izayaedge`.
 - Practitioner app scenes: phone-viewport emulation (e.g. iPhone 14 Pro dimensions) in the same browser — no physical device needed.
 - Real video recording of each scene (not static screenshots), so typing, signing, and clicking read as genuine motion.
-- Shots are framed/cropped to their focal region per scene (e.g. tight on the signature pad while signing, tight on the Compliance Analysis result counts) rather than always capturing the full viewport.
+- Shots are framed/cropped to their focal region per scene (e.g. tight on the signature pad while signing, tight on the Compliance Analysis result counts, tight on the "Allow" button for the flagged-field resolution, tight on the generated document after "Generate & Issue") rather than always capturing the full viewport.
+- Scene 8's bookend requires a second, brief practitioner-app capture pass (My Invoices screen) after the office-side invoice has actually been issued in the demo data, so the two sides of the story are captured in the correct order.
 
 **Design & assembly (`hyperframes` skill ecosystem, already installed, no added cost):**
 - `hyperframes` — mandatory entry point; routes the request.
@@ -76,3 +83,4 @@ Login credentials for `tenant_izayaedge` (admin/billing account and practitioner
 ## Verification
 
 - Manual review of rendered output before publishing: confirm no PHI/real-tenant data appears in any frame (only `izayaedge` dummy data), confirm both 16:9 and 9:16 exports play back cleanly, confirm captions/lower-thirds match the locked script.
+- Confirm Scene 7's generated document and Scene 8's My Invoices entry are real output from the demo data (not mocked/faked on screen) — the whole point of these two scenes is to prove the claim, so they must show a document that was actually produced by the app during capture.
