@@ -1680,6 +1680,30 @@ async function computeSessionCompliance(assessmentId) {
   const session = sessionRows[0];
   if (!session) return { matched: false, flagged: false, fields: [], documentOnFile: true };
 
+  // Every other non-declined session this practitioner logged for the same
+  // child on the same day. The state-record assignment below MUST be done
+  // over this whole group with assignGroupCandidates — exactly like the
+  // Compliance Analysis tab's getComplianceAnalysis does — or the two
+  // disagree: with two sessions on one day and two matching state rows, the
+  // tab pairs them 1-to-1 and shows both clean, while a per-session
+  // pickBestCandidate here can hand the closer row to BOTH sessions and
+  // then flag phantom time mismatches on one of them, blocking Approve for
+  // a log the tab already considers matched.
+  const { rows: groupRows } = await pool.query(
+    `SELECT assessments.id, patient_id, assessments.practitioner_id, service_date, start_time, end_time, total_time, type, location,
+            group_size_category, patient_first_name, patient_last_name,
+            practitioner_first_name, practitioner_last_name, completed_at, patients.child_id,
+            assessments.status, practitioner_discipline, patient_dob, patient_county,
+            eims_missing_status, form_data
+     FROM assessments
+     LEFT JOIN patients ON patients.id = assessments.patient_id
+     WHERE assessments.practitioner_id = $1 AND assessments.patient_id = $2 AND assessments.service_date = $3
+       AND assessments.billing_status != 'declined'
+     ORDER BY assessments.start_time ASC NULLS LAST, assessments.id ASC`,
+    [session.practitioner_id, session.patient_id, session.service_date]
+  );
+  const groupSessions = groupRows.length > 0 ? groupRows : [session];
+
   // Same patient/date/time/type/location logged more than once (e.g. under
   // a spelling variant of the child's name) can independently show a clean
   // "Match" here — this check has no memory of any OTHER assessment that
@@ -1711,7 +1735,7 @@ async function computeSessionCompliance(assessmentId) {
     !!log.practitioner_name && scoredNamesMatch(ourPractitionerNameForFilter, log.practitioner_name, matchParams.wordOverlapThreshold)
   ));
 
-  const match = pickBestCandidate(session, stateLogs);
+  const match = assignGroupCandidates(groupSessions, stateLogs).get(Number(assessmentId)) || null;
   const customFieldsByLabel = new Map((doc?.compliance_doc_custom_fields || []).map((cf) => [cf.label, cf]));
   const mappedKeys = new Set(Object.entries(doc?.compliance_doc_column_mapping || {}).filter(([, header]) => header).map(([key]) => key));
   const overridesByField = await loadOverridesByField();
