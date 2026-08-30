@@ -1,5 +1,36 @@
 const { pool } = require('../config/db');
 
+// Thrown when a session log that duplicates an existing one is submitted —
+// same practitioner, child, service date, service type, and start/end time.
+// Callers translate this into a 409 the practitioner app shows as a blocking
+// dialog. Prior logs that billing has returned ('rejected') or permanently
+// rejected ('declined') are ignored, since those are meant to be redone.
+class DuplicateAssessmentError extends Error {
+  constructor(message = 'A log for this session has already been submitted.') {
+    super(message);
+    this.name = 'DuplicateAssessmentError';
+    this.code = 'DUPLICATE_LOG';
+  }
+}
+
+// Returns true when an active (non-rejected) assessments row already exists
+// for this exact practitioner + child + date + service type + start/end time.
+async function assessmentDuplicateExists({ practitionerId, patientId, date, type, startTime, endTime }) {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM assessments
+      WHERE practitioner_id = $1
+        AND patient_id = $2
+        AND service_date = $3
+        AND type = $4
+        AND COALESCE(start_time, '') = COALESCE($5, '')
+        AND COALESCE(end_time, '') = COALESCE($6, '')
+        AND (billing_status IS NULL OR billing_status NOT IN ('rejected', 'declined'))
+      LIMIT 1`,
+    [practitionerId, patientId, date, type, startTime, endTime]
+  );
+  return !!rows[0];
+}
+
 // The single INSERT that creates a real, billing-visible session log — used
 // by both POST /api/interventions (backend/index.js, the normal in-person
 // submit path) and the telepractice Confirm & Submit endpoint
@@ -20,6 +51,10 @@ async function createAssessmentFromPayload({
   sanitizedCustomFields,
   note, authorId, authorRole,
 }) {
+  if (await assessmentDuplicateExists({ practitionerId, patientId, date, type, startTime, endTime })) {
+    throw new DuplicateAssessmentError();
+  }
+
   const { rows: insertedRows } = await pool.query(
     `INSERT INTO assessments
        (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
@@ -60,4 +95,4 @@ async function createAssessmentFromPayload({
   return assessment;
 }
 
-module.exports = { createAssessmentFromPayload };
+module.exports = { createAssessmentFromPayload, assessmentDuplicateExists, DuplicateAssessmentError };

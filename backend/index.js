@@ -17,7 +17,7 @@ const { pool } = require('./src/config/db');
 const { runMigrations } = require('./src/config/runMigrations');
 const { sanitizeCustomFields } = require('./src/utils/customFields');
 const { getCompanyName } = require('./src/utils/companyName');
-const { createAssessmentFromPayload } = require('./src/utils/createAssessment');
+const { createAssessmentFromPayload, DuplicateAssessmentError } = require('./src/utils/createAssessment');
 
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
@@ -184,6 +184,9 @@ app.post('/api/interventions', protect, async (req, res) => {
 
     res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: [assessment] });
   } catch (error) {
+    if (error instanceof DuplicateAssessmentError) {
+      return res.status(409).json({ error: error.message, code: error.code });
+    }
     console.error('Failed to save encounter:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }

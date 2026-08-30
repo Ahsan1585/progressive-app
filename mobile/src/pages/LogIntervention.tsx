@@ -17,6 +17,7 @@ import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TelepracticeSentDialog } from "@/components/TelepracticeSentDialog";
 import { ParentEmailPromptDialog } from "@/components/ParentEmailPromptDialog";
+import { DuplicateLogDialog } from "@/components/DuplicateLogDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
 import { cn } from "@/lib/utils";
@@ -93,6 +94,7 @@ export default function LogIntervention() {
   const [submitting, setSubmitting] = React.useState(false);
   const [savingDraft, setSavingDraft] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
+  const [duplicateMessage, setDuplicateMessage] = React.useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = React.useState(false);
   const [telepracticeSentOpen, setTelepracticeSentOpen] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<string>("details");
@@ -266,7 +268,13 @@ export default function LogIntervention() {
       }
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
-      setServerError(body?.error || "There was an error saving the session. Your entries have been kept.");
+      if (body?.code === "DUPLICATE_LOG") {
+        // A hard block, not a fixable field error — surface it as a centered
+        // dialog the practitioner has to acknowledge, not the inline banner.
+        setDuplicateMessage(body.error || null);
+      } else {
+        setServerError(body?.error || "There was an error saving the session. Your entries have been kept.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -585,6 +593,12 @@ export default function LogIntervention() {
           }}
         />
       )}
+
+      <DuplicateLogDialog
+        open={duplicateMessage !== null}
+        onOpenChange={(open) => { if (!open) setDuplicateMessage(null); }}
+        message={duplicateMessage || undefined}
+      />
 
       <TelepracticeSentDialog
         open={telepracticeSentOpen}

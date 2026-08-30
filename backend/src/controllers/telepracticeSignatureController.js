@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { sanitizeCustomFields } = require('../utils/customFields');
-const { createAssessmentFromPayload } = require('../utils/createAssessment');
+const { createAssessmentFromPayload, assessmentDuplicateExists, DuplicateAssessmentError } = require('../utils/createAssessment');
 const { sendParentSignatureRequestEmail } = require('../utils/emailClient');
 const { ensureDropdownOptionsCacheLoaded } = require('../constants/dropdownOptionsCache');
 const { getCurrentTenantDb } = require('../config/tenantContext');
@@ -76,6 +76,30 @@ const submitTelepracticeSession = async (req, res) => {
       return res.status(400).json({
         error: "This patient has no parent email on file. Add one on the patient's Edit screen before logging a telepractice session.",
         code: 'PARENT_EMAIL_MISSING',
+      });
+    }
+
+    // Block a session that's already been logged (or already sent for a
+    // parent signature) — same practitioner + child + date + type + times.
+    // Caught up front so the practitioner is stopped before the parent is
+    // emailed, not after they sign.
+    if (await assessmentDuplicateExists({
+      practitionerId: trustedPractitionerId, patientId, date, type, startTime, endTime,
+    })) {
+      return res.status(409).json({ error: 'A log for this session has already been submitted.', code: 'DUPLICATE_LOG' });
+    }
+    const { rows: pendingDup } = await pool.query(
+      `SELECT 1 FROM telepractice_signature_requests
+        WHERE practitioner_id = $1 AND patient_id = $2 AND service_date = $3 AND type = $4
+          AND COALESCE(start_time, '') = COALESCE($5, '') AND COALESCE(end_time, '') = COALESCE($6, '')
+          AND status IN ('awaiting_signature', 'signed')
+        LIMIT 1`,
+      [trustedPractitionerId, patientId, date, type, startTime, endTime]
+    );
+    if (pendingDup[0]) {
+      return res.status(409).json({
+        error: 'A telepractice session for this same time was already sent to the parent to sign.',
+        code: 'DUPLICATE_LOG',
       });
     }
 
@@ -284,6 +308,9 @@ const confirmTelepracticeSession = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Telepractice session confirmed and submitted', data: [assessment] });
   } catch (error) {
+    if (error instanceof DuplicateAssessmentError) {
+      return res.status(409).json({ error: error.message, code: error.code });
+    }
     console.error('Failed to confirm telepractice session:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }

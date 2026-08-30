@@ -265,4 +265,5 @@ export interface PractitionerStats {
 export interface ApiErrorBody {
   error?: string;
   message?: string;
+  code?: string;
 }
