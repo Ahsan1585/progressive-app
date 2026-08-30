@@ -2,6 +2,7 @@ const { patientSchema } = require('../utils/patientSchema');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { sanitizeCustomFields } = require('../utils/customFields');
+const { assertNoConflictingSession, DuplicateAssessmentError } = require('../utils/createAssessment');
 
 const VALID_PATIENT_STATUSES = ['active', 'inactive'];
 
@@ -281,7 +282,7 @@ const resubmitLog = async (req, res) => {
 
   try {
     const { rows: existingRows } = await pool.query(
-      'SELECT id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      'SELECT id, patient_id, service_date, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
       [assessmentId, practitionerId]
     );
     const existing = existingRows[0];
@@ -296,6 +297,13 @@ const resubmitLog = async (req, res) => {
     if (submittingPractitioner.service_types?.length > 0 && !submittingPractitioner.service_types.includes(type)) {
       return res.status(403).json({ error: 'You are not registered to provide this service type' });
     }
+
+    // A revised log still can't land on top of another session the
+    // practitioner already has for this child at the same time.
+    await assertNoConflictingSession({
+      practitionerId, patientId: existing.patient_id, date: existing.service_date, type,
+      startTime: start_time, endTime: end_time, excludeAssessmentId: Number(assessmentId),
+    });
 
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
 
@@ -322,6 +330,9 @@ const resubmitLog = async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    if (error instanceof DuplicateAssessmentError) {
+      return res.status(409).json({ error: error.message, code: error.code });
+    }
     console.error('Error resubmitting log:', error);
     res.status(500).json({ error: 'Failed to resubmit log' });
   }
@@ -339,7 +350,7 @@ const editLog = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      'SELECT id, patient_id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
       [id, practitionerId]
     );
     const log = rows[0];
@@ -357,6 +368,14 @@ const editLog = async (req, res) => {
       return res.status(403).json({ error: 'You are not registered to provide this service type' });
     }
 
+    // Same conflict rule as a fresh log — otherwise a practitioner can log
+    // two non-overlapping sessions and then edit one to collide with the
+    // other, sidestepping the create-time check.
+    await assertNoConflictingSession({
+      practitionerId, patientId: log.patient_id, date: service_date, type,
+      startTime: start_time, endTime: end_time, excludeAssessmentId: Number(id),
+    });
+
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
 
     await pool.query(
@@ -370,6 +389,9 @@ const editLog = async (req, res) => {
     logAudit({ req, action: 'log_edit', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });
   } catch (error) {
+    if (error instanceof DuplicateAssessmentError) {
+      return res.status(409).json({ error: error.message, code: error.code });
+    }
     console.error('Error editing log:', error);
     res.status(500).json({ error: 'Failed to edit log' });
   }

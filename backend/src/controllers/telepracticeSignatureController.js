@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { sanitizeCustomFields } = require('../utils/customFields');
-const { createAssessmentFromPayload, assessmentDuplicateExists, DuplicateAssessmentError } = require('../utils/createAssessment');
+const { createAssessmentFromPayload, findConflictingSession, conflictMessage, DuplicateAssessmentError } = require('../utils/createAssessment');
 const { sendParentSignatureRequestEmail } = require('../utils/emailClient');
 const { ensureDropdownOptionsCacheLoaded } = require('../constants/dropdownOptionsCache');
 const { getCurrentTenantDb } = require('../config/tenantContext');
@@ -79,26 +79,37 @@ const submitTelepracticeSession = async (req, res) => {
       });
     }
 
-    // Block a session that's already been logged (or already sent for a
-    // parent signature) — same practitioner + child + date + type + times.
-    // Caught up front so the practitioner is stopped before the parent is
-    // emailed, not after they sign.
-    if (await assessmentDuplicateExists({
+    // Block a session that conflicts with one already logged, or already
+    // sent to the parent to sign — same practitioner + child, overlapping
+    // time on the same date. Caught up front so the practitioner is stopped
+    // before the parent is emailed, not after they sign.
+    const conflict = await findConflictingSession({
       practitionerId: trustedPractitionerId, patientId, date, type, startTime, endTime,
-    })) {
-      return res.status(409).json({ error: 'A log for this session has already been submitted.', code: 'DUPLICATE_LOG' });
+    });
+    if (conflict) {
+      return res.status(409).json({ error: conflictMessage(conflict), code: 'DUPLICATE_LOG' });
     }
+    const s = /^(\d{1,2}):(\d{2})/.exec(String(startTime || ''));
+    const e = /^(\d{1,2}):(\d{2})/.exec(String(endTime || ''));
+    const startHM = s ? `${s[1].padStart(2, '0')}:${s[2]}` : '';
+    const endHM = e ? `${e[1].padStart(2, '0')}:${e[2]}` : '';
     const { rows: pendingDup } = await pool.query(
       `SELECT 1 FROM telepractice_signature_requests
-        WHERE practitioner_id = $1 AND patient_id = $2 AND service_date = $3 AND type = $4
-          AND COALESCE(start_time, '') = COALESCE($5, '') AND COALESCE(end_time, '') = COALESCE($6, '')
+        WHERE practitioner_id = $1 AND patient_id = $2 AND service_date = $3
           AND status IN ('awaiting_signature', 'signed')
+          AND (
+            ( NULLIF(start_time, '')::time < NULLIF($5, '')::time
+              AND NULLIF(end_time, '')::time > NULLIF($4, '')::time )
+            OR
+            ( NOT ( $4 <> '' AND $5 <> '' AND COALESCE(start_time, '') <> '' AND COALESCE(end_time, '') <> '' )
+              AND type = $6 )
+          )
         LIMIT 1`,
-      [trustedPractitionerId, patientId, date, type, startTime, endTime]
+      [trustedPractitionerId, patientId, date, startHM, endHM, type]
     );
     if (pendingDup[0]) {
       return res.status(409).json({
-        error: 'A telepractice session for this same time was already sent to the parent to sign.',
+        error: "A telepractice session for this child at an overlapping time was already sent to the parent to sign.",
         code: 'DUPLICATE_LOG',
       });
     }

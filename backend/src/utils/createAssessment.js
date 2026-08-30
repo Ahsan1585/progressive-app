@@ -1,10 +1,13 @@
 const { pool } = require('../config/db');
 
-// Thrown when a session log that duplicates an existing one is submitted —
-// same practitioner, child, service date, service type, and start/end time.
-// Callers translate this into a 409 the practitioner app shows as a blocking
-// dialog. Prior logs that billing has returned ('rejected') or permanently
-// rejected ('declined') are ignored, since those are meant to be redone.
+// Thrown when a session log conflicts with one the same practitioner has
+// already logged for the same child: the two sessions overlap in time on the
+// same date (regardless of service type — one practitioner can't run two
+// sessions for a child at once), or, for cancelled/zero-time logs, it's a
+// same-date same-service repeat. Callers translate this into a 409 the
+// practitioner app shows as a blocking message. Prior logs that billing has
+// returned ('rejected') or permanently rejected ('declined') are ignored,
+// since those are meant to be redone.
 class DuplicateAssessmentError extends Error {
   constructor(message = 'A log for this session has already been submitted.') {
     super(message);
@@ -13,22 +16,63 @@ class DuplicateAssessmentError extends Error {
   }
 }
 
-// Returns true when an active (non-rejected) assessments row already exists
-// for this exact practitioner + child + date + service type + start/end time.
-async function assessmentDuplicateExists({ practitionerId, patientId, date, type, startTime, endTime }) {
+const hhmm = (t) => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t || ''));
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+};
+
+// Finds an existing active assessment for this practitioner + child on the
+// same service date that this submission conflicts with, or null. When both
+// sides carry a start and end time the test is a real interval overlap
+// (12:00–1:00 conflicts with 12:30–1:30); when either side is timeless
+// (a cancelled "0 time" log) it falls back to a same-service repeat check.
+// `excludeAssessmentId` skips the row being edited/resubmitted so a log
+// never conflicts with itself.
+async function findConflictingSession({ practitionerId, patientId, date, type, startTime, endTime, excludeAssessmentId = null }) {
+  const start = hhmm(startTime);
+  const end = hhmm(endTime);
+  const hasWindow = start !== '' && end !== '';
+
   const { rows } = await pool.query(
-    `SELECT 1 FROM assessments
+    `SELECT id, type, start_time, end_time FROM assessments
       WHERE practitioner_id = $1
         AND patient_id = $2
         AND service_date = $3
-        AND type = $4
-        AND COALESCE(start_time, '') = COALESCE($5, '')
-        AND COALESCE(end_time, '') = COALESCE($6, '')
         AND (billing_status IS NULL OR billing_status NOT IN ('rejected', 'declined'))
+        AND ($4::int IS NULL OR id <> $4::int)
+        AND (
+          ( $5::bool
+            AND NULLIF(start_time, '')::time < NULLIF($7, '')::time
+            AND NULLIF(end_time, '')::time > NULLIF($6, '')::time )
+          OR
+          ( NOT ( $5::bool AND COALESCE(start_time, '') <> '' AND COALESCE(end_time, '') <> '' )
+            AND type = $8 )
+        )
+      ORDER BY id
       LIMIT 1`,
-    [practitionerId, patientId, date, type, startTime, endTime]
+    [practitionerId, patientId, date, excludeAssessmentId, hasWindow, start, end, type]
   );
-  return !!rows[0];
+
+  const conflict = rows[0] || null;
+  console.log('[session-conflict] check', {
+    practitionerId, patientId, date, type, start, end, excludeAssessmentId,
+    conflictId: conflict?.id ?? null,
+  });
+  return conflict;
+}
+
+// Human-facing 409 message for a detected conflict.
+function conflictMessage(conflict) {
+  const window = [hhmm(conflict.start_time), hhmm(conflict.end_time)].filter(Boolean).join('–');
+  if (window) {
+    return `This overlaps a session you already logged for this child (${window}). A practitioner can't log two sessions for the same child at the same time.`;
+  }
+  return 'You have already logged this session for this child.';
+}
+
+async function assertNoConflictingSession(args) {
+  const conflict = await findConflictingSession(args);
+  if (conflict) throw new DuplicateAssessmentError(conflictMessage(conflict));
 }
 
 // The single INSERT that creates a real, billing-visible session log — used
@@ -51,9 +95,7 @@ async function createAssessmentFromPayload({
   sanitizedCustomFields,
   note, authorId, authorRole,
 }) {
-  if (await assessmentDuplicateExists({ practitionerId, patientId, date, type, startTime, endTime })) {
-    throw new DuplicateAssessmentError();
-  }
+  await assertNoConflictingSession({ practitionerId, patientId, date, type, startTime, endTime });
 
   const { rows: insertedRows } = await pool.query(
     `INSERT INTO assessments
@@ -95,4 +137,10 @@ async function createAssessmentFromPayload({
   return assessment;
 }
 
-module.exports = { createAssessmentFromPayload, assessmentDuplicateExists, DuplicateAssessmentError };
+module.exports = {
+  createAssessmentFromPayload,
+  findConflictingSession,
+  assertNoConflictingSession,
+  conflictMessage,
+  DuplicateAssessmentError,
+};
