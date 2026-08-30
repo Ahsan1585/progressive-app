@@ -650,6 +650,13 @@ const updateLogStatus = async (req, res) => {
     if (status === 'pending' && review === 'accept') {
       const compliance = await computeSessionCompliance(assessmentId);
       if (compliance.flagged) {
+        // TEMP DIAGNOSTIC — remove once the Session-Detail vs Compliance-
+        // Analysis flag disagreement is confirmed resolved.
+        console.log('[approve-blocked] assessment', assessmentId, {
+          matched: compliance.matched,
+          mismatchedFields: (compliance.fields || []).filter((f) => f.match === false)
+            .map((f) => ({ key: f.key, ours: f.ours, state: f.state })),
+        });
         return res.status(400).json({ error: 'This log still has unresolved compliance mismatches — allow each flagged field before approving.' });
       }
       // "Missing in EIMS" (no matching state record at all) is a distinct,
