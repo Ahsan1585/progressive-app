@@ -393,10 +393,28 @@ const deleteLog = async (req, res) => {
       return res.status(400).json({ error: 'This log can no longer be deleted.' });
     }
 
-    // No ON DELETE CASCADE from assessment_notes -> assessments — clear those
-    // first so a returned log's revision-history rows don't block the delete.
-    await pool.query('DELETE FROM assessment_notes WHERE assessment_id = $1', [id]);
-    await pool.query('DELETE FROM assessments WHERE id = $1', [id]);
+    // Nothing referencing assessments(id) has ON DELETE CASCADE, so every
+    // child row has to be cleared by hand or the final DELETE hits a foreign
+    // key violation. Done in one transaction so a failure part-way through
+    // doesn't leave the log half-deleted.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Revision-history / note thread rows.
+      await client.query('DELETE FROM assessment_notes WHERE assessment_id = $1', [id]);
+      // One-off compliance "allow this field" acknowledgments (NOT NULL FK).
+      await client.query('DELETE FROM compliance_field_acknowledgments WHERE assessment_id = $1', [id]);
+      // Telepractice logs keep their signing-request row for audit — sever
+      // its link to this assessment rather than deleting that history.
+      await client.query('UPDATE telepractice_signature_requests SET assessment_id = NULL WHERE assessment_id = $1', [id]);
+      await client.query('DELETE FROM assessments WHERE id = $1', [id]);
+      await client.query('COMMIT');
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
     logAudit({ req, action: 'log_delete', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });
   } catch (error) {
