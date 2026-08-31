@@ -941,6 +941,14 @@ function toMinutesOfDay(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
 }
+// Small tie-breaker so that when the state export lists the same visit more
+// than once at the same time (e.g. twice under different locations — a real
+// production case for a child seen back-to-back), both the batch matcher and
+// the single-session matcher deterministically pick the row whose other
+// fields actually agree, instead of whichever row the DB happened to return
+// first. Kept well below a one-minute time gap's weight so time proximity
+// still dominates; this only decides otherwise-equal candidates.
+const FIELD_DISAGREE_PENALTY = 15;
 function scoreCandidatePair(session, candidate) {
   const ourStart = toMinutesOfDay(session.start_time);
   const ourEnd = toMinutesOfDay(session.end_time);
@@ -953,6 +961,18 @@ function scoreCandidatePair(session, candidate) {
   score += (ourEnd != null && cEnd != null) ? Math.abs(cEnd - ourEnd)
     : (ourEnd == null && cEnd == null) ? 0
     : NULL_TIME_MISMATCH_PENALTY;
+  if (session.location && candidate.location_label
+      && session.location !== mapLocationLabelToCode(candidate.location_label)) {
+    score += FIELD_DISAGREE_PENALTY;
+  }
+  if (session.type && candidate.service_label
+      && session.type !== mapServiceLabelToCode(candidate.service_label)) {
+    score += FIELD_DISAGREE_PENALTY;
+  }
+  if (session.group_size_category && candidate.group_size_label
+      && session.group_size_category !== mapGroupSizeLabelToCode(candidate.group_size_label)) {
+    score += FIELD_DISAGREE_PENALTY;
+  }
   return score;
 }
 
