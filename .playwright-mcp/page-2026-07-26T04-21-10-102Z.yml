@@ -1,0 +1,80 @@
+- generic [ref=f29e3]:
+  - button "Show navigation" [ref=f29e4] [cursor=pointer]
+  - complementary [ref=f29e8]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f29e77]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f29e12]:
+      - button "Staff Directory" [ref=f29e13] [cursor=pointer]
+      - button "Master Reports" [ref=f29e16] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f29e19] [cursor=pointer]
+    - generic [ref=f29e22]:
+      - paragraph [ref=f29e23]: Useful Links
+      - button "Company Information" [ref=f29e24] [cursor=pointer]
+    - generic [ref=f29e27]:
+      - img "Izaya" [ref=f29e28]
+      - paragraph [ref=f29e29]: Securely Powered by Izaya
+      - paragraph [ref=f29e30]: Early Intervention Simplified
+  - main [ref=f29e31]:
+    - generic [ref=f29e32]:
+      - generic [ref=f29e33]:
+        - button "Toggle menu" [ref=f29e34] [cursor=pointer]
+        - generic [ref=f29e37]: Early Intervention Simplified
+      - heading "Company Information" [level=2] [ref=f29e269]
+      - generic [ref=f29e40]:
+        - generic [ref=f29e78]:
+          - generic [ref=f29e79]: JR
+          - generic [ref=f29e81]: Jason Roy
+          - generic [ref=f29e82]: Admin
+        - button "Sign Out" [ref=f29e41] [cursor=pointer]
+    - generic [ref=f29e270]:
+      - generic [ref=f29e439]:
+        - heading "Company Information" [level=1] [ref=f29e440]
+        - paragraph [ref=f29e441]: This is the one place your practice details live. Update it here and it flows everywhere else — the dashboard header, generated forms, and every new practitioner you add in Staff Directory.
+      - generic [ref=f29e442]: "Compliance data updated: 26 state rows parsed, 26 matched to a patient in our system."
+      - generic [ref=f29e443]:
+        - generic [ref=f29e444]:
+          - img "Company logo" [ref=f29e445]
+          - generic [ref=f29e446]:
+            - generic [ref=f29e447] [cursor=pointer]: Upload logo
+            - paragraph [ref=f29e448]: PNG or SVG, shown in your dashboard header and on generated PDFs
+        - heading "Practice Details" [level=2] [ref=f29e449]
+        - generic [ref=f29e450]:
+          - generic [ref=f29e451]:
+            - generic [ref=f29e452]: Practice / Display Name
+            - textbox [ref=f29e453]: Progressive Steps for Early Intervention
+          - generic [ref=f29e454]:
+            - generic [ref=f29e455]:
+              - text: Legal Entity Name
+              - generic [ref=f29e456]: (shown on invoices & state forms)
+            - textbox [ref=f29e457]: Progressive is ALWAYS PROGRESSIVE
+          - generic [ref=f29e458]:
+            - generic [ref=f29e459]: State
+            - combobox [ref=f29e460]:
+              - generic: New Jersey
+          - generic [ref=f29e461]:
+            - generic [ref=f29e462]: Time Zone
+            - combobox [ref=f29e463]:
+              - generic: Eastern (ET)
+          - generic [ref=f29e464]:
+            - generic [ref=f29e465]: Practice Address
+            - textbox [ref=f29e466]: 11 Village Ct, Hazlet, OK 73160
+          - generic [ref=f29e467]:
+            - generic [ref=f29e468]: Phone
+            - textbox [ref=f29e469]: (732) 555-0148
+          - generic [ref=f29e470]:
+            - generic [ref=f29e471]: Billing / Support Email
+            - textbox [ref=f29e472]: ashfaq@progressivestepsnj.com
+        - generic [ref=f29e473]: Your State determines which compliance form and billing codes are used when generating forms — currently New Jersey (NJEIS). This is locked to prevent mid-cycle billing mismatches; contact support to change it.
+        - button "Save Company Information" [ref=f29e478] [cursor=pointer]
+      - generic [ref=f29e479]:
+        - generic [ref=f29e480]:
+          - heading "State Compliance Reference" [level=2] [ref=f29e481]
+          - paragraph [ref=f29e482]: Attach the state's required-documentation Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+        - generic [ref=f29e483]:
+          - generic [ref=f29e488]:
+            - paragraph [ref=f29e489]: Excel File for EIMS verification.xlsx
+            - paragraph [ref=f29e490]: 14 KB · Uploaded Jul 25, 2026
+          - generic [ref=f29e491]:
+            - button "Download" [ref=f29e492] [cursor=pointer]
+            - button "Review column matching" [ref=f29e493] [cursor=pointer]
+            - generic [ref=f29e494] [cursor=pointer]: Replace
+            - button "Remove" [ref=f29e495] [cursor=pointer]

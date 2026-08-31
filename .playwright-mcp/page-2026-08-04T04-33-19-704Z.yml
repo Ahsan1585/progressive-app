@@ -1,0 +1,168 @@
+- generic [ref=e3]:
+  - button "Show navigation" [ref=e6] [cursor=pointer]
+  - complementary [ref=e10]:
+    - heading "Izaya Edge Admin Portal" [level=1] [ref=e13]:
+      - generic [ref=e14]: Izaya Edge
+      - generic [ref=e15]: Admin Portal
+    - navigation [ref=e16]:
+      - button "Staff Directory" [ref=e17] [cursor=pointer]
+      - button "Master Reports" [ref=e20] [cursor=pointer]
+      - button "Billing & Invoices" [ref=e23] [cursor=pointer]
+    - generic [ref=e26]:
+      - paragraph [ref=e27]: Useful Links
+      - button "Company Information" [ref=e28] [cursor=pointer]
+      - button "Subscription & Billing" [active] [ref=e31] [cursor=pointer]
+      - button "Audit Log" [ref=e34] [cursor=pointer]
+      - button "Roles & Permissions" [ref=e37] [cursor=pointer]
+    - generic [ref=e41]:
+      - img "Izaya" [ref=e42]
+      - paragraph [ref=e43]: Securely Powered by Izaya
+      - paragraph [ref=e44]: Early Intervention Simplified
+  - main [ref=e45]:
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - button "Toggle menu" [ref=e48] [cursor=pointer]
+        - generic [ref=e51]: Early Intervention Simplified
+      - heading "Subscription & Billing" [level=2] [ref=e274]
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - generic [ref=e56]: AA
+          - generic [ref=e58]: Ahsan Ashfaq
+          - generic [ref=e59]: Admin
+        - button "Sign Out" [ref=e60] [cursor=pointer]
+    - generic [ref=e64]:
+      - generic [ref=e68]:
+        - heading "Free trial" [level=4] [ref=e69]
+        - paragraph [ref=e70]: 13 days left in your free trial.
+      - generic [ref=e275]:
+        - generic [ref=e276]:
+          - paragraph [ref=e277]: Admin Settings
+          - heading "Subscription & Billing" [level=1] [ref=e278]
+          - paragraph [ref=e279]:
+            - text: Your plan is
+            - generic [ref=e280]: $18.00 per active practitioner
+            - text: per month, and includes 5 office staff seats. Additional office staff seats are $5.00/month each. Charges are based on who actually logged a session this month.
+        - generic [ref=e281]:
+          - generic [ref=e282]:
+            - heading "Current Billing Period" [level=2] [ref=e283]
+            - generic [ref=e284]: In progress
+          - paragraph [ref=e286]: These 3 cards update live as sessions get logged this month (Aug 1 – Aug 31, 2026) and reset on the 1st. Past closed months are in Invoice History below.
+          - generic [ref=e287]:
+            - generic [ref=e288]:
+              - generic [ref=e289]: Active Practitioners
+              - generic [ref=e297]: "1"
+              - generic [ref=e298]: of 5 total practitioners · Aug 1 – Aug 31, 2026
+            - generic [ref=e299]:
+              - generic [ref=e300]: Office Staff
+              - generic [ref=e315]:
+                - text: "4"
+                - generic [ref=e316]: / 5
+              - generic [ref=e317]: included in your plan
+        - generic [ref=e319]:
+          - generic [ref=e320]:
+            - generic [ref=e321]: Current Bill Due
+            - generic [ref=e326]: $18.00
+            - generic [ref=e327]: For Jul 1 – Jul 31, 2026 · due August 15, 2026
+            - button "View Bill" [ref=e328]
+          - button "Pay Bill" [ref=e333]
+        - generic [ref=e337]:
+          - heading "How this charge is calculated" [level=4] [ref=e338]
+          - paragraph [ref=e339]: A practitioner counts as active for the entire month the moment they submit one session log — even a single log on the last day of the month bills the full $18.00. Charges are not prorated. Removing a practitioner takes effect the following billing cycle; it does not refund the current one. Your first 5 office staff seats are included at no extra cost — each additional office account beyond that is $5.00/month.
+        - generic [ref=e340]:
+          - generic [ref=e341]:
+            - generic [ref=e342]:
+              - generic [ref=e343]:
+                - heading "Practitioner Activity" [level=3] [ref=e344]
+                - generic [ref=e345]:
+                  - generic [ref=e346]: 1 active
+                  - generic [ref=e348]: 4 no activity
+              - table [ref=e351]:
+                - rowgroup [ref=e352]:
+                  - row [ref=e353]:
+                    - columnheader "Practitioner" [ref=e354]
+                    - columnheader "Logs This Month" [ref=e355]
+                    - columnheader "Status" [ref=e356]
+                - rowgroup [ref=e357]:
+                  - row [ref=e358]:
+                    - cell "SL sara Lee" [ref=e359]:
+                      - generic [ref=e360]:
+                        - generic [ref=e361]: SL
+                        - generic [ref=e362]: sara Lee
+                    - cell "1 log" [ref=e363]
+                    - cell [ref=e364]
+                  - row [ref=e367]:
+                    - cell "AA Ashfaq Ahmad" [ref=e368]:
+                      - generic [ref=e369]:
+                        - generic [ref=e370]: AA
+                        - generic [ref=e371]: Ashfaq Ahmad
+                    - cell "0 logs" [ref=e372]
+                    - cell [ref=e373]
+                  - row [ref=e376]:
+                    - cell "FA Farzana Ashfaq" [ref=e377]:
+                      - generic [ref=e378]:
+                        - generic [ref=e379]: FA
+                        - generic [ref=e380]: Farzana Ashfaq
+                    - cell "0 logs" [ref=e381]
+                    - cell [ref=e382]
+                  - row [ref=e385]:
+                    - cell "TR TestAdmin Reproduce" [ref=e386]:
+                      - generic [ref=e387]:
+                        - generic [ref=e388]: TR
+                        - generic [ref=e389]: TestAdmin Reproduce
+                    - cell "0 logs" [ref=e390]
+                    - cell [ref=e391]
+                  - row [ref=e394]:
+                    - cell "TT test tester" [ref=e395]:
+                      - generic [ref=e396]:
+                        - generic [ref=e397]: TT
+                        - generic [ref=e398]: test tester
+                    - cell "0 logs" [ref=e399]
+                    - cell [ref=e400]
+            - generic [ref=e403]:
+              - generic [ref=e404]:
+                - heading "Invoice History" [level=3] [ref=e405]
+                - button "Close & Bill Last Period" [ref=e406]
+              - table [ref=e408]:
+                - rowgroup [ref=e409]:
+                  - row [ref=e410]:
+                    - columnheader "Period" [ref=e411]
+                    - columnheader "Active Practitioners" [ref=e412]
+                    - columnheader "Amount" [ref=e413]
+                    - columnheader "Status" [ref=e414]
+                    - columnheader "PDF" [ref=e415]
+                - rowgroup [ref=e416]:
+                  - row [ref=e417]:
+                    - cell "Jul 1 – Jul 31, 2026" [ref=e418]
+                    - cell "1" [ref=e419]
+                    - cell "$18.00" [ref=e420]
+                    - cell "pending" [ref=e421]
+                    - cell [ref=e422]:
+                      - button "PDF" [ref=e423]
+          - generic [ref=e427]:
+            - generic [ref=e428]:
+              - generic [ref=e429]: Next Invoice
+              - generic [ref=e430]: September 1, 2026
+              - generic [ref=e431]: Your next invoice will be generated and, if a payment method is on file, charged automatically on this date.
+            - generic [ref=e432]:
+              - heading "Payment Method" [level=3] [ref=e433]
+              - generic [ref=e434]:
+                - text: Stripe isn't connected yet. Add
+                - code [ref=e435]: STRIPE_SECRET_KEY
+                - text: and
+                - code [ref=e436]: STRIPE_PUBLISHABLE_KEY
+                - text: to the backend environment to enable card and Google Pay collection here — no other changes needed.
+              - generic [ref=e437]:
+                - button "Card (Stripe)" [ref=e438]
+                - button "Google Pay" [ref=e441]
+              - generic:
+                - generic:
+                  - generic: Card Number
+                  - textbox "1234 1234 1234 1234" [disabled]
+                - generic:
+                  - generic:
+                    - generic: Expiry
+                    - textbox "MM / YY" [disabled]
+                  - generic:
+                    - generic: CVC
+                    - textbox "CVC" [disabled]
+                - button "Update Payment Method" [disabled]

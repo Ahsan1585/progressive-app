@@ -1,0 +1,21 @@
+- generic [ref=f25e4]:
+  - generic [ref=f25e7]:
+    - generic [ref=f25e8]:
+      - img "Izaya" [ref=f25e9]
+      - paragraph [ref=f25e10]: Early Intervention Management System
+    - generic [ref=f25e11]:
+      - generic [ref=f25e12]:
+        - heading "Forgot your password?" [level=2] [ref=f25e13]
+        - paragraph [ref=f25e14]: Enter the email on file and we'll send you a link to reset your password.
+      - generic [ref=f25e15]:
+        - generic [ref=f25e16]: Email address
+        - textbox "Email address" [ref=f25e17]
+      - button "Send reset link" [ref=f25e18]
+      - link "Back to sign in" [ref=f25e20] [cursor=pointer]:
+        - /url: /login
+  - generic [ref=f25e21]:
+    - generic [ref=f25e22]:
+      - generic [ref=f25e26]: Secured by Izaya
+      - generic [ref=f25e27]: ·
+      - generic [ref=f25e31]: HIPAA Compliant
+    - paragraph [ref=f25e32]: Izaya Consulting LLC

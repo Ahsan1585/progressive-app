@@ -1,0 +1,206 @@
+- generic [ref=f22e3]:
+  - button "Show navigation" [ref=f22e4] [cursor=pointer]
+  - complementary [ref=f22e8]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f22e77]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f22e12]:
+      - button "Staff Directory" [ref=f22e13] [cursor=pointer]
+      - button "Master Reports" [ref=f22e16] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f22e19] [cursor=pointer]
+    - generic [ref=f22e22]:
+      - paragraph [ref=f22e23]: Useful Links
+      - button "Company Information" [ref=f22e24] [cursor=pointer]
+    - generic [ref=f22e27]:
+      - img "Izaya" [ref=f22e28]
+      - paragraph [ref=f22e29]: Securely Powered by Izaya
+      - paragraph [ref=f22e30]: Early Intervention Simplified
+  - main [ref=f22e31]:
+    - generic [ref=f22e32]:
+      - generic [ref=f22e33]:
+        - button "Toggle menu" [ref=f22e34] [cursor=pointer]
+        - generic [ref=f22e37]: Early Intervention Simplified
+      - heading "Billing & Invoices" [level=2] [ref=f22e269]
+      - generic [ref=f22e40]:
+        - generic [ref=f22e78]:
+          - generic [ref=f22e79]: JR
+          - generic [ref=f22e81]: Jason Roy
+          - generic [ref=f22e82]: Admin
+        - button "Sign Out" [ref=f22e41] [cursor=pointer]
+    - generic [ref=f22e270]:
+      - generic [ref=f22e271]:
+        - button "Pending Bills" [ref=f22e272] [cursor=pointer]
+        - button "Completed Bills" [ref=f22e273] [cursor=pointer]
+        - button "Invoice Status" [ref=f22e274] [cursor=pointer]
+      - generic [ref=f22e275]:
+        - generic [ref=f22e276]:
+          - generic [ref=f22e277]:
+            - generic [ref=f22e278]: Beta
+            - generic [ref=f22e279]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=f22e280] [cursor=pointer]
+        - generic [ref=f22e282]:
+          - generic [ref=f22e283]:
+            - generic [ref=f22e284]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f22e289]
+          - generic [ref=f22e290]:
+            - generic [ref=f22e291]:
+              - generic [ref=f22e292]: Start Date
+              - textbox [ref=f22e293]
+            - generic [ref=f22e294]:
+              - generic [ref=f22e295]: End Date
+              - textbox [ref=f22e296]
+            - button "Reset" [ref=f22e297] [cursor=pointer]
+            - button "Refresh" [ref=f22e298] [cursor=pointer]
+        - generic [ref=f22e299]:
+          - generic [ref=f22e300]:
+            - generic [ref=f22e301]: Billing Period
+            - textbox [ref=f22e305]: 2026-06
+            - generic [ref=f22e306]:
+              - button "Biweekly 1 Jun 1–15" [ref=f22e327] [cursor=pointer]:
+                - generic [ref=f22e308]: Biweekly 1
+                - generic [ref=f22e309]: Jun 1–15
+              - button "Biweekly 2 Jun 16–30" [ref=f22e328] [cursor=pointer]:
+                - generic [ref=f22e311]: Biweekly 2
+                - generic [ref=f22e315]: Jun 16–30
+              - button "Monthly Jun 1–30" [ref=f22e329] [cursor=pointer]:
+                - generic [ref=f22e317]: Monthly
+                - generic [ref=f22e321]: Jun 1–30
+            - generic [ref=f22e330]: Reviewing Biweekly 1 (2026-06-01 – 2026-06-15)
+          - generic [ref=f22e322]:
+            - generic [ref=f22e331]:
+              - generic [ref=f22e332]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f22e344]
+              - generic [ref=f22e345]:
+                - generic [ref=f22e346]:
+                  - button "AL Amel Laura 6 sessions Locked to you" [ref=f22e347] [cursor=pointer]:
+                    - generic [ref=f22e348]: AL
+                    - generic [ref=f22e349]:
+                      - generic [ref=f22e350]: Amel Laura
+                      - generic [ref=f22e351]: 6 sessions
+                    - generic [ref=f22e352]: Locked to you
+                  - generic [ref=f22e359]:
+                    - generic [ref=f22e360]: Locked to you
+                    - button "Release" [ref=f22e364] [cursor=pointer]
+                  - generic [ref=f22e365] [cursor=pointer]:
+                    - generic [ref=f22e368]:
+                      - generic [ref=f22e369]: Roni Cam
+                      - generic [ref=f22e370]: 6/2/26
+                    - generic [ref=f22e371]:
+                      - generic "Service Status" [ref=f22e372]: S:1
+                      - generic "Service Type" [ref=f22e373]: I/T
+                      - generic "Service Location" [ref=f22e374]: L:8
+                    - generic [ref=f22e375]:
+                      - generic [ref=f22e376]: Approved
+                      - generic [ref=f22e377]: 1h 0m
+                  - generic [ref=f22e378] [cursor=pointer]:
+                    - generic [ref=f22e381]:
+                      - generic [ref=f22e382]: Roni Cam
+                      - generic [ref=f22e383]: 6/3/26
+                    - generic [ref=f22e384]:
+                      - generic "Service Status" [ref=f22e385]: S:1
+                      - generic "Service Type" [ref=f22e386]: I/T
+                      - generic "Service Location" [ref=f22e387]: L:8
+                    - generic [ref=f22e388]:
+                      - generic [ref=f22e389]: Approved
+                      - generic [ref=f22e390]: 1h 0m
+                  - generic [ref=f22e391] [cursor=pointer]:
+                    - generic [ref=f22e394]:
+                      - generic [ref=f22e395]: Roni Cam
+                      - generic [ref=f22e396]: 6/4/26
+                    - generic [ref=f22e397]:
+                      - generic "Service Status" [ref=f22e398]: S:1
+                      - generic "Service Type" [ref=f22e399]: I/T
+                      - generic "Service Location" [ref=f22e400]: L:8
+                    - generic [ref=f22e401]:
+                      - generic [ref=f22e402]: Declined
+                      - generic [ref=f22e403]: 1h 0m
+                  - generic [ref=f22e406] [cursor=pointer]:
+                    - generic [ref=f22e409]:
+                      - generic [ref=f22e410]: Roni Cam
+                      - generic [ref=f22e411]: 6/9/26
+                    - generic [ref=f22e412]:
+                      - generic "Service Status" [ref=f22e413]: S:1
+                      - generic "Service Type" [ref=f22e414]: I/T
+                      - generic "Service Location" [ref=f22e415]: L:8
+                    - generic [ref=f22e416]:
+                      - generic [ref=f22e417]: Pending
+                      - generic [ref=f22e418]: 1h 0m
+                  - generic [ref=f22e419] [cursor=pointer]:
+                    - generic [ref=f22e422]:
+                      - generic [ref=f22e423]: Roni Cam
+                      - generic [ref=f22e424]: 6/11/26
+                    - generic [ref=f22e425]:
+                      - generic "Service Status" [ref=f22e426]: S:1
+                      - generic "Service Type" [ref=f22e427]: I/T
+                      - generic "Service Location" [ref=f22e428]: L:8
+                    - generic [ref=f22e429]:
+                      - generic [ref=f22e430]: Pending
+                      - generic [ref=f22e431]: 1h 0m
+                  - generic [ref=f22e432] [cursor=pointer]:
+                    - generic [ref=f22e435]:
+                      - generic [ref=f22e436]: Salim Cam
+                      - generic [ref=f22e437]: 6/15/26
+                    - generic [ref=f22e438]:
+                      - generic "Service Status" [ref=f22e439]: S:1
+                      - generic "Service Type" [ref=f22e440]: I/T
+                      - generic "Service Location" [ref=f22e441]: L:8
+                    - generic [ref=f22e442]:
+                      - generic [ref=f22e443]: Pending
+                      - generic [ref=f22e444]: 1h 0m
+                  - generic [ref=f22e445]:
+                    - generic [ref=f22e446]:
+                      - generic [ref=f22e447]: 5 billable
+                      - generic [ref=f22e448]: 0 held/returned
+                      - generic [ref=f22e449]: 1 excluded
+                    - button "Generate & Issue" [disabled]
+                - button "AB Amy Boyd 4 sessions" [ref=f22e451] [cursor=pointer]:
+                  - generic [ref=f22e452]: AB
+                  - generic [ref=f22e453]:
+                    - generic [ref=f22e454]: Amy Boyd
+                    - generic [ref=f22e455]: 4 sessions
+                - button "NC Nath Castr 5 sessions" [ref=f22e459] [cursor=pointer]:
+                  - generic [ref=f22e460]: NC
+                  - generic [ref=f22e461]:
+                    - generic [ref=f22e462]: Nath Castr
+                    - generic [ref=f22e463]: 5 sessions
+            - generic [ref=f22e466]:
+              - generic [ref=f22e467]: Review Panel
+              - generic [ref=f22e472]:
+                - generic [ref=f22e473]:
+                  - button "Session Detail" [ref=f22e481] [cursor=pointer]
+                  - button "Compliance Analysis" [ref=f22e482] [cursor=pointer]
+                - generic [ref=f22e486]:
+                  - generic [ref=f22e487]: June 2, 2026
+                  - heading "Roni Cam" [level=2] [ref=f22e488]
+                  - paragraph [ref=f22e489]: I/T session
+                  - generic [ref=f22e490]: Service Codes
+                  - generic [ref=f22e491]:
+                    - generic [ref=f22e492]:
+                      - generic [ref=f22e493]: Status
+                      - generic [ref=f22e494]: "1"
+                    - generic [ref=f22e495]:
+                      - generic [ref=f22e496]: Type
+                      - generic [ref=f22e497]: I/T
+                    - generic [ref=f22e498]:
+                      - generic [ref=f22e499]: Location
+                      - generic [ref=f22e500]: "8"
+                  - generic [ref=f22e501]: Session Time
+                  - generic [ref=f22e502]:
+                    - generic [ref=f22e503]:
+                      - generic [ref=f22e504]: Start
+                      - generic [ref=f22e505]: 12:00 PM
+                    - generic [ref=f22e506]:
+                      - generic [ref=f22e507]: End
+                      - generic [ref=f22e508]: 1:00 PM
+                    - generic [ref=f22e509]:
+                      - generic [ref=f22e510]: Total
+                      - generic [ref=f22e511]: 1h 0m
+                  - generic [ref=f22e512]:
+                    - button "Approve" [ref=f22e513] [cursor=pointer]
+                    - button "Return" [ref=f22e517] [cursor=pointer]
+                    - button "Reject" [ref=f22e522] [cursor=pointer]
+                    - button "Hold" [ref=f22e527] [cursor=pointer]
+                  - generic [ref=f22e532]:
+                    - generic [ref=f22e533]: Comment thread with Amel Laura
+                    - generic [ref=f22e537]: No comments yet — add one below.
+                    - generic [ref=f22e539]:
+                      - textbox "Add a note for the practitioner..." [ref=f22e540]
+                      - button "Send" [disabled]

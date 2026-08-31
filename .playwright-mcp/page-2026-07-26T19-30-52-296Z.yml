@@ -1,0 +1,41 @@
+- generic [ref=f39e174]:
+  - button "Show navigation" [ref=f39e175] [cursor=pointer]
+  - complementary [ref=f39e179]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f39e182]: Progressive StepsAdmin Portal
+    - navigation [ref=f39e183]:
+      - button "Staff Directory" [ref=f39e184] [cursor=pointer]
+      - button "Master Reports" [ref=f39e187] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f39e190] [cursor=pointer]
+    - generic [ref=f39e193]:
+      - paragraph [ref=f39e194]: Useful Links
+      - button "Company Information" [ref=f39e195] [cursor=pointer]
+      - button "Audit Log" [ref=f39e198] [cursor=pointer]
+    - generic [ref=f39e201]:
+      - img "Izaya" [ref=f39e202]
+      - paragraph [ref=f39e203]: Securely Powered by Izaya
+      - paragraph [ref=f39e204]: Early Intervention Simplified
+  - main [ref=f39e205]:
+    - generic [ref=f39e206]:
+      - generic [ref=f39e207]:
+        - button "Toggle menu" [ref=f39e208] [cursor=pointer]
+        - generic [ref=f39e211]: Early Intervention Simplified
+      - heading "Staff Directory" [level=2] [ref=f39e213]
+      - button "Sign Out" [ref=f39e215] [cursor=pointer]
+    - generic [ref=f39e221]:
+      - generic [ref=f39e222]:
+        - button "Staff Roster" [ref=f39e223] [cursor=pointer]
+        - button "Register New Account" [ref=f39e226] [cursor=pointer]
+      - generic [ref=f39e229]:
+        - generic [ref=f39e230]:
+          - generic [ref=f39e231]:
+            - heading "Staff Roster" [level=2] [ref=f39e234]
+            - generic [ref=f39e235]:
+              - button "Active" [ref=f39e236] [cursor=pointer]
+              - button "Deactivated" [ref=f39e238] [cursor=pointer]
+              - button "All" [ref=f39e240] [cursor=pointer]
+            - generic [ref=f39e242]: 0 members
+          - generic [ref=f39e243]:
+            - textbox "Search by name, email, or position..." [ref=f39e248]
+            - combobox [ref=f39e249]:
+              - generic: All Roles
+        - generic [ref=f39e250]: Loading staff...

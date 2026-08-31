@@ -1,0 +1,114 @@
+- generic [ref=f4e106]:
+  - complementary [ref=f4e107]:
+    - heading "IZAYA Early Intervention Services Admin Portal" [level=1] [ref=f4e110]:
+      - generic [ref=f4e111]: IZAYA Early Intervention Services
+      - generic [ref=f4e112]: Admin Portal
+    - navigation [ref=f4e113]:
+      - button "Staff Directory" [ref=f4e114] [cursor=pointer]
+      - button "Master Reports" [ref=f4e117] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f4e120] [cursor=pointer]
+    - generic [ref=f4e123]:
+      - paragraph [ref=f4e124]: Useful Links
+      - button "Company Information" [ref=f4e125] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f4e128] [cursor=pointer]
+      - button "Audit Log" [ref=f4e131] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f4e134] [cursor=pointer]
+    - generic [ref=f4e138]:
+      - generic [ref=f4e139]:
+        - generic [ref=f4e140]:
+          - img "IZAYA" [ref=f4e141]
+          - generic [ref=f4e151]: EIS
+        - generic [ref=f4e152]: Early Intervention Simplified
+      - paragraph [ref=f4e153]: Securely Powered by Izaya
+  - main [ref=f4e154]:
+    - generic [ref=f4e155]:
+      - generic [ref=f4e156]:
+        - button "Toggle menu" [ref=f4e157] [cursor=pointer]
+        - generic [ref=f4e160]: IZAYA Early Intervention Services
+      - heading "Billing & Invoices" [level=2] [ref=f4e467]
+      - generic [ref=f4e163]:
+        - generic [ref=f4e164]:
+          - generic [ref=f4e165]: AA
+          - generic [ref=f4e167]: Ahsan Ashfaq
+          - generic [ref=f4e168]: Admin
+        - button "Sign Out" [ref=f4e169] [cursor=pointer]
+    - generic [ref=f4e173]:
+      - generic [ref=f4e177]:
+        - heading "Free trial" [level=4] [ref=f4e178]
+        - paragraph [ref=f4e179]: 21 days left in your free trial.
+      - generic [ref=f4e468]:
+        - generic [ref=f4e469]:
+          - button "Pending Bills" [ref=f4e470] [cursor=pointer]
+          - button "Completed Bills" [ref=f4e471] [cursor=pointer]
+          - button "Invoice Status" [ref=f4e472] [cursor=pointer]
+        - generic [ref=f4e474]:
+          - generic [ref=f4e475]:
+            - generic [ref=f4e476]: Billing Period
+            - textbox [ref=f4e480]: 2026-08
+            - generic [ref=f4e481]:
+              - button "Biweekly 1 Aug 1–15" [ref=f4e482] [cursor=pointer]:
+                - generic [ref=f4e483]: Biweekly 1
+                - generic [ref=f4e484]: Aug 1–15
+              - button "Biweekly 2 Aug 16–31" [disabled] [ref=f4e485]:
+                - generic [ref=f4e486]: Biweekly 2
+                - generic [ref=f4e490]: Aug 16–31
+              - button "Monthly Aug 1–31" [disabled] [ref=f4e491]:
+                - generic [ref=f4e492]: Monthly
+                - generic [ref=f4e496]: Aug 1–31
+            - generic [ref=f4e502]: Reviewing Biweekly 1 (2026-08-01 – 2026-08-15)
+          - generic [ref=f4e497]:
+            - generic [ref=f4e503]:
+              - generic [ref=f4e504]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f4e516]
+              - generic [ref=f4e572]:
+                - button "LJ Linda Jones 3 sessions Locked to you" [ref=f4e573] [cursor=pointer]:
+                  - generic [ref=f4e574]: LJ
+                  - generic [ref=f4e575]:
+                    - generic [ref=f4e576]: Linda Jones
+                    - generic [ref=f4e577]: 3 sessions
+                  - generic [ref=f4e578]: Locked to you
+                - generic [ref=f4e585]:
+                  - generic [ref=f4e586]: Locked to you
+                  - button "Release" [ref=f4e590] [cursor=pointer]
+                - generic [ref=f4e591] [cursor=pointer]:
+                  - generic [ref=f4e594]:
+                    - generic [ref=f4e595]: Michael Smith
+                    - generic [ref=f4e596]: 8/7/26
+                  - generic [ref=f4e597]:
+                    - generic "Service Status" [ref=f4e598]: S:1
+                    - generic "Service Type" [ref=f4e599]: DI
+                    - generic "Service Location" [ref=f4e600]: L:2
+                  - generic [ref=f4e601]:
+                    - generic [ref=f4e602]: Approved
+                    - generic [ref=f4e603]: 2h 29m
+                - generic [ref=f4e606] [cursor=pointer]:
+                  - generic [ref=f4e609]:
+                    - generic [ref=f4e610]: Michael Smith
+                    - generic [ref=f4e611]: 8/12/26
+                  - generic [ref=f4e612]:
+                    - generic "Service Status" [ref=f4e613]: S:TPC
+                    - generic "Service Type" [ref=f4e614]: DI
+                    - generic "Service Location" [ref=f4e615]: L:6
+                  - generic [ref=f4e616]:
+                    - generic [ref=f4e617]: Approved
+                    - generic [ref=f4e618]: 1h 36m
+                - generic [ref=f4e621] [cursor=pointer]:
+                  - generic [ref=f4e624]:
+                    - generic [ref=f4e625]: Michael Smith
+                    - generic [ref=f4e626]: 8/12/26
+                  - generic [ref=f4e627]:
+                    - generic "Service Status" [ref=f4e628]: S:TPC
+                    - generic "Service Type" [ref=f4e629]: DI
+                    - generic "Service Location" [ref=f4e630]: L:7
+                  - generic [ref=f4e631]:
+                    - generic [ref=f4e632]: Declined
+                    - generic [ref=f4e633]: 0m
+                - generic [ref=f4e636]:
+                  - generic [ref=f4e637]:
+                    - generic [ref=f4e638]: 2 billable
+                    - generic [ref=f4e639]: 0 held/returned
+                    - generic [ref=f4e640]: 1 excluded
+                  - button "Generate & Issue" [ref=f4e641] [cursor=pointer]
+            - generic [ref=f4e530]:
+              - generic [ref=f4e531]: Review Panel
+              - paragraph [ref=f4e544]: Select a session from the queue on the left

@@ -1,0 +1,87 @@
+- generic [ref=f4e3]:
+  - navigation [ref=f4e4]:
+    - link "Izaya EISimplified home" [ref=f4e5] [cursor=pointer]:
+      - /url: /eis
+      - generic [ref=f4e6]:
+        - generic [ref=f4e7]:
+          - img "IZAYA" [ref=f4e8]
+          - generic [ref=f4e18]: EIS
+        - generic [ref=f4e19]: Early Intervention Simplified
+    - generic [ref=f4e20]:
+      - link "Home" [ref=f4e21] [cursor=pointer]:
+        - /url: /eis
+      - link "How it works" [ref=f4e22] [cursor=pointer]:
+        - /url: /eis/how-it-works
+      - link "Practitioner app" [ref=f4e23] [cursor=pointer]:
+        - /url: /eis/download
+      - link "Contact" [ref=f4e24] [cursor=pointer]:
+        - /url: /eis/contact
+      - link "Log In" [ref=f4e25] [cursor=pointer]:
+        - /url: /eis/login
+      - link "Schedule a demo" [ref=f4e26] [cursor=pointer]:
+        - /url: /eis/contact
+  - main [ref=f4e27]:
+    - generic [ref=f4e29]:
+      - generic [ref=f4e30]:
+        - heading "Welcome back" [level=1] [ref=f4e31]
+        - generic [ref=f4e32]: NJEIS Compliant
+        - generic [ref=f4e36]:
+          - generic [ref=f4e37]:
+            - generic [ref=f4e38]: Company Code
+            - textbox "Company Code" [ref=f4e39]:
+              - /placeholder: your-company
+          - generic [ref=f4e40]:
+            - generic [ref=f4e41]: Email
+            - textbox "Email" [ref=f4e42]:
+              - /placeholder: name@example.com
+          - generic [ref=f4e43]:
+            - generic [ref=f4e44]:
+              - generic [ref=f4e45]: Password
+              - link "Forgot password?" [ref=f4e46] [cursor=pointer]:
+                - /url: /eis/forgot-password
+            - generic [ref=f4e47]:
+              - textbox "Password" [ref=f4e48]
+              - button "Show password" [ref=f4e49]
+          - button "Sign In" [ref=f4e53] [cursor=pointer]
+        - generic [ref=f4e56]:
+          - text: Already have an account but no Company Code? Ask your agency admin.Trouble signing in?
+          - link "support@izayaedge.com" [ref=f4e57] [cursor=pointer]:
+            - /url: mailto:support@izayaedge.com
+      - complementary [ref=f4e58]:
+        - generic [ref=f4e59]: New to Izaya EISimplified™?
+        - heading "See what your billing team has been missing." [level=2] [ref=f4e60]
+        - list [ref=f4e61]:
+          - listitem [ref=f4e62]: No manual SEVF or invoice prep
+          - listitem [ref=f4e65]: Clean logs approve themselves
+          - listitem [ref=f4e68]: Full setup in under a day
+        - link "Schedule a demo" [ref=f4e71] [cursor=pointer]:
+          - /url: /eis/contact
+  - contentinfo [ref=f4e72]:
+    - generic [ref=f4e73]:
+      - generic [ref=f4e74]:
+        - generic [ref=f4e76]:
+          - img "IZAYA" [ref=f4e77]
+          - generic [ref=f4e87]: EIS
+        - paragraph [ref=f4e88]: "Izaya EISimplified™ automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children."
+      - generic [ref=f4e89]:
+        - heading "Explore" [level=3] [ref=f4e90]
+        - list [ref=f4e91]:
+          - listitem [ref=f4e92]:
+            - link "How it works" [ref=f4e93] [cursor=pointer]:
+              - /url: /eis/how-it-works
+          - listitem [ref=f4e94]:
+            - link "Practitioner app" [ref=f4e95] [cursor=pointer]:
+              - /url: /eis/download
+          - listitem [ref=f4e96]:
+            - link "Schedule a demo" [ref=f4e97] [cursor=pointer]:
+              - /url: /eis/contact
+      - generic [ref=f4e98]:
+        - heading "Contact" [level=3] [ref=f4e99]
+        - list [ref=f4e100]:
+          - listitem [ref=f4e101]:
+            - link "support@izayaedge.com" [ref=f4e102] [cursor=pointer]:
+              - /url: mailto:support@izayaedge.com
+          - listitem [ref=f4e103]:
+            - link "(405) 473-7367" [ref=f4e104] [cursor=pointer]:
+              - /url: tel:+14054737367
+    - paragraph [ref=f4e105]: © 2026 Izaya Consulting LLC. Izaya EISimplified™ is a trademark of Izaya Consulting LLC.

@@ -1,0 +1,221 @@
+- generic:
+  - generic:
+    - generic:
+      - button
+      - complementary:
+        - generic:
+          - generic:
+            - heading [level=1]: Progressive Steps Admin Portal
+        - navigation:
+          - button: Staff Directory
+          - button: Master Reports
+          - button: Billing & Invoices
+        - generic:
+          - paragraph: Progressive Steps NJ
+          - paragraph: Early Intervention Simplified
+      - main:
+        - generic:
+          - generic:
+            - button
+            - heading [level=2]: Staff Directory
+          - generic:
+            - generic:
+              - generic: JR
+              - generic: Jason Roy
+              - generic: Admin
+            - button:
+              - generic: Sign Out
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - button: Staff Roster
+                - button: Register New Account
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=2]: Staff Roster
+                    - generic:
+                      - button: Active
+                      - button: Deactivated
+                      - button: All
+                    - generic: 12 members
+                  - generic:
+                    - generic:
+                      - textbox:
+                        - /placeholder: Search by name, email, or position...
+                    - combobox [expanded]:
+                      - generic: All Roles
+                - generic:
+                  - table:
+                    - rowgroup:
+                      - row:
+                        - columnheader: Name
+                        - columnheader: Email
+                        - columnheader: Position
+                        - columnheader: Role
+                        - columnheader
+                    - rowgroup:
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: AA
+                            - text: Ashfaq Ahmad
+                        - cell: ashfaq.ahmad.us@gmail.com
+                        - cell: Speech Language Pathologist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: ZM
+                            - text: Zaya Mo
+                        - cell: zaya@gmail.com
+                        - cell: Developmental Interventionist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: ED
+                            - text: Eli Divina
+                        - cell: elidivina@gmail.com
+                        - cell: Physical Therapist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: ME
+                            - text: Martha Elana
+                        - cell: marthaelana@gmail.com
+                        - cell: Developmental Interventionist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: MJ
+                            - text: Mik Johnson
+                        - cell: ahsan185@gmail.com
+                        - cell: Developmental Interventionist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: SG
+                            - text: Steph Garci
+                        - cell: stephgarci@gmail.com
+                        - cell: Developmental Interventionist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: VL
+                            - text: Vanes Libro
+                        - cell: vaneslibro@gmail.com
+                        - cell: Developmental Interventionist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: EG
+                            - text: Eric Green
+                        - cell: sf5913@gmail.com
+                        - cell: Developmental Interventionist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: AA
+                            - text: Ashfaq Ahmad
+                        - cell: ashfaqahmad@gmail.com
+                        - cell: Therapist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: KK
+                            - text: Kase Klag
+                        - cell: kaseklag@gmail.com
+                        - cell: Speech Language Pathologist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: LS
+                            - text: Lori Safe
+                        - cell: lorisafe@gmail.com
+                        - cell: Occupational Therapist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: JR
+                            - text: Jason Roy
+                        - cell: jason@gmail.com
+                        - cell: Speech Language Pathologist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+  - listbox [ref=e537]:
+    - option "All Roles" [active] [selected] [ref=e538] [cursor=pointer]
+    - option "Admin" [ref=e544] [cursor=pointer]
+    - option "Office Manager" [ref=e547] [cursor=pointer]
+    - option "Billing Specialist" [ref=e550] [cursor=pointer]
+    - option "Account Specialist" [ref=e553] [cursor=pointer]
+    - option "Practitioner" [ref=e556] [cursor=pointer]

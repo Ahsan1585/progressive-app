@@ -1,0 +1,168 @@
+- generic [ref=e174]:
+  - button "Show navigation" [ref=e175] [cursor=pointer]
+  - complementary [ref=e179]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=e182]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=e183]:
+      - button "Staff Directory" [ref=e184] [cursor=pointer]
+      - button "Master Reports" [ref=e187] [cursor=pointer]
+      - button "Billing & Invoices" [ref=e190] [cursor=pointer]
+      - button "Company Information" [ref=e193] [cursor=pointer]
+    - generic [ref=e196]:
+      - img "Izaya" [ref=e197]
+      - paragraph [ref=e198]: Securely Powered by Izaya
+      - paragraph [ref=e199]: Early Intervention Simplified
+  - main [ref=e200]:
+    - generic [ref=e201]:
+      - generic [ref=e202]:
+        - button "Toggle menu" [ref=e203] [cursor=pointer]
+        - generic [ref=e206]: Early Intervention Simplified
+        - heading "Billing & Invoices" [level=2] [ref=e374]
+      - generic [ref=e209]:
+        - generic [ref=e210]:
+          - generic [ref=e211]: JR
+          - generic [ref=e213]: Jason Roy
+          - generic [ref=e214]: Admin
+        - button "Sign Out" [ref=e215] [cursor=pointer]
+    - generic [ref=e375]:
+      - generic [ref=e376]:
+        - button "Pending Bills" [ref=e377] [cursor=pointer]
+        - button "Completed Bills" [ref=e378] [cursor=pointer]
+        - button "Invoice Status" [ref=e379] [cursor=pointer]
+      - generic [ref=e380]:
+        - generic [ref=e381]:
+          - generic [ref=e382]:
+            - generic [ref=e383]: Beta
+            - generic [ref=e384]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=e385] [cursor=pointer]
+        - generic [ref=e387]:
+          - generic [ref=e388]:
+            - generic [ref=e389]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=e394]
+          - generic [ref=e395]:
+            - generic [ref=e396]:
+              - generic [ref=e397]: Start Date
+              - textbox [ref=e398]
+            - generic [ref=e399]:
+              - generic [ref=e400]: End Date
+              - textbox [ref=e401]
+            - button "Reset" [ref=e402] [cursor=pointer]
+            - button "Refresh" [ref=e403] [cursor=pointer]
+        - generic [ref=e441]:
+          - generic [ref=e442]:
+            - textbox "Search practitioner..." [ref=e448]
+            - button "NC Nath Castr 9 sessions" [ref=e449] [cursor=pointer]:
+              - generic [ref=e450]: NC
+              - generic [ref=e451]:
+                - generic [ref=e452]: Nath Castr
+                - generic [ref=e453]: 9 sessions
+            - generic [ref=e468]:
+              - generic [ref=e469]: Locked to you
+              - button "Release" [ref=e473] [cursor=pointer]
+            - generic [ref=e474]:
+              - generic [ref=e475] [cursor=pointer]:
+                - checkbox [ref=e476]
+                - generic [ref=e478]:
+                  - generic [ref=e479]: Ana Vale Rodz
+                  - generic [ref=e480]:
+                    - text: 6/1/26
+                    - generic [ref=e481]: I/T
+              - generic [ref=e482] [cursor=pointer]:
+                - checkbox [ref=e483]
+                - generic [ref=e485]:
+                  - generic [ref=e486]: Ana Vale Rodz
+                  - generic [ref=e487]:
+                    - text: 6/2/26
+                    - generic [ref=e488]: I/T
+              - generic [ref=e489] [cursor=pointer]:
+                - checkbox [ref=e490]
+                - generic [ref=e492]:
+                  - generic [ref=e493]: Ana Vale Rodz
+                  - generic [ref=e494]:
+                    - text: 6/8/26
+                    - generic [ref=e495]: I/T
+              - generic [ref=e496] [cursor=pointer]:
+                - checkbox [ref=e497]
+                - generic [ref=e499]:
+                  - generic [ref=e500]: Ana Vale Rodz
+                  - generic [ref=e501]:
+                    - text: 6/9/26
+                    - generic [ref=e502]: I/T
+              - generic [ref=e503] [cursor=pointer]:
+                - checkbox [ref=e504]
+                - generic [ref=e506]:
+                  - generic [ref=e507]: Ana Vale Rodz
+                  - generic [ref=e508]:
+                    - text: 6/23/26
+                    - generic [ref=e509]: I/T
+              - generic [ref=e510] [cursor=pointer]:
+                - checkbox [ref=e511]
+                - generic [ref=e513]:
+                  - generic [ref=e514]: Ana Vale Rodz
+                  - generic [ref=e515]:
+                    - text: 6/24/26
+                    - generic [ref=e516]: I/T
+              - generic [ref=e517] [cursor=pointer]:
+                - checkbox [ref=e518]
+                - generic [ref=e520]:
+                  - generic [ref=e521]: Ana Vale Rodz
+                  - generic [ref=e522]:
+                    - text: 6/29/26
+                    - generic [ref=e523]: I/T
+              - generic [ref=e524] [cursor=pointer]:
+                - checkbox [ref=e525]
+                - generic [ref=e527]:
+                  - generic [ref=e528]: Ana Vale Rodz
+                  - generic [ref=e529]:
+                    - text: 6/30/26
+                    - generic [ref=e530]: I/T
+              - generic [ref=e531] [cursor=pointer]:
+                - checkbox [ref=e532]
+                - generic [ref=e534]:
+                  - generic [ref=e535]: Emma Alexa
+                  - generic [ref=e536]:
+                    - text: 6/8/26
+                    - generic [ref=e537]: I/T
+          - generic [ref=e465]:
+            - generic [ref=e466]:
+              - generic [ref=e538]:
+                - button "Session Detail" [ref=e539] [cursor=pointer]
+                - button "Compliance Analysis" [ref=e540] [cursor=pointer]
+              - generic [ref=e544]:
+                - generic [ref=e545]: June 1, 2026
+                - heading "Ana Vale Rodz" [level=2] [ref=e546]
+                - generic [ref=e547]:
+                  - paragraph [ref=e548]: I/T session
+                  - button [ref=e549] [cursor=pointer]
+                - generic [ref=e552]: Service Codes
+                - generic [ref=e553]:
+                  - generic [ref=e554]:
+                    - generic [ref=e555]: Status
+                    - generic [ref=e556]: "1"
+                  - generic [ref=e557]:
+                    - generic [ref=e558]: Type
+                    - generic [ref=e559]: I/T
+                  - generic [ref=e560]:
+                    - generic [ref=e561]: Location
+                    - generic [ref=e562]: "8"
+                - generic [ref=e563]: Session Time
+                - generic [ref=e564]:
+                  - generic [ref=e565]:
+                    - generic [ref=e566]: Start
+                    - generic [ref=e567]: 2:00 PM
+                  - generic [ref=e568]:
+                    - generic [ref=e569]: End
+                    - generic [ref=e570]: 3:00 PM
+                  - generic [ref=e571]:
+                    - generic [ref=e572]: Total
+                    - generic [ref=e573]: 1h 0m
+                - generic [ref=e574]:
+                  - button "Approve" [ref=e575] [cursor=pointer]
+                  - button "Return" [ref=e579] [cursor=pointer]
+                  - button "Reject" [ref=e584] [cursor=pointer]
+                  - button "Hold" [ref=e589] [cursor=pointer]
+            - generic [ref=e594]:
+              - generic [ref=e595]:
+                - generic [ref=e596]: 9 billable → Completed Bills
+                - generic [ref=e597]: 0 held/returned → stays in Pending
+                - generic [ref=e598]: 0 excluded (rejected)
+              - button "Generate & Issue" [ref=e599] [cursor=pointer]

@@ -1,0 +1,18 @@
+- generic [ref=f2e3]:
+  - generic [ref=f2e6]:
+    - img "Progressive Steps" [ref=f2e8]
+    - heading "Forgot your password?" [level=2] [ref=f2e9]
+    - paragraph [ref=f2e10]: Enter the email address on file and we'll send you a link to reset your password.
+    - generic [ref=f2e11]:
+      - generic [ref=f2e12]:
+        - generic [ref=f2e13]: Email Address
+        - textbox "Email Address" [ref=f2e14]:
+          - /placeholder: name@example.com
+      - button "Send Reset Link" [ref=f2e15]
+    - link "Back to Sign In" [ref=f2e17] [cursor=pointer]:
+      - /url: /
+  - generic [ref=f2e18]:
+    - generic [ref=f2e19]:
+      - generic [ref=f2e23]: Securely powered by
+      - img "Izaya Edge" [ref=f2e24]
+    - paragraph [ref=f2e25]: Izaya Consulting LLC

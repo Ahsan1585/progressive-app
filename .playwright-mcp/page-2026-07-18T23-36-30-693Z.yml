@@ -1,0 +1,134 @@
+- generic [ref=f39e3]:
+  - button "Show navigation" [ref=f39e4] [cursor=pointer]
+  - complementary [ref=f39e8]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f39e12]: Progressive StepsAdmin Portal
+    - navigation [ref=f39e13]:
+      - button "Staff Directory" [ref=f39e14] [cursor=pointer]
+      - button "Master Reports" [ref=f39e17] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f39e20] [cursor=pointer]
+    - paragraph [ref=f39e24]: Progressive Steps NJ
+  - main [ref=f39e25]:
+    - generic [ref=f39e26]:
+      - generic [ref=f39e27]:
+        - button "Toggle menu" [ref=f39e28] [cursor=pointer]
+        - heading "Billing & Invoices" [level=2] [ref=f39e289]
+      - generic [ref=f39e33]:
+        - generic [ref=f39e59]:
+          - generic [ref=f39e60]: JR
+          - generic [ref=f39e62]: Jason Roy
+          - generic [ref=f39e63]: Admin
+        - button "Sign Out" [ref=f39e34] [cursor=pointer]
+    - generic [ref=f39e290]:
+      - generic [ref=f39e291]:
+        - button "Pending Bills" [ref=f39e292] [cursor=pointer]
+        - button "Completed Bills" [ref=f39e293] [cursor=pointer]
+        - button "Invoice Status" [active] [ref=f39e294] [cursor=pointer]
+      - generic [ref=f39e465]:
+        - generic [ref=f39e466]:
+          - generic [ref=f39e467]:
+            - generic [ref=f39e468]: Search Practitioner
+            - textbox "Search by practitioner name..." [ref=f39e473]
+          - generic [ref=f39e474]:
+            - generic [ref=f39e475]:
+              - generic [ref=f39e476]: Service Date From
+              - textbox [ref=f39e477]
+            - generic [ref=f39e478]:
+              - generic [ref=f39e479]: Service Date To
+              - textbox [ref=f39e480]
+            - generic [ref=f39e481]:
+              - generic [ref=f39e482]: Payment Status
+              - combobox [ref=f39e483]:
+                - generic: All
+            - button "Refresh" [ref=f39e484] [cursor=pointer]
+        - table [ref=f39e486]:
+          - caption [ref=f39e487]: Invoice printed and paid status
+          - rowgroup [ref=f39e488]:
+            - row [ref=f39e489]:
+              - columnheader "Period" [ref=f39e490]
+              - columnheader "Practitioner" [ref=f39e491]
+              - columnheader "Invoice" [ref=f39e492]
+              - columnheader "Printed" [ref=f39e493]
+              - columnheader "Paid" [ref=f39e494]
+          - rowgroup [ref=f39e495]:
+            - row [ref=f39e496]:
+              - cell "7/6/26 – 7/18/26" [ref=f39e497]
+              - cell "Ashfaq Ahmad" [ref=f39e498]
+              - cell [ref=f39e499]:
+                - button "Print Invoice" [ref=f39e500] [cursor=pointer]
+              - cell [ref=f39e501]:
+                - button "Printed" [ref=f39e502] [cursor=pointer]
+              - cell [ref=f39e504]:
+                - button "Paid 7/18/2026" [ref=f39e505] [cursor=pointer]
+            - row [ref=f39e507]:
+              - cell "6/4/26 – 6/7/26" [ref=f39e508]
+              - cell "Eric Green" [ref=f39e509]
+              - cell [ref=f39e510]:
+                - button "Print Invoice" [ref=f39e511] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e512]
+              - cell [ref=f39e514]:
+                - button "Unpaid" [ref=f39e515] [cursor=pointer]
+            - row [ref=f39e517]:
+              - cell "5/18/26 – 5/18/26" [ref=f39e518]
+              - cell "Eric Green" [ref=f39e519]
+              - cell [ref=f39e520]:
+                - button "Print Invoice" [ref=f39e521] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e522]
+              - cell [ref=f39e524]:
+                - button "Unpaid" [ref=f39e525] [cursor=pointer]
+            - row [ref=f39e527]:
+              - cell "4/9/26 – 4/23/26" [ref=f39e528]
+              - cell "Eric Green" [ref=f39e529]
+              - cell [ref=f39e530]:
+                - button "Print Invoice" [ref=f39e531] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e532]
+              - cell [ref=f39e534]:
+                - button "Unpaid" [ref=f39e535] [cursor=pointer]
+            - row [ref=f39e537]:
+              - cell "3/17/26 – 3/17/26" [ref=f39e538]
+              - cell "Eric Green" [ref=f39e539]
+              - cell [ref=f39e540]:
+                - button "Print Invoice" [ref=f39e541] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e542]
+              - cell [ref=f39e544]:
+                - button "Unpaid" [ref=f39e545] [cursor=pointer]
+            - row [ref=f39e547]:
+              - cell "2/17/26 – 2/17/26" [ref=f39e548]
+              - cell "Eric Green" [ref=f39e549]
+              - cell [ref=f39e550]:
+                - button "Print Invoice" [ref=f39e551] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e552]
+              - cell [ref=f39e554]:
+                - button "Unpaid" [ref=f39e555] [cursor=pointer]
+            - row [ref=f39e557]:
+              - cell "1/2/26 – 1/2/26" [ref=f39e558]
+              - cell "Eric Green" [ref=f39e559]
+              - cell [ref=f39e560]:
+                - button "Print Invoice" [ref=f39e561] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e562]
+              - cell [ref=f39e564]:
+                - button "Unpaid" [ref=f39e565] [cursor=pointer]
+            - row [ref=f39e567]:
+              - cell "6/4/26 – 6/18/26" [ref=f39e568]
+              - cell "Eli Divina" [ref=f39e569]
+              - cell [ref=f39e570]:
+                - button "Print Invoice" [ref=f39e571] [cursor=pointer]
+              - cell [ref=f39e572]:
+                - button "Printed" [ref=f39e573] [cursor=pointer]
+              - cell [ref=f39e575]:
+                - button "Unpaid" [ref=f39e576] [cursor=pointer]
+            - row [ref=f39e578]:
+              - cell "5/7/26 – 5/28/26" [ref=f39e579]
+              - cell "Eli Divina" [ref=f39e580]
+              - cell [ref=f39e581]:
+                - button "Print Invoice" [ref=f39e582] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e583]
+              - cell [ref=f39e585]:
+                - button "Unpaid" [ref=f39e586] [cursor=pointer]
+            - row [ref=f39e588]:
+              - cell "4/30/26 – 4/30/26" [ref=f39e589]
+              - cell "Eli Divina" [ref=f39e590]
+              - cell [ref=f39e591]:
+                - button "Print Invoice" [ref=f39e592] [cursor=pointer]
+              - cell "Not Printed" [ref=f39e593]
+              - cell [ref=f39e595]:
+                - button "Unpaid" [ref=f39e596] [cursor=pointer]

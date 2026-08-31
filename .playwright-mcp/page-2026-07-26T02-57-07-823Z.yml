@@ -1,0 +1,258 @@
+- generic [ref=f21e174]:
+  - button "Show navigation" [ref=f21e175] [cursor=pointer]
+  - complementary [ref=f21e179]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f21e182]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f21e183]:
+      - button "Staff Directory" [ref=f21e184] [cursor=pointer]
+      - button "Master Reports" [ref=f21e187] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f21e190] [cursor=pointer]
+    - generic [ref=f21e193]:
+      - paragraph [ref=f21e194]: Useful Links
+      - button "Company Information" [ref=f21e195] [cursor=pointer]
+    - generic [ref=f21e198]:
+      - img "Izaya" [ref=f21e199]
+      - paragraph [ref=f21e200]: Securely Powered by Izaya
+      - paragraph [ref=f21e201]: Early Intervention Simplified
+  - main [ref=f21e202]:
+    - generic [ref=f21e203]:
+      - generic [ref=f21e204]:
+        - button "Toggle menu" [ref=f21e205] [cursor=pointer]
+        - generic [ref=f21e208]: Early Intervention Simplified
+      - heading "Billing & Invoices" [level=2] [ref=f21e439]
+      - generic [ref=f21e211]:
+        - generic [ref=f21e212]:
+          - generic [ref=f21e213]: JR
+          - generic [ref=f21e215]: Jason Roy
+          - generic [ref=f21e216]: Admin
+        - button "Sign Out" [ref=f21e217] [cursor=pointer]
+    - generic [ref=f21e440]:
+      - generic [ref=f21e441]:
+        - button "Pending Bills" [ref=f21e442] [cursor=pointer]
+        - button "Completed Bills" [ref=f21e443] [cursor=pointer]
+        - button "Invoice Status" [ref=f21e444] [cursor=pointer]
+      - generic [ref=f21e445]:
+        - generic [ref=f21e446]:
+          - generic [ref=f21e447]:
+            - generic [ref=f21e448]: Beta
+            - generic [ref=f21e449]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=f21e450] [cursor=pointer]
+        - generic [ref=f21e452]:
+          - generic [ref=f21e453]:
+            - generic [ref=f21e454]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f21e459]
+          - generic [ref=f21e460]:
+            - generic [ref=f21e461]:
+              - generic [ref=f21e462]: Start Date
+              - textbox [ref=f21e463]
+            - generic [ref=f21e464]:
+              - generic [ref=f21e465]: End Date
+              - textbox [ref=f21e466]
+            - button "Reset" [ref=f21e467] [cursor=pointer]
+            - button "Refresh" [ref=f21e468] [cursor=pointer]
+        - generic [ref=f21e469]:
+          - generic [ref=f21e470]:
+            - generic [ref=f21e471]: Billing Period
+            - textbox [ref=f21e475]: 2026-06
+            - generic [ref=f21e476]:
+              - button "Biweekly 1 Jun 1–15" [ref=f21e497] [cursor=pointer]:
+                - generic [ref=f21e478]: Biweekly 1
+                - generic [ref=f21e479]: Jun 1–15
+              - button "Biweekly 2 Jun 16–30" [ref=f21e498] [cursor=pointer]:
+                - generic [ref=f21e481]: Biweekly 2
+                - generic [ref=f21e485]: Jun 16–30
+              - button "Monthly Jun 1–30" [ref=f21e499] [cursor=pointer]:
+                - generic [ref=f21e487]: Monthly
+                - generic [ref=f21e491]: Jun 1–30
+            - generic [ref=f21e500]: Reviewing Biweekly 1 (2026-06-01 – 2026-06-15)
+          - generic [ref=f21e492]:
+            - generic [ref=f21e501]:
+              - generic [ref=f21e502]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f21e514]
+              - generic [ref=f21e515]:
+                - generic [ref=f21e516]:
+                  - button "AL Amel Laura 6 sessions Locked to you" [ref=f21e517] [cursor=pointer]:
+                    - generic [ref=f21e518]: AL
+                    - generic [ref=f21e519]:
+                      - generic [ref=f21e520]: Amel Laura
+                      - generic [ref=f21e521]: 6 sessions
+                    - generic [ref=f21e522]: Locked to you
+                  - generic [ref=f21e529]:
+                    - generic [ref=f21e530]: Locked to you
+                    - button "Release" [ref=f21e534] [cursor=pointer]
+                  - generic [ref=f21e535] [cursor=pointer]:
+                    - generic [ref=f21e538]:
+                      - generic [ref=f21e539]: Roni Cam
+                      - generic [ref=f21e540]: 6/2/26
+                    - generic [ref=f21e541]:
+                      - generic "Service Status" [ref=f21e542]: S:1
+                      - generic "Service Type" [ref=f21e543]: I/T
+                      - generic "Service Location" [ref=f21e544]: L:8
+                    - generic [ref=f21e545]:
+                      - generic [ref=f21e546]: Approved
+                      - generic [ref=f21e547]: 1h 0m
+                  - generic [ref=f21e548] [cursor=pointer]:
+                    - generic [ref=f21e551]:
+                      - generic [ref=f21e552]: Roni Cam
+                      - generic [ref=f21e553]: 6/3/26
+                    - generic [ref=f21e554]:
+                      - generic "Service Status" [ref=f21e555]: S:1
+                      - generic "Service Type" [ref=f21e556]: I/T
+                      - generic "Service Location" [ref=f21e557]: L:8
+                    - generic [ref=f21e558]:
+                      - generic [ref=f21e559]: Approved
+                      - generic [ref=f21e560]: 1h 0m
+                  - generic [ref=f21e561] [cursor=pointer]:
+                    - generic [ref=f21e564]:
+                      - generic [ref=f21e565]: Roni Cam
+                      - generic [ref=f21e566]: 6/4/26
+                    - generic [ref=f21e567]:
+                      - generic "Service Status" [ref=f21e568]: S:1
+                      - generic "Service Type" [ref=f21e569]: I/T
+                      - generic "Service Location" [ref=f21e570]: L:8
+                    - generic [ref=f21e571]:
+                      - generic [ref=f21e572]: Declined
+                      - generic [ref=f21e573]: 1h 0m
+                  - generic [ref=f21e576] [cursor=pointer]:
+                    - generic [ref=f21e579]:
+                      - generic [ref=f21e580]: Roni Cam
+                      - generic [ref=f21e581]: 6/9/26
+                    - generic [ref=f21e582]:
+                      - generic "Service Status" [ref=f21e583]: S:1
+                      - generic "Service Type" [ref=f21e584]: I/T
+                      - generic "Service Location" [ref=f21e585]: L:8
+                    - generic [ref=f21e586]:
+                      - generic [ref=f21e587]: Pending
+                      - generic [ref=f21e588]: 1h 0m
+                  - generic [ref=f21e589] [cursor=pointer]:
+                    - generic [ref=f21e592]:
+                      - generic [ref=f21e593]: Roni Cam
+                      - generic [ref=f21e594]: 6/11/26
+                    - generic [ref=f21e595]:
+                      - generic "Service Status" [ref=f21e596]: S:1
+                      - generic "Service Type" [ref=f21e597]: I/T
+                      - generic "Service Location" [ref=f21e598]: L:8
+                    - generic [ref=f21e599]:
+                      - generic [ref=f21e600]: Pending
+                      - generic [ref=f21e601]: 1h 0m
+                  - generic [ref=f21e602] [cursor=pointer]:
+                    - generic [ref=f21e605]:
+                      - generic [ref=f21e606]: Salim Cam
+                      - generic [ref=f21e607]: 6/15/26
+                    - generic [ref=f21e608]:
+                      - generic "Service Status" [ref=f21e609]: S:1
+                      - generic "Service Type" [ref=f21e610]: I/T
+                      - generic "Service Location" [ref=f21e611]: L:8
+                    - generic [ref=f21e612]:
+                      - generic [ref=f21e613]: Pending
+                      - generic [ref=f21e614]: 1h 0m
+                  - generic [ref=f21e615]:
+                    - generic [ref=f21e616]:
+                      - generic [ref=f21e617]: 5 billable
+                      - generic [ref=f21e618]: 0 held/returned
+                      - generic [ref=f21e619]: 1 excluded
+                    - button "Generate & Issue" [disabled]
+                - button "AB Amy Boyd 4 sessions" [ref=f21e621] [cursor=pointer]:
+                  - generic [ref=f21e622]: AB
+                  - generic [ref=f21e623]:
+                    - generic [ref=f21e624]: Amy Boyd
+                    - generic [ref=f21e625]: 4 sessions
+                - button "NC Nath Castr 5 sessions" [ref=f21e629] [cursor=pointer]:
+                  - generic [ref=f21e630]: NC
+                  - generic [ref=f21e631]:
+                    - generic [ref=f21e632]: Nath Castr
+                    - generic [ref=f21e633]: 5 sessions
+            - generic [ref=f21e636]:
+              - generic [ref=f21e637]: Review Panel
+              - generic [ref=f21e642]:
+                - generic [ref=f21e643]:
+                  - button "Session Detail" [ref=f21e651] [cursor=pointer]
+                  - button "Compliance Analysis" [active] [ref=f21e652] [cursor=pointer]
+                - generic [ref=f21e711]:
+                  - generic [ref=f21e717]:
+                    - generic [ref=f21e718]: Compliance Analysis
+                    - paragraph [ref=f21e719]: "Each session below is matched to the state's reference document by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time."
+                  - generic [ref=f21e720]: Reference document (from Company Information)
+                  - button "Excel File for EIMS verification.xlsx on file — click to download" [ref=f21e721] [cursor=pointer]:
+                    - generic [ref=f21e725]: Excel File for EIMS verification.xlsx
+                    - generic [ref=f21e726]: on file — click to download
+                  - generic [ref=f21e727]: "Couldn't load the comparison: Failed to run compliance analysis"
+                  - generic [ref=f21e728]: Side-by-side comparison · Amel Laura
+                  - generic [ref=f21e729]:
+                    - generic [ref=f21e730]:
+                      - generic [ref=f21e731]:
+                        - generic [ref=f21e732]: Roni Cam
+                        - generic [ref=f21e733]: 6/2/26
+                      - table [ref=f21e734]:
+                        - rowgroup [ref=f21e735]:
+                          - row [ref=f21e736]:
+                            - columnheader [ref=f21e737]
+                            - columnheader "Our Log" [ref=f21e738]
+                            - columnheader "State Record" [ref=f21e739]
+                        - rowgroup [ref=f21e740]:
+                          - row [ref=f21e741]:
+                            - cell "No confirmed state document to compare against" [ref=f21e742]
+                    - generic [ref=f21e743]:
+                      - generic [ref=f21e744]:
+                        - generic [ref=f21e745]: Roni Cam
+                        - generic [ref=f21e746]: 6/3/26
+                      - table [ref=f21e747]:
+                        - rowgroup [ref=f21e748]:
+                          - row [ref=f21e749]:
+                            - columnheader [ref=f21e750]
+                            - columnheader "Our Log" [ref=f21e751]
+                            - columnheader "State Record" [ref=f21e752]
+                        - rowgroup [ref=f21e753]:
+                          - row [ref=f21e754]:
+                            - cell "No confirmed state document to compare against" [ref=f21e755]
+                    - generic [ref=f21e756]:
+                      - generic [ref=f21e757]:
+                        - generic [ref=f21e758]: Roni Cam
+                        - generic [ref=f21e759]: 6/4/26
+                      - table [ref=f21e760]:
+                        - rowgroup [ref=f21e761]:
+                          - row [ref=f21e762]:
+                            - columnheader [ref=f21e763]
+                            - columnheader "Our Log" [ref=f21e764]
+                            - columnheader "State Record" [ref=f21e765]
+                        - rowgroup [ref=f21e766]:
+                          - row [ref=f21e767]:
+                            - cell "No confirmed state document to compare against" [ref=f21e768]
+                    - generic [ref=f21e769]:
+                      - generic [ref=f21e770]:
+                        - generic [ref=f21e771]: Roni Cam
+                        - generic [ref=f21e772]: 6/9/26
+                      - table [ref=f21e773]:
+                        - rowgroup [ref=f21e774]:
+                          - row [ref=f21e775]:
+                            - columnheader [ref=f21e776]
+                            - columnheader "Our Log" [ref=f21e777]
+                            - columnheader "State Record" [ref=f21e778]
+                        - rowgroup [ref=f21e779]:
+                          - row [ref=f21e780]:
+                            - cell "No confirmed state document to compare against" [ref=f21e781]
+                    - generic [ref=f21e782]:
+                      - generic [ref=f21e783]:
+                        - generic [ref=f21e784]: Roni Cam
+                        - generic [ref=f21e785]: 6/11/26
+                      - table [ref=f21e786]:
+                        - rowgroup [ref=f21e787]:
+                          - row [ref=f21e788]:
+                            - columnheader [ref=f21e789]
+                            - columnheader "Our Log" [ref=f21e790]
+                            - columnheader "State Record" [ref=f21e791]
+                        - rowgroup [ref=f21e792]:
+                          - row [ref=f21e793]:
+                            - cell "No confirmed state document to compare against" [ref=f21e794]
+                    - generic [ref=f21e795]:
+                      - generic [ref=f21e796]:
+                        - generic [ref=f21e797]: Salim Cam
+                        - generic [ref=f21e798]: 6/15/26
+                      - table [ref=f21e799]:
+                        - rowgroup [ref=f21e800]:
+                          - row [ref=f21e801]:
+                            - columnheader [ref=f21e802]
+                            - columnheader "Our Log" [ref=f21e803]
+                            - columnheader "State Record" [ref=f21e804]
+                        - rowgroup [ref=f21e805]:
+                          - row [ref=f21e806]:
+                            - cell "No confirmed state document to compare against" [ref=f21e807]

@@ -1,0 +1,91 @@
+- generic:
+  - generic:
+    - generic:
+      - banner:
+        - button
+        - heading [level=1]: Log Session
+      - generic:
+        - paragraph: Logging session for
+        - paragraph: Mark Jose Witword
+      - generic:
+        - button: Details
+        - button: Codes
+        - button: Signatures
+      - generic:
+        - generic:
+          - heading [level=2]: Visit details
+          - generic:
+            - generic: Service date
+            - textbox: 2026-08-02
+          - generic:
+            - generic:
+              - generic: Start time
+              - textbox: 10:00
+            - generic:
+              - generic: End time
+              - textbox: 11:00
+          - generic:
+            - checkbox
+            - text: Session was cancelled — log with 0 time
+          - generic:
+            - paragraph: Total time
+            - paragraph: 1.00 hrs (60 min)
+        - generic:
+          - heading [level=2]: Service codes
+          - generic:
+            - generic: Service type
+            - button:
+              - generic: Evaluation
+          - generic:
+            - generic: Status
+            - button:
+              - generic: Direct Child Service
+          - generic:
+            - generic: Location
+            - button [expanded]:
+              - generic: Select...
+          - generic:
+            - generic: Group size category
+            - button:
+              - generic: Direct Child Service - Individual
+        - generic:
+          - heading [level=2]: Signatures
+          - generic:
+            - generic: Parent/caregiver signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+          - generic:
+            - generic: Practitioner signature
+            - button: Use my saved signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+      - generic:
+        - paragraph: 3 fields still missing
+        - generic:
+          - button: Cancel
+          - button: Save encounter
+  - dialog [ref=f1e338]:
+    - heading "Location" [level=2] [ref=f1e342]
+    - listbox "Location" [ref=f1e343]:
+      - listitem [ref=f1e344]:
+        - option "Home" [active] [ref=f1e345]
+      - listitem [ref=f1e346]:
+        - option "Residential Facility" [ref=f1e347]
+      - listitem [ref=f1e348]:
+        - option "Service Provider Clinic/Office" [ref=f1e349]
+      - listitem [ref=f1e350]:
+        - option "Hospital (Inpatient)" [ref=f1e351]
+      - listitem [ref=f1e352]:
+        - option "EC Program - Children with Disabilities" [ref=f1e353]
+      - listitem [ref=f1e354]:
+        - option "EC Program - Inclusive Community" [ref=f1e355]
+      - listitem [ref=f1e356]:
+        - option "DCP&P Office" [ref=f1e357]
+      - listitem [ref=f1e358]:
+        - option "Phone/Video Conferencing" [ref=f1e359]

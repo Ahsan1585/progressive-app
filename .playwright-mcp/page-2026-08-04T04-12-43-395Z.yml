@@ -1,0 +1,199 @@
+- generic:
+  - generic:
+    - generic:
+      - button
+      - complementary:
+        - generic:
+          - generic:
+            - heading [level=1]:
+              - generic: Izaya Edge
+              - generic: Admin Portal
+        - navigation:
+          - button: Staff Directory
+          - button: Master Reports
+          - button: Billing & Invoices
+        - generic:
+          - paragraph: Useful Links
+          - button: Company Information
+          - button: Subscription & Billing
+          - button: Audit Log
+          - button: Roles & Permissions
+        - generic:
+          - paragraph: Securely Powered by Izaya
+          - paragraph: Early Intervention Simplified
+      - main:
+        - generic:
+          - generic:
+            - button
+            - generic: Early Intervention Simplified
+          - heading [level=2]: Staff Directory
+          - generic:
+            - generic:
+              - generic: AA
+              - generic: Ahsan Ashfaq
+              - generic: Admin
+            - button:
+              - generic: Sign Out
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=4]: Free trial
+              - paragraph: 13 days left in your free trial.
+          - generic:
+            - generic:
+              - generic:
+                - button: Staff Roster
+                - button: Register New User
+                - button: Action Required
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=2]: Staff Roster
+                    - generic:
+                      - button: Active
+                      - button: Deactivated
+                      - button: All
+                    - generic: 9 members
+                  - generic:
+                    - generic:
+                      - textbox:
+                        - /placeholder: Search by name, email, or position...
+                    - combobox:
+                      - generic: All Roles
+                - generic:
+                  - table:
+                    - rowgroup:
+                      - row:
+                        - columnheader: Name
+                        - columnheader: Email
+                        - columnheader: Position
+                        - columnheader: Role
+                        - columnheader
+                    - rowgroup:
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: TR
+                            - text: TestAdmin Reproduce
+                        - cell: test-admin-repro-99@example.com
+                        - cell: Office Staff
+                        - cell:
+                          - generic: Practitioner
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: tt
+                            - text: test tester
+                        - cell: test@123.com
+                        - cell: Office Staff
+                        - cell:
+                          - generic: Practitioner
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: AA
+                            - text: Ashfaq Ahmad
+                        - cell: ashfaq.ahmad.us2@gmail.com
+                        - cell: Office Staff
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: FA
+                            - text: Farzana Ashfaq
+                        - cell: ashfaq.ahmad.us1@gmail.com
+                        - cell: Office Staff
+                        - cell:
+                          - generic: Practitioner
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: AA
+                            - text: Ashfaq Ahmad
+                        - cell: ashfaq.ahmad.us@gmail.com
+                        - cell: Office Staff
+                        - cell:
+                          - generic: Practitioner
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: sL
+                            - text: sara Lee
+                        - cell: easternzenusa@gmail.com
+                        - cell: Family Therapist
+                        - cell:
+                          - generic: Practitioner
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: JD
+                            - text: Jon Doe
+                        - cell: support@izayaedge.com
+                        - cell: Office Staff
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: DJ
+                            - text: Dave Johnson
+                        - cell: ahsan185@gmail.com
+                        - cell: Office Staff
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: AA
+                            - text: Ahsan Ashfaq
+                        - cell: ahsan.ashfaq15@gmail.com
+                        - cell: Office Staff
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+  - dialog [ref=f11e709]:
+    - paragraph [ref=f11e710]: Account successfully created!
+    - button "OK" [active] [ref=f11e712] [cursor=pointer]

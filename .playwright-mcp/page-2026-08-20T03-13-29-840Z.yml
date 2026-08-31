@@ -1,0 +1,167 @@
+- generic [ref=f61e3]:
+  - navigation [ref=f61e4]:
+    - link "Izaya EISimplified home" [ref=f61e5] [cursor=pointer]:
+      - /url: /eis
+      - generic [ref=f61e6]:
+        - generic [ref=f61e7]:
+          - img "IZAYA" [ref=f61e8]
+          - generic [ref=f61e18]: EIS
+        - generic [ref=f61e19]: Early Intervention Simplified
+    - generic [ref=f61e20]:
+      - link "Home" [ref=f61e21] [cursor=pointer]:
+        - /url: /eis
+      - link "How it works" [ref=f61e22] [cursor=pointer]:
+        - /url: /eis/how-it-works
+      - link "Practitioner app" [ref=f61e23] [cursor=pointer]:
+        - /url: /eis/download
+      - link "Contact" [ref=f61e24] [cursor=pointer]:
+        - /url: /eis/contact
+      - link "Log In" [ref=f61e25] [cursor=pointer]:
+        - /url: /eis/login
+      - link "Schedule a demo" [ref=f61e26] [cursor=pointer]:
+        - /url: /eis/contact
+  - main [ref=f61e27]:
+    - generic [ref=f61e29]:
+      - generic [ref=f61e30]:
+        - generic [ref=f61e31]: Smart billing platform
+        - heading "Weeks of billing work, done in minutes." [level=1] [ref=f61e32]: Weeks of billing work,done in minutes.
+        - paragraph [ref=f61e33]: Izaya EISimplified™ is the billing platform built for early intervention agencies. Your practitioners log a session — the system handles validation, SEVF, and invoicing.
+        - generic [ref=f61e34]:
+          - link "Schedule a demo" [ref=f61e35] [cursor=pointer]:
+            - /url: /eis/contact
+          - link "Download the practitioner app" [ref=f61e38] [cursor=pointer]:
+            - /url: /eis/download
+        - paragraph [ref=f61e39]: Less paperwork. Faster billing. More time for families.
+      - generic [ref=f61e40]:
+        - img "Early intervention practitioner logging a session on her phone" [ref=f61e42]
+        - generic [ref=f61e43]: More timefor families
+    - generic [ref=f61e51]:
+      - generic [ref=f61e52]:
+        - generic [ref=f61e53]: The core idea
+        - heading "Log a session. The system handles the rest." [level=2] [ref=f61e54]
+        - paragraph [ref=f61e55]: Practitioners simply log a session on their phone. Izaya EISimplified™ automatically validates entries, flags exceptions, approves error-free logs, and generates SEVF forms and invoices — without a single spreadsheet.
+      - generic [ref=f61e56]:
+        - generic [ref=f61e57]: No manual SEVF
+        - generic [ref=f61e61]: No invoice preparation
+        - generic [ref=f61e65]: No calculations
+        - generic [ref=f61e69]: No chasing corrections
+    - generic [ref=f61e74]:
+      - generic [ref=f61e75]:
+        - generic [ref=f61e76]: Why agencies switch
+        - heading "Built to remove the billing bottleneck" [level=2] [ref=f61e77]
+      - generic [ref=f61e78]:
+        - generic [ref=f61e79]:
+          - heading "Save time" [level=3] [ref=f61e80]
+          - paragraph [ref=f61e81]: Automate every step of the billing cycle and focus on what matters most.
+        - generic [ref=f61e82]:
+          - heading "Reduce errors" [level=3] [ref=f61e83]
+          - paragraph [ref=f61e84]: Smart validation and auto-approval keep every log accurate before it moves.
+        - generic [ref=f61e85]:
+          - heading "Get paid faster" [level=3] [ref=f61e86]
+          - paragraph [ref=f61e87]: Faster corrections and automated billing accelerate reimbursements.
+        - generic [ref=f61e88]:
+          - heading "Complete compliance" [level=3] [ref=f61e89]
+          - paragraph [ref=f61e90]: Built for EI, state, and payer requirements from the first entry onward.
+        - generic [ref=f61e91]:
+          - heading "Better together" [level=3] [ref=f61e92]
+          - paragraph [ref=f61e93]: Practitioners, billing teams, and management aligned on one platform.
+    - generic [ref=f61e95]:
+      - generic [ref=f61e96]:
+        - generic [ref=f61e97]: Smart exception-based workflow
+        - generic [ref=f61e98]:
+          - heading "Only logs with errors need attention." [level=3] [ref=f61e99]
+          - generic [ref=f61e100]:
+            - generic [ref=f61e101]: Billing specialists return error logs within the platform
+            - generic [ref=f61e105]: Practitioners correct instantly
+            - generic [ref=f61e109]: No emails. No phone calls. No delays.
+      - generic [ref=f61e113]:
+        - generic [ref=f61e114]: Everything else is fully automated
+        - generic [ref=f61e116]:
+          - generic [ref=f61e117]:
+            - generic [ref=f61e121]: Error-free logs
+            - generic [ref=f61e122]: Auto approved
+          - generic [ref=f61e123]:
+            - generic [ref=f61e129]: Corrected logs
+            - generic [ref=f61e130]: Instantly processed
+          - generic [ref=f61e131]:
+            - generic [ref=f61e135]: SEVF & invoice
+            - generic [ref=f61e136]: Generated for you
+    - generic [ref=f61e138]:
+      - generic [ref=f61e139]:
+        - generic [ref=f61e140]:
+          - generic [ref=f61e141]: How Izaya EISimplified™ works
+          - heading "Six steps, one uninterrupted flow" [level=2] [ref=f61e142]
+        - link "See the full walkthrough →" [ref=f61e143] [cursor=pointer]:
+          - /url: /eis/how-it-works
+      - generic [ref=f61e144]:
+        - generic [ref=f61e145]:
+          - generic [ref=f61e146]: "1"
+          - heading "Practitioner logs the session on their phone" [level=3] [ref=f61e147]
+          - generic [ref=f61e148]: Quick. Easy. Done.
+        - generic [ref=f61e149]:
+          - generic [ref=f61e150]: "2"
+          - heading "System validates automatically" [level=3] [ref=f61e151]
+          - generic [ref=f61e152]: Built-in smart validations.
+        - generic [ref=f61e153]:
+          - generic [ref=f61e154]: "3"
+          - heading "Any errors are returned in the platform" [level=3] [ref=f61e155]
+          - generic [ref=f61e156]: No emails. No calls.
+        - generic [ref=f61e157]:
+          - generic [ref=f61e158]: "4"
+          - heading "Practitioner corrects instantly" [level=3] [ref=f61e159]
+          - generic [ref=f61e160]: Corrected in seconds.
+        - generic [ref=f61e161]:
+          - generic [ref=f61e162]: "5"
+          - heading "All logs are error-free" [level=3] [ref=f61e163]
+          - generic [ref=f61e164]: 100% clean logs.
+        - generic [ref=f61e165]:
+          - generic [ref=f61e166]: "6"
+          - heading "SEVF and invoice generated" [level=3] [ref=f61e167]
+          - generic [ref=f61e168]: Time and amount calculated.
+    - generic [ref=f61e170]:
+      - generic [ref=f61e171]:
+        - heading "Your practitioners log from their phone" [level=2] [ref=f61e172]
+        - paragraph [ref=f61e173]: Install the practitioner app on any iPhone or Android device — no app store account, no IT ticket. Sessions, signatures, drafts, and returned logs, all in one place.
+      - link "Get the app" [ref=f61e174] [cursor=pointer]:
+        - /url: /eis/download
+    - generic [ref=f61e177]:
+      - generic [ref=f61e178]:
+        - heading "Weeks of billing work. Done in minutes." [level=2] [ref=f61e179]: Weeks of billing work.Done in minutes.
+        - paragraph [ref=f61e180]: Let us show you how Izaya EISimplified™ can transform your billing workflow — from session log to SEVF and invoice.
+      - generic [ref=f61e181]:
+        - link "Schedule a demo today" [ref=f61e182] [cursor=pointer]:
+          - /url: /eis/contact
+        - paragraph [ref=f61e183]:
+          - text: Or call
+          - link "(405) 740-2647" [ref=f61e184] [cursor=pointer]:
+            - /url: tel:+14057402647
+  - contentinfo [ref=f61e185]:
+    - generic [ref=f61e186]:
+      - generic [ref=f61e187]:
+        - generic [ref=f61e189]:
+          - img "IZAYA" [ref=f61e190]
+          - generic [ref=f61e200]: EIS
+        - paragraph [ref=f61e201]: "Izaya EISimplified™ automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children."
+      - generic [ref=f61e202]:
+        - heading "Explore" [level=3] [ref=f61e203]
+        - list [ref=f61e204]:
+          - listitem [ref=f61e205]:
+            - link "How it works" [ref=f61e206] [cursor=pointer]:
+              - /url: /eis/how-it-works
+          - listitem [ref=f61e207]:
+            - link "Practitioner app" [ref=f61e208] [cursor=pointer]:
+              - /url: /eis/download
+          - listitem [ref=f61e209]:
+            - link "Schedule a demo" [ref=f61e210] [cursor=pointer]:
+              - /url: /eis/contact
+      - generic [ref=f61e211]:
+        - heading "Contact" [level=3] [ref=f61e212]
+        - list [ref=f61e213]:
+          - listitem [ref=f61e214]:
+            - link "support@izayaedge.com" [ref=f61e215] [cursor=pointer]:
+              - /url: mailto:support@izayaedge.com
+          - listitem [ref=f61e216]:
+            - link "(405) 740-2647" [ref=f61e217] [cursor=pointer]:
+              - /url: tel:+14057402647
+          - listitem [ref=f61e218]: Old Bridge, NJ 08857
+    - paragraph [ref=f61e219]: © 2026 Izaya Consulting. Izaya EISimplified™ is a trademark of Izaya Consulting.

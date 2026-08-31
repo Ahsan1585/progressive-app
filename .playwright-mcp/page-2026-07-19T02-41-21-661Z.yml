@@ -1,0 +1,78 @@
+- generic:
+  - generic:
+    - generic:
+      - button
+      - complementary:
+        - generic:
+          - generic:
+            - heading [level=1]: Progressive Steps Admin Portal
+        - navigation:
+          - button: Staff Directory
+          - button: Master Reports
+          - button: Billing & Invoices
+        - generic:
+          - paragraph: Progressive Steps NJ
+          - paragraph: Early Intervention Simplified
+      - main:
+        - generic:
+          - generic:
+            - button
+            - heading [level=2]: Staff Directory
+          - generic:
+            - generic:
+              - generic: JR
+              - generic: Jason Roy
+              - generic: Admin
+            - button:
+              - generic: Sign Out
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - button: Staff Roster
+                - button: Register New Account
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=2]: Staff Roster
+                    - generic:
+                      - button: Active
+                      - button: Deactivated
+                      - button: All
+                    - generic: 1 member
+                  - generic:
+                    - generic:
+                      - textbox:
+                        - /placeholder: Search by name, email, or position...
+                    - combobox:
+                      - generic: Billing Specialist
+                - generic:
+                  - table:
+                    - rowgroup:
+                      - row:
+                        - columnheader: Name
+                        - columnheader: Email
+                        - columnheader: Position
+                        - columnheader: Role
+                        - columnheader
+                    - rowgroup:
+                      - row:
+                        - cell:
+                          - generic:
+                            - generic: AA
+                            - text: Ashfaq Ahmad
+                        - cell: ashfaqahmad@gmail.com
+                        - cell: Therapist
+                        - cell:
+                          - combobox
+                        - cell:
+                          - generic:
+                            - button
+                            - button
+  - listbox [ref=e537]:
+    - option "All Roles" [ref=e538] [cursor=pointer]
+    - option "Admin" [ref=e544] [cursor=pointer]
+    - option "Office Manager" [ref=e547] [cursor=pointer]
+    - option "Billing Specialist" [active] [selected] [ref=e550] [cursor=pointer]
+    - option "Account Specialist" [ref=e553] [cursor=pointer]
+    - option "Practitioner" [ref=e556] [cursor=pointer]

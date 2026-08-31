@@ -1,0 +1,294 @@
+- generic [ref=f4e106]:
+  - complementary [ref=f4e107]:
+    - heading "IZAYA Early Intervention Services Admin Portal" [level=1] [ref=f4e110]:
+      - generic [ref=f4e111]: IZAYA Early Intervention Services
+      - generic [ref=f4e112]: Admin Portal
+    - navigation [ref=f4e113]:
+      - button "Staff Directory" [ref=f4e114] [cursor=pointer]
+      - button "Master Reports" [ref=f4e117] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f4e120] [cursor=pointer]
+    - generic [ref=f4e123]:
+      - paragraph [ref=f4e124]: Useful Links
+      - button "Company Information" [ref=f4e125] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f4e128] [cursor=pointer]
+      - button "Audit Log" [ref=f4e131] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f4e134] [cursor=pointer]
+    - generic [ref=f4e138]:
+      - generic [ref=f4e139]:
+        - generic [ref=f4e140]:
+          - img "IZAYA" [ref=f4e141]
+          - generic [ref=f4e151]: EIS
+        - generic [ref=f4e152]: Early Intervention Simplified
+      - paragraph [ref=f4e153]: Securely Powered by Izaya
+  - main [ref=f4e154]:
+    - generic [ref=f4e155]:
+      - generic [ref=f4e156]:
+        - button "Toggle menu" [ref=f4e157] [cursor=pointer]
+        - generic [ref=f4e160]: IZAYA Early Intervention Services
+      - heading "Billing & Invoices" [level=2] [ref=f4e467]
+      - generic [ref=f4e163]:
+        - generic [ref=f4e164]:
+          - generic [ref=f4e165]: AA
+          - generic [ref=f4e167]: Ahsan Ashfaq
+          - generic [ref=f4e168]: Admin
+        - button "Sign Out" [ref=f4e169] [cursor=pointer]
+    - generic [ref=f4e173]:
+      - generic [ref=f4e177]:
+        - heading "Free trial" [level=4] [ref=f4e178]
+        - paragraph [ref=f4e179]: 21 days left in your free trial.
+      - generic [ref=f4e468]:
+        - generic [ref=f4e469]:
+          - button "Pending Bills" [ref=f4e470] [cursor=pointer]
+          - button "Completed Bills" [ref=f4e471] [cursor=pointer]
+          - button "Invoice Status" [ref=f4e472] [cursor=pointer]
+        - generic [ref=f4e474]:
+          - generic [ref=f4e475]:
+            - generic [ref=f4e476]: Billing Period
+            - textbox [ref=f4e480]: 2026-08
+            - generic [ref=f4e481]:
+              - button "Biweekly 1 Aug 1–15" [ref=f4e482] [cursor=pointer]:
+                - generic [ref=f4e483]: Biweekly 1
+                - generic [ref=f4e484]: Aug 1–15
+              - button "Biweekly 2 Aug 16–31" [disabled] [ref=f4e485]:
+                - generic [ref=f4e486]: Biweekly 2
+                - generic [ref=f4e490]: Aug 16–31
+              - button "Monthly Aug 1–31" [disabled] [ref=f4e491]:
+                - generic [ref=f4e492]: Monthly
+                - generic [ref=f4e496]: Aug 1–31
+            - generic [ref=f4e502]: Reviewing Biweekly 1 (2026-08-01 – 2026-08-15)
+          - generic [ref=f4e497]:
+            - generic [ref=f4e503]:
+              - generic [ref=f4e504]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f4e516]
+              - generic [ref=f4e572]:
+                - button "LJ Linda Jones 3 sessions Locked to you" [ref=f4e573] [cursor=pointer]:
+                  - generic [ref=f4e574]: LJ
+                  - generic [ref=f4e575]:
+                    - generic [ref=f4e576]: Linda Jones
+                    - generic [ref=f4e577]: 3 sessions
+                  - generic [ref=f4e578]: Locked to you
+                - generic [ref=f4e585]:
+                  - generic [ref=f4e586]: Locked to you
+                  - button "Release" [ref=f4e590] [cursor=pointer]
+                - generic [ref=f4e591] [cursor=pointer]:
+                  - generic [ref=f4e594]:
+                    - generic [ref=f4e595]: Michael Smith
+                    - generic [ref=f4e596]: 8/7/26
+                  - generic [ref=f4e597]:
+                    - generic "Service Status" [ref=f4e598]: S:1
+                    - generic "Service Type" [ref=f4e599]: DI
+                    - generic "Service Location" [ref=f4e600]: L:2
+                  - generic [ref=f4e601]:
+                    - generic [ref=f4e602]: Approved
+                    - generic [ref=f4e603]: 2h 29m
+                - generic [ref=f4e606] [cursor=pointer]:
+                  - generic [ref=f4e609]:
+                    - generic [ref=f4e610]: Michael Smith
+                    - generic [ref=f4e611]: 8/12/26
+                  - generic [ref=f4e612]:
+                    - generic "Service Status" [ref=f4e613]: S:TPC
+                    - generic "Service Type" [ref=f4e614]: DI
+                    - generic "Service Location" [ref=f4e615]: L:6
+                  - generic [ref=f4e616]:
+                    - generic [ref=f4e617]: Approved
+                    - generic [ref=f4e618]: 1h 36m
+                - generic [ref=f4e621] [cursor=pointer]:
+                  - generic [ref=f4e624]:
+                    - generic [ref=f4e625]: Michael Smith
+                    - generic [ref=f4e626]: 8/12/26
+                  - generic [ref=f4e627]:
+                    - generic "Service Status" [ref=f4e628]: S:TPC
+                    - generic "Service Type" [ref=f4e629]: DI
+                    - generic "Service Location" [ref=f4e630]: L:7
+                  - generic [ref=f4e631]:
+                    - generic [ref=f4e632]: Declined
+                    - generic [ref=f4e633]: 0m
+                - generic [ref=f4e636]:
+                  - generic [ref=f4e637]:
+                    - generic [ref=f4e638]: 2 billable
+                    - generic [ref=f4e639]: 0 held/returned
+                    - generic [ref=f4e640]: 1 excluded
+                  - button "Generate & Issue" [ref=f4e641] [cursor=pointer]
+            - generic [ref=f4e530]:
+              - generic [ref=f4e531]: Review Panel
+              - generic [ref=f4e536]:
+                - generic [ref=f4e537]:
+                  - button "Session Detail" [ref=f4e642] [cursor=pointer]
+                  - button "Compliance Analysis" [active] [ref=f4e643] [cursor=pointer]
+                  - button "Compliance Matching" [ref=f4e647] [cursor=pointer]
+                - generic [ref=f4e742]:
+                  - generic [ref=f4e748]:
+                    - generic [ref=f4e749]: Compliance Analysis
+                    - paragraph [ref=f4e750]: "Each session below is EIMS Matched by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time."
+                  - button "Re-run analysis" [ref=f4e751] [cursor=pointer]
+                  - generic [ref=f4e757]:
+                    - button "3 Sessions Checked" [ref=f4e758] [cursor=pointer]:
+                      - generic [ref=f4e759]: "3"
+                      - generic [ref=f4e760]: Sessions Checked
+                    - button "1 Match with EIMS" [ref=f4e761] [cursor=pointer]:
+                      - generic [ref=f4e762]: "1"
+                      - generic [ref=f4e763]: Match with EIMS
+                    - button "0 Flagged" [ref=f4e764] [cursor=pointer]:
+                      - generic [ref=f4e765]: "0"
+                      - generic [ref=f4e766]: Flagged
+                    - button "2 Missing in EIMS" [ref=f4e767] [cursor=pointer]:
+                      - generic [ref=f4e768]: "2"
+                      - generic [ref=f4e769]: Missing in EIMS
+                  - generic [ref=f4e770]: Side-by-side comparison · Linda Jones
+                  - generic [ref=f4e772]:
+                    - generic [ref=f4e773]:
+                      - generic [ref=f4e774]:
+                        - generic [ref=f4e775]:
+                          - generic [ref=f4e776]: Michael Smith
+                          - generic [ref=f4e777]: 8/7/26
+                          - generic [ref=f4e778]: Missing in EIMS
+                        - generic [ref=f4e782]:
+                          - generic [ref=f4e783]: Admin Approved
+                          - combobox [ref=f4e787] [cursor=pointer]:
+                            - option "Approved" [selected]
+                            - option "Reset to Pending"
+                            - option "Return..."
+                            - option "Reject..."
+                            - option "Hold"
+                      - table [ref=f4e788]:
+                        - rowgroup [ref=f4e789]:
+                          - row [ref=f4e790]:
+                            - columnheader [ref=f4e791]
+                            - columnheader "Our Log" [ref=f4e792]
+                            - columnheader "EIMS Record" [ref=f4e793]
+                            - columnheader [ref=f4e794]
+                        - rowgroup [ref=f4e795]:
+                          - row [ref=f4e796]:
+                            - cell "No matching record found in EIMS for this session — showing our own logged values below No EIMS records on file for this child at all (in the current uploaded reference file)." [ref=f4e797]:
+                              - text: No matching record found in EIMS for this session — showing our own logged values below
+                              - generic [ref=f4e798]: No EIMS records on file for this child at all (in the current uploaded reference file).
+                          - row [ref=f4e799]:
+                            - cell "Child ID" [ref=f4e800]
+                            - cell "900000006" [ref=f4e802]
+                            - cell "-" [ref=f4e803]
+                            - cell [ref=f4e804]
+                          - row [ref=f4e805]:
+                            - cell "Child Name" [ref=f4e806]
+                            - cell "Michael Smith" [ref=f4e808]
+                            - cell "-" [ref=f4e809]
+                            - cell [ref=f4e810]
+                          - row [ref=f4e811]:
+                            - cell "Practitioner" [ref=f4e812]
+                            - cell "Linda Jones" [ref=f4e814]
+                            - cell "-" [ref=f4e815]
+                            - cell [ref=f4e816]
+                          - row [ref=f4e817]:
+                            - cell "Service Date" [ref=f4e818]
+                            - cell "2026-08-07" [ref=f4e820]
+                            - cell "-" [ref=f4e821]
+                            - cell [ref=f4e822]
+                          - row [ref=f4e823]:
+                            - cell "Start Time" [ref=f4e824]
+                            - cell "7:01 AM" [ref=f4e826]
+                            - cell "-" [ref=f4e827]
+                            - cell [ref=f4e828]
+                          - row [ref=f4e829]:
+                            - cell "End Time" [ref=f4e830]
+                            - cell "9:30 AM" [ref=f4e832]
+                            - cell "-" [ref=f4e833]
+                            - cell [ref=f4e834]
+                          - row [ref=f4e835]:
+                            - cell "Service Type" [ref=f4e836]
+                            - cell "Developmental Intervention" [ref=f4e838]
+                            - cell "-" [ref=f4e839]
+                            - cell [ref=f4e840]
+                          - row [ref=f4e841]:
+                            - cell "Location" [ref=f4e842]
+                            - cell "Residential Facility" [ref=f4e844]
+                            - cell "-" [ref=f4e845]
+                            - cell [ref=f4e846]
+                          - row [ref=f4e847]:
+                            - cell "Group Size Category" [ref=f4e848]
+                            - cell "Direct Child Service - Individual" [ref=f4e850]
+                            - cell "-" [ref=f4e851]
+                            - cell [ref=f4e852]
+                    - generic [ref=f4e853]:
+                      - generic [ref=f4e854]:
+                        - generic [ref=f4e855]:
+                          - generic [ref=f4e856]: Michael Smith
+                          - generic [ref=f4e857]: 8/12/26
+                          - generic [ref=f4e858]: Missing in EIMS
+                        - generic [ref=f4e862]:
+                          - generic [ref=f4e863]: Admin Approved
+                          - combobox [ref=f4e867] [cursor=pointer]:
+                            - option "Approved" [selected]
+                            - option "Reset to Pending"
+                            - option "Return..."
+                            - option "Reject..."
+                            - option "Hold"
+                      - table [ref=f4e868]:
+                        - rowgroup [ref=f4e869]:
+                          - row [ref=f4e870]:
+                            - columnheader [ref=f4e871]
+                            - columnheader "Our Log" [ref=f4e872]
+                            - columnheader "EIMS Record" [ref=f4e873]
+                            - columnheader [ref=f4e874]
+                        - rowgroup [ref=f4e875]:
+                          - row [ref=f4e876]:
+                            - cell "No matching record found in EIMS for this session — showing our own logged values below No EIMS records on file for this child at all (in the current uploaded reference file)." [ref=f4e877]:
+                              - text: No matching record found in EIMS for this session — showing our own logged values below
+                              - generic [ref=f4e878]: No EIMS records on file for this child at all (in the current uploaded reference file).
+                          - row [ref=f4e879]:
+                            - cell "Child ID" [ref=f4e880]
+                            - cell "900000006" [ref=f4e882]
+                            - cell "-" [ref=f4e883]
+                            - cell [ref=f4e884]
+                          - row [ref=f4e885]:
+                            - cell "Child Name" [ref=f4e886]
+                            - cell "Michael Smith" [ref=f4e888]
+                            - cell "-" [ref=f4e889]
+                            - cell [ref=f4e890]
+                          - row [ref=f4e891]:
+                            - cell "Practitioner" [ref=f4e892]
+                            - cell "Linda Jones" [ref=f4e894]
+                            - cell "-" [ref=f4e895]
+                            - cell [ref=f4e896]
+                          - row [ref=f4e897]:
+                            - cell "Service Date" [ref=f4e898]
+                            - cell "2026-08-12" [ref=f4e900]
+                            - cell "-" [ref=f4e901]
+                            - cell [ref=f4e902]
+                          - row [ref=f4e903]:
+                            - cell "Start Time" [ref=f4e904]
+                            - cell "10:55 PM" [ref=f4e906]
+                            - cell "-" [ref=f4e907]
+                            - cell [ref=f4e908]
+                          - row [ref=f4e909]:
+                            - cell "End Time" [ref=f4e910]
+                            - cell "12:31 AM" [ref=f4e912]
+                            - cell "-" [ref=f4e913]
+                            - cell [ref=f4e914]
+                          - row [ref=f4e915]:
+                            - cell "Service Type" [ref=f4e916]
+                            - cell "Developmental Intervention" [ref=f4e918]
+                            - cell "-" [ref=f4e919]
+                            - cell [ref=f4e920]
+                          - row [ref=f4e921]:
+                            - cell "Location" [ref=f4e922]
+                            - cell "EC Program - Inclusive Community" [ref=f4e924]
+                            - cell "-" [ref=f4e925]
+                            - cell [ref=f4e926]
+                          - row [ref=f4e927]:
+                            - cell "Group Size Category" [ref=f4e928]
+                            - cell "Direct Child Service - Individual" [ref=f4e930]
+                            - cell "-" [ref=f4e931]
+                            - cell [ref=f4e932]
+                    - generic [ref=f4e933]:
+                      - generic [ref=f4e935]:
+                        - generic [ref=f4e936]: Michael Smith
+                        - generic [ref=f4e937]: 8/12/26
+                      - table [ref=f4e938]:
+                        - rowgroup [ref=f4e939]:
+                          - row [ref=f4e940]:
+                            - columnheader [ref=f4e941]
+                            - columnheader "Our Log" [ref=f4e942]
+                            - columnheader "EIMS Record" [ref=f4e943]
+                            - columnheader [ref=f4e944]
+                        - rowgroup [ref=f4e945]:
+                          - row [ref=f4e946]:
+                            - cell "No matching record found in EIMS for this session — showing our own logged values below" [ref=f4e947]

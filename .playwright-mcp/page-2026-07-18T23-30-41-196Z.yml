@@ -1,0 +1,28 @@
+- generic [ref=f39e3]:
+  - button "Show navigation" [ref=f39e4] [cursor=pointer]
+  - complementary [ref=f39e8]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f39e12]: Progressive StepsAdmin Portal
+    - navigation [ref=f39e13]:
+      - button "Staff Directory" [ref=f39e14] [cursor=pointer]
+      - button "Master Reports" [ref=f39e17] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f39e20] [cursor=pointer]
+    - paragraph [ref=f39e24]: Progressive Steps NJ
+  - main [ref=f39e25]:
+    - generic [ref=f39e26]:
+      - generic [ref=f39e27]:
+        - button "Toggle menu" [ref=f39e28] [cursor=pointer]
+        - heading "Staff Directory" [level=2] [ref=f39e32]
+      - button "Sign Out" [ref=f39e34] [cursor=pointer]
+    - generic [ref=f39e40]:
+      - generic [ref=f39e41]:
+        - button "Staff Roster" [ref=f39e42] [cursor=pointer]
+        - button "Register New Account" [ref=f39e45] [cursor=pointer]
+      - generic [ref=f39e48]:
+        - generic [ref=f39e49]:
+          - heading "Staff Roster" [level=2] [ref=f39e52]
+          - generic [ref=f39e53]:
+            - button "Active" [ref=f39e54] [cursor=pointer]
+            - button "Deactivated" [ref=f39e55] [cursor=pointer]
+            - button "All" [ref=f39e56] [cursor=pointer]
+          - generic [ref=f39e57]: 0 members
+        - generic [ref=f39e58]: Loading staff...

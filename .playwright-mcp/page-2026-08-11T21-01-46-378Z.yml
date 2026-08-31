@@ -1,0 +1,75 @@
+- generic [ref=f11e3]:
+  - button "Show navigation" [ref=f11e6] [cursor=pointer]
+  - complementary [ref=f11e10]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=f11e13]:
+      - generic [ref=f11e14]: IZAYA Consulting, LLC
+      - generic [ref=f11e15]: Admin Portal
+    - navigation [ref=f11e16]:
+      - button "Staff Directory" [ref=f11e17] [cursor=pointer]
+      - button "Master Reports" [ref=f11e20] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f11e23] [cursor=pointer]
+    - generic [ref=f11e26]:
+      - paragraph [ref=f11e27]: Useful Links
+      - button "Company Information" [active] [ref=f11e28] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f11e31] [cursor=pointer]
+      - button "Audit Log" [ref=f11e34] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f11e37] [cursor=pointer]
+    - generic [ref=f11e41]:
+      - img "Izaya" [ref=f11e42]
+      - paragraph [ref=f11e43]: Securely Powered by Izaya
+      - paragraph [ref=f11e44]: Early Intervention Simplified
+  - main [ref=f11e45]:
+    - generic [ref=f11e46]:
+      - generic [ref=f11e47]:
+        - button "Toggle menu" [ref=f11e48] [cursor=pointer]
+        - generic [ref=f11e51]: Early Intervention Simplified
+      - heading "Company Information" [level=2] [ref=f11e590]
+      - generic [ref=f11e54]:
+        - generic [ref=f11e55]:
+          - generic [ref=f11e56]: AZ
+          - generic [ref=f11e58]: Ahsan Zubair
+          - generic [ref=f11e59]: Admin
+        - button "Sign Out" [ref=f11e60] [cursor=pointer]
+    - generic [ref=f11e591]:
+      - generic [ref=f11e592]:
+        - heading "Company Information" [level=1] [ref=f11e593]
+        - paragraph [ref=f11e594]: This is the one place your practice details live. Update it here and it flows everywhere else — the dashboard header, generated forms, and every new practitioner you add in Staff Directory.
+      - generic [ref=f11e595]:
+        - button "Company Information" [ref=f11e596] [cursor=pointer]
+        - button "EIMS Compliance Reference" [ref=f11e597] [cursor=pointer]
+        - button "Dropdown Options" [ref=f11e598] [cursor=pointer]
+      - generic [ref=f11e599]:
+        - generic [ref=f11e600]:
+          - img "Company logo" [ref=f11e601]
+          - generic [ref=f11e602]:
+            - generic [ref=f11e603] [cursor=pointer]: Upload logo
+            - paragraph [ref=f11e604]: PNG or SVG, shown in your dashboard header and on generated PDFs
+        - heading "Practice Details" [level=2] [ref=f11e605]
+        - generic [ref=f11e606]:
+          - generic [ref=f11e607]:
+            - generic [ref=f11e608]: Practice / Display Name
+            - textbox [ref=f11e609]: IZAYA Consulting, LLC
+          - generic [ref=f11e610]:
+            - generic [ref=f11e611]:
+              - text: Legal Entity Name
+              - generic [ref=f11e612]: (shown on invoices & state forms)
+            - textbox [ref=f11e613]: IZAYA Consulting, LLC
+          - generic [ref=f11e614]:
+            - generic [ref=f11e615]: State
+            - combobox [ref=f11e616]:
+              - generic: New Jersey
+          - generic [ref=f11e617]:
+            - generic [ref=f11e618]: Time Zone
+            - combobox [ref=f11e619]:
+              - generic: Eastern (ET)
+          - generic [ref=f11e620]:
+            - generic [ref=f11e621]: Practice Address
+            - textbox [ref=f11e622]: NJ 08857
+          - generic [ref=f11e623]:
+            - generic [ref=f11e624]: Phone
+            - textbox [ref=f11e625]: 732-400-5668
+          - generic [ref=f11e626]:
+            - generic [ref=f11e627]: Billing / Support Email
+            - textbox [ref=f11e628]: support@izayaedge.com
+        - generic [ref=f11e629]: Your State determines which compliance form and billing codes are used when generating forms — currently New Jersey (NJEIS). This is locked to prevent mid-cycle billing mismatches; contact support to change it.
+        - button "Save Company Information" [ref=f11e634] [cursor=pointer]

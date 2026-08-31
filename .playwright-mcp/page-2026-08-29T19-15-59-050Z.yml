@@ -1,0 +1,51 @@
+- generic [ref=f14e71]:
+  - main [ref=f14e72]:
+    - generic [ref=f14e73]:
+      - generic [ref=f14e74]:
+        - generic [ref=f14e75]:
+          - paragraph [ref=f14e76]: IZAYA Early Intervention Services
+          - paragraph [ref=f14e77]: Welcome back,
+          - heading "Linda Jones" [level=1] [ref=f14e78]
+        - button "Select a patient" [ref=f14e79]
+        - button "Refresh" [ref=f14e85]
+      - generic [ref=f14e91]:
+        - generic [ref=f14e92]:
+          - generic [ref=f14e93]:
+            - generic [ref=f14e94]: "8"
+            - generic [ref=f14e95]: Logs this month
+          - generic [ref=f14e96]:
+            - generic [ref=f14e97]: "9.6"
+            - generic [ref=f14e98]: Hours this month
+          - generic [ref=f14e99]:
+            - generic [ref=f14e100]: "15"
+            - generic [ref=f14e101]: In pipeline
+        - generic [ref=f14e102]:
+          - paragraph [ref=f14e103]: Jump back in
+          - generic [ref=f14e104]:
+            - button "Michael S." [ref=f14e105]
+            - button "Sarah W." [ref=f14e106]
+        - generic [ref=f14e107]:
+          - paragraph [ref=f14e109]: Your Schedule
+          - generic [ref=f14e110]:
+            - paragraph [ref=f14e111]: No scheduled appointments
+            - button "Schedule a session" [ref=f14e112]
+      - button "Log a Session" [ref=f14e116]
+  - navigation "Primary" [ref=f14e117]:
+    - list [ref=f14e118]:
+      - listitem [ref=f14e119]:
+        - link [ref=f14e120] [cursor=pointer]:
+          - /url: /EIS/home
+      - listitem [ref=f14e126]:
+        - link [ref=f14e127] [cursor=pointer]:
+          - /url: /EIS/roster
+      - listitem [ref=f14e134]:
+        - link "1 Inbox" [ref=f14e135] [cursor=pointer]:
+          - /url: /EIS/inbox
+          - generic [ref=f14e136]: "1"
+          - text: Inbox
+      - listitem [ref=f14e141]:
+        - link [ref=f14e142] [cursor=pointer]:
+          - /url: /EIS/messages
+      - listitem [ref=f14e146]:
+        - link [ref=f14e147] [cursor=pointer]:
+          - /url: /EIS/profile

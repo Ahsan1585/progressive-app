@@ -1,0 +1,24 @@
+- generic [ref=f1e3]:
+  - generic [ref=f1e6]:
+    - generic [ref=f1e7]:
+      - img "Progressive Steps" [ref=f1e8]
+      - paragraph [ref=f1e9]: Sign in to continue
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]:
+        - generic [ref=f1e12]: Email Address
+        - textbox "Email Address" [ref=f1e13]:
+          - /placeholder: name@example.com
+      - generic [ref=f1e14]:
+        - generic [ref=f1e15]:
+          - generic [ref=f1e16]: Password
+          - link "Forgot password?" [ref=f1e17] [cursor=pointer]:
+            - /url: /forgot-password
+        - generic [ref=f1e18]:
+          - textbox "Password" [ref=f1e19]
+          - button "Show password" [ref=f1e20]
+      - button "Sign In" [ref=f1e24]
+  - generic [ref=f1e25]:
+    - generic [ref=f1e26]:
+      - generic [ref=f1e30]: Securely powered by
+      - img "Izaya Edge" [ref=f1e31]
+    - paragraph [ref=f1e32]: Izaya Consulting LLC

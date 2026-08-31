@@ -1,0 +1,527 @@
+- generic:
+  - generic:
+    - generic:
+      - button
+      - complementary:
+        - generic:
+          - generic:
+            - heading [level=1]: Progressive Steps for Early Intervention Admin Portal
+        - navigation:
+          - button: Staff Directory
+          - button: Master Reports
+          - button: Billing & Invoices
+        - generic:
+          - paragraph: Useful Links
+          - button: Company Information
+        - generic:
+          - paragraph: Securely Powered by Izaya
+          - paragraph: Early Intervention Simplified
+      - main:
+        - generic:
+          - generic:
+            - button
+            - generic: Early Intervention Simplified
+          - heading [level=2]: Billing & Invoices
+          - generic:
+            - generic:
+              - generic: JR
+              - generic: Jason Roy
+              - generic: Admin
+            - button:
+              - generic: Sign Out
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - button: Pending Bills
+                - button: Completed Bills
+                - button: Invoice Status
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Beta
+                    - generic: Try the new Batch Review layout for this queue — same data, same actions, different view.
+                  - switch [checked]
+                - generic:
+                  - generic:
+                    - generic: Search Practitioners
+                    - generic:
+                      - textbox:
+                        - /placeholder: Search by name or ID...
+                  - generic:
+                    - generic:
+                      - generic: Start Date
+                      - textbox
+                    - generic:
+                      - generic: End Date
+                      - textbox
+                    - button: Reset
+                    - button: Refresh
+                - generic:
+                  - generic:
+                    - generic: Billing Period
+                    - textbox: 2026-06
+                    - generic:
+                      - button:
+                        - generic: Biweekly 1
+                        - generic: Jun 1–15
+                      - button:
+                        - generic: Biweekly 2
+                        - generic: Jun 16–30
+                      - button:
+                        - generic: Monthly
+                        - generic: Jun 1–30
+                    - generic: Reviewing Biweekly 1 (2026-06-01 – 2026-06-15)
+                  - generic:
+                    - generic:
+                      - generic: Practitioner Queue
+                      - generic:
+                        - generic:
+                          - textbox:
+                            - /placeholder: Search practitioner...
+                      - generic:
+                        - generic:
+                          - button:
+                            - generic: AL
+                            - generic:
+                              - generic: Amel Laura
+                              - generic: 5 sessions
+                            - generic: Locked to you
+                          - generic:
+                            - generic:
+                              - generic: Locked to you
+                              - button: Release
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Roni Cam
+                                - generic: 6/2/26
+                            - generic:
+                              - generic: S:1
+                              - generic: I/T
+                              - generic: L:8
+                            - generic:
+                              - generic: Returned
+                              - generic: 1h 0m
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Roni Cam
+                                - generic: 6/3/26
+                            - generic:
+                              - generic: S:1
+                              - generic: I/T
+                              - generic: L:8
+                            - generic:
+                              - generic: Returned
+                              - generic: 1h 0m
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Roni Cam
+                                - generic: 6/9/26
+                            - generic:
+                              - generic: S:1
+                              - generic: I/T
+                              - generic: L:8
+                            - generic:
+                              - generic: Pending
+                              - generic: 1h 0m
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Roni Cam
+                                - generic: 6/11/26
+                            - generic:
+                              - generic: S:1
+                              - generic: I/T
+                              - generic: L:8
+                            - generic:
+                              - generic: Pending
+                              - generic: 1h 0m
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Salim Cam
+                                - generic: 6/15/26
+                            - generic:
+                              - generic: S:1
+                              - generic: I/T
+                              - generic: L:8
+                            - generic:
+                              - generic: Pending
+                              - generic: 1h 0m
+                          - generic:
+                            - generic:
+                              - generic: 3 billable
+                              - generic: 2 held/returned
+                              - generic: 0 excluded
+                            - button [disabled]: Generate & Issue
+                        - generic:
+                          - button:
+                            - generic: AB
+                            - generic:
+                              - generic: Amy Boyd
+                              - generic: 4 sessions
+                            - generic: Locked by Ashfaq Ahmad
+                        - generic:
+                          - button:
+                            - generic: NC
+                            - generic:
+                              - generic: Nath Castr
+                              - generic: 5 sessions
+                    - generic:
+                      - generic: Review Panel
+                      - generic:
+                        - generic:
+                          - button: Session Detail
+                          - button: Compliance Analysis
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: Compliance Analysis
+                              - paragraph: "Each session below is matched to the state's reference document by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time."
+                          - generic: Reference document (from Company Information)
+                          - button:
+                            - generic: Excel File for EIMS verification.xlsx
+                            - generic: on file — click to download
+                          - button: Re-run analysis
+                          - generic:
+                            - generic:
+                              - generic: "5"
+                              - generic: Sessions Checked
+                            - generic:
+                              - generic: "0"
+                              - generic: Match State Codes
+                            - button:
+                              - generic: "5"
+                              - generic: Flagged — click to filter
+                          - generic:
+                            - generic: 1 session in the state document for this practitioner's patients aren't reflected in this period's logs
+                            - list:
+                              - listitem: Cam, Roni — 6/4/26 (Foreign Language Interpreter)
+                          - generic: Side-by-side comparison · Amel Laura
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Roni Cam
+                                  - text: 6/2/26
+                                - generic:
+                                  - generic: 2 fields flagged
+                                  - generic: Returned
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: State Record
+                                - rowgroup:
+                                  - row:
+                                    - cell: Child ID
+                                    - cell: "800174879"
+                                    - cell: "800174879"
+                                  - row:
+                                    - cell: Child Name
+                                    - cell: Roni Cam
+                                    - cell: Cam, Roni
+                                  - row:
+                                    - cell: Practitioner
+                                    - cell: Amel Laura
+                                    - cell: Amel Laura
+                                  - row:
+                                    - cell: Service Date
+                                    - cell: 2026-06-02
+                                    - cell: 2026-06-02
+                                  - row:
+                                    - cell: Start Time
+                                    - cell: 12:00
+                                    - cell: 12:00
+                                  - row:
+                                    - cell: End Time
+                                    - cell: 13:00
+                                    - cell: 13:00
+                                  - row:
+                                    - cell: Service Type
+                                    - cell: Interpreter/Translator
+                                    - cell: Interpreter/Translator
+                                  - row:
+                                    - cell: Location
+                                    - cell: Phone/Video Conferencing
+                                    - cell: Phone/Video Conferencing
+                                  - row:
+                                    - cell: Group Size Category
+                                    - cell: "-"
+                                    - cell: Consultation/Facilitation with Others
+                                  - row:
+                                    - cell: Logged Date
+                                    - cell: 2026-07-25
+                                    - cell: 2026-06-04
+                                  - row:
+                                    - cell: IFSP Event ID
+                                    - cell: "-"
+                                    - cell: "-"
+                                  - row:
+                                    - cell: Comments
+                                    - cell: "-"
+                                    - cell: Comments
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Roni Cam
+                                  - text: 6/3/26
+                                - generic:
+                                  - generic: 2 fields flagged
+                                  - generic: Returned
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: State Record
+                                - rowgroup:
+                                  - row:
+                                    - cell: Child ID
+                                    - cell: "800174879"
+                                    - cell: "800174879"
+                                  - row:
+                                    - cell: Child Name
+                                    - cell: Roni Cam
+                                    - cell: Cam, Roni
+                                  - row:
+                                    - cell: Practitioner
+                                    - cell: Amel Laura
+                                    - cell: Amel Laura
+                                  - row:
+                                    - cell: Service Date
+                                    - cell: 2026-06-03
+                                    - cell: 2026-06-03
+                                  - row:
+                                    - cell: Start Time
+                                    - cell: 12:05
+                                    - cell: 12:05
+                                  - row:
+                                    - cell: End Time
+                                    - cell: 13:05
+                                    - cell: 13:05
+                                  - row:
+                                    - cell: Service Type
+                                    - cell: Interpreter/Translator
+                                    - cell: Interpreter/Translator
+                                  - row:
+                                    - cell: Location
+                                    - cell: Phone/Video Conferencing
+                                    - cell: Phone/Video Conferencing
+                                  - row:
+                                    - cell: Group Size Category
+                                    - cell: "-"
+                                    - cell: Consultation/Facilitation with Others
+                                  - row:
+                                    - cell: Logged Date
+                                    - cell: 2026-07-25
+                                    - cell: 2026-07-08
+                                  - row:
+                                    - cell: IFSP Event ID
+                                    - cell: "-"
+                                    - cell: "-"
+                                  - row:
+                                    - cell: Comments
+                                    - cell: "-"
+                                    - cell: Comments
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Roni Cam
+                                  - text: 6/9/26
+                                - generic:
+                                  - generic: 2 fields flagged
+                                  - combobox
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: State Record
+                                - rowgroup:
+                                  - row:
+                                    - cell: Child ID
+                                    - cell: "800174879"
+                                    - cell: "800174879"
+                                  - row:
+                                    - cell: Child Name
+                                    - cell: Roni Cam
+                                    - cell: Cam, Roni
+                                  - row:
+                                    - cell: Practitioner
+                                    - cell: Amel Laura
+                                    - cell: Amel Laura
+                                  - row:
+                                    - cell: Service Date
+                                    - cell: 2026-06-09
+                                    - cell: 2026-06-09
+                                  - row:
+                                    - cell: Start Time
+                                    - cell: 12:00
+                                    - cell: 12:00
+                                  - row:
+                                    - cell: End Time
+                                    - cell: 13:00
+                                    - cell: 13:00
+                                  - row:
+                                    - cell: Service Type
+                                    - cell: Interpreter/Translator
+                                    - cell: Interpreter/Translator
+                                  - row:
+                                    - cell: Location
+                                    - cell: Phone/Video Conferencing
+                                    - cell: Phone/Video Conferencing
+                                  - row:
+                                    - cell: Group Size Category
+                                    - cell: "-"
+                                    - cell: Consultation/Facilitation with Others
+                                  - row:
+                                    - cell: Logged Date
+                                    - cell: 2026-07-25
+                                    - cell: 2026-07-08
+                                  - row:
+                                    - cell: IFSP Event ID
+                                    - cell: "-"
+                                    - cell: "-"
+                                  - row:
+                                    - cell: Comments
+                                    - cell: "-"
+                                    - cell: Comments
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Roni Cam
+                                  - text: 6/11/26
+                                - generic:
+                                  - generic: 2 fields flagged
+                                  - combobox
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: State Record
+                                - rowgroup:
+                                  - row:
+                                    - cell: Child ID
+                                    - cell: "800174879"
+                                    - cell: "800174879"
+                                  - row:
+                                    - cell: Child Name
+                                    - cell: Roni Cam
+                                    - cell: Cam, Roni
+                                  - row:
+                                    - cell: Practitioner
+                                    - cell: Amel Laura
+                                    - cell: Amel Laura
+                                  - row:
+                                    - cell: Service Date
+                                    - cell: 2026-06-11
+                                    - cell: 2026-06-11
+                                  - row:
+                                    - cell: Start Time
+                                    - cell: 12:05
+                                    - cell: 12:05
+                                  - row:
+                                    - cell: End Time
+                                    - cell: 13:05
+                                    - cell: 13:05
+                                  - row:
+                                    - cell: Service Type
+                                    - cell: Interpreter/Translator
+                                    - cell: Interpreter/Translator
+                                  - row:
+                                    - cell: Location
+                                    - cell: Phone/Video Conferencing
+                                    - cell: Phone/Video Conferencing
+                                  - row:
+                                    - cell: Group Size Category
+                                    - cell: "-"
+                                    - cell: Consultation/Facilitation with Others
+                                  - row:
+                                    - cell: Logged Date
+                                    - cell: 2026-07-25
+                                    - cell: 2026-07-08
+                                  - row:
+                                    - cell: IFSP Event ID
+                                    - cell: "-"
+                                    - cell: "-"
+                                  - row:
+                                    - cell: Comments
+                                    - cell: "-"
+                                    - cell: Comments
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Salim Cam
+                                  - text: 6/15/26
+                                - generic:
+                                  - generic: 2 fields flagged
+                                  - combobox
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: State Record
+                                - rowgroup:
+                                  - row:
+                                    - cell: Child ID
+                                    - cell: "800197110"
+                                    - cell: "800197110"
+                                  - row:
+                                    - cell: Child Name
+                                    - cell: Salim Cam
+                                    - cell: Cam, Salim
+                                  - row:
+                                    - cell: Practitioner
+                                    - cell: Amel Laura
+                                    - cell: Amel Laura
+                                  - row:
+                                    - cell: Service Date
+                                    - cell: 2026-06-15
+                                    - cell: 2026-06-15
+                                  - row:
+                                    - cell: Start Time
+                                    - cell: 12:05
+                                    - cell: 12:05
+                                  - row:
+                                    - cell: End Time
+                                    - cell: 13:05
+                                    - cell: 13:05
+                                  - row:
+                                    - cell: Service Type
+                                    - cell: Interpreter/Translator
+                                    - cell: Interpreter/Translator
+                                  - row:
+                                    - cell: Location
+                                    - cell: Phone/Video Conferencing
+                                    - cell: Phone/Video Conferencing
+                                  - row:
+                                    - cell: Group Size Category
+                                    - cell: "-"
+                                    - cell: Consultation/Facilitation with Others
+                                  - row:
+                                    - cell: Logged Date
+                                    - cell: 2026-07-25
+                                    - cell: 2026-07-08
+                                  - row:
+                                    - cell: IFSP Event ID
+                                    - cell: "-"
+                                    - cell: "-"
+                                  - row:
+                                    - cell: Comments
+                                    - cell: "-"
+                                    - cell: Comments
+  - dialog [ref=f29e1261]:
+    - heading "Return this log" [level=2] [ref=f29e1263]
+    - paragraph [ref=f29e1264]: This log will go back to the practitioner for revision. A note is required.
+    - textbox "Explain what needs to change..." [active] [ref=f29e1265]
+    - generic [ref=f29e1266]:
+      - button "Cancel" [ref=f29e1267] [cursor=pointer]
+      - button "Return Log" [disabled]
+    - button "Close" [ref=f29e1268]

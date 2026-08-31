@@ -1,0 +1,26 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - img "Progressive Steps"
+      - paragraph [ref=e7]: Practitioner Portal
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]: Email Address
+        - textbox "Email Address" [ref=e11]:
+          - /placeholder: name@example.com
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - generic [ref=e14]: Password
+          - link "Forgot password?" [ref=e15] [cursor=pointer]:
+            - /url: /forgot-password
+        - textbox "Password" [ref=e16]
+      - button "Sign In" [ref=e17]
+    - paragraph [ref=e19]:
+      - text: Are you a system administrator?
+      - link "Admin Portal Access" [ref=e20] [cursor=pointer]:
+        - /url: /admin-login
+  - paragraph [ref=e22]:
+    - text: Powered by
+    - link "Izaya Edge" [ref=e23] [cursor=pointer]:
+      - /url: https://izayaedge.com
+    - text: ", Izaya Consulting LLC."

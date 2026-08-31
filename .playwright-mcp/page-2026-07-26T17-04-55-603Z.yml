@@ -1,0 +1,359 @@
+- generic [ref=f35e3]:
+  - button "Show navigation" [ref=f35e4] [cursor=pointer]
+  - complementary [ref=f35e8]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f35e77]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f35e12]:
+      - button "Staff Directory" [ref=f35e13] [cursor=pointer]
+      - button "Master Reports" [ref=f35e16] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f35e19] [cursor=pointer]
+    - generic [ref=f35e22]:
+      - paragraph [ref=f35e23]: Useful Links
+      - button "Company Information" [ref=f35e24] [cursor=pointer]
+    - generic [ref=f35e27]:
+      - img "Izaya" [ref=f35e28]
+      - paragraph [ref=f35e29]: Securely Powered by Izaya
+      - paragraph [ref=f35e30]: Early Intervention Simplified
+  - main [ref=f35e31]:
+    - generic [ref=f35e32]:
+      - generic [ref=f35e33]:
+        - button "Toggle menu" [ref=f35e34] [cursor=pointer]
+        - generic [ref=f35e37]: Early Intervention Simplified
+      - heading "Company Information" [level=2] [ref=f35e78]
+      - generic [ref=f35e40]:
+        - generic [ref=f35e79]:
+          - generic [ref=f35e80]: JR
+          - generic [ref=f35e82]: Jason Roy
+          - generic [ref=f35e83]: Admin
+        - button "Sign Out" [ref=f35e41] [cursor=pointer]
+    - generic [ref=f35e84]:
+      - generic [ref=f35e85]:
+        - heading "Company Information" [level=1] [ref=f35e86]
+        - paragraph [ref=f35e87]: Attach and manage the state's required-documentation Excel file used to run Compliance Analysis against practitioner-logged sessions.
+      - generic [ref=f35e88]:
+        - button "Company Information" [ref=f35e89] [cursor=pointer]
+        - button "State Compliance Reference" [ref=f35e90] [cursor=pointer]
+      - generic [ref=f35e127]:
+        - generic [ref=f35e128]:
+          - heading "State Compliance Reference" [level=2] [ref=f35e129]
+          - paragraph [ref=f35e130]: Attach the state's required-documentation Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+        - generic [ref=f35e131]:
+          - generic [ref=f35e136]:
+            - paragraph [ref=f35e137]: MASTER DATA FILE JUNE.xlsx
+            - paragraph [ref=f35e138]: 3.3 MB · Uploaded Jul 26, 2026
+          - generic [ref=f35e140]:
+            - button "Download" [ref=f35e141] [cursor=pointer]
+            - button "Review column matching" [ref=f35e142] [cursor=pointer]
+            - generic [ref=f35e143] [cursor=pointer]: Replace
+            - button "Remove" [ref=f35e144] [cursor=pointer]
+        - generic [ref=f35e145]:
+          - generic [ref=f35e146]:
+            - heading "Match columns" [level=3] [ref=f35e147]
+            - paragraph [ref=f35e148]: Confirm which column in the Excel file feeds each field below. We pre-fill these from the file's headers — review anything highlighted before confirming.
+          - generic [ref=f35e149]:
+            - generic [ref=f35e150]:
+              - generic [ref=f35e151]:
+                - paragraph [ref=f35e152]: Child ID *
+                - generic [ref=f35e153]: Auto-detected
+              - combobox [ref=f35e154]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID" [selected]
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location"
+                - option "Service Date"
+                - option "Start Time"
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Child ID" [ref=f35e155] [cursor=pointer]
+            - generic [ref=f35e158]:
+              - generic [ref=f35e159]:
+                - paragraph [ref=f35e160]: Child Name
+                - generic [ref=f35e161]: Auto-detected
+              - combobox [ref=f35e162]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID"
+                - option "Child Name" [selected]
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location"
+                - option "Service Date"
+                - option "Start Time"
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Child Name" [ref=f35e163] [cursor=pointer]
+            - generic [ref=f35e166]:
+              - generic [ref=f35e167]:
+                - paragraph [ref=f35e168]: Practitioner
+                - generic [ref=f35e169]: Auto-detected
+              - combobox [ref=f35e170]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner" [selected]
+                - option "Child ID"
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location"
+                - option "Service Date"
+                - option "Start Time"
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Practitioner" [ref=f35e171] [cursor=pointer]
+            - generic [ref=f35e174]:
+              - generic [ref=f35e175]:
+                - paragraph [ref=f35e176]: Service Date *
+                - generic [ref=f35e177]: Auto-detected
+              - combobox [ref=f35e178]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID"
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location"
+                - option "Service Date" [selected]
+                - option "Start Time"
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Service Date" [ref=f35e179] [cursor=pointer]
+            - generic [ref=f35e182]:
+              - generic [ref=f35e183]:
+                - paragraph [ref=f35e184]: Start Time
+                - generic [ref=f35e185]: Auto-detected
+              - combobox [ref=f35e186]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID"
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location"
+                - option "Service Date"
+                - option "Start Time" [selected]
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Start Time" [ref=f35e187] [cursor=pointer]
+            - generic [ref=f35e190]:
+              - generic [ref=f35e191]:
+                - paragraph [ref=f35e192]: End Time
+                - generic [ref=f35e193]: Auto-detected
+              - combobox [ref=f35e194]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID"
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location"
+                - option "Service Date"
+                - option "Start Time"
+                - option "End Time" [selected]
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for End Time" [ref=f35e195] [cursor=pointer]
+            - generic [ref=f35e198]:
+              - generic [ref=f35e199]:
+                - paragraph [ref=f35e200]: Service (Service Type code)
+                - generic [ref=f35e201]: Auto-detected
+              - combobox [ref=f35e202]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID"
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service" [selected]
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location"
+                - option "Service Date"
+                - option "Start Time"
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Service (Service Type code)" [ref=f35e203] [cursor=pointer]
+            - generic [ref=f35e206]:
+              - generic [ref=f35e207]:
+                - paragraph [ref=f35e208]: Location
+                - generic [ref=f35e209]: Auto-detected
+              - combobox [ref=f35e210]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID"
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size"
+                - option "Location" [selected]
+                - option "Service Date"
+                - option "Start Time"
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Location" [ref=f35e211] [cursor=pointer]
+            - generic [ref=f35e214]:
+              - generic [ref=f35e215]:
+                - paragraph [ref=f35e216]: Group Size
+                - generic [ref=f35e217]: Auto-detected
+              - combobox [ref=f35e218]:
+                - option "— Not in this file —"
+                - option "REIC"
+                - option "County"
+                - option "EIP Agency"
+                - option "Practitioner"
+                - option "Child ID"
+                - option "Child Name"
+                - option "Child Date of Birth"
+                - option "Service"
+                - option "Service Type"
+                - option "CPT Code(s)"
+                - option "Group Size" [selected]
+                - option "Location"
+                - option "Service Date"
+                - option "Start Time"
+                - option "End Time"
+                - option "Service Time"
+                - option "Logged Date"
+                - option "SPOE Service Coordinator"
+                - option "Ongoing Service Coordination Unit (SCU)"
+                - option "Ongoing Service Coordinator"
+                - option "Comments"
+                - option "Outcome"
+                - option "Parent/Caregiver Present"
+                - option "IFSP Event ID"
+                - option "Date Deleted"
+                - option "Deleted by"
+              - button "Remove column match for Group Size" [ref=f35e219] [cursor=pointer]
+          - generic [ref=f35e222]:
+            - generic [ref=f35e223]:
+              - heading "Custom fields" [level=4] [ref=f35e224]
+              - paragraph [ref=f35e225]: Track additional columns from the file beyond the fields above. Shown in Compliance Analysis as state-only reference info (no match/mismatch check, since there's nothing on our side to compare it to).
+            - button "Add custom field" [ref=f35e226] [cursor=pointer]
+          - generic [ref=f35e229]:
+            - paragraph [ref=f35e230]: 9183 data rows found in this file.
+            - generic [ref=f35e231]:
+              - button "Cancel" [ref=f35e232] [cursor=pointer]
+              - button "Applying..." [disabled]

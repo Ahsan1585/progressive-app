@@ -1,0 +1,38 @@
+- generic [ref=f10e3]:
+  - button "Show navigation" [ref=f10e4] [cursor=pointer]
+  - complementary [ref=f10e8]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f10e11]: Progressive StepsAdmin Portal
+    - navigation [ref=f10e12]:
+      - button "Staff Directory" [ref=f10e13] [cursor=pointer]
+      - button "Master Reports" [ref=f10e16] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f10e19] [cursor=pointer]
+      - button "Company Information" [ref=f10e22] [cursor=pointer]
+    - generic [ref=f10e25]:
+      - img "Izaya" [ref=f10e26]
+      - paragraph [ref=f10e27]: Securely Powered by Izaya
+      - paragraph [ref=f10e28]: Early Intervention Simplified
+  - main [ref=f10e29]:
+    - generic [ref=f10e30]:
+      - generic [ref=f10e31]:
+        - button "Toggle menu" [ref=f10e32] [cursor=pointer]
+        - generic [ref=f10e35]: Early Intervention Simplified
+        - heading "Staff Directory" [level=2] [ref=f10e37]
+      - button "Sign Out" [ref=f10e39] [cursor=pointer]
+    - generic [ref=f10e45]:
+      - generic [ref=f10e46]:
+        - button "Staff Roster" [ref=f10e47] [cursor=pointer]
+        - button "Register New Account" [ref=f10e50] [cursor=pointer]
+      - generic [ref=f10e53]:
+        - generic [ref=f10e54]:
+          - generic [ref=f10e55]:
+            - heading "Staff Roster" [level=2] [ref=f10e58]
+            - generic [ref=f10e59]:
+              - button "Active" [ref=f10e60] [cursor=pointer]
+              - button "Deactivated" [ref=f10e62] [cursor=pointer]
+              - button "All" [ref=f10e64] [cursor=pointer]
+            - generic [ref=f10e66]: 0 members
+          - generic [ref=f10e67]:
+            - textbox "Search by name, email, or position..." [ref=f10e72]
+            - combobox [ref=f10e73]:
+              - generic: All Roles
+        - generic [ref=f10e74]: Loading staff...

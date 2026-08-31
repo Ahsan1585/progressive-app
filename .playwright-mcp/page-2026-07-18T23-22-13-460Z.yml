@@ -1,0 +1,30 @@
+- generic [ref=f38e3]:
+  - generic [ref=f38e6]:
+    - generic [ref=f38e7]:
+      - img "Izaya"
+      - paragraph [ref=f38e8]: Early Intervention Management System
+    - generic [ref=f38e9]:
+      - generic [ref=f38e10]:
+        - generic [ref=f38e11]: Email Address
+        - textbox "Email Address" [ref=f38e12]:
+          - /placeholder: name@example.com
+      - generic [ref=f38e13]:
+        - generic [ref=f38e14]:
+          - generic [ref=f38e15]: Password
+          - link "Forgot password?" [ref=f38e16] [cursor=pointer]:
+            - /url: /forgot-password
+        - generic [ref=f38e17]:
+          - textbox "Password" [ref=f38e18]
+          - button "Show password" [ref=f38e19]
+      - button "Sign In" [ref=f38e23]
+  - generic [ref=f38e24]:
+    - generic [ref=f38e25]:
+      - generic [ref=f38e29]: Secured by Izaya
+      - generic [ref=f38e30]: ·
+      - generic [ref=f38e34]: HIPAA Compliant
+    - paragraph [ref=f38e35]: Izaya Consulting LLC
+    - generic [ref=f38e36]:
+      - link "Get it on Android" [ref=f38e37] [cursor=pointer]:
+        - /url: https://mobile-pied-two.vercel.app/login?install=1
+      - link "Get it on iPhone" [ref=f38e40] [cursor=pointer]:
+        - /url: https://mobile-pied-two.vercel.app/login?install=1

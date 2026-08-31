@@ -1,0 +1,79 @@
+- generic:
+  - generic:
+    - generic:
+      - banner:
+        - button
+        - heading [level=1]: Log Session
+      - generic:
+        - paragraph: Logging session for
+        - paragraph: Mark Jose Witword
+      - generic:
+        - button: Details
+        - button: Codes
+        - button: Signatures
+      - generic:
+        - generic:
+          - heading [level=2]: Visit details
+          - generic:
+            - generic: Service date
+            - textbox: 2026-08-02
+          - generic:
+            - generic:
+              - generic: Start time
+              - textbox: 10:00
+            - generic:
+              - generic: End time
+              - textbox: 11:00
+          - generic:
+            - checkbox
+            - text: Session was cancelled — log with 0 time
+          - generic:
+            - paragraph: Total time
+            - paragraph: 1.00 hrs (60 min)
+        - generic:
+          - heading [level=2]: Service codes
+          - generic:
+            - generic: Service type
+            - button:
+              - generic: Evaluation
+          - generic:
+            - generic: Status
+            - button:
+              - generic: Direct Child Service
+          - generic:
+            - generic: Location
+            - button:
+              - generic: Home
+          - generic:
+            - generic: Group size category
+            - button [expanded]:
+              - generic: Direct Child Service - Individual
+        - generic:
+          - heading [level=2]: Signatures
+          - generic:
+            - generic: Parent/caregiver signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+          - generic:
+            - generic: Practitioner signature
+            - button: Use my saved signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+      - generic:
+        - paragraph: 2 fields still missing
+        - generic:
+          - button: Cancel
+          - button: Save encounter
+  - dialog [ref=f1e361]:
+    - heading "Group size category" [level=2] [ref=f1e365]
+    - listbox "Group size category" [ref=f1e366]:
+      - listitem [ref=f1e367]:
+        - option "Direct Child Service - Individual" [active] [selected] [ref=f1e368]
+      - listitem [ref=f1e371]:
+        - option "Consultation/Facilitation with Others" [ref=f1e372]

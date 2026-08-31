@@ -1,0 +1,10 @@
+# The frontend Vercel project's Root Directory setting is "frontend", but
+# `vercel --prod` run from the repo root (needed so that setting resolves
+# correctly — see prior deploy notes) uploads the *whole* repo first. These
+# directories are irrelevant to that deploy and, in desktop/'s case, contain
+# files well over Vercel's 100MB upload limit (the packaged installer .exe,
+# node_modules).
+desktop/node_modules
+desktop/release
+mobile/node_modules
+backend/node_modules

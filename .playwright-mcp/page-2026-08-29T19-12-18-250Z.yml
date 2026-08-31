@@ -1,0 +1,187 @@
+- generic [ref=f10e6]:
+  - complementary [ref=f10e7]:
+    - heading "IZAYA Early Intervention Services Admin Portal" [level=1] [ref=f10e10]:
+      - generic [ref=f10e11]: IZAYA Early Intervention Services
+      - generic [ref=f10e12]: Admin Portal
+    - navigation [ref=f10e13]:
+      - button "Staff Directory" [ref=f10e14] [cursor=pointer]
+      - button "Master Reports" [ref=f10e17] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f10e20] [cursor=pointer]
+    - generic [ref=f10e23]:
+      - paragraph [ref=f10e24]: Useful Links
+      - button "Company Information" [ref=f10e25] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f10e28] [cursor=pointer]
+      - button "Audit Log" [ref=f10e31] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f10e34] [cursor=pointer]
+    - generic [ref=f10e38]:
+      - generic [ref=f10e39]:
+        - generic [ref=f10e40]:
+          - img "IZAYA" [ref=f10e41]
+          - generic [ref=f10e51]: EIS
+        - generic [ref=f10e52]: Early Intervention Simplified
+      - paragraph [ref=f10e53]: Securely Powered by Izaya
+  - main [ref=f10e54]:
+    - generic [ref=f10e55]:
+      - generic [ref=f10e56]:
+        - button "Toggle menu" [ref=f10e57] [cursor=pointer]
+        - generic [ref=f10e60]: IZAYA Early Intervention Services
+      - heading "Billing & Invoices" [level=2] [ref=f10e62]
+      - generic [ref=f10e63]:
+        - generic [ref=f10e64]:
+          - generic [ref=f10e65]: AA
+          - generic [ref=f10e67]: Ahsan Ashfaq
+          - generic [ref=f10e68]: Admin
+        - button "Sign Out" [ref=f10e69] [cursor=pointer]
+    - generic [ref=f10e73]:
+      - generic [ref=f10e77]:
+        - heading "Free trial" [level=4] [ref=f10e78]
+        - paragraph [ref=f10e79]: 20 days left in your free trial.
+      - generic [ref=f10e81]:
+        - generic [ref=f10e82]:
+          - button "Pending Bills" [ref=f10e83] [cursor=pointer]
+          - button "Completed Bills" [ref=f10e84] [cursor=pointer]
+          - button "Invoice Status" [ref=f10e85] [cursor=pointer]
+        - generic [ref=f10e87]:
+          - generic [ref=f10e88]:
+            - generic [ref=f10e89]: Billing Period
+            - textbox [ref=f10e93]: 2026-08
+            - generic [ref=f10e94]:
+              - button "Biweekly 1 Aug 1–15" [ref=f10e95] [cursor=pointer]:
+                - generic [ref=f10e96]: Biweekly 1
+                - generic [ref=f10e97]: Aug 1–15
+              - button "Biweekly 2 Aug 16–31" [disabled] [ref=f10e98]:
+                - generic [ref=f10e99]: Biweekly 2
+                - generic [ref=f10e103]: Aug 16–31
+              - button "Monthly Aug 1–31" [disabled] [ref=f10e104]:
+                - generic [ref=f10e105]: Monthly
+                - generic [ref=f10e109]: Aug 1–31
+            - generic [ref=f10e110]: Reviewing Biweekly 1 (2026-08-01 – 2026-08-15)
+          - generic [ref=f10e111]:
+            - generic [ref=f10e112]:
+              - generic [ref=f10e113]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f10e125]
+              - generic [ref=f10e127]:
+                - button "LJ Linda Jones 3 sessions Locked to you" [ref=f10e128] [cursor=pointer]:
+                  - generic [ref=f10e129]: LJ
+                  - generic [ref=f10e130]:
+                    - generic [ref=f10e131]: Linda Jones
+                    - generic [ref=f10e132]: 3 sessions
+                  - generic [ref=f10e133]: Locked to you
+                - generic [ref=f10e140]:
+                  - generic [ref=f10e141]: Locked to you
+                  - button "Release" [ref=f10e145] [cursor=pointer]
+                - generic [ref=f10e146] [cursor=pointer]:
+                  - generic [ref=f10e149]:
+                    - generic [ref=f10e150]: Michael Smith
+                    - generic [ref=f10e151]: 8/7/26
+                  - generic [ref=f10e152]:
+                    - generic "Service Status" [ref=f10e153]: S:1
+                    - generic "Service Type" [ref=f10e154]: DI
+                    - generic "Service Location" [ref=f10e155]: L:2
+                  - generic [ref=f10e156]:
+                    - generic [ref=f10e157]: Approved
+                    - generic [ref=f10e158]: 2h 29m
+                - generic [ref=f10e161] [cursor=pointer]:
+                  - generic [ref=f10e164]:
+                    - generic [ref=f10e165]: Michael Smith
+                    - generic [ref=f10e166]: 8/12/26
+                  - generic [ref=f10e167]:
+                    - generic "Service Status" [ref=f10e168]: S:TPC
+                    - generic "Service Type" [ref=f10e169]: DI
+                    - generic "Service Location" [ref=f10e170]: L:6
+                  - generic [ref=f10e171]:
+                    - generic [ref=f10e172]: Approved
+                    - generic [ref=f10e173]: 1h 36m
+                - generic [ref=f10e176] [cursor=pointer]:
+                  - generic [ref=f10e179]:
+                    - generic [ref=f10e180]: Michael Smith
+                    - generic [ref=f10e181]: 8/12/26
+                  - generic [ref=f10e182]:
+                    - generic "Service Status" [ref=f10e183]: S:TPC
+                    - generic "Service Type" [ref=f10e184]: DI
+                    - generic "Service Location" [ref=f10e185]: L:7
+                  - generic [ref=f10e186]:
+                    - generic [ref=f10e187]: Declined
+                    - generic [ref=f10e188]: 0m
+                - generic [ref=f10e191]:
+                  - generic [ref=f10e192]:
+                    - generic [ref=f10e193]: 2 billable
+                    - generic [ref=f10e194]: 0 held/returned
+                    - generic [ref=f10e195]: 1 excluded
+                  - button "Generate & Issue" [ref=f10e196] [cursor=pointer]
+            - generic [ref=f10e197]:
+              - generic [ref=f10e198]: Review Panel
+              - generic [ref=f10e203]:
+                - generic [ref=f10e204]:
+                  - button "Session Detail" [ref=f10e212] [cursor=pointer]
+                  - button "Compliance Analysis" [ref=f10e213] [cursor=pointer]
+                  - button "Compliance Matching" [ref=f10e217] [cursor=pointer]
+                - generic [ref=f10e221]:
+                  - generic [ref=f10e222]: August 7, 2026
+                  - heading "Michael Smith" [level=2] [ref=f10e223]
+                  - paragraph [ref=f10e224]: DI session
+                  - generic [ref=f10e225]: Service Codes
+                  - generic [ref=f10e226]:
+                    - generic [ref=f10e227]:
+                      - generic [ref=f10e228]: Status
+                      - generic [ref=f10e229]: "1"
+                      - generic [ref=f10e230]: Direct Child Service
+                    - generic [ref=f10e231]:
+                      - generic [ref=f10e232]: Type
+                      - generic [ref=f10e233]: DI
+                      - generic [ref=f10e234]: Developmental Intervention
+                    - generic [ref=f10e235]:
+                      - generic [ref=f10e236]: Location
+                      - generic [ref=f10e237]: "2"
+                      - generic [ref=f10e238]: Residential Facility
+                    - generic [ref=f10e239]:
+                      - generic [ref=f10e240]: Group Size
+                      - generic [ref=f10e241]: individual
+                      - generic [ref=f10e242]: Direct Child Service - Individual
+                  - generic [ref=f10e243]: Session Time
+                  - generic [ref=f10e244]:
+                    - generic [ref=f10e245]:
+                      - generic [ref=f10e246]: Start
+                      - generic [ref=f10e247]: 7:01 AM
+                    - generic [ref=f10e248]:
+                      - generic [ref=f10e249]: End
+                      - generic [ref=f10e250]: 9:30 AM
+                    - generic [ref=f10e251]:
+                      - generic [ref=f10e252]: Total
+                      - generic [ref=f10e253]: 2h 29m
+                  - generic [ref=f10e254]:
+                    - button "Approved" [ref=f10e255] [cursor=pointer]
+                    - button "Return" [ref=f10e259] [cursor=pointer]
+                    - button "Reject" [ref=f10e264] [cursor=pointer]
+                    - button "Hold" [ref=f10e269] [cursor=pointer]
+                  - generic [ref=f10e274]:
+                    - generic [ref=f10e275]: Comment thread with Linda Jones
+                    - generic [ref=f10e279]:
+                      - generic [ref=f10e281]:
+                        - generic [ref=f10e282]:
+                          - generic [ref=f10e283]: Practitioner · Linda Jones
+                          - generic [ref=f10e284]: Aug 7, 5:19 PM
+                        - paragraph [ref=f10e285]: Little Mike has shown great progress and is interacting well with everyone as part of the group activity.
+                      - generic [ref=f10e287]:
+                        - generic [ref=f10e288]:
+                          - generic [ref=f10e289]: Billing · Ahsan Ashfaq
+                          - generic [ref=f10e290]: Aug 25, 9:31 PM
+                        - paragraph [ref=f10e291]: approving based on exception made.
+                      - generic [ref=f10e293]:
+                        - generic [ref=f10e294]:
+                          - generic [ref=f10e295]: Billing · Jon Doe
+                          - generic [ref=f10e296]: Aug 25, 9:37 PM
+                        - paragraph [ref=f10e297]: retretretdsfsdf
+                      - generic [ref=f10e299]:
+                        - generic [ref=f10e300]:
+                          - generic [ref=f10e301]: Practitioner · Linda Jones
+                          - generic [ref=f10e302]: Aug 25, 9:41 PM
+                        - paragraph [ref=f10e303]: Fixed it
+                      - generic [ref=f10e305]:
+                        - generic [ref=f10e306]:
+                          - generic [ref=f10e307]: Billing · Jon Doe
+                          - generic [ref=f10e308]: Aug 25, 9:48 PM
+                        - paragraph [ref=f10e309]: approving it for now
+                    - generic [ref=f10e310]:
+                      - textbox "Add a note for the practitioner..." [ref=f10e311]
+                      - button "Send" [disabled]

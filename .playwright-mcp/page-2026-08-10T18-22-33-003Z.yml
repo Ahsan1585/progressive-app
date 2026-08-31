@@ -1,0 +1,19 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Cookie banner" [ref=e17]:
+    - generic [ref=e19]:
+      - text: We use cookies to enhance your development experience and keep your data secure.
+      - link "Privacy Policy" [ref=e20] [cursor=pointer]:
+        - /url: /privacy
+      - text: ·
+      - link "Cookie Policy" [ref=e21] [cursor=pointer]:
+        - /url: /cookie-policy
+    - generic [ref=e23]:
+      - button "Manage preferences" [ref=e24] [cursor=pointer]
+      - button "OK" [ref=e27] [cursor=pointer]
+  - generic [ref=e84]:
+    - img "Lovable" [ref=e85]
+    - paragraph [ref=e95]: This preview link isn't valid
+    - paragraph [ref=e96]: Ask the project owner for a new link.
+  - region "Notifications, shortcut alt+T"

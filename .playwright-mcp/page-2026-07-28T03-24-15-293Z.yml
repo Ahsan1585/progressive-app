@@ -1,0 +1,197 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "IZAYA home" [ref=e6] [cursor=pointer]:
+        - /url: "#top"
+        - img "IZAYA" [ref=e7]
+      - generic [ref=e17]: Early Intervention Simplified
+    - generic [ref=e18]:
+      - link "Why Izaya" [ref=e19] [cursor=pointer]:
+        - /url: "#features"
+      - link "The Moat" [ref=e20] [cursor=pointer]:
+        - /url: "#moat"
+      - link "Get the App" [ref=e21] [cursor=pointer]:
+        - /url: "#download"
+      - link "Sign In" [ref=e22] [cursor=pointer]:
+        - /url: "#login"
+  - banner [ref=e23]:
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]: Built for New Jersey EI Agencies
+        - heading [level=1] [ref=e30]:
+          - text: Automated billing,
+          - emphasis [ref=e31]: from session to invoice.
+        - paragraph [ref=e32]: Log a session. Izaya matches it, fills the form, and sends the invoice. No one has to touch it.
+        - generic [ref=e33]:
+          - generic [ref=e34]: One record, from session to invoice
+          - generic [ref=e38]: State matches approve instantly. Office only reviews what doesn't match.
+          - generic [ref=e42]: HIPAA-compliant, with a full audit trail
+      - generic [ref=e47]:
+        - heading "Welcome back" [level=2] [ref=e48]
+        - generic [ref=e49]: NJEIS Compliant
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - generic [ref=e55]: Email
+            - textbox "Email" [ref=e56]:
+              - /placeholder: name@example.com
+          - generic [ref=e57]:
+            - generic [ref=e58]:
+              - generic [ref=e59]: Password
+              - link "Forgot password?" [ref=e60] [cursor=pointer]:
+                - /url: /eis/forgot-password
+            - generic [ref=e61]:
+              - textbox "Password" [ref=e62]
+              - button "Show password" [ref=e63]
+          - button "Sign In" [ref=e67] [cursor=pointer]
+        - generic [ref=e70]:
+          - text: New to Izaya? Your agency administrator will set up your account.Trouble signing in?
+          - link "support@izayaedge.com" [ref=e71] [cursor=pointer]:
+            - /url: mailto:support@izayaedge.com
+  - generic [ref=e91]:
+    - generic [ref=e92]:
+      - generic [ref=e93]: End to End
+      - heading "Matches approve themselves. Only exceptions need you." [level=2] [ref=e94]
+    - generic [ref=e95]:
+      - generic [ref=e98]:
+        - generic [ref=e102]: Log Submitted
+        - generic [ref=e103]: Automated
+      - generic [ref=e104]:
+        - generic [ref=e109]: Matched to State Records
+        - generic [ref=e110]: Automated
+      - generic [ref=e111]:
+        - generic [ref=e115]: Auto-Approved
+        - generic [ref=e116]: Automated
+      - generic [ref=e117]:
+        - generic [ref=e122]: Form Auto-Filled
+        - generic [ref=e123]: Automated
+      - generic [ref=e124]:
+        - generic [ref=e128]: Invoice Generated
+        - generic [ref=e129]: Automated
+    - generic [ref=e138]:
+      - generic [ref=e139]: Flagged for Review
+      - generic [ref=e140]: Only on mismatch — the one human step
+    - generic [ref=e141]:
+      - generic [ref=e142]:
+        - generic [ref=e143]: "5"
+        - generic [ref=e144]: automated steps
+      - generic [ref=e145]:
+        - generic [ref=e146]: Exceptions Only
+        - generic [ref=e147]: is all a human ever reviews
+      - generic [ref=e148]:
+        - generic [ref=e149]: Instant
+        - generic [ref=e150]: on a match — no queue, no wait
+  - generic [ref=e152]:
+    - generic [ref=e153]:
+      - generic [ref=e154]: Inside the Automated Steps
+      - heading "How the form fills itself" [level=2] [ref=e155]
+    - generic [ref=e156]:
+      - generic [ref=e157]:
+        - generic [ref=e158]: NJEIS-020
+        - generic [ref=e170]:
+          - heading "One log. Form filled, signed, done." [level=3] [ref=e171]
+          - paragraph [ref=e172]: No re-typing into the state PDF — ever.
+      - generic [ref=e173]:
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - generic [ref=e177]:
+              - generic [ref=e178]: Date
+              - generic [ref=e179]: Svc Code
+              - generic [ref=e180]: Hrs
+            - generic [ref=e181]:
+              - generic [ref=e182]: 7/14
+              - generic [ref=e183]: DI
+              - generic [ref=e184]: "1.0"
+            - generic [ref=e185]:
+              - generic [ref=e186]: 7/15
+              - generic [ref=e187]: SLP
+              - generic [ref=e188]: "0.5"
+          - generic [ref=e189]: Header changed
+        - generic [ref=e190]:
+          - heading "State changes a column. We notice." [level=3] [ref=e191]
+          - paragraph [ref=e192]: Flagged for review — never silently wrong.
+  - generic [ref=e194]:
+    - heading "Built for the full billing lifecycle" [level=2] [ref=e196]
+    - generic [ref=e197]:
+      - generic [ref=e198]:
+        - heading "Auto-Approval on Match" [level=3] [ref=e203]
+        - paragraph [ref=e204]: Matches state records instantly. Only mismatches reach a human.
+      - generic [ref=e205]:
+        - heading "Parent Calendar Sync" [level=3] [ref=e211]
+        - paragraph [ref=e212]: Reschedule updates the invite — never duplicates it.
+      - generic [ref=e213]:
+        - heading "Every PHI Touch, Logged" [level=3] [ref=e218]
+        - paragraph [ref=e219]: Who, what, when — visible to admins, always on.
+      - generic [ref=e220]:
+        - heading "Staff Messaging, Built In" [level=3] [ref=e224]
+        - paragraph [ref=e225]: Coordination stays in the record, not a text thread.
+      - generic [ref=e226]:
+        - heading "Signed URLs, Never Public" [level=3] [ref=e231]
+        - paragraph [ref=e232]: Every document link expires. Nothing sits exposed.
+      - generic [ref=e233]:
+        - heading "Two Portals, One Record" [level=3] [ref=e240]
+        - paragraph [ref=e241]: Practitioners and admins see exactly what they need.
+  - generic [ref=e243]:
+    - generic [ref=e244]: Security
+    - heading "Built to survive an audit" [level=2] [ref=e245]
+    - generic [ref=e246]:
+      - generic [ref=e247]:
+        - generic [ref=e252]: Audit Logged
+        - generic [ref=e253]: §164.312(b)
+      - generic [ref=e254]:
+        - generic [ref=e259]: Signed URLs
+        - generic [ref=e260]: Links expire, files don't leak
+      - generic [ref=e261]:
+        - generic [ref=e265]: Point-of-Care Signature
+        - generic [ref=e266]: Captured, not reconstructed
+      - generic [ref=e267]:
+        - generic [ref=e274]: Role-Scoped
+        - generic [ref=e275]: By design, not by luck
+  - generic [ref=e277]:
+    - generic [ref=e278]: One System
+    - heading "Two experiences" [level=2] [ref=e279]
+    - generic [ref=e280]:
+      - generic [ref=e281]:
+        - generic [ref=e282]: Practitioner
+        - generic [ref=e283]: Patients, sessions, pay
+      - generic [ref=e285]: OneRecord
+      - generic [ref=e287]:
+        - generic [ref=e288]: Admin
+        - generic [ref=e289]: Staff, billing, compliance
+  - generic [ref=e291]:
+    - generic [ref=e292]:
+      - heading "Take Izaya with you" [level=2] [ref=e293]
+      - paragraph [ref=e294]: Practitioners can log sessions, message the office, and manage their schedule on the go. The full app installs straight from your phone's browser. No app store required.
+      - generic [ref=e295]:
+        - link "Install for iPhone" [ref=e296] [cursor=pointer]:
+          - /url: https://mobile-pied-two.vercel.app/login?install=1
+          - generic [ref=e299]:
+            - generic [ref=e300]: Install for
+            - text: iPhone
+        - link "Install for Android" [ref=e301] [cursor=pointer]:
+          - /url: https://mobile-pied-two.vercel.app/login?install=1
+          - generic [ref=e307]:
+            - generic [ref=e308]: Install for
+            - text: Android
+      - generic [ref=e309]:
+        - generic [ref=e310]:
+          - generic [ref=e311]: "1"
+          - text: Open your phone's camera
+        - generic [ref=e312]:
+          - generic [ref=e313]: "2"
+          - text: Scan the code & open the link
+        - generic [ref=e314]:
+          - generic [ref=e315]: "3"
+          - text: Tap "Install" and you're done
+      - generic [ref=e316]: Works on iPhone and Android. No app store needed.
+    - generic [ref=e319]:
+      - generic "QR code linking to mobile-pied-two.vercel.app" [ref=e320]
+      - generic [ref=e322]: Scan to install
+      - generic [ref=e323]: mobile-pied-two.vercel.app
+  - contentinfo [ref=e324]:
+    - generic [ref=e325]:
+      - generic [ref=e326]:
+        - img "IZAYA" [ref=e327]
+        - generic [ref=e337]: © 2026 Izaya Consulting LLC
+      - link "support@izayaedge.com" [ref=e339] [cursor=pointer]:
+        - /url: mailto:support@izayaedge.com
+      - generic [ref=e340]: HIPAA Compliant

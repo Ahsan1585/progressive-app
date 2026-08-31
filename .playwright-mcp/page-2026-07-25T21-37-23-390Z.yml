@@ -1,0 +1,115 @@
+- generic [ref=f6e174]:
+  - button "Show navigation" [ref=f6e175] [cursor=pointer]
+  - complementary [ref=f6e179]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f6e182]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f6e183]:
+      - button "Staff Directory" [ref=f6e184] [cursor=pointer]
+      - button "Master Reports" [ref=f6e187] [cursor=pointer]
+      - button "Billing & Invoices" [active] [ref=f6e190] [cursor=pointer]
+      - button "Company Information" [ref=f6e193] [cursor=pointer]
+    - generic [ref=f6e196]:
+      - img "Izaya" [ref=f6e197]
+      - paragraph [ref=f6e198]: Securely Powered by Izaya
+      - paragraph [ref=f6e199]: Early Intervention Simplified
+  - main [ref=f6e200]:
+    - generic [ref=f6e201]:
+      - generic [ref=f6e202]:
+        - button "Toggle menu" [ref=f6e203] [cursor=pointer]
+        - generic [ref=f6e206]: Early Intervention Simplified
+        - heading "Billing & Invoices" [level=2] [ref=f6e437]
+      - generic [ref=f6e209]:
+        - generic [ref=f6e210]:
+          - generic [ref=f6e211]: JR
+          - generic [ref=f6e213]: Jason Roy
+          - generic [ref=f6e214]: Admin
+        - button "Sign Out" [ref=f6e215] [cursor=pointer]
+    - generic [ref=f6e438]:
+      - generic [ref=f6e439]:
+        - button "Pending Bills" [ref=f6e440] [cursor=pointer]
+        - button "Completed Bills" [ref=f6e441] [cursor=pointer]
+        - button "Invoice Status" [ref=f6e442] [cursor=pointer]
+      - generic [ref=f6e443]:
+        - generic [ref=f6e444]:
+          - generic [ref=f6e445]:
+            - generic [ref=f6e446]: Beta
+            - generic [ref=f6e447]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=f6e448] [cursor=pointer]
+        - generic [ref=f6e450]:
+          - generic [ref=f6e451]:
+            - generic [ref=f6e452]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f6e457]
+          - generic [ref=f6e458]:
+            - generic [ref=f6e459]:
+              - generic [ref=f6e460]: Start Date
+              - textbox [ref=f6e461]
+            - generic [ref=f6e462]:
+              - generic [ref=f6e463]: End Date
+              - textbox [ref=f6e464]
+            - button "Reset" [ref=f6e465] [cursor=pointer]
+            - button "Refresh" [ref=f6e466] [cursor=pointer]
+        - generic [ref=f6e467]:
+          - generic [ref=f6e468]:
+            - textbox "Search practitioner..." [ref=f6e474]
+            - button "MH Mari Hernand 1 sessions" [ref=f6e475] [cursor=pointer]:
+              - generic [ref=f6e476]: MH
+              - generic [ref=f6e477]:
+                - generic [ref=f6e478]: Mari Hernand
+                - generic [ref=f6e479]: 1 sessions
+            - generic [ref=f6e483]:
+              - generic [ref=f6e484]: Locked to you
+              - button "Release" [ref=f6e488] [cursor=pointer]
+            - generic [ref=f6e490] [cursor=pointer]:
+              - checkbox [ref=f6e491]
+              - generic [ref=f6e493]:
+                - generic [ref=f6e494]: Noa Court
+                - generic [ref=f6e495]:
+                  - text: 7/23/26
+                  - generic "Service Status" [ref=f6e496]: S:1
+                  - generic "Service Type" [ref=f6e497]: IFSP
+                  - generic "Service Location" [ref=f6e498]: L:8
+                  - generic [ref=f6e499]: Approved
+              - generic [ref=f6e500]: 1h 0m
+          - generic [ref=f6e504]:
+            - generic [ref=f6e505]:
+              - generic [ref=f6e506]:
+                - button "Session Detail" [ref=f6e507] [cursor=pointer]
+                - button "Compliance Analysis" [ref=f6e508] [cursor=pointer]
+              - generic [ref=f6e512]:
+                - generic [ref=f6e513]: July 23, 2026
+                - heading "Noa Court" [level=2] [ref=f6e514]
+                - generic [ref=f6e515]:
+                  - paragraph [ref=f6e516]: IFSP session
+                  - button [ref=f6e517] [cursor=pointer]
+                - generic [ref=f6e520]: Service Codes
+                - generic [ref=f6e521]:
+                  - generic [ref=f6e522]:
+                    - generic [ref=f6e523]: Status
+                    - generic [ref=f6e524]: "1"
+                  - generic [ref=f6e525]:
+                    - generic [ref=f6e526]: Type
+                    - generic [ref=f6e527]: IFSP
+                  - generic [ref=f6e528]:
+                    - generic [ref=f6e529]: Location
+                    - generic [ref=f6e530]: "8"
+                - generic [ref=f6e531]: Session Time
+                - generic [ref=f6e532]:
+                  - generic [ref=f6e533]:
+                    - generic [ref=f6e534]: Start
+                    - generic [ref=f6e535]: 3:26 PM
+                  - generic [ref=f6e536]:
+                    - generic [ref=f6e537]: End
+                    - generic [ref=f6e538]: 4:26 PM
+                  - generic [ref=f6e539]:
+                    - generic [ref=f6e540]: Total
+                    - generic [ref=f6e541]: 1h 0m
+                - generic [ref=f6e542]:
+                  - button "Approve" [ref=f6e543] [cursor=pointer]
+                  - button "Return" [ref=f6e547] [cursor=pointer]
+                  - button "Reject" [ref=f6e552] [cursor=pointer]
+                  - button "Hold" [ref=f6e557] [cursor=pointer]
+            - generic [ref=f6e562]:
+              - generic [ref=f6e563]:
+                - generic [ref=f6e564]: 1 billable → Completed Bills
+                - generic [ref=f6e565]: 0 held/returned → stays in Pending
+                - generic [ref=f6e566]: 0 excluded (rejected)
+              - button "Generate & Issue" [ref=f6e567] [cursor=pointer]

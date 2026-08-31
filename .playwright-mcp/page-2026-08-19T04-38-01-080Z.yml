@@ -1,0 +1,54 @@
+- generic [ref=e89]:
+  - button "Show navigation" [ref=e90] [cursor=pointer]
+  - complementary [ref=e94]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=e97]:
+      - generic [ref=e98]: IZAYA Consulting, LLC
+      - generic [ref=e99]: Admin Portal
+    - navigation [ref=e100]:
+      - button "Staff Directory" [ref=e101] [cursor=pointer]
+      - button "Master Reports" [ref=e104] [cursor=pointer]
+      - button "Billing & Invoices" [active] [ref=e107] [cursor=pointer]
+    - generic [ref=e110]:
+      - paragraph [ref=e111]: Useful Links
+      - button "Company Information" [ref=e112] [cursor=pointer]
+      - button "Subscription & Billing" [ref=e115] [cursor=pointer]
+      - button "Audit Log" [ref=e118] [cursor=pointer]
+      - button "Roles & Permissions" [ref=e121] [cursor=pointer]
+    - generic [ref=e125]:
+      - img "Izaya" [ref=e673]
+      - paragraph [ref=e126]: Securely Powered by Izaya
+      - paragraph [ref=e127]: Early Intervention Simplified
+  - main [ref=e128]:
+    - generic [ref=e129]:
+      - generic [ref=e130]:
+        - button "Toggle menu" [ref=e131] [cursor=pointer]
+        - generic [ref=e134]: Early Intervention Simplified
+      - heading "Billing & Invoices" [level=2] [ref=e674]
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - generic [ref=e139]: AZ
+          - generic [ref=e141]: Ahsan Zubair
+          - generic [ref=e142]: Admin
+        - button "Sign Out" [ref=e143] [cursor=pointer]
+    - generic [ref=e675]:
+      - generic [ref=e676]:
+        - button "Pending Bills" [ref=e677] [cursor=pointer]
+        - button "Completed Bills" [ref=e678] [cursor=pointer]
+        - button "Invoice Status" [ref=e679] [cursor=pointer]
+      - generic [ref=e681]:
+        - generic [ref=e682]:
+          - generic [ref=e683]: Billing Period
+          - textbox [ref=e687]: 2026-08
+          - generic [ref=e688]:
+            - button "Biweekly 1 Aug 1–15" [ref=e689] [cursor=pointer]:
+              - generic [ref=e690]: Biweekly 1
+              - generic [ref=e691]: Aug 1–15
+            - button "Biweekly 2 Aug 16–31" [disabled] [ref=e692]:
+              - generic [ref=e693]: Biweekly 2
+              - generic [ref=e697]: Aug 16–31
+            - button "Monthly Aug 1–31" [disabled] [ref=e698]:
+              - generic [ref=e699]: Monthly
+              - generic [ref=e703]: Aug 1–31
+        - generic [ref=e704]:
+          - paragraph [ref=e707]: Select a completed billing period above to begin
+          - paragraph [ref=e708]: Only fully-elapsed Biweekly or Monthly periods can be selected — you can't generate bills mid-period.

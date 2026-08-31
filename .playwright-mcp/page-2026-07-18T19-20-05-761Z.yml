@@ -1,0 +1,25 @@
+- generic [ref=f14e3]:
+  - generic [ref=f14e6]:
+    - generic [ref=f14e7]:
+      - img "Izaya" [ref=f14e8]
+      - paragraph [ref=f14e9]: Early Intervention Management System
+    - heading "Set a new password" [level=2] [ref=f14e10]
+    - generic [ref=f14e11]:
+      - generic [ref=f14e12]:
+        - generic [ref=f14e13]: New Password
+        - generic [ref=f14e14]:
+          - textbox "New Password" [ref=f14e15]:
+            - /placeholder: Min 8 chars, 1 uppercase, 1 number, 1 special
+          - button "Show password" [ref=f14e16]
+      - generic [ref=f14e20]:
+        - generic [ref=f14e21]: Confirm New Password
+        - generic [ref=f14e22]:
+          - textbox "Confirm New Password" [ref=f14e23]
+          - button "Show password" [ref=f14e24]
+      - button "Reset Password" [ref=f14e28]
+  - generic [ref=f14e29]:
+    - generic [ref=f14e30]:
+      - generic [ref=f14e34]: Secured by Izaya
+      - generic [ref=f14e35]: ·
+      - generic [ref=f14e39]: HIPAA Compliant
+    - paragraph [ref=f14e40]: Izaya Consulting LLC

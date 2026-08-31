@@ -1,0 +1,409 @@
+- generic [ref=e89]:
+  - button "Show navigation" [ref=e90] [cursor=pointer]
+  - complementary [ref=e94]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=e97]:
+      - generic [ref=e98]: IZAYA Consulting, LLC
+      - generic [ref=e99]: Admin Portal
+    - navigation [ref=e100]:
+      - button "Staff Directory" [ref=e101] [cursor=pointer]
+      - button "Master Reports" [ref=e104] [cursor=pointer]
+      - button "Billing & Invoices" [ref=e107] [cursor=pointer]
+    - generic [ref=e110]:
+      - paragraph [ref=e111]: Useful Links
+      - button "Company Information" [ref=e112] [cursor=pointer]
+      - button "Subscription & Billing" [ref=e115] [cursor=pointer]
+      - button "Audit Log" [ref=e118] [cursor=pointer]
+      - button "Roles & Permissions" [ref=e121] [cursor=pointer]
+    - generic [ref=e125]:
+      - img "Izaya" [ref=e673]
+      - paragraph [ref=e126]: Securely Powered by Izaya
+      - paragraph [ref=e127]: Early Intervention Simplified
+  - main [ref=e128]:
+    - generic [ref=e129]:
+      - generic [ref=e130]:
+        - button "Toggle menu" [ref=e131] [cursor=pointer]
+        - generic [ref=e134]: Early Intervention Simplified
+      - heading "Master Reports" [level=2] [ref=e804]
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - generic [ref=e139]: AZ
+          - generic [ref=e141]: Ahsan Zubair
+          - generic [ref=e142]: Admin
+        - button "Sign Out" [ref=e143] [cursor=pointer]
+    - generic [ref=e805]:
+      - generic [ref=e806]:
+        - heading "System Audit & Reports" [level=1] [ref=e807]
+        - paragraph [ref=e808]: Generate comprehensive system exports for compliance, billing, and staff utilization.
+      - generic [ref=e809]:
+        - button "Practitioner Logs Audit hours & submissions" [ref=e810] [cursor=pointer]:
+          - generic [ref=e811]: Practitioner Logs
+          - generic [ref=e812]: Audit hours & submissions
+        - button "Patient History Track child interventions" [ref=e813] [cursor=pointer]:
+          - generic [ref=e814]: Patient History
+          - generic [ref=e815]: Track child interventions
+        - button "Financial Audit Revenue & invoice tracking" [ref=e816] [cursor=pointer]:
+          - generic [ref=e817]: Financial Audit
+          - generic [ref=e818]: Revenue & invoice tracking
+        - button "Compliance Flags Missing forms & signatures" [ref=e819] [cursor=pointer]:
+          - generic [ref=e820]: Compliance Flags
+          - generic [ref=e821]: Missing forms & signatures
+        - button "All Patients Org-wide patient roster" [ref=e822] [cursor=pointer]:
+          - generic [ref=e823]: All Patients
+          - generic [ref=e824]: Org-wide patient roster
+        - button "Session Audit Log Signed session records for audit" [ref=e825] [cursor=pointer]:
+          - generic [ref=e826]: Session Audit Log
+          - generic [ref=e827]: Signed session records for audit
+      - generic [ref=e828]:
+        - heading "Financial Reconciliation Audit" [level=2] [ref=e857]
+        - generic [ref=e831]:
+          - generic [ref=e832]:
+            - generic [ref=e833]:
+              - generic [ref=e834]: Search Practitioner (Name or ID)
+              - textbox "Type to search..." [ref=e838]
+            - generic [ref=e858]:
+              - generic [ref=e859]: Search Patient (Name)
+              - textbox "First or last name..." [ref=e863]
+            - generic [ref=e845]:
+              - generic [ref=e846]: Billing Status
+              - combobox [ref=e847]:
+                - option "All Statuses"
+                - option "Pending"
+                - option "In SEVF Review"
+                - option "Invoiced" [selected]
+                - option "Returned (awaiting revision)"
+                - option "Rejected"
+            - generic [ref=e848]:
+              - generic [ref=e849]: Date Range Start
+              - textbox [ref=e850]
+            - generic [ref=e851]:
+              - generic [ref=e852]: Date Range End
+              - textbox [ref=e853]
+          - generic [ref=e854]:
+            - button "Reset Filters" [ref=e855] [cursor=pointer]
+            - button "Run Master Report" [ref=e856] [cursor=pointer]
+      - generic [ref=e864]:
+        - generic [ref=e865]:
+          - generic [ref=e866]: Total Logs
+          - generic [ref=e867]: "22"
+        - generic [ref=e868]:
+          - generic [ref=e869]: Total Hours
+          - generic [ref=e870]: 18.0 hrs
+        - generic [ref=e871]:
+          - generic [ref=e872]: Unique Patients
+          - generic [ref=e873]: "3"
+        - generic [ref=e874]:
+          - generic [ref=e875]: Practitioners
+          - generic [ref=e876]: "3"
+      - generic [ref=e877]:
+        - generic [ref=e878]:
+          - generic [ref=e879]:
+            - heading "Audit Results" [level=3] [ref=e880]
+            - paragraph [ref=e881]: 22 logs found
+          - generic [ref=e882]:
+            - button "Generate SEVF Forms" [ref=e883] [cursor=pointer]
+            - button "Export" [ref=e884] [cursor=pointer]
+            - button "Print" [ref=e885] [cursor=pointer]
+        - table [ref=e887]:
+          - rowgroup [ref=e888]:
+            - row [ref=e889]:
+              - columnheader [ref=e890]
+              - columnheader "Patient Name" [ref=e891]
+              - columnheader "Practitioner" [ref=e892]
+              - columnheader "Service Date" [ref=e893]
+              - columnheader "Service Type" [ref=e894]
+              - columnheader "Location" [ref=e895]
+              - columnheader "Start" [ref=e896]
+              - columnheader "End" [ref=e897]
+              - columnheader "Total Time" [ref=e898]
+              - columnheader "Billing Status" [ref=e899]
+              - columnheader "Comments" [ref=e900]
+          - rowgroup [ref=e901]:
+            - row [ref=e902]:
+              - cell [ref=e903]
+              - cell "Jaretssi Ortis" [ref=e904]
+              - cell "Eugenia Pizarro-Moya" [ref=e905]
+              - cell "7/14/26" [ref=e906]
+              - cell "I/T" [ref=e907]
+              - cell "8" [ref=e908]
+              - cell "11:30 AM" [ref=e909]
+              - cell "12:30 PM" [ref=e910]
+              - cell "1h" [ref=e911]
+              - cell "Invoiced" [ref=e912]
+              - cell [ref=e915]:
+                - button "View billing/practitioner notes" [ref=e917] [cursor=pointer]
+            - row [ref=e920]:
+              - cell [ref=e921]
+              - cell "Jaretssi Ortis" [ref=e922]
+              - cell "Eugenia Pizarro-Moya" [ref=e923]
+              - cell "7/14/26" [ref=e924]
+              - cell "I/T" [ref=e925]
+              - cell "8" [ref=e926]
+              - cell "11:30 AM" [ref=e927]
+              - cell "12:30 PM" [ref=e928]
+              - cell "1h" [ref=e929]
+              - cell "Invoiced" [ref=e930]
+              - cell [ref=e933]:
+                - button "No notes recorded yet" [ref=e935] [cursor=pointer]
+            - row [ref=e938]:
+              - cell [ref=e939]
+              - cell "Christopher Glamann" [ref=e940]
+              - cell "Agnes Douma" [ref=e941]
+              - cell "7/13/26" [ref=e942]
+              - cell "SLP" [ref=e943]
+              - cell "1" [ref=e944]
+              - cell "-" [ref=e945]
+              - cell "-" [ref=e946]
+              - cell "0m" [ref=e947]
+              - cell "Invoiced" [ref=e948]
+              - cell [ref=e951]:
+                - button "No notes recorded yet" [ref=e953] [cursor=pointer]
+            - row [ref=e956]:
+              - cell [ref=e957]
+              - cell "Christopher Glamann" [ref=e958]
+              - cell "Agnes Douma" [ref=e959]
+              - cell "7/13/26" [ref=e960]
+              - cell "SLP" [ref=e961]
+              - cell "1" [ref=e962]
+              - cell "-" [ref=e963]
+              - cell "-" [ref=e964]
+              - cell "0m" [ref=e965]
+              - cell "Invoiced" [ref=e966]
+              - cell [ref=e969]:
+                - button "No notes recorded yet" [ref=e971] [cursor=pointer]
+            - row [ref=e974]:
+              - cell [ref=e975]
+              - cell "Christopher Glamann" [ref=e976]
+              - cell "Agnes Douma" [ref=e977]
+              - cell "7/10/26" [ref=e978]
+              - cell "SLP" [ref=e979]
+              - cell "6" [ref=e980]
+              - cell "10:00 AM" [ref=e981]
+              - cell "11:00 AM" [ref=e982]
+              - cell "1h" [ref=e983]
+              - cell "Invoiced" [ref=e984]
+              - cell [ref=e987]:
+                - button "No notes recorded yet" [ref=e989] [cursor=pointer]
+            - row [ref=e992]:
+              - cell [ref=e993]
+              - cell "Christopher Glamann" [ref=e994]
+              - cell "Agnes Douma" [ref=e995]
+              - cell "7/10/26" [ref=e996]
+              - cell "SLP" [ref=e997]
+              - cell "6" [ref=e998]
+              - cell "10:00 AM" [ref=e999]
+              - cell "11:00 AM" [ref=e1000]
+              - cell "1h" [ref=e1001]
+              - cell "Invoiced" [ref=e1002]
+              - cell [ref=e1005]:
+                - button "No notes recorded yet" [ref=e1007] [cursor=pointer]
+            - row [ref=e1010]:
+              - cell [ref=e1011]
+              - cell "Christopher Glamann" [ref=e1012]
+              - cell "Agnes Douma" [ref=e1013]
+              - cell "7/9/26" [ref=e1014]
+              - cell "SLP" [ref=e1015]
+              - cell "1" [ref=e1016]
+              - cell "5:00 PM" [ref=e1017]
+              - cell "6:00 PM" [ref=e1018]
+              - cell "1h" [ref=e1019]
+              - cell "Invoiced" [ref=e1020]
+              - cell [ref=e1023]:
+                - button "No notes recorded yet" [ref=e1025] [cursor=pointer]
+            - row [ref=e1028]:
+              - cell [ref=e1029]
+              - cell "Christopher Glamann" [ref=e1030]
+              - cell "Agnes Douma" [ref=e1031]
+              - cell "7/9/26" [ref=e1032]
+              - cell "SLP" [ref=e1033]
+              - cell "1" [ref=e1034]
+              - cell "5:00 PM" [ref=e1035]
+              - cell "6:00 PM" [ref=e1036]
+              - cell "1h" [ref=e1037]
+              - cell "Invoiced" [ref=e1038]
+              - cell [ref=e1041]:
+                - button "No notes recorded yet" [ref=e1043] [cursor=pointer]
+            - row [ref=e1046]:
+              - cell [ref=e1047]
+              - cell "Christopher Glamann" [ref=e1048]
+              - cell "Agnes Douma" [ref=e1049]
+              - cell "7/7/26" [ref=e1050]
+              - cell "SLP" [ref=e1051]
+              - cell "1" [ref=e1052]
+              - cell "5:00 PM" [ref=e1053]
+              - cell "6:00 PM" [ref=e1054]
+              - cell "1h" [ref=e1055]
+              - cell "Invoiced" [ref=e1056]
+              - cell [ref=e1059]:
+                - button "No notes recorded yet" [ref=e1061] [cursor=pointer]
+            - row [ref=e1064]:
+              - cell [ref=e1065]
+              - cell "Christopher Glamann" [ref=e1066]
+              - cell "Agnes Douma" [ref=e1067]
+              - cell "7/7/26" [ref=e1068]
+              - cell "SLP" [ref=e1069]
+              - cell "1" [ref=e1070]
+              - cell "5:00 PM" [ref=e1071]
+              - cell "6:00 PM" [ref=e1072]
+              - cell "1h" [ref=e1073]
+              - cell "Invoiced" [ref=e1074]
+              - cell [ref=e1077]:
+                - button "No notes recorded yet" [ref=e1079] [cursor=pointer]
+            - row [ref=e1082]:
+              - cell [ref=e1083]
+              - cell "Christopher Glamann" [ref=e1084]
+              - cell "Agnes Douma" [ref=e1085]
+              - cell "7/6/26" [ref=e1086]
+              - cell "SLP" [ref=e1087]
+              - cell "1" [ref=e1088]
+              - cell "5:00 PM" [ref=e1089]
+              - cell "6:00 PM" [ref=e1090]
+              - cell "1h" [ref=e1091]
+              - cell "Invoiced" [ref=e1092]
+              - cell [ref=e1095]:
+                - button "No notes recorded yet" [ref=e1097] [cursor=pointer]
+            - row [ref=e1100]:
+              - cell [ref=e1101]
+              - cell "Christopher Glamann" [ref=e1102]
+              - cell "Agnes Douma" [ref=e1103]
+              - cell "7/6/26" [ref=e1104]
+              - cell "SLP" [ref=e1105]
+              - cell "1" [ref=e1106]
+              - cell "5:00 PM" [ref=e1107]
+              - cell "6:00 PM" [ref=e1108]
+              - cell "1h" [ref=e1109]
+              - cell "Invoiced" [ref=e1110]
+              - cell [ref=e1113]:
+                - button "No notes recorded yet" [ref=e1115] [cursor=pointer]
+            - row [ref=e1118]:
+              - cell [ref=e1119]
+              - cell "Christopher Glamann" [ref=e1120]
+              - cell "Agnes Douma" [ref=e1121]
+              - cell "7/2/26" [ref=e1122]
+              - cell "SLP" [ref=e1123]
+              - cell "1" [ref=e1124]
+              - cell "-" [ref=e1125]
+              - cell "-" [ref=e1126]
+              - cell "0m" [ref=e1127]
+              - cell "Invoiced" [ref=e1128]
+              - cell [ref=e1131]:
+                - button "No notes recorded yet" [ref=e1133] [cursor=pointer]
+            - row [ref=e1136]:
+              - cell [ref=e1137]
+              - cell "Christopher Glamann" [ref=e1138]
+              - cell "Agnes Douma" [ref=e1139]
+              - cell "7/2/26" [ref=e1140]
+              - cell "SLP" [ref=e1141]
+              - cell "1" [ref=e1142]
+              - cell "-" [ref=e1143]
+              - cell "-" [ref=e1144]
+              - cell "0m" [ref=e1145]
+              - cell "Invoiced" [ref=e1146]
+              - cell [ref=e1149]:
+                - button "No notes recorded yet" [ref=e1151] [cursor=pointer]
+            - row [ref=e1154]:
+              - cell [ref=e1155]
+              - cell "Nicolette Gallo" [ref=e1156]
+              - cell "Jamilyn Donaldson" [ref=e1157]
+              - cell "6/29/26" [ref=e1158]
+              - cell "DI" [ref=e1159]
+              - cell "1" [ref=e1160]
+              - cell "5:00 PM" [ref=e1161]
+              - cell "6:00 PM" [ref=e1162]
+              - cell "1h" [ref=e1163]
+              - cell "Invoiced" [ref=e1164]
+              - cell [ref=e1167]:
+                - button "No notes recorded yet" [ref=e1169] [cursor=pointer]
+            - row [ref=e1172]:
+              - cell [ref=e1173]
+              - cell "Nicolette Gallo" [ref=e1174]
+              - cell "Jamilyn Donaldson" [ref=e1175]
+              - cell "6/29/26" [ref=e1176]
+              - cell "DI" [ref=e1177]
+              - cell "1" [ref=e1178]
+              - cell "5:00 PM" [ref=e1179]
+              - cell "6:00 PM" [ref=e1180]
+              - cell "1h" [ref=e1181]
+              - cell "Invoiced" [ref=e1182]
+              - cell [ref=e1185]:
+                - button "No notes recorded yet" [ref=e1187] [cursor=pointer]
+            - row [ref=e1190]:
+              - cell [ref=e1191]
+              - cell "Nicolette Gallo" [ref=e1192]
+              - cell "Jamilyn Donaldson" [ref=e1193]
+              - cell "6/15/26" [ref=e1194]
+              - cell "DI" [ref=e1195]
+              - cell "1" [ref=e1196]
+              - cell "4:00 PM" [ref=e1197]
+              - cell "5:00 PM" [ref=e1198]
+              - cell "1h" [ref=e1199]
+              - cell "Invoiced" [ref=e1200]
+              - cell [ref=e1203]:
+                - button "No notes recorded yet" [ref=e1205] [cursor=pointer]
+            - row [ref=e1208]:
+              - cell [ref=e1209]
+              - cell "Nicolette Gallo" [ref=e1210]
+              - cell "Jamilyn Donaldson" [ref=e1211]
+              - cell "6/15/26" [ref=e1212]
+              - cell "DI" [ref=e1213]
+              - cell "1" [ref=e1214]
+              - cell "4:00 PM" [ref=e1215]
+              - cell "5:00 PM" [ref=e1216]
+              - cell "1h" [ref=e1217]
+              - cell "Invoiced" [ref=e1218]
+              - cell [ref=e1221]:
+                - button "No notes recorded yet" [ref=e1223] [cursor=pointer]
+            - row [ref=e1226]:
+              - cell [ref=e1227]
+              - cell "Nicolette Gallo" [ref=e1228]
+              - cell "Jamilyn Donaldson" [ref=e1229]
+              - cell "6/8/26" [ref=e1230]
+              - cell "DI" [ref=e1231]
+              - cell "1" [ref=e1232]
+              - cell "5:00 PM" [ref=e1233]
+              - cell "6:00 PM" [ref=e1234]
+              - cell "1h" [ref=e1235]
+              - cell "Invoiced" [ref=e1236]
+              - cell [ref=e1239]:
+                - button "No notes recorded yet" [ref=e1241] [cursor=pointer]
+            - row [ref=e1244]:
+              - cell [ref=e1245]
+              - cell "Nicolette Gallo" [ref=e1246]
+              - cell "Jamilyn Donaldson" [ref=e1247]
+              - cell "6/8/26" [ref=e1248]
+              - cell "DI" [ref=e1249]
+              - cell "1" [ref=e1250]
+              - cell "5:00 PM" [ref=e1251]
+              - cell "6:00 PM" [ref=e1252]
+              - cell "1h" [ref=e1253]
+              - cell "Invoiced" [ref=e1254]
+              - cell [ref=e1257]:
+                - button "No notes recorded yet" [ref=e1259] [cursor=pointer]
+            - row [ref=e1262]:
+              - cell [ref=e1263]
+              - cell "Nicolette Gallo" [ref=e1264]
+              - cell "Jamilyn Donaldson" [ref=e1265]
+              - cell "6/3/26" [ref=e1266]
+              - cell "DI" [ref=e1267]
+              - cell "1" [ref=e1268]
+              - cell "5:00 PM" [ref=e1269]
+              - cell "6:00 PM" [ref=e1270]
+              - cell "1h" [ref=e1271]
+              - cell "Invoiced" [ref=e1272]
+              - cell [ref=e1275]:
+                - button "No notes recorded yet" [ref=e1277] [cursor=pointer]
+            - row [ref=e1280]:
+              - cell [ref=e1281]
+              - cell "Nicolette Gallo" [ref=e1282]
+              - cell "Jamilyn Donaldson" [ref=e1283]
+              - cell "6/3/26" [ref=e1284]
+              - cell "DI" [ref=e1285]
+              - cell "1" [ref=e1286]
+              - cell "5:00 PM" [ref=e1287]
+              - cell "6:00 PM" [ref=e1288]
+              - cell "1h" [ref=e1289]
+              - cell "Invoiced" [ref=e1290]
+              - cell [ref=e1293]:
+                - button "No notes recorded yet" [ref=e1295] [cursor=pointer]
+          - rowgroup [ref=e1298]:
+            - row [ref=e1299]:
+              - cell "22 records · 18.0 total hrs · 3 patients · 3 practitioners" [ref=e1300]

@@ -1,0 +1,169 @@
+- generic [ref=f38e44]:
+  - button "Show navigation" [ref=f38e319] [cursor=pointer]
+  - complementary [ref=f38e45]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f38e49]: Progressive StepsAdmin Portal
+    - navigation [ref=f38e50]:
+      - button "Staff Directory" [ref=f38e51] [cursor=pointer]
+      - button "Master Reports" [ref=f38e54] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f38e57] [cursor=pointer]
+    - paragraph [ref=f38e61]: Progressive Steps NJ
+  - main [ref=f38e62]:
+    - generic [ref=f38e63]:
+      - generic [ref=f38e64]:
+        - button "Toggle menu" [ref=f38e65] [cursor=pointer]
+        - heading "Billing & Invoices" [level=2] [ref=f38e330]
+      - generic [ref=f38e69]:
+        - generic [ref=f38e324]:
+          - generic [ref=f38e325]: JR
+          - generic [ref=f38e327]: Jason Roy
+          - generic [ref=f38e328]: Admin
+        - button "Sign Out" [ref=f38e70] [cursor=pointer]
+    - generic [ref=f38e331]:
+      - generic [ref=f38e332]:
+        - button "Pending Bills" [ref=f38e333] [cursor=pointer]
+        - button "Completed Bills" [active] [ref=f38e334] [cursor=pointer]
+        - button "Invoice Status" [ref=f38e335] [cursor=pointer]
+      - generic [ref=f38e506]:
+        - generic [ref=f38e507]:
+          - generic [ref=f38e508]:
+            - generic [ref=f38e509]: Search Documents
+            - textbox "Search by practitioner name..." [ref=f38e514]
+          - generic [ref=f38e515]:
+            - generic [ref=f38e516]:
+              - generic [ref=f38e517]: Service Date From
+              - textbox [ref=f38e518]
+            - generic [ref=f38e519]:
+              - generic [ref=f38e520]: Service Date To
+              - textbox [ref=f38e521]
+            - button "Refresh Bills" [ref=f38e522] [cursor=pointer]
+        - table [ref=f38e524]:
+          - caption [ref=f38e525]: Completed billing documents
+          - rowgroup [ref=f38e526]:
+            - row [ref=f38e527]:
+              - columnheader [ref=f38e528]:
+                - button "Period / Date" [ref=f38e529] [cursor=pointer]
+              - columnheader [ref=f38e532]:
+                - button "Practitioner" [ref=f38e533] [cursor=pointer]
+              - columnheader "SEVF Form" [ref=f38e536]
+              - columnheader "Invoice" [ref=f38e537]
+              - columnheader "Actions" [ref=f38e538]
+          - rowgroup [ref=f38e539]:
+            - row [ref=f38e540]:
+              - cell "07/06/2026 – 07/18/2026" [ref=f38e541]
+              - cell "Expand logs Ashfaq Ahmad" [ref=f38e542]:
+                - generic [ref=f38e543]:
+                  - button "Expand logs" [ref=f38e544] [cursor=pointer]
+                  - generic [ref=f38e547]: Ashfaq Ahmad
+              - cell [ref=f38e548]:
+                - button "SEVF" [ref=f38e549] [cursor=pointer]
+              - cell [ref=f38e553]:
+                - button "Invoice" [ref=f38e554] [cursor=pointer]
+              - cell [ref=f38e558]
+            - row [ref=f38e563]:
+              - cell "06/04/2026 – 06/18/2026" [ref=f38e564]
+              - cell "Expand logs Eli Divina" [ref=f38e565]:
+                - generic [ref=f38e566]:
+                  - button "Expand logs" [ref=f38e567] [cursor=pointer]
+                  - generic [ref=f38e570]: Eli Divina
+              - cell [ref=f38e571]:
+                - button "SEVF" [ref=f38e572] [cursor=pointer]
+              - cell [ref=f38e576]:
+                - button "Invoice" [ref=f38e577] [cursor=pointer]
+              - cell [ref=f38e581]:
+                - button "Send Back to Pending" [ref=f38e582] [cursor=pointer]
+            - row [ref=f38e583]:
+              - cell "06/04/2026 – 06/07/2026" [ref=f38e584]
+              - cell "Expand logs Eric Green" [ref=f38e585]:
+                - generic [ref=f38e586]:
+                  - button "Expand logs" [ref=f38e587] [cursor=pointer]
+                  - generic [ref=f38e590]: Eric Green
+              - cell [ref=f38e591]:
+                - button "SEVF" [ref=f38e592] [cursor=pointer]
+              - cell [ref=f38e596]:
+                - button "Invoice" [ref=f38e597] [cursor=pointer]
+              - cell [ref=f38e601]:
+                - button "Send Back to Pending" [ref=f38e602] [cursor=pointer]
+            - row [ref=f38e603]:
+              - cell "05/07/2026 – 05/28/2026" [ref=f38e604]
+              - cell "Expand logs Eli Divina" [ref=f38e605]:
+                - generic [ref=f38e606]:
+                  - button "Expand logs" [ref=f38e607] [cursor=pointer]
+                  - generic [ref=f38e610]: Eli Divina
+              - cell [ref=f38e611]:
+                - button "SEVF" [ref=f38e612] [cursor=pointer]
+              - cell [ref=f38e616]:
+                - button "Invoice" [ref=f38e617] [cursor=pointer]
+              - cell [ref=f38e621]:
+                - button "Send Back to Pending" [ref=f38e622] [cursor=pointer]
+            - row [ref=f38e623]:
+              - cell "05/18/2026 – 05/18/2026" [ref=f38e624]
+              - cell "Expand logs Eric Green" [ref=f38e625]:
+                - generic [ref=f38e626]:
+                  - button "Expand logs" [ref=f38e627] [cursor=pointer]
+                  - generic [ref=f38e630]: Eric Green
+              - cell [ref=f38e631]:
+                - button "SEVF" [ref=f38e632] [cursor=pointer]
+              - cell [ref=f38e636]:
+                - button "Invoice" [ref=f38e637] [cursor=pointer]
+              - cell [ref=f38e641]:
+                - button "Send Back to Pending" [ref=f38e642] [cursor=pointer]
+            - row [ref=f38e643]:
+              - cell "04/30/2026 – 04/30/2026" [ref=f38e644]
+              - cell "Expand logs Eli Divina" [ref=f38e645]:
+                - generic [ref=f38e646]:
+                  - button "Expand logs" [ref=f38e647] [cursor=pointer]
+                  - generic [ref=f38e650]: Eli Divina
+              - cell [ref=f38e651]:
+                - button "SEVF" [ref=f38e652] [cursor=pointer]
+              - cell [ref=f38e656]:
+                - button "Invoice" [ref=f38e657] [cursor=pointer]
+              - cell [ref=f38e661]:
+                - button "Send Back to Pending" [ref=f38e662] [cursor=pointer]
+            - row [ref=f38e663]:
+              - cell "04/09/2026 – 04/23/2026" [ref=f38e664]
+              - cell "Expand logs Eric Green" [ref=f38e665]:
+                - generic [ref=f38e666]:
+                  - button "Expand logs" [ref=f38e667] [cursor=pointer]
+                  - generic [ref=f38e670]: Eric Green
+              - cell [ref=f38e671]:
+                - button "SEVF" [ref=f38e672] [cursor=pointer]
+              - cell [ref=f38e676]:
+                - button "Invoice" [ref=f38e677] [cursor=pointer]
+              - cell [ref=f38e681]:
+                - button "Send Back to Pending" [ref=f38e682] [cursor=pointer]
+            - row [ref=f38e683]:
+              - cell "03/17/2026 – 03/17/2026" [ref=f38e684]
+              - cell "Expand logs Eric Green" [ref=f38e685]:
+                - generic [ref=f38e686]:
+                  - button "Expand logs" [ref=f38e687] [cursor=pointer]
+                  - generic [ref=f38e690]: Eric Green
+              - cell [ref=f38e691]:
+                - button "SEVF" [ref=f38e692] [cursor=pointer]
+              - cell [ref=f38e696]:
+                - button "Invoice" [ref=f38e697] [cursor=pointer]
+              - cell [ref=f38e701]:
+                - button "Send Back to Pending" [ref=f38e702] [cursor=pointer]
+            - row [ref=f38e703]:
+              - cell "02/17/2026 – 02/17/2026" [ref=f38e704]
+              - cell "Expand logs Eric Green" [ref=f38e705]:
+                - generic [ref=f38e706]:
+                  - button "Expand logs" [ref=f38e707] [cursor=pointer]
+                  - generic [ref=f38e710]: Eric Green
+              - cell [ref=f38e711]:
+                - button "SEVF" [ref=f38e712] [cursor=pointer]
+              - cell [ref=f38e716]:
+                - button "Invoice" [ref=f38e717] [cursor=pointer]
+              - cell [ref=f38e721]:
+                - button "Send Back to Pending" [ref=f38e722] [cursor=pointer]
+            - row [ref=f38e723]:
+              - cell "01/02/2026 – 01/02/2026" [ref=f38e724]
+              - cell "Expand logs Eric Green" [ref=f38e725]:
+                - generic [ref=f38e726]:
+                  - button "Expand logs" [ref=f38e727] [cursor=pointer]
+                  - generic [ref=f38e730]: Eric Green
+              - cell [ref=f38e731]:
+                - button "SEVF" [ref=f38e732] [cursor=pointer]
+              - cell [ref=f38e736]:
+                - button "Invoice" [ref=f38e737] [cursor=pointer]
+              - cell [ref=f38e741]:
+                - button "Send Back to Pending" [ref=f38e742] [cursor=pointer]

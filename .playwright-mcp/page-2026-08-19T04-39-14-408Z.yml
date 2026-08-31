@@ -1,0 +1,83 @@
+- generic [ref=e89]:
+  - button "Show navigation" [ref=e90] [cursor=pointer]
+  - complementary [ref=e94]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=e97]:
+      - generic [ref=e98]: IZAYA Consulting, LLC
+      - generic [ref=e99]: Admin Portal
+    - navigation [ref=e100]:
+      - button "Staff Directory" [ref=e101] [cursor=pointer]
+      - button "Master Reports" [active] [ref=e104] [cursor=pointer]
+      - button "Billing & Invoices" [ref=e107] [cursor=pointer]
+    - generic [ref=e110]:
+      - paragraph [ref=e111]: Useful Links
+      - button "Company Information" [ref=e112] [cursor=pointer]
+      - button "Subscription & Billing" [ref=e115] [cursor=pointer]
+      - button "Audit Log" [ref=e118] [cursor=pointer]
+      - button "Roles & Permissions" [ref=e121] [cursor=pointer]
+    - generic [ref=e125]:
+      - img "Izaya" [ref=e673]
+      - paragraph [ref=e126]: Securely Powered by Izaya
+      - paragraph [ref=e127]: Early Intervention Simplified
+  - main [ref=e128]:
+    - generic [ref=e129]:
+      - generic [ref=e130]:
+        - button "Toggle menu" [ref=e131] [cursor=pointer]
+        - generic [ref=e134]: Early Intervention Simplified
+      - heading "Master Reports" [level=2] [ref=e804]
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - generic [ref=e139]: AZ
+          - generic [ref=e141]: Ahsan Zubair
+          - generic [ref=e142]: Admin
+        - button "Sign Out" [ref=e143] [cursor=pointer]
+    - generic [ref=e805]:
+      - generic [ref=e806]:
+        - heading "System Audit & Reports" [level=1] [ref=e807]
+        - paragraph [ref=e808]: Generate comprehensive system exports for compliance, billing, and staff utilization.
+      - generic [ref=e809]:
+        - button "Practitioner Logs Audit hours & submissions" [ref=e810] [cursor=pointer]:
+          - generic [ref=e811]: Practitioner Logs
+          - generic [ref=e812]: Audit hours & submissions
+        - button "Patient History Track child interventions" [ref=e813] [cursor=pointer]:
+          - generic [ref=e814]: Patient History
+          - generic [ref=e815]: Track child interventions
+        - button "Financial Audit Revenue & invoice tracking" [ref=e816] [cursor=pointer]:
+          - generic [ref=e817]: Financial Audit
+          - generic [ref=e818]: Revenue & invoice tracking
+        - button "Compliance Flags Missing forms & signatures" [ref=e819] [cursor=pointer]:
+          - generic [ref=e820]: Compliance Flags
+          - generic [ref=e821]: Missing forms & signatures
+        - button "All Patients Org-wide patient roster" [ref=e822] [cursor=pointer]:
+          - generic [ref=e823]: All Patients
+          - generic [ref=e824]: Org-wide patient roster
+        - button "Session Audit Log Signed session records for audit" [ref=e825] [cursor=pointer]:
+          - generic [ref=e826]: Session Audit Log
+          - generic [ref=e827]: Signed session records for audit
+      - generic [ref=e828]:
+        - heading "Practitioner Utilization Audit" [level=2] [ref=e830]
+        - generic [ref=e831]:
+          - generic [ref=e832]:
+            - generic [ref=e833]:
+              - generic [ref=e834]: Search Practitioner (Name or ID)
+              - textbox "Type to search..." [ref=e838]
+            - generic [ref=e839]:
+              - generic [ref=e840]: Search Patient (optional)
+              - textbox "Filter by patient..." [ref=e844]
+            - generic [ref=e845]:
+              - generic [ref=e846]: Billing Status
+              - combobox [ref=e847]:
+                - option "All Statuses" [selected]
+                - option "Pending"
+                - option "In SEVF Review"
+                - option "Invoiced"
+                - option "Returned (awaiting revision)"
+                - option "Rejected"
+            - generic [ref=e848]:
+              - generic [ref=e849]: Date Range Start
+              - textbox [ref=e850]
+            - generic [ref=e851]:
+              - generic [ref=e852]: Date Range End
+              - textbox [ref=e853]
+          - generic [ref=e854]:
+            - button "Reset Filters" [ref=e855] [cursor=pointer]
+            - button "Run Master Report" [ref=e856] [cursor=pointer]

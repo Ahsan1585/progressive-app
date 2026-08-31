@@ -1,0 +1,267 @@
+- generic [ref=f7e6]:
+  - complementary [ref=f7e7]:
+    - heading "IZAYA Early Intervention Services Admin Portal" [level=1] [ref=f7e10]:
+      - generic [ref=f7e11]: IZAYA Early Intervention Services
+      - generic [ref=f7e12]: Admin Portal
+    - navigation [ref=f7e13]:
+      - button "Staff Directory" [ref=f7e14] [cursor=pointer]
+      - button "Master Reports" [ref=f7e17] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f7e20] [cursor=pointer]
+    - generic [ref=f7e23]:
+      - paragraph [ref=f7e24]: Useful Links
+      - button "Company Information" [ref=f7e25] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f7e28] [cursor=pointer]
+      - button "Audit Log" [ref=f7e31] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f7e34] [cursor=pointer]
+    - generic [ref=f7e38]:
+      - generic [ref=f7e39]:
+        - generic [ref=f7e40]:
+          - img "IZAYA" [ref=f7e41]
+          - generic [ref=f7e51]: EIS
+        - generic [ref=f7e52]: Early Intervention Simplified
+      - paragraph [ref=f7e53]: Securely Powered by Izaya
+  - main [ref=f7e54]:
+    - generic [ref=f7e55]:
+      - generic [ref=f7e56]:
+        - button "Toggle menu" [ref=f7e57] [cursor=pointer]
+        - generic [ref=f7e60]: IZAYA Early Intervention Services
+      - heading "Company Information" [level=2] [ref=f7e62]
+      - generic [ref=f7e63]:
+        - generic [ref=f7e64]:
+          - generic [ref=f7e65]: AA
+          - generic [ref=f7e67]: Ahsan Ashfaq
+          - generic [ref=f7e68]: Admin
+        - button "Sign Out" [ref=f7e69] [cursor=pointer]
+    - generic [ref=f7e73]:
+      - generic [ref=f7e77]:
+        - heading "Free trial" [level=4] [ref=f7e78]
+        - paragraph [ref=f7e79]: 20 days left in your free trial.
+      - generic [ref=f7e81]:
+        - generic [ref=f7e82]:
+          - heading "Company Information" [level=1] [ref=f7e83]
+          - paragraph [ref=f7e84]: Attach and manage the EIMS records Excel file used to run Compliance Analysis against practitioner-logged sessions.
+        - generic [ref=f7e85]:
+          - button "Company Information" [ref=f7e86] [cursor=pointer]
+          - button "EIMS Compliance Reference" [ref=f7e87] [cursor=pointer]
+          - button "Dropdown Options" [ref=f7e88] [cursor=pointer]
+        - generic [ref=f7e140]: File uploaded — review the column matching below before it’s used in Compliance Analysis.
+        - generic [ref=f7e89]:
+          - generic [ref=f7e90]:
+            - heading "EIMS Compliance Reference" [level=2] [ref=f7e91]
+            - paragraph [ref=f7e92]: Attach the EIMS records Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+          - generic [ref=f7e93]:
+            - generic [ref=f7e98]:
+              - paragraph [ref=f7e99]: eims-demo-reference-2026-08.xlsx
+              - paragraph [ref=f7e100]: 7 KB · Uploaded Aug 29, 2026
+            - generic [ref=f7e101]:
+              - button "Download" [ref=f7e102] [cursor=pointer]
+              - button "Review column matching" [ref=f7e103] [cursor=pointer]
+              - generic [ref=f7e104] [cursor=pointer]: Add files
+          - generic [ref=f7e105]: Each month, use Add files to attach the new EIMS records file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically.
+          - generic [ref=f7e110]:
+            - generic [ref=f7e111]:
+              - generic [ref=f7e112]:
+                - heading "Data currently on file" [level=3] [ref=f7e113]
+                - paragraph [ref=f7e114]: From the last confirmed upload — updates the next time a file is applied, or when refreshed.
+              - generic [ref=f7e115]:
+                - generic [ref=f7e116]: As of Aug 13, 2026
+                - button "Refresh" [ref=f7e117] [cursor=pointer]
+            - table [ref=f7e118]:
+              - rowgroup [ref=f7e119]:
+                - row [ref=f7e120]:
+                  - columnheader "Month" [ref=f7e121]
+                  - columnheader "Records" [ref=f7e122]
+                  - columnheader "Date range on file" [ref=f7e123]
+                  - columnheader [ref=f7e124]
+              - rowgroup [ref=f7e125]:
+                - row [ref=f7e126]:
+                  - cell "June 2026" [ref=f7e127]
+                  - cell "8388" [ref=f7e128]
+                  - cell "Jun 1-30, 2026" [ref=f7e129]
+                  - cell [ref=f7e130]:
+                    - button "Download" [ref=f7e131] [cursor=pointer]
+                    - button "Delete" [ref=f7e132] [cursor=pointer]
+                - row [ref=f7e133]:
+                  - cell "July 2026" [ref=f7e134]
+                  - cell "8388" [ref=f7e135]
+                  - cell "Jul 1-31, 2026" [ref=f7e136]
+                  - cell [ref=f7e137]:
+                    - button "Download" [ref=f7e138] [cursor=pointer]
+                    - button "Delete" [ref=f7e139] [cursor=pointer]
+          - generic [ref=f7e141]:
+            - generic [ref=f7e142]:
+              - heading "Match columns" [level=3] [ref=f7e143]
+              - paragraph [ref=f7e144]: Confirm which column in the Excel file feeds each field below. We pre-fill these from the file's headers — review anything highlighted before confirming.
+            - generic [ref=f7e145]:
+              - generic [ref=f7e146]:
+                - generic [ref=f7e147]:
+                  - paragraph [ref=f7e148]: Child ID *
+                  - generic [ref=f7e149]: Auto-detected
+                - combobox [ref=f7e150]:
+                  - option "— Not in this file —"
+                  - option "Child ID" [selected]
+                  - option "Child Name"
+                  - option "Practitioner"
+                  - option "Service Date"
+                  - option "Start Time"
+                  - option "End Time"
+                  - option "Service"
+                  - option "Location"
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Child ID" [ref=f7e151] [cursor=pointer]
+              - generic [ref=f7e154]:
+                - generic [ref=f7e155]:
+                  - paragraph [ref=f7e156]: Child Name
+                  - generic [ref=f7e157]: Auto-detected
+                - combobox [ref=f7e158]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name" [selected]
+                  - option "Practitioner"
+                  - option "Service Date"
+                  - option "Start Time"
+                  - option "End Time"
+                  - option "Service"
+                  - option "Location"
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Child Name" [ref=f7e159] [cursor=pointer]
+              - generic [ref=f7e162]:
+                - generic [ref=f7e163]:
+                  - paragraph [ref=f7e164]: Practitioner
+                  - generic [ref=f7e165]: Auto-detected
+                - combobox [ref=f7e166]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name"
+                  - option "Practitioner" [selected]
+                  - option "Service Date"
+                  - option "Start Time"
+                  - option "End Time"
+                  - option "Service"
+                  - option "Location"
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Practitioner" [ref=f7e167] [cursor=pointer]
+              - generic [ref=f7e170]:
+                - generic [ref=f7e171]:
+                  - paragraph [ref=f7e172]: Service Date *
+                  - generic [ref=f7e173]: Auto-detected
+                - combobox [ref=f7e174]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name"
+                  - option "Practitioner"
+                  - option "Service Date" [selected]
+                  - option "Start Time"
+                  - option "End Time"
+                  - option "Service"
+                  - option "Location"
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Service Date" [ref=f7e175] [cursor=pointer]
+              - generic [ref=f7e178]:
+                - generic [ref=f7e179]:
+                  - paragraph [ref=f7e180]: Start Time
+                  - generic [ref=f7e181]: Auto-detected
+                - combobox [ref=f7e182]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name"
+                  - option "Practitioner"
+                  - option "Service Date"
+                  - option "Start Time" [selected]
+                  - option "End Time"
+                  - option "Service"
+                  - option "Location"
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Start Time" [ref=f7e183] [cursor=pointer]
+              - generic [ref=f7e186]:
+                - generic [ref=f7e187]:
+                  - paragraph [ref=f7e188]: End Time
+                  - generic [ref=f7e189]: Auto-detected
+                - combobox [ref=f7e190]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name"
+                  - option "Practitioner"
+                  - option "Service Date"
+                  - option "Start Time"
+                  - option "End Time" [selected]
+                  - option "Service"
+                  - option "Location"
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for End Time" [ref=f7e191] [cursor=pointer]
+              - generic [ref=f7e194]:
+                - generic [ref=f7e195]:
+                  - paragraph [ref=f7e196]: Service (Service Type code)
+                  - generic [ref=f7e197]: Auto-detected
+                - combobox [ref=f7e198]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name"
+                  - option "Practitioner"
+                  - option "Service Date"
+                  - option "Start Time"
+                  - option "End Time"
+                  - option "Service" [selected]
+                  - option "Location"
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Service (Service Type code)" [ref=f7e199] [cursor=pointer]
+              - generic [ref=f7e202]:
+                - generic [ref=f7e203]:
+                  - paragraph [ref=f7e204]: Location
+                  - generic [ref=f7e205]: Auto-detected
+                - combobox [ref=f7e206]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name"
+                  - option "Practitioner"
+                  - option "Service Date"
+                  - option "Start Time"
+                  - option "End Time"
+                  - option "Service"
+                  - option "Location" [selected]
+                  - option "Group Size"
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Location" [ref=f7e207] [cursor=pointer]
+              - generic [ref=f7e210]:
+                - generic [ref=f7e211]:
+                  - paragraph [ref=f7e212]: Group Size
+                  - generic [ref=f7e213]: Auto-detected
+                - combobox [ref=f7e214]:
+                  - option "— Not in this file —"
+                  - option "Child ID"
+                  - option "Child Name"
+                  - option "Practitioner"
+                  - option "Service Date"
+                  - option "Start Time"
+                  - option "End Time"
+                  - option "Service"
+                  - option "Location"
+                  - option "Group Size" [selected]
+                  - option "Logged Date"
+                  - option "IFSP Event ID"
+                - button "Remove column match for Group Size" [ref=f7e215] [cursor=pointer]
+            - generic [ref=f7e218]:
+              - generic [ref=f7e219]:
+                - heading "Custom fields" [level=4] [ref=f7e220]
+                - paragraph [ref=f7e221]: Track additional data points beyond the fields above. Tie a category to a real EIMS records column to get an actual match/mismatch check in Compliance Analysis — or leave it as informational-only to just display the EIMS value.
+              - button "Add custom field" [ref=f7e222] [cursor=pointer]
+            - generic [ref=f7e225]:
+              - paragraph [ref=f7e226]: 2 data rows found in this file.
+              - generic [ref=f7e227]:
+                - button "Cancel" [ref=f7e228] [cursor=pointer]
+                - button "Confirm & Run Analysis" [ref=f7e229] [cursor=pointer]

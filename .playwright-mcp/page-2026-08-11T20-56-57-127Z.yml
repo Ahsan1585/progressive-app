@@ -1,0 +1,27 @@
+- generic [ref=f1e2]:
+  - generic [ref=f1e10]:
+    - img "IZAYA" [ref=f1e15]
+    - generic [ref=f1e27]: Early Intervention Simplified
+  - generic [ref=f1e46]:
+    - generic [ref=f1e47]:
+      - img "Izaya"
+      - paragraph [ref=f1e48]: Early Intervention Simplified
+    - generic [ref=f1e49]: Secured & HIPAA Compliant
+    - generic [ref=f1e53]:
+      - heading "Sign in" [level=2] [ref=f1e54]
+      - generic [ref=f1e55]:
+        - generic [ref=f1e56]: Company Code
+        - textbox "Company Code" [ref=f1e57]
+      - generic [ref=f1e58]:
+        - generic [ref=f1e59]: Email address
+        - textbox "Email address" [ref=f1e60]
+      - generic [ref=f1e61]:
+        - generic [ref=f1e62]:
+          - generic [ref=f1e63]: Password
+          - generic [ref=f1e64]:
+            - textbox "Password" [ref=f1e65]
+            - button "Show password" [ref=f1e66]
+        - link "Forgot password?" [ref=f1e70] [cursor=pointer]:
+          - /url: /EIS/forgot-password
+      - button "Sign in" [ref=f1e71]
+    - paragraph [ref=f1e72]: Izaya Consulting LLC

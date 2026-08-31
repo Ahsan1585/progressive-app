@@ -1,0 +1,68 @@
+- generic [ref=f29e3]:
+  - button "Show navigation" [ref=f29e4] [cursor=pointer]
+  - complementary [ref=f29e8]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f29e77]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f29e12]:
+      - button "Staff Directory" [ref=f29e13] [cursor=pointer]
+      - button "Master Reports" [ref=f29e16] [cursor=pointer]
+      - button "Billing & Invoices" [active] [ref=f29e19] [cursor=pointer]
+    - generic [ref=f29e22]:
+      - paragraph [ref=f29e23]: Useful Links
+      - button "Company Information" [ref=f29e24] [cursor=pointer]
+    - generic [ref=f29e27]:
+      - img "Izaya" [ref=f29e28]
+      - paragraph [ref=f29e29]: Securely Powered by Izaya
+      - paragraph [ref=f29e30]: Early Intervention Simplified
+  - main [ref=f29e31]:
+    - generic [ref=f29e32]:
+      - generic [ref=f29e33]:
+        - button "Toggle menu" [ref=f29e34] [cursor=pointer]
+        - generic [ref=f29e37]: Early Intervention Simplified
+      - heading "Billing & Invoices" [level=2] [ref=f29e496]
+      - generic [ref=f29e40]:
+        - generic [ref=f29e78]:
+          - generic [ref=f29e79]: JR
+          - generic [ref=f29e81]: Jason Roy
+          - generic [ref=f29e82]: Admin
+        - button "Sign Out" [ref=f29e41] [cursor=pointer]
+    - generic [ref=f29e497]:
+      - generic [ref=f29e498]:
+        - button "Pending Bills" [ref=f29e499] [cursor=pointer]
+        - button "Completed Bills" [ref=f29e500] [cursor=pointer]
+        - button "Invoice Status" [ref=f29e501] [cursor=pointer]
+      - generic [ref=f29e502]:
+        - generic [ref=f29e503]:
+          - generic [ref=f29e504]:
+            - generic [ref=f29e505]: Beta
+            - generic [ref=f29e506]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=f29e507] [cursor=pointer]
+        - generic [ref=f29e509]:
+          - generic [ref=f29e510]:
+            - generic [ref=f29e511]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f29e516]
+          - generic [ref=f29e517]:
+            - generic [ref=f29e518]:
+              - generic [ref=f29e519]: Start Date
+              - textbox [ref=f29e520]
+            - generic [ref=f29e521]:
+              - generic [ref=f29e522]: End Date
+              - textbox [ref=f29e523]
+            - button "Reset" [ref=f29e524] [cursor=pointer]
+            - button "Refresh" [ref=f29e525] [cursor=pointer]
+        - generic [ref=f29e526]:
+          - generic [ref=f29e527]:
+            - generic [ref=f29e528]: Billing Period
+            - textbox [ref=f29e532]: 2026-07
+            - generic [ref=f29e533]:
+              - button "Biweekly 1 Jul 1–15" [ref=f29e534] [cursor=pointer]:
+                - generic [ref=f29e535]: Biweekly 1
+                - generic [ref=f29e536]: Jul 1–15
+              - button "Biweekly 2 Jul 16–31" [disabled] [ref=f29e537]:
+                - generic [ref=f29e538]: Biweekly 2
+                - generic [ref=f29e542]: Jul 16–31
+              - button "Monthly Jul 1–31" [disabled] [ref=f29e543]:
+                - generic [ref=f29e544]: Monthly
+                - generic [ref=f29e548]: Jul 1–31
+          - generic [ref=f29e549]:
+            - paragraph [ref=f29e552]: Select a completed billing period above to begin
+            - paragraph [ref=f29e553]: Only fully-elapsed Biweekly or Monthly periods can be selected — you can't generate bills mid-period.

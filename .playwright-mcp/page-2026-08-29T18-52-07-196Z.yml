@@ -1,0 +1,149 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link [ref=e5] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e16]:
+          - link "AI Automation" [ref=e17] [cursor=pointer]:
+            - /url: /ai-automation
+          - link "Digital Transformation" [ref=e18] [cursor=pointer]:
+            - /url: /digital-transformation
+          - link "Quality Engineering" [ref=e19] [cursor=pointer]:
+            - /url: /quality-engineering
+          - generic [ref=e20]:
+            - link "Izaya Edge EIS" [ref=e21] [cursor=pointer]:
+              - /url: https://izayaedge.com/eis
+            - generic: Early Intervention Simplified
+          - link "About" [ref=e22] [cursor=pointer]:
+            - /url: /about
+        - link "Book a Call" [ref=e24] [cursor=pointer]:
+          - /url: /contact
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - heading "The intelligence layer your business runs on." [level=1] [ref=e29]
+        - paragraph [ref=e30]: Three specialized practices. One trusted partner.
+      - generic [ref=e31]:
+        - link "01 Small Business AI Automation & Bots Customer service bots, lead qualification, appointment booking, and workflow automation — running 24/7. ↗ Built to run while you sleep" [ref=e32] [cursor=pointer]:
+          - /url: /ai-automation
+          - generic [ref=e33]:
+            - generic [ref=e34]:
+              - generic [ref=e35]: "01"
+              - generic [ref=e36]: Small Business
+            - heading "AI Automation & Bots" [level=3] [ref=e41]
+            - paragraph [ref=e42]: Customer service bots, lead qualification, appointment booking, and workflow automation — running 24/7.
+            - paragraph [ref=e43]: ↗ Built to run while you sleep
+        - link "02 SMB Enterprise Digital Transformation Custom web and mobile apps, system integrations, and intelligent automation tools built to modernize your operations end-to-end. ↗ Shipped in weeks, not months" [ref=e44] [cursor=pointer]:
+          - /url: /digital-transformation
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]: "02"
+              - generic [ref=e48]:
+                - generic [ref=e49]: SMB
+                - generic [ref=e51]: Enterprise
+            - heading "Digital Transformation" [level=3] [ref=e56]
+            - paragraph [ref=e57]: Custom web and mobile apps, system integrations, and intelligent automation tools built to modernize your operations end-to-end.
+            - paragraph [ref=e58]: ↗ Shipped in weeks, not months
+        - link "03 Enterprise Quality Engineering AI-powered quality intelligence, predictive risk analysis, release governance, and test automation for enterprise-scale delivery. ↗ Enterprise-grade from day one" [ref=e59] [cursor=pointer]:
+          - /url: /quality-engineering
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - generic [ref=e62]: "03"
+              - generic [ref=e63]: Enterprise
+            - heading "Quality Engineering" [level=3] [ref=e69]
+            - paragraph [ref=e70]: AI-powered quality intelligence, predictive risk analysis, release governance, and test automation for enterprise-scale delivery.
+            - paragraph [ref=e71]: ↗ Enterprise-grade from day one
+      - generic [ref=e73]:
+        - paragraph [ref=e74]: Where do you fit?
+        - generic [ref=e75]:
+          - link "Large Organization" [ref=e76] [cursor=pointer]:
+            - /url: /quality-engineering
+          - link "Growing Business" [ref=e79] [cursor=pointer]:
+            - /url: /ai-automation
+    - generic [ref=e83]:
+      - generic [ref=e84]:
+        - paragraph [ref=e85]: Why Izaya
+        - heading "What sets us apart." [level=2] [ref=e86]
+        - paragraph [ref=e87]: We don't just build software — we build the competitive edge that keeps you ahead.
+      - generic [ref=e88]:
+        - generic [ref=e94]:
+          - heading "AI-Native Architecture" [level=3] [ref=e95]
+          - paragraph [ref=e96]: Built from the ground up with AI at the core — not retrofitted onto legacy approaches. Every solution we deliver is intelligently designed from day one.
+        - generic [ref=e103]:
+          - heading "One Partner, Full Stack" [level=3] [ref=e104]
+          - paragraph [ref=e105]: Strategy, design, engineering, and deployment under one roof. No vendor juggling, no handoffs, no finger-pointing — just full accountability end to end.
+        - generic [ref=e111]:
+          - heading "Enterprise Rigor, SMB Speed" [level=3] [ref=e112]
+          - paragraph [ref=e113]: The same quality standards we apply to Fortune 500 engagements, delivered at the velocity that growing businesses actually need to stay competitive.
+        - generic [ref=e120]:
+          - heading "Outcome-First Delivery" [level=3] [ref=e121]
+          - paragraph [ref=e122]: We measure success by what changes in your business — not hours billed or tickets closed. We don't stop until your operations measurably improve.
+    - generic [ref=e125]:
+      - generic [ref=e126]:
+        - paragraph [ref=e127]: AI Automation
+        - heading "Bots that work while you sleep." [level=2] [ref=e128]
+        - paragraph [ref=e129]: Imagine a customer calls at 2am to book an appointment. Your AI bot answers, qualifies them, books the slot, and sends a confirmation — no human required. That is what we build.
+        - link "Customize" [ref=e130] [cursor=pointer]:
+          - /url: /ai-automation
+      - generic [ref=e133]:
+        - generic [ref=e134]:
+          - heading "Call Handling" [level=4] [ref=e138]
+          - paragraph [ref=e139]: Answers calls, responds to questions, routes to the right person automatically.
+        - generic [ref=e140]:
+          - heading "Lead Qualification" [level=4] [ref=e146]
+          - paragraph [ref=e147]: Scores and qualifies every inbound lead before your team ever touches them.
+        - generic [ref=e148]:
+          - heading "Appointment Booking" [level=4] [ref=e153]
+          - paragraph [ref=e154]: Books, reschedules, and confirms appointments around the clock.
+        - generic [ref=e155]:
+          - heading "Order Automation" [level=4] [ref=e159]
+          - paragraph [ref=e160]: Takes orders, processes requests, and updates your systems in real time.
+    - generic [ref=e162]:
+      - heading "Ready to automate, innovate, and dominate?" [level=2] [ref=e163]
+      - paragraph [ref=e164]: Book a free 30-minute consultation. We will show you exactly what AI can do for your business — no fluff, no pressure.
+      - link "Book Your Free Consultation" [ref=e165] [cursor=pointer]:
+        - /url: /contact
+    - generic [ref=e169]:
+      - generic [ref=e170]:
+        - generic [ref=e171]:
+          - link "Automate. Innovate. Dominate." [ref=e172] [cursor=pointer]:
+            - /url: /
+          - paragraph [ref=e184]: AI automation, digital infrastructure, and quality systems — for businesses that compete at the highest level.
+          - generic [ref=e185]:
+            - link "LinkedIn" [ref=e186] [cursor=pointer]:
+              - /url: https://www.linkedin.com/in/izaya-consulting-485939415
+            - link "Email" [ref=e189] [cursor=pointer]:
+              - /url: mailto:support@izayaedge.com
+        - generic [ref=e193]:
+          - heading "Services" [level=4] [ref=e194]
+          - list [ref=e195]:
+            - listitem [ref=e196]:
+              - link "AI Automation & Bots" [ref=e197] [cursor=pointer]:
+                - /url: /ai-automation
+            - listitem [ref=e198]:
+              - link "Digital Transformation" [ref=e199] [cursor=pointer]:
+                - /url: /digital-transformation
+            - listitem [ref=e200]:
+              - link "Quality Engineering" [ref=e201] [cursor=pointer]:
+                - /url: /quality-engineering
+            - listitem [ref=e202]:
+              - link "About Izaya" [ref=e203] [cursor=pointer]:
+                - /url: /about
+        - generic [ref=e204]:
+          - heading "Contact" [level=4] [ref=e205]
+          - list [ref=e206]:
+            - listitem [ref=e207]:
+              - generic [ref=e211]: Old Bridge, NJServing clients globally
+            - listitem [ref=e212]:
+              - link "support@izayaedge.com" [ref=e216] [cursor=pointer]:
+                - /url: mailto:support@izayaedge.com
+      - generic [ref=e217]:
+        - paragraph [ref=e218]: © 2026 Izaya Consulting LLC. All rights reserved.
+        - generic [ref=e219]:
+          - link "Contact Us" [ref=e220] [cursor=pointer]:
+            - /url: /contact
+          - link "Privacy Policy" [ref=e221] [cursor=pointer]:
+            - /url: /privacy-policy
+          - link "Terms of Service" [ref=e222] [cursor=pointer]:
+            - /url: "#"
+  - alert [ref=e223]

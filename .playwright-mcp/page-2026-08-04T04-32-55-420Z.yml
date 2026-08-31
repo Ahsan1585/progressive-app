@@ -1,0 +1,196 @@
+- generic [ref=e3]:
+  - button "Show navigation" [active] [ref=e6] [cursor=pointer]
+  - complementary [ref=e10]:
+    - heading "Izaya Edge Admin Portal" [level=1] [ref=e13]:
+      - generic [ref=e14]: Izaya Edge
+      - generic [ref=e15]: Admin Portal
+    - navigation [ref=e16]:
+      - button "Staff Directory" [ref=e17] [cursor=pointer]
+      - button "Master Reports" [ref=e20] [cursor=pointer]
+      - button "Billing & Invoices" [ref=e23] [cursor=pointer]
+    - generic [ref=e26]:
+      - paragraph [ref=e27]: Useful Links
+      - button "Company Information" [ref=e28] [cursor=pointer]
+      - button "Subscription & Billing" [ref=e31] [cursor=pointer]
+      - button "Audit Log" [ref=e34] [cursor=pointer]
+      - button "Roles & Permissions" [ref=e37] [cursor=pointer]
+    - generic [ref=e41]:
+      - img "Izaya" [ref=e42]
+      - paragraph [ref=e43]: Securely Powered by Izaya
+      - paragraph [ref=e44]: Early Intervention Simplified
+  - main [ref=e45]:
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - button "Toggle menu" [ref=e48] [cursor=pointer]
+        - generic [ref=e51]: Early Intervention Simplified
+      - heading "Staff Directory" [level=2] [ref=e53]
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - generic [ref=e56]: AA
+          - generic [ref=e58]: Ahsan Ashfaq
+          - generic [ref=e59]: Admin
+        - button "Sign Out" [ref=e60] [cursor=pointer]
+    - generic [ref=e64]:
+      - generic [ref=e68]:
+        - heading "Free trial" [level=4] [ref=e69]
+        - paragraph [ref=e70]: 13 days left in your free trial.
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - button "Staff Roster" [ref=e74] [cursor=pointer]
+          - button "Register New User" [ref=e77] [cursor=pointer]
+          - button "Action Required" [ref=e80] [cursor=pointer]
+        - generic [ref=e83]:
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - heading "Staff Roster" [level=2] [ref=e88]
+              - generic [ref=e89]:
+                - button "Active" [ref=e90] [cursor=pointer]
+                - button "Deactivated" [ref=e92] [cursor=pointer]
+                - button "All" [ref=e94] [cursor=pointer]
+              - generic [ref=e96]: 8 members
+            - generic [ref=e97]:
+              - textbox "Search by name, email, or position..." [ref=e102]
+              - combobox [ref=e103]:
+                - generic: All Roles
+          - table [ref=e105]:
+            - rowgroup [ref=e106]:
+              - row [ref=e107]:
+                - columnheader "Name" [ref=e108]
+                - columnheader "Email" [ref=e109]
+                - columnheader "Position" [ref=e110]
+                - columnheader "Role" [ref=e111]
+                - columnheader [ref=e112]
+            - rowgroup [ref=e113]:
+              - row [ref=e114]:
+                - cell "tt test tester" [ref=e115]:
+                  - generic [ref=e116]:
+                    - generic [ref=e117]: tt
+                    - text: test tester
+                - cell "test@123.com" [ref=e119]
+                - cell "Office Staff" [ref=e120]
+                - cell "Practitioner" [ref=e121]
+                - cell [ref=e123]:
+                  - generic [ref=e124]:
+                    - button "Message practitioner" [ref=e125] [cursor=pointer]
+                    - button "Resend activation link" [ref=e128] [cursor=pointer]
+                    - button "Edit profile" [ref=e132] [cursor=pointer]
+                    - button "Deactivate user" [ref=e135] [cursor=pointer]
+              - row [ref=e139]:
+                - cell "AA Ashfaq Ahmad" [ref=e140]:
+                  - generic [ref=e141]:
+                    - generic [ref=e142]: AA
+                    - text: Ashfaq Ahmad
+                - cell "ashfaq.ahmad.us2@gmail.com" [ref=e144]
+                - cell "Office Staff" [ref=e145]
+                - cell "Admin" [ref=e146]:
+                  - combobox [ref=e147] [cursor=pointer]:
+                    - option "Select a role..." [disabled]
+                    - option "Admin" [selected]
+                    - option "Account Specialist"
+                    - option "Billing Specialist"
+                    - option "Bookkeeper"
+                    - option "Program Coordinator"
+                    - option "Staff Director"
+                - cell [ref=e148]:
+                  - generic [ref=e149]:
+                    - button "Edit profile" [ref=e150] [cursor=pointer]
+                    - button "Deactivate user" [ref=e153] [cursor=pointer]
+              - row [ref=e157]:
+                - cell "FA Farzana Ashfaq" [ref=e158]:
+                  - generic [ref=e159]:
+                    - generic [ref=e160]: FA
+                    - text: Farzana Ashfaq
+                - cell "ashfaq.ahmad.us1@gmail.com" [ref=e162]
+                - cell "Office Staff" [ref=e163]
+                - cell "Practitioner" [ref=e164]
+                - cell [ref=e166]:
+                  - generic [ref=e167]:
+                    - button "Message practitioner" [ref=e168] [cursor=pointer]
+                    - button "Edit profile" [ref=e171] [cursor=pointer]
+                    - button "Deactivate user" [ref=e174] [cursor=pointer]
+              - row [ref=e178]:
+                - cell "AA Ashfaq Ahmad" [ref=e179]:
+                  - generic [ref=e180]:
+                    - generic [ref=e181]: AA
+                    - text: Ashfaq Ahmad
+                - cell "ashfaq.ahmad.us@gmail.com" [ref=e183]
+                - cell "Office Staff" [ref=e184]
+                - cell "Practitioner" [ref=e185]
+                - cell [ref=e187]:
+                  - generic [ref=e188]:
+                    - button "Message practitioner" [ref=e189] [cursor=pointer]
+                    - button "Edit profile" [ref=e192] [cursor=pointer]
+                    - button "Deactivate user" [ref=e195] [cursor=pointer]
+              - row [ref=e199]:
+                - cell "sL sara Lee" [ref=e200]:
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: sL
+                    - text: sara Lee
+                - cell "easternzenusa@gmail.com" [ref=e204]
+                - cell "Family Therapist" [ref=e205]
+                - cell "Practitioner" [ref=e206]
+                - cell [ref=e208]:
+                  - generic [ref=e209]:
+                    - button "Message practitioner" [ref=e210] [cursor=pointer]
+                    - button "Edit profile" [ref=e213] [cursor=pointer]
+                    - button "Deactivate user" [ref=e216] [cursor=pointer]
+              - row [ref=e220]:
+                - cell "JD Jon Doe" [ref=e221]:
+                  - generic [ref=e222]:
+                    - generic [ref=e223]: JD
+                    - text: Jon Doe
+                - cell "support@izayaedge.com" [ref=e225]
+                - cell "Office Staff" [ref=e226]
+                - cell "Billing Specialist" [ref=e227]:
+                  - combobox [ref=e228] [cursor=pointer]:
+                    - option "Select a role..." [disabled]
+                    - option "Admin"
+                    - option "Account Specialist"
+                    - option "Billing Specialist" [selected]
+                    - option "Bookkeeper"
+                    - option "Program Coordinator"
+                    - option "Staff Director"
+                - cell [ref=e229]:
+                  - generic [ref=e230]:
+                    - button "Edit profile" [ref=e231] [cursor=pointer]
+                    - button "Deactivate user" [ref=e234] [cursor=pointer]
+              - row [ref=e238]:
+                - cell "DJ Dave Johnson" [ref=e239]:
+                  - generic [ref=e240]:
+                    - generic [ref=e241]: DJ
+                    - text: Dave Johnson
+                - cell "ahsan185@gmail.com" [ref=e243]
+                - cell "Office Staff" [ref=e244]
+                - cell "Account Specialist" [ref=e245]:
+                  - combobox [ref=e246] [cursor=pointer]:
+                    - option "Select a role..." [disabled]
+                    - option "Admin"
+                    - option "Account Specialist" [selected]
+                    - option "Billing Specialist"
+                    - option "Bookkeeper"
+                    - option "Program Coordinator"
+                    - option "Staff Director"
+                - cell [ref=e247]:
+                  - generic [ref=e248]:
+                    - button "Edit profile" [ref=e249] [cursor=pointer]
+                    - button "Deactivate user" [ref=e252] [cursor=pointer]
+              - row [ref=e256]:
+                - cell "AA Ahsan Ashfaq" [ref=e257]:
+                  - generic [ref=e258]:
+                    - generic [ref=e259]: AA
+                    - text: Ahsan Ashfaq
+                - cell "ahsan.ashfaq15@gmail.com" [ref=e261]
+                - cell "Office Staff" [ref=e262]
+                - cell "Admin" [ref=e263]:
+                  - combobox [ref=e264] [cursor=pointer]:
+                    - option "Select a role..." [disabled]
+                    - option "Admin" [selected]
+                    - option "Account Specialist"
+                    - option "Billing Specialist"
+                    - option "Bookkeeper"
+                    - option "Program Coordinator"
+                    - option "Staff Director"
+                - cell [ref=e265]:
+                  - generic [ref=e266]:
+                    - button "Edit profile" [ref=e267] [cursor=pointer]
+                    - button "Deactivate user" [ref=e270] [cursor=pointer]

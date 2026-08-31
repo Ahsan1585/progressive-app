@@ -1,0 +1,166 @@
+- generic [ref=f61e3]:
+  - navigation [ref=f61e4]:
+    - link "Izaya EI Simplified home" [ref=f61e5] [cursor=pointer]:
+      - /url: /eis
+      - generic [ref=f61e6]:
+        - img "IZAYA" [ref=f61e7]
+        - generic [ref=f61e17]: Early Intervention Simplified
+    - generic [ref=f61e18]:
+      - link "Home" [ref=f61e19] [cursor=pointer]:
+        - /url: /eis
+      - link "How it works" [ref=f61e20] [cursor=pointer]:
+        - /url: /eis/how-it-works
+      - link "Practitioner app" [ref=f61e21] [cursor=pointer]:
+        - /url: /eis/download
+      - link "Contact" [ref=f61e22] [cursor=pointer]:
+        - /url: /eis/contact
+      - link "Log In" [ref=f61e23] [cursor=pointer]:
+        - /url: /eis/login
+      - link "Schedule a demo" [ref=f61e24] [cursor=pointer]:
+        - /url: /eis/contact
+  - main [ref=f61e25]:
+    - generic [ref=f61e27]:
+      - generic [ref=f61e28]:
+        - generic [ref=f61e29]: Smart billing platform
+        - heading "Weeks of billing work, done in minutes." [level=1] [ref=f61e30]: Weeks of billing work,done in minutes.
+        - paragraph [ref=f61e31]: EI Simplified™ is the billing platform built for early intervention agencies. Your practitioners log a session — the system handles validation, SEVF, and invoicing.
+        - generic [ref=f61e32]:
+          - link "Schedule a demo" [ref=f61e33] [cursor=pointer]:
+            - /url: /eis/contact
+          - link "Download the practitioner app" [ref=f61e36] [cursor=pointer]:
+            - /url: /eis/download
+        - paragraph [ref=f61e37]: Less paperwork. Faster billing. More time for families.
+      - generic [ref=f61e38]:
+        - img "Early intervention practitioner logging a session on her phone" [ref=f61e40]
+        - generic [ref=f61e41]: More timefor families
+    - generic [ref=f61e49]:
+      - generic [ref=f61e50]:
+        - generic [ref=f61e51]: The core idea
+        - heading "Log a session. The system handles the rest." [level=2] [ref=f61e52]
+        - paragraph [ref=f61e53]: Practitioners simply log a session on their phone. EI Simplified automatically validates entries, flags exceptions, approves error-free logs, and generates SEVF forms and invoices — without a single spreadsheet.
+      - generic [ref=f61e54]:
+        - generic [ref=f61e55]: No manual SEVF
+        - generic [ref=f61e59]: No invoice preparation
+        - generic [ref=f61e63]: No calculations
+        - generic [ref=f61e67]: No chasing corrections
+    - generic [ref=f61e72]:
+      - generic [ref=f61e73]:
+        - generic [ref=f61e74]: Why agencies switch
+        - heading "Built to remove the billing bottleneck" [level=2] [ref=f61e75]
+      - generic [ref=f61e76]:
+        - generic [ref=f61e77]:
+          - heading "Save time" [level=3] [ref=f61e78]
+          - paragraph [ref=f61e79]: Automate every step of the billing cycle and focus on what matters most.
+        - generic [ref=f61e80]:
+          - heading "Reduce errors" [level=3] [ref=f61e81]
+          - paragraph [ref=f61e82]: Smart validation and auto-approval keep every log accurate before it moves.
+        - generic [ref=f61e83]:
+          - heading "Get paid faster" [level=3] [ref=f61e84]
+          - paragraph [ref=f61e85]: Faster corrections and automated billing accelerate reimbursements.
+        - generic [ref=f61e86]:
+          - heading "Complete compliance" [level=3] [ref=f61e87]
+          - paragraph [ref=f61e88]: Built for EI, state, and payer requirements from the first entry onward.
+        - generic [ref=f61e89]:
+          - heading "Better together" [level=3] [ref=f61e90]
+          - paragraph [ref=f61e91]: Practitioners, billing teams, and management aligned on one platform.
+    - generic [ref=f61e93]:
+      - generic [ref=f61e94]:
+        - generic [ref=f61e95]: Smart exception-based workflow
+        - generic [ref=f61e96]:
+          - heading "Only logs with errors need attention." [level=3] [ref=f61e97]
+          - generic [ref=f61e98]:
+            - generic [ref=f61e99]: Billing specialists return error logs within the platform
+            - generic [ref=f61e103]: Practitioners correct instantly
+            - generic [ref=f61e107]: No emails. No phone calls. No delays.
+      - generic [ref=f61e111]:
+        - generic [ref=f61e112]: Everything else is fully automated
+        - generic [ref=f61e114]:
+          - generic [ref=f61e115]:
+            - generic [ref=f61e119]: Error-free logs
+            - generic [ref=f61e120]: Auto approved
+          - generic [ref=f61e121]:
+            - generic [ref=f61e127]: Corrected logs
+            - generic [ref=f61e128]: Instantly processed
+          - generic [ref=f61e129]:
+            - generic [ref=f61e133]: SEVF & invoice
+            - generic [ref=f61e134]: Generated for you
+    - generic [ref=f61e136]:
+      - generic [ref=f61e137]:
+        - generic [ref=f61e138]:
+          - generic [ref=f61e139]: How EI Simplified works
+          - heading "Six steps, one uninterrupted flow" [level=2] [ref=f61e140]
+        - link "See the full walkthrough →" [ref=f61e141] [cursor=pointer]:
+          - /url: /eis/how-it-works
+      - generic [ref=f61e142]:
+        - generic [ref=f61e143]:
+          - generic [ref=f61e144]: "1"
+          - heading "Practitioner logs the session on their phone" [level=3] [ref=f61e145]
+          - generic [ref=f61e146]: Quick. Easy. Done.
+        - generic [ref=f61e147]:
+          - generic [ref=f61e148]: "2"
+          - heading "System validates automatically" [level=3] [ref=f61e149]
+          - generic [ref=f61e150]: Built-in smart validations.
+        - generic [ref=f61e151]:
+          - generic [ref=f61e152]: "3"
+          - heading "Any errors are returned in the platform" [level=3] [ref=f61e153]
+          - generic [ref=f61e154]: No emails. No calls.
+        - generic [ref=f61e155]:
+          - generic [ref=f61e156]: "4"
+          - heading "Practitioner corrects instantly" [level=3] [ref=f61e157]
+          - generic [ref=f61e158]: Corrected in seconds.
+        - generic [ref=f61e159]:
+          - generic [ref=f61e160]: "5"
+          - heading "All logs are error-free" [level=3] [ref=f61e161]
+          - generic [ref=f61e162]: 100% clean logs.
+        - generic [ref=f61e163]:
+          - generic [ref=f61e164]: "6"
+          - heading "SEVF and invoice generated" [level=3] [ref=f61e165]
+          - generic [ref=f61e166]: Time and amount calculated.
+    - generic [ref=f61e168]:
+      - generic [ref=f61e169]:
+        - heading "Your practitioners log from their phone" [level=2] [ref=f61e170]
+        - paragraph [ref=f61e171]: Install the practitioner app on any iPhone or Android device — no app store account, no IT ticket. Sessions, signatures, drafts, and returned logs, all in one place.
+      - link "Get the app" [ref=f61e172] [cursor=pointer]:
+        - /url: /eis/download
+    - generic [ref=f61e175]:
+      - generic [ref=f61e176]:
+        - heading "Weeks of billing work. Done in minutes." [level=2] [ref=f61e177]: Weeks of billing work.Done in minutes.
+        - paragraph [ref=f61e178]: Let us show you how EI Simplified™ can transform your billing workflow — from session log to SEVF and invoice.
+      - generic [ref=f61e179]:
+        - link "Schedule a demo today" [ref=f61e180] [cursor=pointer]:
+          - /url: /eis/contact
+        - paragraph [ref=f61e181]:
+          - text: Or call
+          - link "(405) 740-2647" [ref=f61e182] [cursor=pointer]:
+            - /url: tel:+14057402647
+  - contentinfo [ref=f61e183]:
+    - generic [ref=f61e184]:
+      - generic [ref=f61e185]:
+        - img "IZAYA" [ref=f61e187]
+        - paragraph [ref=f61e197]: "EI Simplified automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children."
+      - generic [ref=f61e198]:
+        - heading "Explore" [level=3] [ref=f61e199]
+        - list [ref=f61e200]:
+          - listitem [ref=f61e201]:
+            - link "How it works" [ref=f61e202] [cursor=pointer]:
+              - /url: /eis/how-it-works
+          - listitem [ref=f61e203]:
+            - link "Practitioner app" [ref=f61e204] [cursor=pointer]:
+              - /url: /eis/download
+          - listitem [ref=f61e205]:
+            - link "Schedule a demo" [ref=f61e206] [cursor=pointer]:
+              - /url: /eis/contact
+      - generic [ref=f61e207]:
+        - heading "Contact" [level=3] [ref=f61e208]
+        - list [ref=f61e209]:
+          - listitem [ref=f61e210]:
+            - link "www.izayaconsulting.com" [ref=f61e211] [cursor=pointer]:
+              - /url: https://www.izayaconsulting.com
+          - listitem [ref=f61e212]:
+            - link "support@izayaedge.com" [ref=f61e213] [cursor=pointer]:
+              - /url: mailto:support@izayaedge.com
+          - listitem [ref=f61e214]:
+            - link "(405) 740-2647" [ref=f61e215] [cursor=pointer]:
+              - /url: tel:+14057402647
+          - listitem [ref=f61e216]: Old Bridge, NJ 08857
+    - paragraph [ref=f61e217]: © 2026 Izaya Consulting. EI Simplified is a trademark of Izaya Consulting.

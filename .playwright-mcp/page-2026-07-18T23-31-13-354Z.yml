@@ -1,0 +1,176 @@
+- generic [ref=f39e3]:
+  - button "Show navigation" [ref=f39e4] [cursor=pointer]
+  - complementary [ref=f39e8]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f39e12]: Progressive StepsAdmin Portal
+    - navigation [ref=f39e13]:
+      - button "Staff Directory" [ref=f39e14] [cursor=pointer]
+      - button "Master Reports" [ref=f39e17] [cursor=pointer]
+      - button "Billing & Invoices" [active] [ref=f39e20] [cursor=pointer]
+    - paragraph [ref=f39e24]: Progressive Steps NJ
+  - main [ref=f39e25]:
+    - generic [ref=f39e26]:
+      - generic [ref=f39e27]:
+        - button "Toggle menu" [ref=f39e28] [cursor=pointer]
+        - heading "Billing & Invoices" [level=2] [ref=f39e289]
+      - generic [ref=f39e33]:
+        - generic [ref=f39e59]:
+          - generic [ref=f39e60]: JR
+          - generic [ref=f39e62]: Jason Roy
+          - generic [ref=f39e63]: Admin
+        - button "Sign Out" [ref=f39e34] [cursor=pointer]
+    - generic [ref=f39e290]:
+      - generic [ref=f39e291]:
+        - button "Pending Bills" [ref=f39e292] [cursor=pointer]
+        - button "Completed Bills" [ref=f39e293] [cursor=pointer]
+        - button "Invoice Status" [ref=f39e294] [cursor=pointer]
+      - generic [ref=f39e295]:
+        - generic [ref=f39e296]:
+          - generic [ref=f39e297]:
+            - generic [ref=f39e298]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f39e303]
+          - generic [ref=f39e304]:
+            - generic [ref=f39e305]:
+              - generic [ref=f39e306]: Start Date
+              - textbox [ref=f39e307]
+            - generic [ref=f39e308]:
+              - generic [ref=f39e309]: End Date
+              - textbox [ref=f39e310]
+            - button "Refresh" [ref=f39e311] [cursor=pointer]
+        - table [ref=f39e313]:
+          - caption [ref=f39e314]: Pending practitioner billing queue
+          - rowgroup [ref=f39e315]:
+            - row [ref=f39e316]:
+              - columnheader "Practitioner" [ref=f39e317]
+              - columnheader "Logs" [ref=f39e318]
+              - columnheader "Children" [ref=f39e319]
+              - columnheader "Status" [ref=f39e320]
+              - columnheader "SEVF Form" [ref=f39e321]
+              - columnheader "Invoice" [ref=f39e322]
+              - columnheader "Action" [ref=f39e323]
+          - rowgroup [ref=f39e324]:
+            - row [ref=f39e325]:
+              - 'cell "Expand logs Ashfaq Ahmad ID: 49" [ref=f39e326]':
+                - generic [ref=f39e327]:
+                  - button "Expand logs" [ref=f39e328] [cursor=pointer]
+                  - generic [ref=f39e331]:
+                    - generic [ref=f39e332]: Ashfaq Ahmad
+                    - generic [ref=f39e333]: "ID: 49"
+              - cell "1 1.3 hrs" [ref=f39e334]:
+                - generic [ref=f39e335]: "1"
+                - generic [ref=f39e336]: 1.3 hrs
+              - cell "1" [ref=f39e337]
+              - cell "Awaiting Forms" [ref=f39e338]
+              - cell "-" [ref=f39e340]
+              - cell "-" [ref=f39e341]
+              - cell "Generate & Issue Expand to review logs" [ref=f39e342]:
+                - generic [ref=f39e343]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f39e344]: Expand to review logs
+            - row [ref=f39e345]:
+              - 'cell "Expand logs Kase Klag ID: 39" [ref=f39e346]':
+                - generic [ref=f39e347]:
+                  - button "Expand logs" [ref=f39e348] [cursor=pointer]
+                  - generic [ref=f39e351]:
+                    - generic [ref=f39e352]: Kase Klag
+                    - generic [ref=f39e353]: "ID: 39"
+              - cell "11 11.0 hrs" [ref=f39e354]:
+                - generic [ref=f39e355]: "11"
+                - generic [ref=f39e356]: 11.0 hrs
+              - cell "2" [ref=f39e357]
+              - cell "Awaiting Forms" [ref=f39e358]
+              - cell "-" [ref=f39e360]
+              - cell "-" [ref=f39e361]
+              - cell "Generate & Issue Expand to review logs" [ref=f39e362]:
+                - generic [ref=f39e363]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f39e364]: Expand to review logs
+            - row [ref=f39e365]:
+              - 'cell "Expand logs Lori Safe ID: 38" [ref=f39e366]':
+                - generic [ref=f39e367]:
+                  - button "Expand logs" [ref=f39e368] [cursor=pointer]
+                  - generic [ref=f39e371]:
+                    - generic [ref=f39e372]: Lori Safe
+                    - generic [ref=f39e373]: "ID: 38"
+              - cell "11 11.0 hrs" [ref=f39e374]:
+                - generic [ref=f39e375]: "11"
+                - generic [ref=f39e376]: 11.0 hrs
+              - cell "4" [ref=f39e377]
+              - cell "Awaiting Forms" [ref=f39e378]
+              - cell "-" [ref=f39e380]
+              - cell "-" [ref=f39e381]
+              - cell "Generate & Issue Expand to review logs" [ref=f39e382]:
+                - generic [ref=f39e383]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f39e384]: Expand to review logs
+            - row [ref=f39e385]:
+              - 'cell "Expand logs Mik Johnson ID: 44" [ref=f39e386]':
+                - generic [ref=f39e387]:
+                  - button "Expand logs" [ref=f39e388] [cursor=pointer]
+                  - generic [ref=f39e391]:
+                    - generic [ref=f39e392]: Mik Johnson
+                    - generic [ref=f39e393]: "ID: 44"
+              - cell "2 4.0 hrs" [ref=f39e394]:
+                - generic [ref=f39e395]: "2"
+                - generic [ref=f39e396]: 4.0 hrs
+              - cell "2" [ref=f39e397]
+              - cell "Awaiting Forms" [ref=f39e398]
+              - cell "-" [ref=f39e400]
+              - cell "-" [ref=f39e401]
+              - cell "Generate & Issue Expand to review logs" [ref=f39e402]:
+                - generic [ref=f39e403]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f39e404]: Expand to review logs
+            - row [ref=f39e405]:
+              - 'cell "Expand logs Steph Garci ID: 43" [ref=f39e406]':
+                - generic [ref=f39e407]:
+                  - button "Expand logs" [ref=f39e408] [cursor=pointer]
+                  - generic [ref=f39e411]:
+                    - generic [ref=f39e412]: Steph Garci
+                    - generic [ref=f39e413]: "ID: 43"
+              - cell "11 10.5 hrs" [ref=f39e414]:
+                - generic [ref=f39e415]: "11"
+                - generic [ref=f39e416]: 10.5 hrs
+              - cell "3" [ref=f39e417]
+              - cell "Awaiting Forms" [ref=f39e418]
+              - cell "-" [ref=f39e420]
+              - cell "-" [ref=f39e421]
+              - cell "Generate & Issue Expand to review logs" [ref=f39e422]:
+                - generic [ref=f39e423]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f39e424]: Expand to review logs
+            - row [ref=f39e425]:
+              - 'cell "Expand logs Vanes Libro ID: 42" [ref=f39e426]':
+                - generic [ref=f39e427]:
+                  - button "Expand logs" [ref=f39e428] [cursor=pointer]
+                  - generic [ref=f39e431]:
+                    - generic [ref=f39e432]: Vanes Libro
+                    - generic [ref=f39e433]: "ID: 42"
+              - cell "8 5.0 hrs" [ref=f39e434]:
+                - generic [ref=f39e435]: "8"
+                - generic [ref=f39e436]: 5.0 hrs
+              - cell "2" [ref=f39e437]
+              - cell "Awaiting Forms" [ref=f39e438]
+              - cell "-" [ref=f39e440]
+              - cell "-" [ref=f39e441]
+              - cell "Generate & Issue Expand to review logs" [ref=f39e442]:
+                - generic [ref=f39e443]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f39e444]: Expand to review logs
+            - row [ref=f39e445]:
+              - 'cell "Expand logs Zaya Mo ID: 48" [ref=f39e446]':
+                - generic [ref=f39e447]:
+                  - button "Expand logs" [ref=f39e448] [cursor=pointer]
+                  - generic [ref=f39e451]:
+                    - generic [ref=f39e452]: Zaya Mo
+                    - generic [ref=f39e453]: "ID: 48"
+              - cell "2 2.0 hrs" [ref=f39e454]:
+                - generic [ref=f39e455]: "2"
+                - generic [ref=f39e456]: 2.0 hrs
+              - cell "1" [ref=f39e457]
+              - cell "Awaiting Forms" [ref=f39e458]
+              - cell "-" [ref=f39e460]
+              - cell "-" [ref=f39e461]
+              - cell "Generate & Issue Expand to review logs" [ref=f39e462]:
+                - generic [ref=f39e463]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f39e464]: Expand to review logs

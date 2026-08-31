@@ -1,0 +1,158 @@
+- generic [ref=f11e353]:
+  - button "Show navigation" [ref=f11e354] [cursor=pointer]
+  - complementary [ref=f11e358]:
+    - heading "Izaya Edge Admin Portal" [level=1] [ref=f11e361]:
+      - generic [ref=f11e362]: Izaya Edge
+      - generic [ref=f11e363]: Admin Portal
+    - navigation [ref=f11e364]:
+      - button "Staff Directory" [ref=f11e365] [cursor=pointer]
+      - button "Master Reports" [ref=f11e368] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f11e371] [cursor=pointer]
+    - generic [ref=f11e374]:
+      - paragraph [ref=f11e375]: Useful Links
+      - button "Company Information" [ref=f11e376] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f11e379] [cursor=pointer]
+      - button "Audit Log" [ref=f11e382] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f11e385] [cursor=pointer]
+    - generic [ref=f11e389]:
+      - img "Izaya" [ref=f11e390]
+      - paragraph [ref=f11e391]: Securely Powered by Izaya
+      - paragraph [ref=f11e392]: Early Intervention Simplified
+  - main [ref=f11e393]:
+    - generic [ref=f11e394]:
+      - generic [ref=f11e395]:
+        - button "Toggle menu" [ref=f11e396] [cursor=pointer]
+        - generic [ref=f11e399]: Early Intervention Simplified
+      - heading "Staff Directory" [level=2] [ref=f11e401]
+      - generic [ref=f11e402]:
+        - generic [ref=f11e403]:
+          - generic [ref=f11e404]: AA
+          - generic [ref=f11e406]: Ahsan Ashfaq
+          - generic [ref=f11e407]: Admin
+        - button "Sign Out" [ref=f11e408] [cursor=pointer]
+    - generic [ref=f11e412]:
+      - generic [ref=f11e416]:
+        - heading "Free trial" [level=4] [ref=f11e417]
+        - paragraph [ref=f11e418]: 13 days left in your free trial.
+      - generic [ref=f11e420]:
+        - generic [ref=f11e421]:
+          - button "Staff Roster" [ref=f11e422] [cursor=pointer]
+          - button "Register New User" [active] [ref=f11e425] [cursor=pointer]
+          - button "Action Required" [ref=f11e428] [cursor=pointer]
+        - generic [ref=f11e622]:
+          - heading "Register New User" [level=2] [ref=f11e623]
+          - generic [ref=f11e626]:
+            - generic [ref=f11e627]:
+              - generic [ref=f11e628]:
+                - generic [ref=f11e629]: First Name
+                - textbox "e.g. Jane" [ref=f11e630]
+              - generic [ref=f11e631]:
+                - generic [ref=f11e632]: Last Name
+                - textbox "e.g. Doe" [ref=f11e633]
+            - generic [ref=f11e634]:
+              - generic [ref=f11e635]: Email Address
+              - textbox "user@agency.com" [ref=f11e636]
+            - generic [ref=f11e637]:
+              - generic [ref=f11e638]: Discipline / Position Title
+              - combobox [ref=f11e639]:
+                - option "Select a discipline..." [disabled] [selected]
+                - option "Developmental Interventionist"
+                - option "Speech Language Pathologist"
+                - option "Occupational Therapist"
+                - option "Physical Therapist"
+                - option "Social Worker"
+                - option "Special Educator"
+                - option "Family Therapist"
+                - option "Foreign Language Interpreter"
+                - option "Office Staff"
+            - generic [ref=f11e640]:
+              - generic [ref=f11e641]: Service Types *
+              - generic [ref=f11e642]:
+                - generic [ref=f11e643] [cursor=pointer]:
+                  - checkbox "Evaluation" [ref=f11e644]
+                  - text: Evaluation
+                - generic [ref=f11e645] [cursor=pointer]:
+                  - checkbox "Assessment" [ref=f11e646]
+                  - text: Assessment
+                - generic [ref=f11e647] [cursor=pointer]:
+                  - checkbox "IFSP Meeting" [ref=f11e648]
+                  - text: IFSP Meeting
+                - generic [ref=f11e649] [cursor=pointer]:
+                  - checkbox "Audiology" [ref=f11e650]
+                  - text: Audiology
+                - generic [ref=f11e651] [cursor=pointer]:
+                  - checkbox "Developmental Intervention" [ref=f11e652]
+                  - text: Developmental Intervention
+                - generic [ref=f11e653] [cursor=pointer]:
+                  - checkbox "Family Training" [ref=f11e654]
+                  - text: Family Training
+                - generic [ref=f11e655] [cursor=pointer]:
+                  - checkbox "Health Service" [ref=f11e656]
+                  - text: Health Service
+                - generic [ref=f11e657] [cursor=pointer]:
+                  - checkbox "Medical Service" [ref=f11e658]
+                  - text: Medical Service
+                - generic [ref=f11e659] [cursor=pointer]:
+                  - checkbox "Nursing" [ref=f11e660]
+                  - text: Nursing
+                - generic [ref=f11e661] [cursor=pointer]:
+                  - checkbox "Nutrition" [ref=f11e662]
+                  - text: Nutrition
+                - generic [ref=f11e663] [cursor=pointer]:
+                  - checkbox "Occupational Therapy" [ref=f11e664]
+                  - text: Occupational Therapy
+                - generic [ref=f11e665] [cursor=pointer]:
+                  - checkbox "Physical Therapy" [ref=f11e666]
+                  - text: Physical Therapy
+                - generic [ref=f11e667] [cursor=pointer]:
+                  - checkbox "Psychological" [ref=f11e668]
+                  - text: Psychological
+                - generic [ref=f11e669] [cursor=pointer]:
+                  - checkbox "Speech Language Therapy" [ref=f11e670]
+                  - text: Speech Language Therapy
+                - generic [ref=f11e671] [cursor=pointer]:
+                  - checkbox "Social Work" [ref=f11e672]
+                  - text: Social Work
+                - generic [ref=f11e673] [cursor=pointer]:
+                  - checkbox "Vision" [ref=f11e674]
+                  - text: Vision
+                - generic [ref=f11e675] [cursor=pointer]:
+                  - checkbox "Childcare/Respite" [ref=f11e676]
+                  - text: Childcare/Respite
+                - generic [ref=f11e677] [cursor=pointer]:
+                  - checkbox "Interpreter/Translator" [ref=f11e678]
+                  - text: Interpreter/Translator
+                - generic [ref=f11e679] [cursor=pointer]:
+                  - checkbox "Escort/Security" [ref=f11e680]
+                  - text: Escort/Security
+                - generic [ref=f11e681] [cursor=pointer]:
+                  - checkbox "Transition Planning Conference" [ref=f11e682]
+                  - text: Transition Planning Conference
+            - generic [ref=f11e683]:
+              - generic [ref=f11e684]: Account Role
+              - combobox [ref=f11e685]:
+                - option "Practitioner" [selected]
+                - option "Admin"
+                - option "Account Specialist"
+                - option "Billing Specialist"
+                - option "Bookkeeper"
+                - option "Program Coordinator"
+                - option "Staff Director"
+            - generic [ref=f11e686]:
+              - generic [ref=f11e687]: Full Address
+              - textbox "123 Main St, Apt 4B, City, NJ 08000" [ref=f11e688]
+            - generic [ref=f11e689]:
+              - generic [ref=f11e690]:
+                - generic [ref=f11e691]: Phone Number
+                - textbox "(555) 123-4567" [ref=f11e692]
+              - generic [ref=f11e693]:
+                - generic [ref=f11e694]: SSN / EIN (optional)
+                - generic [ref=f11e695]:
+                  - textbox "XXX-XX-XXXX" [ref=f11e696]
+                  - button "Show password" [ref=f11e697]
+            - generic [ref=f11e702]:
+              - generic [ref=f11e703]: Hourly Pay Rate ($)
+              - spinbutton "e.g. 75.00" [ref=f11e704]
+            - generic [ref=f11e705]:
+              - button "Cancel" [ref=f11e706]
+              - button "Create Account" [ref=f11e707]

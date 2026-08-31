@@ -1,0 +1,87 @@
+- generic [ref=f7e3]:
+  - button "Show navigation" [ref=f7e4] [cursor=pointer]
+  - complementary [ref=f7e8]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f7e75]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f7e12]:
+      - button "Staff Directory" [ref=f7e13] [cursor=pointer]
+      - button "Master Reports" [ref=f7e16] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f7e19] [cursor=pointer]
+      - button "Company Information" [ref=f7e22] [cursor=pointer]
+    - generic [ref=f7e25]:
+      - img "Izaya" [ref=f7e26]
+      - paragraph [ref=f7e27]: Securely Powered by Izaya
+      - paragraph [ref=f7e28]: Early Intervention Simplified
+  - main [ref=f7e29]:
+    - generic [ref=f7e30]:
+      - generic [ref=f7e31]:
+        - button "Toggle menu" [ref=f7e32] [cursor=pointer]
+        - generic [ref=f7e35]: Early Intervention Simplified
+        - heading "Billing & Invoices" [level=2] [ref=f7e267]
+      - generic [ref=f7e38]:
+        - generic [ref=f7e76]:
+          - generic [ref=f7e77]: JR
+          - generic [ref=f7e79]: Jason Roy
+          - generic [ref=f7e80]: Admin
+        - button "Sign Out" [ref=f7e39] [cursor=pointer]
+    - generic [ref=f7e268]:
+      - generic [ref=f7e269]:
+        - button "Pending Bills" [ref=f7e270] [cursor=pointer]
+        - button "Completed Bills" [ref=f7e271] [cursor=pointer]
+        - button "Invoice Status" [ref=f7e272] [cursor=pointer]
+      - generic [ref=f7e273]:
+        - generic [ref=f7e274]:
+          - generic [ref=f7e275]:
+            - generic [ref=f7e276]: Beta
+            - generic [ref=f7e277]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=f7e278] [cursor=pointer]
+        - generic [ref=f7e280]:
+          - generic [ref=f7e281]:
+            - generic [ref=f7e282]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f7e287]
+          - generic [ref=f7e288]:
+            - generic [ref=f7e289]:
+              - generic [ref=f7e290]: Start Date
+              - textbox [ref=f7e291]
+            - generic [ref=f7e292]:
+              - generic [ref=f7e293]: End Date
+              - textbox [ref=f7e294]
+            - button "Reset" [ref=f7e295] [cursor=pointer]
+            - button "Refresh" [ref=f7e296] [cursor=pointer]
+        - generic [ref=f7e297]:
+          - generic [ref=f7e298]:
+            - textbox "Search practitioner..." [ref=f7e304]
+            - generic [ref=f7e305]:
+              - generic [ref=f7e306]:
+                - button "MH Mari Hernand 1 sessions" [ref=f7e307] [cursor=pointer]:
+                  - generic [ref=f7e308]: MH
+                  - generic [ref=f7e309]:
+                    - generic [ref=f7e310]: Mari Hernand
+                    - generic [ref=f7e311]: 1 sessions
+                - generic [ref=f7e318]:
+                  - generic [ref=f7e319]: Locked to you
+                  - button "Release" [ref=f7e323] [cursor=pointer]
+                - generic [ref=f7e324] [cursor=pointer]:
+                  - checkbox [ref=f7e325]
+                  - generic [ref=f7e327]:
+                    - generic [ref=f7e328]: Noa Court
+                    - generic [ref=f7e329]:
+                      - text: 7/23/26
+                      - generic "Service Status" [ref=f7e330]: S:1
+                      - generic "Service Type" [ref=f7e331]: IFSP
+                      - generic "Service Location" [ref=f7e332]: L:8
+                      - generic [ref=f7e333]: Approved
+                  - generic [ref=f7e334]: 1h 0m
+                - generic [ref=f7e338]:
+                  - generic [ref=f7e339]:
+                    - generic [ref=f7e340]: 1 billable
+                    - generic [ref=f7e341]: 0 held/returned
+                    - generic [ref=f7e342]: 0 excluded
+                  - button "Generate & Issue" [ref=f7e343] [cursor=pointer]
+              - generic [ref=f7e344]:
+                - button "NC Nath Castr 9 sessions" [active] [ref=f7e345] [cursor=pointer]:
+                  - generic [ref=f7e346]: NC
+                  - generic [ref=f7e347]:
+                    - generic [ref=f7e348]: Nath Castr
+                    - generic [ref=f7e349]: 9 sessions
+                - button "Lock to Review" [ref=f7e355] [cursor=pointer]
+          - generic [ref=f7e352]: Select a session from the queue on the left.

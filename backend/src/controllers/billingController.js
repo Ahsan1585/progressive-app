@@ -650,13 +650,6 @@ const updateLogStatus = async (req, res) => {
     if (status === 'pending' && review === 'accept') {
       const compliance = await computeSessionCompliance(assessmentId);
       if (compliance.flagged) {
-        // TEMP DIAGNOSTIC — remove once the Session-Detail vs Compliance-
-        // Analysis flag disagreement is confirmed resolved.
-        console.log('[approve-blocked] assessment', assessmentId, {
-          matched: compliance.matched,
-          mismatchedFields: (compliance.fields || []).filter((f) => f.match === false)
-            .map((f) => ({ key: f.key, ours: f.ours, state: f.state })),
-        });
         return res.status(400).json({ error: 'This log still has unresolved compliance mismatches — allow each flagged field before approving.' });
       }
       // "Missing in EIMS" (no matching state record at all) is a distinct,
@@ -1669,18 +1662,6 @@ const getComplianceAnalysis = async (req, res) => {
       }
     }
 
-    // TEMP DIAGNOSTIC — mirror of [session-status] so the tab's per-session
-    // verdict can be compared against the Session Detail gate's. Remove once
-    // the disagreement is resolved.
-    for (const s of sessions) {
-      const r = results[s.id];
-      console.log('[analysis-result] assessment', s.id, {
-        start: s.start_time, matched: r.matched, flagged: r.flagged,
-        dupOf: r.duplicateOfSessionId || null,
-        mismatched: (r.fields || []).filter((f) => f.match === false).map((f) => ({ key: f.key, ours: f.ours, state: f.state })),
-      });
-    }
-
     res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, strictness: doc.compliance_strictness || 'moderate', results });
   } catch (error) {
     console.error('Error running compliance analysis:', error);
@@ -2085,15 +2066,6 @@ const getSessionComplianceStatus = async (req, res) => {
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
   try {
     const compliance = await computeSessionCompliance(assessmentId);
-    // TEMP DIAGNOSTIC — fires on every Session Detail panel load, so no
-    // Approve click is needed to capture it. Remove once resolved.
-    console.log('[session-status] assessment', assessmentId, {
-      matched: compliance.matched,
-      flagged: compliance.flagged,
-      mismatched: (compliance.fields || []).filter((f) => f.match === false)
-        .map((f) => ({ key: f.key, label: f.label, ours: f.ours, state: f.state })),
-      allFields: (compliance.fields || []).map((f) => ({ k: f.key, m: f.match, o: f.ours, s: f.state })),
-    });
     res.json({
       success: true,
       documentOnFile: compliance.documentOnFile,

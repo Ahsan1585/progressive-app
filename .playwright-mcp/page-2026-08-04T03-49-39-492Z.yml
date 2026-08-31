@@ -1,0 +1,14 @@
+- generic [ref=e2]:
+  - generic [ref=e10]:
+    - img "IZAYA" [ref=e15]
+    - generic [ref=e27]: Early Intervention Simplified
+  - generic [ref=e46]:
+    - generic [ref=e47]:
+      - img "Izaya"
+      - paragraph [ref=e48]: Early Intervention Simplified
+    - generic [ref=e49]: Secured & HIPAA Compliant
+    - heading "Install the app" [level=2] [ref=e53]
+    - paragraph [ref=e59]: Open this link on your Android or iPhone to install the app.
+    - link "Already installed? Sign in instead" [ref=e61] [cursor=pointer]:
+      - /url: /EIS/login
+    - paragraph [ref=e62]: Izaya Consulting LLC

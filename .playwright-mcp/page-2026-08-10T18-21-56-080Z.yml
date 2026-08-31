@@ -1,0 +1,150 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Cookie banner" [ref=e17]:
+    - generic [ref=e19]:
+      - text: We use cookies to enhance your development experience and keep your data secure.
+      - link "Privacy Policy" [ref=e20] [cursor=pointer]:
+        - /url: /privacy
+      - text: ·
+      - link "Cookie Policy" [ref=e21] [cursor=pointer]:
+        - /url: /cookie-policy
+    - generic [ref=e23]:
+      - button "Manage preferences" [ref=e24] [cursor=pointer]
+      - button "OK" [ref=e27] [cursor=pointer]
+  - generic [ref=e30]:
+    - generic [ref=e32]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: Preview deployment
+        - generic [ref=e39]: "- Use this page to preview your project and collaborate on feedback."
+      - button "Dismiss preview notice" [ref=e40] [cursor=pointer]
+    - generic [ref=e42]:
+      - main [ref=e43]:
+        - iframe [active] [ref=e44]:
+          - generic [ref=f2e1]:
+            - generic [ref=f2e2]:
+              - banner [ref=f2e3]:
+                - generic [ref=f2e4]:
+                  - link "Izaya EI Simplified" [ref=f2e5] [cursor=pointer]:
+                    - /url: /
+                    - generic [ref=f2e11]:
+                      - generic [ref=f2e12]: Izaya
+                      - generic [ref=f2e13]: EI Simplified
+                  - navigation [ref=f2e14]:
+                    - link "Home" [ref=f2e15] [cursor=pointer]:
+                      - /url: /
+                    - link "How it works" [active] [ref=f2e16] [cursor=pointer]:
+                      - /url: /how-it-works
+                    - link "Practitioner app" [ref=f2e17] [cursor=pointer]:
+                      - /url: /download
+                    - link "Contact" [ref=f2e18] [cursor=pointer]:
+                      - /url: /contact
+                  - link "Schedule a demo" [ref=f2e20] [cursor=pointer]:
+                    - /url: /contact
+              - main [ref=f2e21]:
+                - generic [ref=f2e268]:
+                  - paragraph [ref=f2e269]: How it works
+                  - heading "From a session on a phone to a finished invoice" [level=1] [ref=f2e270]
+                  - paragraph [ref=f2e271]: EI Simplified follows one continuous path. Practitioners log in the field, the platform validates and routes exceptions, and finished billing documents come out the other end.
+                - list [ref=f2e274]:
+                  - listitem [ref=f2e275]:
+                    - generic [ref=f2e276]: "1"
+                    - heading "Practitioner logs the session on their phone" [level=2] [ref=f2e277]
+                    - paragraph [ref=f2e278]: Client, service, date, start and end time — captured in the field with a running total-time calculation and parent plus practitioner signatures.
+                    - paragraph [ref=f2e279]: Quick. Easy. Done.
+                  - listitem [ref=f2e280]:
+                    - generic [ref=f2e281]: "2"
+                    - heading "The system validates automatically" [level=2] [ref=f2e282]
+                    - paragraph [ref=f2e283]: Required fields, service codes, signatures, time rules, and duplicate logs are all checked the moment the session is submitted.
+                    - paragraph [ref=f2e284]: Built-in smart validations.
+                  - listitem [ref=f2e285]:
+                    - generic [ref=f2e286]: "3"
+                    - heading "If errors are found, they're returned in the platform" [level=2] [ref=f2e287]
+                    - paragraph [ref=f2e288]: Missing signature, invalid service code, incorrect end time — the practitioner sees exactly what to fix, right where they work.
+                    - paragraph [ref=f2e289]: Instant return. No emails. No calls.
+                  - listitem [ref=f2e290]:
+                    - generic [ref=f2e291]: "4"
+                    - heading "The practitioner corrects instantly" [level=2] [ref=f2e292]
+                    - paragraph [ref=f2e293]: Open the returned log, fix the flagged field, re-sign if needed, and resubmit — usually in under a minute.
+                    - paragraph [ref=f2e294]: Correct in seconds and resubmit.
+                  - listitem [ref=f2e295]:
+                    - generic [ref=f2e296]: "5"
+                    - heading "All logs are error-free" [level=2] [ref=f2e297]
+                    - paragraph [ref=f2e298]: Clean logs are auto-approved. Your billing team never touches a session that had nothing wrong with it.
+                    - paragraph [ref=f2e299]: 100% clean logs. Ready to go.
+                  - listitem [ref=f2e300]:
+                    - generic [ref=f2e301]: "6"
+                    - heading "SEVF and invoice are generated automatically" [level=2] [ref=f2e302]
+                    - paragraph [ref=f2e303]: Units, rates, totals, and the state-mandated service verification form are produced from the approved logs — no re-keying, no spreadsheets.
+                    - paragraph [ref=f2e304]: Total time and amount calculated automatically.
+                - generic [ref=f2e307]:
+                  - generic [ref=f2e308]:
+                    - paragraph [ref=f2e309]: Exception-based review
+                    - heading "Your billing team only sees what's actually broken" [level=2] [ref=f2e310]
+                    - paragraph [ref=f2e311]: Traditional early intervention billing means reviewing every single log to find the handful that are wrong. EI Simplified inverts that. Clean logs approve themselves. Flagged logs are returned to the practitioner inside the platform, with a comment, and come back corrected. Nothing sits in an inbox waiting for a reply.
+                    - paragraph [ref=f2e312]: The result is a review queue that shrinks to exceptions only — and a billing cycle that closes in a fraction of the time.
+                  - generic [ref=f2e313]:
+                    - generic [ref=f2e314]:
+                      - heading "SEVF, generated for you" [level=3] [ref=f2e318]
+                      - paragraph [ref=f2e319]: Provider, NPI, service month, and every code, unit, rate, and amount are filled in from the approved logs and signed off — ready for submission.
+                    - generic [ref=f2e320]:
+                      - heading "Invoices, calculated to the cent" [level=3] [ref=f2e324]
+                      - paragraph [ref=f2e325]: Invoice number, issue and due date, line items, and total amount are produced from the same source data — so the form and the invoice can never disagree.
+                - generic [ref=f2e328]:
+                  - generic [ref=f2e329]:
+                    - heading "See it with your own logs" [level=2] [ref=f2e330]
+                    - paragraph [ref=f2e331]: We'll walk your team through the full flow in about 30 minutes.
+                  - link "Schedule a demo" [ref=f2e332] [cursor=pointer]:
+                    - /url: /contact
+              - contentinfo [ref=f2e211]:
+                - generic [ref=f2e212]:
+                  - generic [ref=f2e213]:
+                    - generic [ref=f2e220]:
+                      - generic [ref=f2e221]: Izaya
+                      - generic [ref=f2e222]: EI Simplified
+                    - paragraph [ref=f2e223]: "EI Simplified automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children."
+                  - generic [ref=f2e224]:
+                    - heading "Explore" [level=3] [ref=f2e225]
+                    - list [ref=f2e226]:
+                      - listitem [ref=f2e227]:
+                        - link "How it works" [ref=f2e228] [cursor=pointer]:
+                          - /url: /how-it-works
+                      - listitem [ref=f2e229]:
+                        - link "Practitioner app" [ref=f2e230] [cursor=pointer]:
+                          - /url: /download
+                      - listitem [ref=f2e231]:
+                        - link "Schedule a demo" [ref=f2e232] [cursor=pointer]:
+                          - /url: /contact
+                  - generic [ref=f2e233]:
+                    - heading "Contact" [level=3] [ref=f2e234]
+                    - list [ref=f2e235]:
+                      - listitem [ref=f2e236]:
+                        - link "www.izayaconsulting.com" [ref=f2e240] [cursor=pointer]:
+                          - /url: https://www.izayaconsulting.com
+                      - listitem [ref=f2e241]:
+                        - link "info@izayaconsulting.com" [ref=f2e245] [cursor=pointer]:
+                          - /url: mailto:info@izayaconsulting.com
+                      - listitem [ref=f2e246]:
+                        - link "(732) 900-9048" [ref=f2e249] [cursor=pointer]:
+                          - /url: tel:+17329009048
+                      - listitem [ref=f2e250]: Old Bridge, NJ 08857
+                - paragraph [ref=f2e255]: © 2026 Izaya Consulting. EI Simplified is a trademark of Izaya Consulting.
+            - region "Notifications alt+T"
+            - complementary "Edit with Lovable" [ref=f2e256]:
+              - link "Edit with Lovable" [ref=f2e257] [cursor=pointer]:
+                - /url: https://lovable.dev/projects/lovp_38h8kqyv0v8rwadqmfjmpcyqgq?utm_source=lovable-badge
+                - generic [ref=f2e258]: Edit with
+              - button "Dismiss" [ref=f2e264] [cursor=pointer]
+        - generic [ref=e48]:
+          - button "Browse" [pressed] [ref=e49] [cursor=pointer]
+          - button "Comment" [ref=e53] [cursor=pointer]
+      - complementary [ref=e57]:
+        - button "Collapse comments" [ref=e59] [cursor=pointer]
+        - generic [ref=e61]:
+          - heading "Comments" [level=1] [ref=e63]
+          - generic [ref=e65]:
+            - img "Lovable" [ref=e67]
+            - paragraph [ref=e77]: No comments, yet
+            - paragraph [ref=e78]: Select “Comment” in the toolbar and then click anywhere on the preview to leave a comment
+            - button "Get started" [ref=e80] [cursor=pointer]
+  - region "Notifications, shortcut alt+T"

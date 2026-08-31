@@ -1,0 +1,78 @@
+- generic [ref=f16e6]:
+  - complementary [ref=f16e7]:
+    - heading "IZAYA Early Intervention Services Admin Portal" [level=1] [ref=f16e10]:
+      - generic [ref=f16e11]: IZAYA Early Intervention Services
+      - generic [ref=f16e12]: Admin Portal
+    - navigation [ref=f16e13]:
+      - button "Staff Directory" [ref=f16e14] [cursor=pointer]
+      - button "Master Reports" [ref=f16e17] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f16e20] [cursor=pointer]
+    - generic [ref=f16e23]:
+      - paragraph [ref=f16e24]: Useful Links
+      - button "Company Information" [ref=f16e25] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f16e28] [cursor=pointer]
+      - button "Audit Log" [ref=f16e31] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f16e34] [cursor=pointer]
+    - generic [ref=f16e38]:
+      - generic [ref=f16e39]:
+        - generic [ref=f16e40]:
+          - img "IZAYA" [ref=f16e41]
+          - generic [ref=f16e51]: EIS
+        - generic [ref=f16e52]: Early Intervention Simplified
+      - paragraph [ref=f16e53]: Securely Powered by Izaya
+  - main [ref=f16e54]:
+    - generic [ref=f16e55]:
+      - generic [ref=f16e56]:
+        - button "Toggle menu" [ref=f16e57] [cursor=pointer]
+        - generic [ref=f16e60]: IZAYA Early Intervention Services
+      - heading "Billing & Invoices" [level=2] [ref=f16e62]
+      - generic [ref=f16e63]:
+        - generic [ref=f16e64]:
+          - generic [ref=f16e65]: AA
+          - generic [ref=f16e67]: Ahsan Ashfaq
+          - generic [ref=f16e68]: Admin
+        - button "Sign Out" [ref=f16e69] [cursor=pointer]
+    - generic [ref=f16e73]:
+      - generic [ref=f16e77]:
+        - heading "Free trial" [level=4] [ref=f16e78]
+        - paragraph [ref=f16e79]: 20 days left in your free trial.
+      - generic [ref=f16e81]:
+        - generic [ref=f16e82]:
+          - button "Pending Bills" [ref=f16e83] [cursor=pointer]
+          - button "Completed Bills" [ref=f16e84] [cursor=pointer]
+          - button "Invoice Status" [ref=f16e85] [cursor=pointer]
+        - generic [ref=f16e87]:
+          - generic [ref=f16e88]:
+            - generic [ref=f16e89]: Billing Period
+            - textbox [ref=f16e93]: 2026-08
+            - generic [ref=f16e94]:
+              - button "Biweekly 1 Aug 1–15" [ref=f16e95] [cursor=pointer]:
+                - generic [ref=f16e96]: Biweekly 1
+                - generic [ref=f16e97]: Aug 1–15
+              - button "Biweekly 2 Aug 16–31" [disabled] [ref=f16e98]:
+                - generic [ref=f16e99]: Biweekly 2
+                - generic [ref=f16e103]: Aug 16–31
+              - button "Monthly Aug 1–31" [disabled] [ref=f16e104]:
+                - generic [ref=f16e105]: Monthly
+                - generic [ref=f16e109]: Aug 1–31
+            - generic [ref=f16e110]: Reviewing Biweekly 1 (2026-08-01 – 2026-08-15)
+          - generic [ref=f16e111]:
+            - generic [ref=f16e112]:
+              - generic [ref=f16e113]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f16e125]
+              - generic [ref=f16e208]:
+                - button "LJ Linda Jones 1 sessions" [ref=f16e209] [cursor=pointer]:
+                  - generic [ref=f16e210]: LJ
+                  - generic [ref=f16e211]:
+                    - generic [ref=f16e212]: Linda Jones
+                    - generic [ref=f16e213]: 1 sessions
+                - button "Lock to Review" [ref=f16e217] [cursor=pointer]
+                - generic [ref=f16e218]:
+                  - generic [ref=f16e219]:
+                    - generic [ref=f16e220]: 0 billable
+                    - generic [ref=f16e221]: 0 held/returned
+                    - generic [ref=f16e222]: 1 excluded
+                  - button "Generate & Issue" [disabled]
+            - generic [ref=f16e193]:
+              - generic [ref=f16e194]: Review Panel
+              - paragraph [ref=f16e207]: Select a session from the queue on the left

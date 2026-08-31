@@ -1,0 +1,84 @@
+- generic [ref=f14e187]:
+  - banner [ref=f14e188]:
+    - button "Back" [ref=f14e189]
+    - heading "Log Session" [level=1] [ref=f14e192]
+  - generic [ref=f14e193]:
+    - paragraph [ref=f14e194]: Logging session for
+    - paragraph [ref=f14e195]: Michael Smith
+  - generic [ref=f14e197]:
+    - checkbox "Telepractice (Video) Session We'll email the parent a link to review and sign remotely instead of collecting their signature here." [ref=f14e198]
+    - generic [ref=f14e199]:
+      - generic [ref=f14e200]: Telepractice (Video) Session
+      - generic [ref=f14e204]: We'll email the parent a link to review and sign remotely instead of collecting their signature here.
+  - generic [ref=f14e205]:
+    - button "Details" [ref=f14e206]
+    - button "Codes" [ref=f14e207]
+    - button "Notes" [ref=f14e208]
+    - button "Signatures" [ref=f14e209]
+  - generic [ref=f14e210]:
+    - generic [ref=f14e211]:
+      - heading "Visit details" [level=2] [ref=f14e212]
+      - generic [ref=f14e213]:
+        - generic [ref=f14e214]: Service date
+        - textbox "Service date" [ref=f14e215]: 2026-08-29
+      - generic [ref=f14e216]:
+        - generic [ref=f14e217]:
+          - generic [ref=f14e218]: Start time
+          - textbox "Start time" [ref=f14e219]
+        - generic [ref=f14e220]:
+          - generic [ref=f14e221]: End time
+          - textbox "End time" [ref=f14e222]
+      - generic [ref=f14e223]:
+        - checkbox "Session was cancelled — log with 0 time" [ref=f14e224]
+        - text: Session was cancelled — log with 0 time
+      - generic [ref=f14e225]:
+        - paragraph [ref=f14e226]: Total time
+        - paragraph [ref=f14e227]: —
+    - generic [ref=f14e228]:
+      - heading "Service codes" [level=2] [ref=f14e229]
+      - generic [ref=f14e230]:
+        - generic [ref=f14e231]: Service type
+        - button "Service type" [ref=f14e232]:
+          - generic [ref=f14e233]: Select...
+      - generic [ref=f14e236]:
+        - generic [ref=f14e237]: Status
+        - button "Status" [ref=f14e238]:
+          - generic [ref=f14e239]: Select...
+      - generic [ref=f14e242]:
+        - generic [ref=f14e243]: Location
+        - button "Location" [ref=f14e244]:
+          - generic [ref=f14e245]: Select...
+      - generic [ref=f14e248]:
+        - generic [ref=f14e249]: Group size category
+        - button "Group size category" [ref=f14e250]:
+          - generic [ref=f14e251]: Direct Child Service - Individual
+    - generic [ref=f14e254]:
+      - heading "Notes" [level=2] [ref=f14e255]
+      - generic [ref=f14e256]:
+        - generic [ref=f14e257]: Notes(optional)
+        - textbox "Notes(optional)" [ref=f14e258]:
+          - /placeholder: Add any context on this session...
+    - generic [ref=f14e259]:
+      - heading "Signatures" [level=2] [ref=f14e260]
+      - generic [ref=f14e261]:
+        - generic [ref=f14e262]: Parent/caregiver signature
+        - generic [ref=f14e264]:
+          - img "Parent or caregiver signature — draw with your finger or stylus" [ref=f14e265]
+          - paragraph: Sign with your finger or stylus
+        - generic [ref=f14e266]:
+          - button "Clear" [ref=f14e267]
+          - button "Done" [disabled]
+      - generic [ref=f14e268]:
+        - generic [ref=f14e269]: Practitioner signature
+        - button "Use my saved signature" [ref=f14e271]
+        - generic [ref=f14e272]:
+          - img "Practitioner signature — draw with your finger or stylus" [ref=f14e273]
+          - paragraph: Sign with your finger or stylus
+        - generic [ref=f14e274]:
+          - button "Clear" [ref=f14e275]
+          - button "Done" [disabled]
+  - generic [ref=f14e276]:
+    - paragraph [ref=f14e277]: 7 fields still missing
+    - generic [ref=f14e278]:
+      - button "Save Session" [ref=f14e279]
+      - 'button "More options: Save Draft or Cancel" [ref=f14e280]'

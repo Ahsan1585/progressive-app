@@ -1,0 +1,16 @@
+- generic [ref=f19e6]:
+  - heading "Your free trial has ended" [level=1] [ref=f19e11]
+  - paragraph [ref=f19e12]: Izaya Edge's free trial with Izaya EIS has ended. Extend it with a promo code, or add a payment method to start your subscription.
+  - generic [ref=f19e13]:
+    - generic [ref=f19e14]: Have a promo code?
+    - generic [ref=f19e19]:
+      - textbox "Promo code" [active] [ref=f19e20]: TEST30
+      - button "Apply" [ref=f19e30]
+  - generic [ref=f19e21]: Or
+  - generic [ref=f19e26]:
+    - generic [ref=f19e27]: Add a payment method
+    - paragraph [ref=f19e28]:
+      - text: Online payment isn't set up yet — email
+      - link "support@izayaedge.com" [ref=f19e29] [cursor=pointer]:
+        - /url: mailto:support@izayaedge.com
+      - text: to add a payment method.

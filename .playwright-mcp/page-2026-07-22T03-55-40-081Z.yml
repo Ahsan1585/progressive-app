@@ -1,0 +1,8 @@
+- generic [ref=e139]:
+  - banner [ref=e140]:
+    - button "Back" [ref=e141]
+    - heading "Resubmit log" [level=1] [ref=e144]
+  - alert [ref=e146]:
+    - generic [ref=e149]:
+      - paragraph [ref=e150]: This log is no longer available. It may have already been resubmitted.
+      - button "Retry" [ref=e151]

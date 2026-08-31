@@ -1,0 +1,27 @@
+- generic [ref=e46]:
+  - generic [ref=e47]:
+    - img "Izaya" [ref=e48]
+    - paragraph [ref=e49]: Early Intervention Simplified
+  - generic [ref=e50]: Secured & HIPAA Compliant
+  - generic [ref=e54]:
+    - heading "Sign in" [level=2] [ref=e55]
+    - alert [ref=e81]:
+      - paragraph [ref=e84]: Company code is required
+    - generic [ref=e56]:
+      - generic [ref=e57]: Email address
+      - textbox "Email address" [ref=e58]: easternzenusa@gmail.com
+    - generic [ref=e59]:
+      - generic [ref=e60]:
+        - generic [ref=e61]: Password
+        - generic [ref=e62]:
+          - textbox "Password" [ref=e63]: Pakistan@123
+          - button "Show password" [ref=e64]
+      - link "Forgot password?" [ref=e68] [cursor=pointer]:
+        - /url: /forgot-password
+    - button "Sign in" [ref=e69]
+  - generic [ref=e72]:
+    - generic [ref=e77]:
+      - paragraph [ref=e78]: Install this app
+      - paragraph [ref=e79]: Add it to your home screen for faster access in the field.
+    - button "Install" [ref=e80]
+  - paragraph [ref=e70]: Izaya Consulting LLC

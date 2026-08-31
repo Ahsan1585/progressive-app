@@ -54,10 +54,11 @@ async function findConflictingSession({ practitionerId, patientId, date, type, s
   );
 
   const conflict = rows[0] || null;
-  console.log('[session-conflict] check', {
-    practitionerId, patientId, date, type, start, end, excludeAssessmentId,
-    conflictId: conflict?.id ?? null,
-  });
+  if (conflict) {
+    console.log('[session-conflict] blocked', {
+      practitionerId, patientId, date, start, end, conflictId: conflict.id,
+    });
+  }
   return conflict;
 }
 

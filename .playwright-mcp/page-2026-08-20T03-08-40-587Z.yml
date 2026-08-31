@@ -1,0 +1,103 @@
+- generic [ref=f55e3]:
+  - navigation [ref=f55e4]:
+    - link "Izaya EISimplified home" [ref=f55e5] [cursor=pointer]:
+      - /url: /eis
+      - generic [ref=f55e6]:
+        - img "IZAYA" [ref=f55e7]
+        - generic [ref=f55e17]: Early Intervention Simplified
+    - generic [ref=f55e18]:
+      - link "Home" [ref=f55e19] [cursor=pointer]:
+        - /url: /eis
+      - link "How it works" [ref=f55e20] [cursor=pointer]:
+        - /url: /eis/how-it-works
+      - link "Practitioner app" [ref=f55e21] [cursor=pointer]:
+        - /url: /eis/download
+      - link "Contact" [ref=f55e22] [cursor=pointer]:
+        - /url: /eis/contact
+      - link "Log In" [ref=f55e23] [cursor=pointer]:
+        - /url: /eis/login
+      - link "Schedule a demo" [ref=f55e24] [cursor=pointer]:
+        - /url: /eis/contact
+  - main [ref=f55e25]:
+    - generic [ref=f55e27]:
+      - generic [ref=f55e28]: How it works
+      - heading "From a session on a phone to a finished invoice" [level=1] [ref=f55e29]
+      - paragraph [ref=f55e30]: Izaya EISimplified™ follows one continuous path. Practitioners log in the field, the platform validates and routes exceptions, and finished billing documents come out the other end.
+    - generic [ref=f55e33]:
+      - generic [ref=f55e34]:
+        - generic [ref=f55e35]: "1"
+        - heading "Practitioner logs the session on their phone" [level=3] [ref=f55e36]
+        - paragraph [ref=f55e37]: Client, service, date, start and end time — captured in the field with a running total-time calculation and parent plus practitioner signatures.
+        - generic [ref=f55e38]: Quick. Easy. Done.
+      - generic [ref=f55e39]:
+        - generic [ref=f55e40]: "2"
+        - heading "The system validates automatically" [level=3] [ref=f55e41]
+        - paragraph [ref=f55e42]: Required fields, service codes, signatures, time rules, and duplicate logs are all checked the moment the session is submitted.
+        - generic [ref=f55e43]: Built-in smart validations.
+      - generic [ref=f55e44]:
+        - generic [ref=f55e45]: "3"
+        - heading "If errors are found, they're returned in the platform" [level=3] [ref=f55e46]
+        - paragraph [ref=f55e47]: Missing signature, invalid service code, incorrect end time — the practitioner sees exactly what to fix, right where they work.
+        - generic [ref=f55e48]: Instant return. No emails. No calls.
+      - generic [ref=f55e49]:
+        - generic [ref=f55e50]: "4"
+        - heading "The practitioner corrects instantly" [level=3] [ref=f55e51]
+        - paragraph [ref=f55e52]: Open the returned log, fix the flagged field, re-sign if needed, and resubmit — usually in under a minute.
+        - generic [ref=f55e53]: Correct in seconds and resubmit.
+      - generic [ref=f55e54]:
+        - generic [ref=f55e55]: "5"
+        - heading "All logs are error-free" [level=3] [ref=f55e56]
+        - paragraph [ref=f55e57]: Clean logs are auto-approved. Your billing team never touches a session that had nothing wrong with it.
+        - generic [ref=f55e58]: 100% clean logs. Ready to go.
+      - generic [ref=f55e59]:
+        - generic [ref=f55e60]: "6"
+        - heading "SEVF and invoice are generated automatically" [level=3] [ref=f55e61]
+        - paragraph [ref=f55e62]: Units, rates, totals, and the state-mandated service verification form are produced from the approved logs — no re-keying, no spreadsheets.
+        - generic [ref=f55e63]: Total time and amount calculated automatically.
+    - generic [ref=f55e65]:
+      - generic [ref=f55e66]:
+        - generic [ref=f55e67]: Exception-based review
+        - heading "Your billing team only sees what's actually broken" [level=3] [ref=f55e68]
+        - paragraph [ref=f55e69]: Traditional early intervention billing means reviewing every single log to find the handful that are wrong. Izaya EISimplified™ inverts that. Clean logs approve themselves. Flagged logs are returned to the practitioner inside the platform, with a comment, and come back corrected. Nothing sits in an inbox waiting for a reply.
+        - paragraph [ref=f55e70]: The result is a review queue that shrinks to exceptions only — and a billing cycle that closes in a fraction of the time.
+      - generic [ref=f55e71]:
+        - generic [ref=f55e72]:
+          - heading "SEVF, generated for you" [level=3] [ref=f55e73]
+          - paragraph [ref=f55e74]: Provider, NPI, service month, and every code, unit, rate, and amount are filled in from the approved logs and signed off — ready for submission.
+        - generic [ref=f55e75]:
+          - heading "Invoices, calculated to the cent" [level=3] [ref=f55e76]
+          - paragraph [ref=f55e77]: Invoice number, issue and due date, line items, and total amount are produced from the same source data — so the form and the invoice can never disagree.
+    - generic [ref=f55e80]:
+      - generic [ref=f55e81]:
+        - heading "See it with your own logs" [level=2] [ref=f55e82]
+        - paragraph [ref=f55e83]: We'll walk your team through the full flow in about 30 minutes.
+      - link "Schedule a demo" [ref=f55e84] [cursor=pointer]:
+        - /url: /eis/contact
+  - contentinfo [ref=f55e85]:
+    - generic [ref=f55e86]:
+      - generic [ref=f55e87]:
+        - img "IZAYA" [ref=f55e89]
+        - paragraph [ref=f55e99]: "Izaya EISimplified™ automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children."
+      - generic [ref=f55e100]:
+        - heading "Explore" [level=3] [ref=f55e101]
+        - list [ref=f55e102]:
+          - listitem [ref=f55e103]:
+            - link "How it works" [ref=f55e104] [cursor=pointer]:
+              - /url: /eis/how-it-works
+          - listitem [ref=f55e105]:
+            - link "Practitioner app" [ref=f55e106] [cursor=pointer]:
+              - /url: /eis/download
+          - listitem [ref=f55e107]:
+            - link "Schedule a demo" [ref=f55e108] [cursor=pointer]:
+              - /url: /eis/contact
+      - generic [ref=f55e109]:
+        - heading "Contact" [level=3] [ref=f55e110]
+        - list [ref=f55e111]:
+          - listitem [ref=f55e112]:
+            - link "support@izayaedge.com" [ref=f55e113] [cursor=pointer]:
+              - /url: mailto:support@izayaedge.com
+          - listitem [ref=f55e114]:
+            - link "(405) 740-2647" [ref=f55e115] [cursor=pointer]:
+              - /url: tel:+14057402647
+          - listitem [ref=f55e116]: Old Bridge, NJ 08857
+    - paragraph [ref=f55e117]: © 2026 Izaya Consulting. Izaya EISimplified™ is a trademark of Izaya Consulting.

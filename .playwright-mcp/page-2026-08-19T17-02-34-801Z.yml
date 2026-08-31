@@ -1,0 +1,39 @@
+- generic [ref=f7e90]:
+  - button "Show navigation" [ref=f7e91] [cursor=pointer]
+  - complementary [ref=f7e95]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f7e98]:
+      - generic [ref=f7e99]: Progressive Steps
+      - generic [ref=f7e100]: Admin Portal
+    - navigation [ref=f7e101]
+    - generic [ref=f7e102]:
+      - img "Izaya" [ref=f7e103]
+      - paragraph [ref=f7e104]: Securely Powered by Izaya
+      - paragraph [ref=f7e105]: Early Intervention Simplified
+  - main [ref=f7e106]:
+    - generic [ref=f7e107]:
+      - generic [ref=f7e108]:
+        - button "Toggle menu" [ref=f7e109] [cursor=pointer]
+        - generic [ref=f7e112]: Early Intervention Simplified
+      - heading "Billing & Invoices" [level=2] [ref=f7e114]
+      - button "Sign Out" [ref=f7e116] [cursor=pointer]
+    - generic [ref=f7e122]:
+      - generic [ref=f7e123]:
+        - button "Pending Bills" [ref=f7e124] [cursor=pointer]
+        - button "Completed Bills" [ref=f7e125] [cursor=pointer]
+      - generic [ref=f7e127]:
+        - generic [ref=f7e128]:
+          - generic [ref=f7e129]: Billing Period
+          - textbox [ref=f7e133]: 2026-08
+          - generic [ref=f7e134]:
+            - button "Biweekly 1 Aug 1–15" [ref=f7e135] [cursor=pointer]:
+              - generic [ref=f7e136]: Biweekly 1
+              - generic [ref=f7e137]: Aug 1–15
+            - button "Biweekly 2 Aug 16–31" [disabled] [ref=f7e138]:
+              - generic [ref=f7e139]: Biweekly 2
+              - generic [ref=f7e143]: Aug 16–31
+            - button "Monthly Aug 1–31" [disabled] [ref=f7e144]:
+              - generic [ref=f7e145]: Monthly
+              - generic [ref=f7e149]: Aug 1–31
+        - generic [ref=f7e150]:
+          - paragraph [ref=f7e153]: Select a completed billing period above to begin
+          - paragraph [ref=f7e154]: Only fully-elapsed Biweekly or Monthly periods can be selected — you can't generate bills mid-period.

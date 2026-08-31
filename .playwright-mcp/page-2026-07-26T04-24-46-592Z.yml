@@ -1,0 +1,514 @@
+- generic [ref=f29e3]:
+  - button "Show navigation" [ref=f29e4] [cursor=pointer]
+  - complementary [ref=f29e8]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f29e77]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f29e12]:
+      - button "Staff Directory" [ref=f29e13] [cursor=pointer]
+      - button "Master Reports" [ref=f29e16] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f29e19] [cursor=pointer]
+    - generic [ref=f29e22]:
+      - paragraph [ref=f29e23]: Useful Links
+      - button "Company Information" [ref=f29e24] [cursor=pointer]
+    - generic [ref=f29e27]:
+      - img "Izaya" [ref=f29e28]
+      - paragraph [ref=f29e29]: Securely Powered by Izaya
+      - paragraph [ref=f29e30]: Early Intervention Simplified
+  - main [ref=f29e31]:
+    - generic [ref=f29e32]:
+      - generic [ref=f29e33]:
+        - button "Toggle menu" [ref=f29e34] [cursor=pointer]
+        - generic [ref=f29e37]: Early Intervention Simplified
+      - heading "Billing & Invoices" [level=2] [ref=f29e496]
+      - generic [ref=f29e40]:
+        - generic [ref=f29e78]:
+          - generic [ref=f29e79]: JR
+          - generic [ref=f29e81]: Jason Roy
+          - generic [ref=f29e82]: Admin
+        - button "Sign Out" [ref=f29e41] [cursor=pointer]
+    - generic [ref=f29e497]:
+      - generic [ref=f29e498]:
+        - button "Pending Bills" [ref=f29e499] [cursor=pointer]
+        - button "Completed Bills" [ref=f29e500] [cursor=pointer]
+        - button "Invoice Status" [ref=f29e501] [cursor=pointer]
+      - generic [ref=f29e502]:
+        - generic [ref=f29e503]:
+          - generic [ref=f29e504]:
+            - generic [ref=f29e505]: Beta
+            - generic [ref=f29e506]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=f29e507] [cursor=pointer]
+        - generic [ref=f29e509]:
+          - generic [ref=f29e510]:
+            - generic [ref=f29e511]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f29e516]
+          - generic [ref=f29e517]:
+            - generic [ref=f29e518]:
+              - generic [ref=f29e519]: Start Date
+              - textbox [ref=f29e520]
+            - generic [ref=f29e521]:
+              - generic [ref=f29e522]: End Date
+              - textbox [ref=f29e523]
+            - button "Reset" [ref=f29e524] [cursor=pointer]
+            - button "Refresh" [ref=f29e525] [cursor=pointer]
+        - generic [ref=f29e526]:
+          - generic [ref=f29e527]:
+            - generic [ref=f29e528]: Billing Period
+            - textbox [ref=f29e532]: 2026-06
+            - generic [ref=f29e533]:
+              - button "Biweekly 1 Jun 1–15" [ref=f29e554] [cursor=pointer]:
+                - generic [ref=f29e535]: Biweekly 1
+                - generic [ref=f29e536]: Jun 1–15
+              - button "Biweekly 2 Jun 16–30" [ref=f29e555] [cursor=pointer]:
+                - generic [ref=f29e538]: Biweekly 2
+                - generic [ref=f29e542]: Jun 16–30
+              - button "Monthly Jun 1–30" [ref=f29e556] [cursor=pointer]:
+                - generic [ref=f29e544]: Monthly
+                - generic [ref=f29e548]: Jun 1–30
+            - generic [ref=f29e557]: Reviewing Biweekly 1 (2026-06-01 – 2026-06-15)
+          - generic [ref=f29e549]:
+            - generic [ref=f29e558]:
+              - generic [ref=f29e559]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f29e571]
+              - generic [ref=f29e572]:
+                - generic [ref=f29e573]:
+                  - button "AL Amel Laura 5 sessions Locked to you" [ref=f29e574] [cursor=pointer]:
+                    - generic [ref=f29e575]: AL
+                    - generic [ref=f29e576]:
+                      - generic [ref=f29e577]: Amel Laura
+                      - generic [ref=f29e578]: 5 sessions
+                    - generic [ref=f29e579]: Locked to you
+                  - generic [ref=f29e586]:
+                    - generic [ref=f29e587]: Locked to you
+                    - button "Release" [ref=f29e591] [cursor=pointer]
+                  - generic [ref=f29e592] [cursor=pointer]:
+                    - generic [ref=f29e595]:
+                      - generic [ref=f29e596]: Roni Cam
+                      - generic [ref=f29e597]: 6/2/26
+                    - generic [ref=f29e598]:
+                      - generic "Service Status" [ref=f29e599]: S:1
+                      - generic "Service Type" [ref=f29e600]: I/T
+                      - generic "Service Location" [ref=f29e601]: L:8
+                    - generic [ref=f29e602]:
+                      - generic [ref=f29e603]: Returned
+                      - generic [ref=f29e604]: 1h 0m
+                  - generic [ref=f29e607] [cursor=pointer]:
+                    - generic [ref=f29e610]:
+                      - generic [ref=f29e611]: Roni Cam
+                      - generic [ref=f29e612]: 6/3/26
+                    - generic [ref=f29e613]:
+                      - generic "Service Status" [ref=f29e614]: S:1
+                      - generic "Service Type" [ref=f29e615]: I/T
+                      - generic "Service Location" [ref=f29e616]: L:8
+                    - generic [ref=f29e617]:
+                      - generic [ref=f29e618]: Returned
+                      - generic [ref=f29e619]: 1h 0m
+                  - generic [ref=f29e622] [cursor=pointer]:
+                    - generic [ref=f29e625]:
+                      - generic [ref=f29e626]: Roni Cam
+                      - generic [ref=f29e627]: 6/9/26
+                    - generic [ref=f29e628]:
+                      - generic "Service Status" [ref=f29e629]: S:1
+                      - generic "Service Type" [ref=f29e630]: I/T
+                      - generic "Service Location" [ref=f29e631]: L:8
+                    - generic [ref=f29e632]:
+                      - generic [ref=f29e633]: Pending
+                      - generic [ref=f29e634]: 1h 0m
+                  - generic [ref=f29e635] [cursor=pointer]:
+                    - generic [ref=f29e638]:
+                      - generic [ref=f29e639]: Roni Cam
+                      - generic [ref=f29e640]: 6/11/26
+                    - generic [ref=f29e641]:
+                      - generic "Service Status" [ref=f29e642]: S:1
+                      - generic "Service Type" [ref=f29e643]: I/T
+                      - generic "Service Location" [ref=f29e644]: L:8
+                    - generic [ref=f29e645]:
+                      - generic [ref=f29e646]: Pending
+                      - generic [ref=f29e647]: 1h 0m
+                  - generic [ref=f29e648] [cursor=pointer]:
+                    - generic [ref=f29e651]:
+                      - generic [ref=f29e652]: Salim Cam
+                      - generic [ref=f29e653]: 6/15/26
+                    - generic [ref=f29e654]:
+                      - generic "Service Status" [ref=f29e655]: S:1
+                      - generic "Service Type" [ref=f29e656]: I/T
+                      - generic "Service Location" [ref=f29e657]: L:8
+                    - generic [ref=f29e658]:
+                      - generic [ref=f29e659]: Pending
+                      - generic [ref=f29e660]: 1h 0m
+                  - generic [ref=f29e661]:
+                    - generic [ref=f29e662]:
+                      - generic [ref=f29e663]: 3 billable
+                      - generic [ref=f29e664]: 2 held/returned
+                      - generic [ref=f29e665]: 0 excluded
+                    - button "Generate & Issue" [disabled]
+                - button "AB Amy Boyd 4 sessions Locked by Ashfaq Ahmad" [ref=f29e667] [cursor=pointer]:
+                  - generic [ref=f29e668]: AB
+                  - generic [ref=f29e669]:
+                    - generic [ref=f29e670]: Amy Boyd
+                    - generic [ref=f29e671]: 4 sessions
+                  - generic [ref=f29e672]: Locked by Ashfaq Ahmad
+                - button "NC Nath Castr 5 sessions" [ref=f29e679] [cursor=pointer]:
+                  - generic [ref=f29e680]: NC
+                  - generic [ref=f29e681]:
+                    - generic [ref=f29e682]: Nath Castr
+                    - generic [ref=f29e683]: 5 sessions
+            - generic [ref=f29e686]:
+              - generic [ref=f29e687]: Review Panel
+              - generic [ref=f29e692]:
+                - generic [ref=f29e693]:
+                  - button "Session Detail" [ref=f29e701] [cursor=pointer]
+                  - button "Compliance Analysis" [ref=f29e702] [cursor=pointer]
+                - generic [ref=f29e761]:
+                  - generic [ref=f29e767]:
+                    - generic [ref=f29e768]: Compliance Analysis
+                    - paragraph [ref=f29e769]: "Each session below is matched to the state's reference document by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time."
+                  - generic [ref=f29e770]: Reference document (from Company Information)
+                  - button "Excel File for EIMS verification.xlsx on file — click to download" [ref=f29e771] [cursor=pointer]:
+                    - generic [ref=f29e775]: Excel File for EIMS verification.xlsx
+                    - generic [ref=f29e776]: on file — click to download
+                  - button "Re-run analysis" [ref=f29e777] [cursor=pointer]
+                  - generic [ref=f29e783]:
+                    - generic [ref=f29e784]:
+                      - generic [ref=f29e785]: "5"
+                      - generic [ref=f29e786]: Sessions Checked
+                    - generic [ref=f29e787]:
+                      - generic [ref=f29e788]: "0"
+                      - generic [ref=f29e789]: Match State Codes
+                    - button "5 Flagged — click to filter" [ref=f29e790] [cursor=pointer]:
+                      - generic [ref=f29e791]: "5"
+                      - generic [ref=f29e792]: Flagged — click to filter
+                  - generic [ref=f29e793]:
+                    - generic [ref=f29e794]: 1 session in the state document for this practitioner's patients aren't reflected in this period's logs
+                    - list [ref=f29e795]:
+                      - listitem [ref=f29e796]: Cam, Roni — 6/4/26 (Foreign Language Interpreter)
+                  - generic [ref=f29e797]: Side-by-side comparison · Amel Laura
+                  - generic [ref=f29e799]:
+                    - generic [ref=f29e800]:
+                      - generic [ref=f29e801]:
+                        - generic [ref=f29e802]:
+                          - generic [ref=f29e803]: Roni Cam
+                          - text: 6/2/26
+                        - generic [ref=f29e804]:
+                          - generic [ref=f29e805]: 2 fields flagged
+                          - generic [ref=f29e809]: Returned
+                      - table [ref=f29e810]:
+                        - rowgroup [ref=f29e811]:
+                          - row [ref=f29e812]:
+                            - columnheader [ref=f29e813]
+                            - columnheader "Our Log" [ref=f29e814]
+                            - columnheader "State Record" [ref=f29e815]
+                        - rowgroup [ref=f29e816]:
+                          - row [ref=f29e817]:
+                            - cell "Child ID" [ref=f29e818]
+                            - cell "800174879" [ref=f29e822]
+                            - cell "800174879" [ref=f29e823]
+                          - row [ref=f29e824]:
+                            - cell "Child Name" [ref=f29e825]
+                            - cell "Roni Cam" [ref=f29e826]
+                            - cell "Cam, Roni" [ref=f29e827]
+                          - row [ref=f29e828]:
+                            - cell "Practitioner" [ref=f29e829]
+                            - cell "Amel Laura" [ref=f29e833]
+                            - cell "Amel Laura" [ref=f29e834]
+                          - row [ref=f29e835]:
+                            - cell "Service Date" [ref=f29e836]
+                            - cell "2026-06-02" [ref=f29e840]
+                            - cell "2026-06-02" [ref=f29e841]
+                          - row [ref=f29e842]:
+                            - cell "Start Time" [ref=f29e843]
+                            - cell "12:00" [ref=f29e847]
+                            - cell "12:00" [ref=f29e848]
+                          - row [ref=f29e849]:
+                            - cell "End Time" [ref=f29e850]
+                            - cell "13:00" [ref=f29e854]
+                            - cell "13:00" [ref=f29e855]
+                          - row [ref=f29e856]:
+                            - cell "Service Type" [ref=f29e857]
+                            - cell "Interpreter/Translator" [ref=f29e861]
+                            - cell "Interpreter/Translator" [ref=f29e862]
+                          - row [ref=f29e863]:
+                            - cell "Location" [ref=f29e864]
+                            - cell "Phone/Video Conferencing" [ref=f29e868]
+                            - cell "Phone/Video Conferencing" [ref=f29e869]
+                          - row [ref=f29e870]:
+                            - cell "Group Size Category" [ref=f29e871]
+                            - cell "-" [ref=f29e875]
+                            - cell "Consultation/Facilitation with Others" [ref=f29e876]
+                          - row [ref=f29e877]:
+                            - cell "Logged Date" [ref=f29e878]
+                            - cell "2026-07-25" [ref=f29e882]
+                            - cell "2026-06-04" [ref=f29e883]
+                          - row [ref=f29e884]:
+                            - cell "IFSP Event ID" [ref=f29e885]
+                            - cell "-" [ref=f29e886]
+                            - cell "-" [ref=f29e887]
+                          - row [ref=f29e888]:
+                            - cell "Comments" [ref=f29e889]
+                            - cell "-" [ref=f29e890]
+                            - cell "Comments" [ref=f29e891]
+                    - generic [ref=f29e892]:
+                      - generic [ref=f29e893]:
+                        - generic [ref=f29e894]:
+                          - generic [ref=f29e895]: Roni Cam
+                          - text: 6/3/26
+                        - generic [ref=f29e896]:
+                          - generic [ref=f29e897]: 2 fields flagged
+                          - generic [ref=f29e901]: Returned
+                      - table [ref=f29e902]:
+                        - rowgroup [ref=f29e903]:
+                          - row [ref=f29e904]:
+                            - columnheader [ref=f29e905]
+                            - columnheader "Our Log" [ref=f29e906]
+                            - columnheader "State Record" [ref=f29e907]
+                        - rowgroup [ref=f29e908]:
+                          - row [ref=f29e909]:
+                            - cell "Child ID" [ref=f29e910]
+                            - cell "800174879" [ref=f29e914]
+                            - cell "800174879" [ref=f29e915]
+                          - row [ref=f29e916]:
+                            - cell "Child Name" [ref=f29e917]
+                            - cell "Roni Cam" [ref=f29e918]
+                            - cell "Cam, Roni" [ref=f29e919]
+                          - row [ref=f29e920]:
+                            - cell "Practitioner" [ref=f29e921]
+                            - cell "Amel Laura" [ref=f29e925]
+                            - cell "Amel Laura" [ref=f29e926]
+                          - row [ref=f29e927]:
+                            - cell "Service Date" [ref=f29e928]
+                            - cell "2026-06-03" [ref=f29e932]
+                            - cell "2026-06-03" [ref=f29e933]
+                          - row [ref=f29e934]:
+                            - cell "Start Time" [ref=f29e935]
+                            - cell "12:05" [ref=f29e939]
+                            - cell "12:05" [ref=f29e940]
+                          - row [ref=f29e941]:
+                            - cell "End Time" [ref=f29e942]
+                            - cell "13:05" [ref=f29e946]
+                            - cell "13:05" [ref=f29e947]
+                          - row [ref=f29e948]:
+                            - cell "Service Type" [ref=f29e949]
+                            - cell "Interpreter/Translator" [ref=f29e953]
+                            - cell "Interpreter/Translator" [ref=f29e954]
+                          - row [ref=f29e955]:
+                            - cell "Location" [ref=f29e956]
+                            - cell "Phone/Video Conferencing" [ref=f29e960]
+                            - cell "Phone/Video Conferencing" [ref=f29e961]
+                          - row [ref=f29e962]:
+                            - cell "Group Size Category" [ref=f29e963]
+                            - cell "-" [ref=f29e967]
+                            - cell "Consultation/Facilitation with Others" [ref=f29e968]
+                          - row [ref=f29e969]:
+                            - cell "Logged Date" [ref=f29e970]
+                            - cell "2026-07-25" [ref=f29e974]
+                            - cell "2026-07-08" [ref=f29e975]
+                          - row [ref=f29e976]:
+                            - cell "IFSP Event ID" [ref=f29e977]
+                            - cell "-" [ref=f29e978]
+                            - cell "-" [ref=f29e979]
+                          - row [ref=f29e980]:
+                            - cell "Comments" [ref=f29e981]
+                            - cell "-" [ref=f29e982]
+                            - cell "Comments" [ref=f29e983]
+                    - generic [ref=f29e984]:
+                      - generic [ref=f29e985]:
+                        - generic [ref=f29e986]:
+                          - generic [ref=f29e987]: Roni Cam
+                          - text: 6/9/26
+                        - generic [ref=f29e988]:
+                          - generic [ref=f29e989]: 2 fields flagged
+                          - combobox [ref=f29e993] [cursor=pointer]:
+                            - option "Pending" [selected]
+                            - option "Approve"
+                            - option "Return..."
+                            - option "Reject..."
+                            - option "Hold"
+                      - table [ref=f29e994]:
+                        - rowgroup [ref=f29e995]:
+                          - row [ref=f29e996]:
+                            - columnheader [ref=f29e997]
+                            - columnheader "Our Log" [ref=f29e998]
+                            - columnheader "State Record" [ref=f29e999]
+                        - rowgroup [ref=f29e1000]:
+                          - row [ref=f29e1001]:
+                            - cell "Child ID" [ref=f29e1002]
+                            - cell "800174879" [ref=f29e1006]
+                            - cell "800174879" [ref=f29e1007]
+                          - row [ref=f29e1008]:
+                            - cell "Child Name" [ref=f29e1009]
+                            - cell "Roni Cam" [ref=f29e1010]
+                            - cell "Cam, Roni" [ref=f29e1011]
+                          - row [ref=f29e1012]:
+                            - cell "Practitioner" [ref=f29e1013]
+                            - cell "Amel Laura" [ref=f29e1017]
+                            - cell "Amel Laura" [ref=f29e1018]
+                          - row [ref=f29e1019]:
+                            - cell "Service Date" [ref=f29e1020]
+                            - cell "2026-06-09" [ref=f29e1024]
+                            - cell "2026-06-09" [ref=f29e1025]
+                          - row [ref=f29e1026]:
+                            - cell "Start Time" [ref=f29e1027]
+                            - cell "12:00" [ref=f29e1031]
+                            - cell "12:00" [ref=f29e1032]
+                          - row [ref=f29e1033]:
+                            - cell "End Time" [ref=f29e1034]
+                            - cell "13:00" [ref=f29e1038]
+                            - cell "13:00" [ref=f29e1039]
+                          - row [ref=f29e1040]:
+                            - cell "Service Type" [ref=f29e1041]
+                            - cell "Interpreter/Translator" [ref=f29e1045]
+                            - cell "Interpreter/Translator" [ref=f29e1046]
+                          - row [ref=f29e1047]:
+                            - cell "Location" [ref=f29e1048]
+                            - cell "Phone/Video Conferencing" [ref=f29e1052]
+                            - cell "Phone/Video Conferencing" [ref=f29e1053]
+                          - row [ref=f29e1054]:
+                            - cell "Group Size Category" [ref=f29e1055]
+                            - cell "-" [ref=f29e1059]
+                            - cell "Consultation/Facilitation with Others" [ref=f29e1060]
+                          - row [ref=f29e1061]:
+                            - cell "Logged Date" [ref=f29e1062]
+                            - cell "2026-07-25" [ref=f29e1066]
+                            - cell "2026-07-08" [ref=f29e1067]
+                          - row [ref=f29e1068]:
+                            - cell "IFSP Event ID" [ref=f29e1069]
+                            - cell "-" [ref=f29e1070]
+                            - cell "-" [ref=f29e1071]
+                          - row [ref=f29e1072]:
+                            - cell "Comments" [ref=f29e1073]
+                            - cell "-" [ref=f29e1074]
+                            - cell "Comments" [ref=f29e1075]
+                    - generic [ref=f29e1076]:
+                      - generic [ref=f29e1077]:
+                        - generic [ref=f29e1078]:
+                          - generic [ref=f29e1079]: Roni Cam
+                          - text: 6/11/26
+                        - generic [ref=f29e1080]:
+                          - generic [ref=f29e1081]: 2 fields flagged
+                          - combobox [ref=f29e1085] [cursor=pointer]:
+                            - option "Pending" [selected]
+                            - option "Approve"
+                            - option "Return..."
+                            - option "Reject..."
+                            - option "Hold"
+                      - table [ref=f29e1086]:
+                        - rowgroup [ref=f29e1087]:
+                          - row [ref=f29e1088]:
+                            - columnheader [ref=f29e1089]
+                            - columnheader "Our Log" [ref=f29e1090]
+                            - columnheader "State Record" [ref=f29e1091]
+                        - rowgroup [ref=f29e1092]:
+                          - row [ref=f29e1093]:
+                            - cell "Child ID" [ref=f29e1094]
+                            - cell "800174879" [ref=f29e1098]
+                            - cell "800174879" [ref=f29e1099]
+                          - row [ref=f29e1100]:
+                            - cell "Child Name" [ref=f29e1101]
+                            - cell "Roni Cam" [ref=f29e1102]
+                            - cell "Cam, Roni" [ref=f29e1103]
+                          - row [ref=f29e1104]:
+                            - cell "Practitioner" [ref=f29e1105]
+                            - cell "Amel Laura" [ref=f29e1109]
+                            - cell "Amel Laura" [ref=f29e1110]
+                          - row [ref=f29e1111]:
+                            - cell "Service Date" [ref=f29e1112]
+                            - cell "2026-06-11" [ref=f29e1116]
+                            - cell "2026-06-11" [ref=f29e1117]
+                          - row [ref=f29e1118]:
+                            - cell "Start Time" [ref=f29e1119]
+                            - cell "12:05" [ref=f29e1123]
+                            - cell "12:05" [ref=f29e1124]
+                          - row [ref=f29e1125]:
+                            - cell "End Time" [ref=f29e1126]
+                            - cell "13:05" [ref=f29e1130]
+                            - cell "13:05" [ref=f29e1131]
+                          - row [ref=f29e1132]:
+                            - cell "Service Type" [ref=f29e1133]
+                            - cell "Interpreter/Translator" [ref=f29e1137]
+                            - cell "Interpreter/Translator" [ref=f29e1138]
+                          - row [ref=f29e1139]:
+                            - cell "Location" [ref=f29e1140]
+                            - cell "Phone/Video Conferencing" [ref=f29e1144]
+                            - cell "Phone/Video Conferencing" [ref=f29e1145]
+                          - row [ref=f29e1146]:
+                            - cell "Group Size Category" [ref=f29e1147]
+                            - cell "-" [ref=f29e1151]
+                            - cell "Consultation/Facilitation with Others" [ref=f29e1152]
+                          - row [ref=f29e1153]:
+                            - cell "Logged Date" [ref=f29e1154]
+                            - cell "2026-07-25" [ref=f29e1158]
+                            - cell "2026-07-08" [ref=f29e1159]
+                          - row [ref=f29e1160]:
+                            - cell "IFSP Event ID" [ref=f29e1161]
+                            - cell "-" [ref=f29e1162]
+                            - cell "-" [ref=f29e1163]
+                          - row [ref=f29e1164]:
+                            - cell "Comments" [ref=f29e1165]
+                            - cell "-" [ref=f29e1166]
+                            - cell "Comments" [ref=f29e1167]
+                    - generic [ref=f29e1168]:
+                      - generic [ref=f29e1169]:
+                        - generic [ref=f29e1170]:
+                          - generic [ref=f29e1171]: Salim Cam
+                          - text: 6/15/26
+                        - generic [ref=f29e1172]:
+                          - generic [ref=f29e1173]: 2 fields flagged
+                          - combobox [ref=f29e1177] [cursor=pointer]:
+                            - option "Pending" [selected]
+                            - option "Approve"
+                            - option "Return..."
+                            - option "Reject..."
+                            - option "Hold"
+                      - table [ref=f29e1178]:
+                        - rowgroup [ref=f29e1179]:
+                          - row [ref=f29e1180]:
+                            - columnheader [ref=f29e1181]
+                            - columnheader "Our Log" [ref=f29e1182]
+                            - columnheader "State Record" [ref=f29e1183]
+                        - rowgroup [ref=f29e1184]:
+                          - row [ref=f29e1185]:
+                            - cell "Child ID" [ref=f29e1186]
+                            - cell "800197110" [ref=f29e1190]
+                            - cell "800197110" [ref=f29e1191]
+                          - row [ref=f29e1192]:
+                            - cell "Child Name" [ref=f29e1193]
+                            - cell "Salim Cam" [ref=f29e1194]
+                            - cell "Cam, Salim" [ref=f29e1195]
+                          - row [ref=f29e1196]:
+                            - cell "Practitioner" [ref=f29e1197]
+                            - cell "Amel Laura" [ref=f29e1201]
+                            - cell "Amel Laura" [ref=f29e1202]
+                          - row [ref=f29e1203]:
+                            - cell "Service Date" [ref=f29e1204]
+                            - cell "2026-06-15" [ref=f29e1208]
+                            - cell "2026-06-15" [ref=f29e1209]
+                          - row [ref=f29e1210]:
+                            - cell "Start Time" [ref=f29e1211]
+                            - cell "12:05" [ref=f29e1215]
+                            - cell "12:05" [ref=f29e1216]
+                          - row [ref=f29e1217]:
+                            - cell "End Time" [ref=f29e1218]
+                            - cell "13:05" [ref=f29e1222]
+                            - cell "13:05" [ref=f29e1223]
+                          - row [ref=f29e1224]:
+                            - cell "Service Type" [ref=f29e1225]
+                            - cell "Interpreter/Translator" [ref=f29e1229]
+                            - cell "Interpreter/Translator" [ref=f29e1230]
+                          - row [ref=f29e1231]:
+                            - cell "Location" [ref=f29e1232]
+                            - cell "Phone/Video Conferencing" [ref=f29e1236]
+                            - cell "Phone/Video Conferencing" [ref=f29e1237]
+                          - row [ref=f29e1238]:
+                            - cell "Group Size Category" [ref=f29e1239]
+                            - cell "-" [ref=f29e1243]
+                            - cell "Consultation/Facilitation with Others" [ref=f29e1244]
+                          - row [ref=f29e1245]:
+                            - cell "Logged Date" [ref=f29e1246]
+                            - cell "2026-07-25" [ref=f29e1250]
+                            - cell "2026-07-08" [ref=f29e1251]
+                          - row [ref=f29e1252]:
+                            - cell "IFSP Event ID" [ref=f29e1253]
+                            - cell "-" [ref=f29e1254]
+                            - cell "-" [ref=f29e1255]
+                          - row [ref=f29e1256]:
+                            - cell "Comments" [ref=f29e1257]
+                            - cell "-" [ref=f29e1258]
+                            - cell "Comments" [ref=f29e1259]

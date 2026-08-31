@@ -1,0 +1,16 @@
+- generic [ref=f22e4]:
+  - generic [ref=f22e5]:
+    - generic [ref=f22e6]: PS
+    - paragraph [ref=f22e8]: Progressive Steps NJ · Practitioner
+  - generic [ref=f22e9]:
+    - heading "Sign in" [level=2] [ref=f22e10]
+    - generic [ref=f22e11]:
+      - generic [ref=f22e12]: Email address
+      - textbox "Email address" [ref=f22e13]
+    - generic [ref=f22e14]:
+      - generic [ref=f22e15]:
+        - generic [ref=f22e16]: Password
+        - textbox "Password" [ref=f22e17]
+      - link "Forgot password?" [ref=f22e18] [cursor=pointer]:
+        - /url: /forgot-password
+    - button "Sign in" [ref=f22e19]

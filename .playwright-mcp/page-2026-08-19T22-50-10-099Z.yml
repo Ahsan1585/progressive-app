@@ -1,0 +1,50 @@
+- generic [ref=f46e89]:
+  - button "Show navigation" [ref=f46e90] [cursor=pointer]
+  - complementary [ref=f46e94]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=f46e97]:
+      - generic [ref=f46e98]: IZAYA Consulting, LLC
+      - generic [ref=f46e99]: Admin Portal
+    - navigation [ref=f46e100]:
+      - button "Staff Directory" [ref=f46e101] [cursor=pointer]
+      - button "Master Reports" [ref=f46e104] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f46e107] [cursor=pointer]
+    - generic [ref=f46e110]:
+      - paragraph [ref=f46e111]: Useful Links
+      - button "Company Information" [ref=f46e112] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f46e115] [cursor=pointer]
+      - button "Audit Log" [ref=f46e118] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f46e121] [cursor=pointer]
+    - generic [ref=f46e125]:
+      - img "Izaya"
+      - paragraph [ref=f46e126]: Securely Powered by Izaya
+      - paragraph [ref=f46e127]: Early Intervention Simplified
+  - main [ref=f46e128]:
+    - generic [ref=f46e129]:
+      - generic [ref=f46e130]:
+        - button "Toggle menu" [ref=f46e131] [cursor=pointer]
+        - generic [ref=f46e134]: Early Intervention Simplified
+      - heading "Staff Directory" [level=2] [ref=f46e136]
+      - generic [ref=f46e137]:
+        - generic [ref=f46e138]:
+          - generic [ref=f46e139]: AZ
+          - generic [ref=f46e141]: Ahsan Zubair
+          - generic [ref=f46e142]: Admin
+        - button "Sign Out" [ref=f46e143] [cursor=pointer]
+    - generic [ref=f46e149]:
+      - generic [ref=f46e150]:
+        - button "Staff Roster" [ref=f46e151] [cursor=pointer]
+        - button "Register New User" [ref=f46e154] [cursor=pointer]
+      - generic [ref=f46e157]:
+        - generic [ref=f46e158]:
+          - generic [ref=f46e159]:
+            - heading "Staff Roster" [level=2] [ref=f46e162]
+            - generic [ref=f46e163]:
+              - button "Active" [ref=f46e164] [cursor=pointer]
+              - button "Deactivated" [ref=f46e166] [cursor=pointer]
+              - button "All" [ref=f46e168] [cursor=pointer]
+            - generic [ref=f46e170]: 0 members
+          - generic [ref=f46e171]:
+            - textbox "Search by name, email, or position..." [ref=f46e176]
+            - combobox [ref=f46e177]:
+              - generic: All Roles
+        - generic [ref=f46e178]: Loading staff...

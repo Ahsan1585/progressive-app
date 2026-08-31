@@ -1,0 +1,116 @@
+- generic [ref=e89]:
+  - button "Show navigation" [ref=e90] [cursor=pointer]
+  - complementary [ref=e94]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=e97]:
+      - generic [ref=e98]: IZAYA Consulting, LLC
+      - generic [ref=e99]: Admin Portal
+    - navigation [ref=e100]:
+      - button "Staff Directory" [ref=e101] [cursor=pointer]
+      - button "Master Reports" [ref=e104] [cursor=pointer]
+      - button "Billing & Invoices" [ref=e107] [cursor=pointer]
+    - generic [ref=e110]:
+      - paragraph [ref=e111]: Useful Links
+      - button "Company Information" [ref=e112] [cursor=pointer]
+      - button "Subscription & Billing" [ref=e115] [cursor=pointer]
+      - button "Audit Log" [ref=e118] [cursor=pointer]
+      - button "Roles & Permissions" [ref=e121] [cursor=pointer]
+    - generic [ref=e125]:
+      - img "Izaya" [ref=e673]
+      - paragraph [ref=e126]: Securely Powered by Izaya
+      - paragraph [ref=e127]: Early Intervention Simplified
+  - main [ref=e128]:
+    - generic [ref=e129]:
+      - generic [ref=e130]:
+        - button "Toggle menu" [ref=e131] [cursor=pointer]
+        - generic [ref=e134]: Early Intervention Simplified
+      - heading "Billing & Invoices" [level=2] [ref=e674]
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - generic [ref=e139]: AZ
+          - generic [ref=e141]: Ahsan Zubair
+          - generic [ref=e142]: Admin
+        - button "Sign Out" [ref=e143] [cursor=pointer]
+    - generic [ref=e675]:
+      - generic [ref=e676]:
+        - button "Pending Bills" [ref=e677] [cursor=pointer]
+        - button "Completed Bills" [ref=e678] [cursor=pointer]
+        - button "Invoice Status" [active] [ref=e679] [cursor=pointer]
+      - generic [ref=e709]:
+        - generic [ref=e710]:
+          - generic [ref=e711]:
+            - generic [ref=e712]: Search Practitioner
+            - textbox "Search by practitioner name..." [ref=e717]
+          - generic [ref=e718]:
+            - generic [ref=e719]:
+              - generic [ref=e720]: Service Date From
+              - textbox [ref=e721]
+            - generic [ref=e722]:
+              - generic [ref=e723]: Service Date To
+              - textbox [ref=e724]
+            - generic [ref=e725]:
+              - generic [ref=e726]: Payment Status
+              - combobox [ref=e727]:
+                - generic: All
+            - button "Reset" [ref=e728] [cursor=pointer]
+            - button "Refresh" [ref=e729] [cursor=pointer]
+        - table [ref=e731]:
+          - caption [ref=e732]: Invoice printed and paid status
+          - rowgroup [ref=e733]:
+            - row [ref=e734]:
+              - columnheader "Period" [ref=e735]
+              - columnheader "Practitioner" [ref=e736]
+              - columnheader "Invoice" [ref=e737]
+              - columnheader "Printed" [ref=e738]
+              - columnheader "Paid" [ref=e739]
+          - rowgroup [ref=e740]:
+            - row [ref=e741]:
+              - cell "6/3/26 – 6/29/26" [ref=e742]
+              - cell "Jamilyn Donaldson" [ref=e743]
+              - cell [ref=e744]:
+                - button "Print Invoice" [ref=e745] [cursor=pointer]
+              - cell [ref=e746]:
+                - button "Printed" [ref=e747] [cursor=pointer]
+              - cell [ref=e749]:
+                - button "Paid" [ref=e750] [cursor=pointer]
+            - row [ref=e752]:
+              - cell "7/2/26 – 7/13/26" [ref=e753]
+              - cell "Agnes Douma" [ref=e754]
+              - cell [ref=e755]:
+                - button "Print Invoice" [ref=e756] [cursor=pointer]
+              - cell [ref=e757]:
+                - button "Printed" [ref=e758] [cursor=pointer]
+              - cell [ref=e760]:
+                - button "Paid" [ref=e761] [cursor=pointer]
+            - row [ref=e763]:
+              - cell "7/14/26 – 7/14/26" [ref=e764]
+              - cell "Eugenia Pizarro-Moya" [ref=e765]
+              - cell [ref=e766]:
+                - button "Print Invoice" [ref=e767] [cursor=pointer]
+              - cell [ref=e768]:
+                - button "Printed" [ref=e769] [cursor=pointer]
+              - cell [ref=e771]:
+                - button "Paid" [ref=e772] [cursor=pointer]
+            - row [ref=e774]:
+              - cell "7/2/26 – 7/13/26" [ref=e775]
+              - cell "Agnes Douma" [ref=e776]
+              - cell [ref=e777]:
+                - button "Print Invoice" [ref=e778] [cursor=pointer]
+              - cell "Not Printed" [ref=e779]
+              - cell [ref=e781]:
+                - button "Unpaid" [ref=e782] [cursor=pointer]
+            - row [ref=e784]:
+              - cell "6/3/26 – 6/29/26" [ref=e785]
+              - cell "Jamilyn Donaldson" [ref=e786]
+              - cell [ref=e787]:
+                - button "Print Invoice" [ref=e788] [cursor=pointer]
+              - cell "Not Printed" [ref=e789]
+              - cell [ref=e791]:
+                - button "Unpaid" [ref=e792] [cursor=pointer]
+            - row [ref=e794]:
+              - cell "7/14/26 – 7/14/26" [ref=e795]
+              - cell "Eugenia Pizarro-Moya" [ref=e796]
+              - cell [ref=e797]:
+                - button "Print Invoice" [ref=e798] [cursor=pointer]
+              - cell "Not Printed" [ref=e799]
+              - cell [ref=e801]:
+                - button "Unpaid" [ref=e802] [cursor=pointer]

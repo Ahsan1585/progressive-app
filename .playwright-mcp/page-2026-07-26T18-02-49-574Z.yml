@@ -1,0 +1,42 @@
+- generic [ref=f37e174]:
+  - button "Show navigation" [ref=f37e175] [cursor=pointer]
+  - complementary [ref=f37e179]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f37e182]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f37e183]:
+      - button "Staff Directory" [ref=f37e184] [cursor=pointer]
+      - button "Master Reports" [ref=f37e187] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f37e190] [cursor=pointer]
+    - generic [ref=f37e193]:
+      - paragraph [ref=f37e194]: Useful Links
+      - button "Company Information" [ref=f37e195] [cursor=pointer]
+    - generic [ref=f37e198]:
+      - img "Izaya" [ref=f37e199]
+      - paragraph [ref=f37e200]: Securely Powered by Izaya
+      - paragraph [ref=f37e201]: Early Intervention Simplified
+  - main [ref=f37e202]:
+    - generic [ref=f37e203]:
+      - generic [ref=f37e204]:
+        - button "Toggle menu" [ref=f37e205] [cursor=pointer]
+        - generic [ref=f37e208]: Early Intervention Simplified
+      - heading "Company Information" [level=2] [ref=f37e460]
+      - generic [ref=f37e211]:
+        - generic [ref=f37e212]:
+          - generic [ref=f37e213]: JR
+          - generic [ref=f37e215]: Jason Roy
+          - generic [ref=f37e216]: Admin
+        - button "Sign Out" [ref=f37e217] [cursor=pointer]
+    - generic [ref=f37e461]:
+      - generic [ref=f37e462]:
+        - heading "Company Information" [level=1] [ref=f37e463]
+        - paragraph [ref=f37e464]: Attach and manage the state's required-documentation Excel file used to run Compliance Analysis against practitioner-logged sessions.
+      - generic [ref=f37e465]:
+        - button "Company Information" [ref=f37e466] [cursor=pointer]
+        - button "State Compliance Reference" [ref=f37e467] [cursor=pointer]
+      - generic [ref=f37e521]: Compliance document removed.
+      - generic [ref=f37e504]:
+        - generic [ref=f37e505]:
+          - heading "State Compliance Reference" [level=2] [ref=f37e506]
+          - paragraph [ref=f37e507]: Attach the state's required-documentation Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+        - generic [ref=f37e522] [cursor=pointer]:
+          - generic [ref=f37e525]: Click to attach an Excel file
+          - generic [ref=f37e526]: .xlsx or .xls, up to 10MB

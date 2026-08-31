@@ -1,0 +1,81 @@
+- generic:
+  - generic:
+    - generic:
+      - banner:
+        - button
+        - heading [level=1]: Log Session
+      - generic:
+        - paragraph: Logging session for
+        - paragraph: Mark Jose Witword
+      - generic:
+        - button: Details
+        - button: Codes
+        - button: Signatures
+      - generic:
+        - generic:
+          - heading [level=2]: Visit details
+          - generic:
+            - generic: Service date
+            - textbox: 2026-08-02
+          - generic:
+            - generic:
+              - generic: Start time
+              - textbox: 10:00
+            - generic:
+              - generic: End time
+              - textbox: 11:00
+          - generic:
+            - checkbox
+            - text: Session was cancelled — log with 0 time
+          - generic:
+            - paragraph: Total time
+            - paragraph: 1.00 hrs (60 min)
+        - generic:
+          - heading [level=2]: Service codes
+          - generic:
+            - generic: Service type
+            - button [expanded]:
+              - generic: Select...
+          - generic:
+            - generic: Status
+            - button:
+              - generic: Select...
+          - generic:
+            - generic: Location
+            - button:
+              - generic: Select...
+          - generic:
+            - generic: Group size category
+            - button:
+              - generic: Direct Child Service - Individual
+        - generic:
+          - heading [level=2]: Signatures
+          - generic:
+            - generic: Parent/caregiver signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+          - generic:
+            - generic: Practitioner signature
+            - button: Use my saved signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+      - generic:
+        - paragraph: 5 fields still missing
+        - generic:
+          - button: Cancel
+          - button: Save encounter
+  - dialog [ref=f1e302]:
+    - heading "Service type" [level=2] [ref=f1e306]
+    - listbox "Service type" [ref=f1e307]:
+      - listitem [ref=f1e308]:
+        - option "Evaluation" [active] [ref=f1e309]
+      - listitem [ref=f1e310]:
+        - option "Assessment" [ref=f1e311]
+      - listitem [ref=f1e312]:
+        - option "IFSP Meeting" [ref=f1e313]

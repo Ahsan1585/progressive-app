@@ -1,0 +1,41 @@
+- generic [ref=f16e16]:
+  - heading "Promo Codes" [level=1] [ref=f16e17]
+  - generic [ref=f16e18]:
+    - generic [ref=f16e19]:
+      - generic [ref=f16e20]: Code
+      - textbox "Code" [ref=f16e21]:
+        - /placeholder: LAUNCH30
+    - generic [ref=f16e22]:
+      - generic [ref=f16e23]: Days to extend trial
+      - spinbutton "Days to extend trial" [ref=f16e24]
+    - generic [ref=f16e25]:
+      - generic [ref=f16e26]: Max redemptions (blank = unlimited)
+      - spinbutton "Max redemptions (blank = unlimited)" [ref=f16e27]
+    - generic [ref=f16e28]:
+      - generic [ref=f16e29]: Code expires on (blank = never)
+      - textbox "Code expires on (blank = never)" [ref=f16e30]
+    - generic [ref=f16e31]:
+      - generic [ref=f16e32]: Note (internal only)
+      - textbox "Note (internal only)" [ref=f16e33]:
+        - /placeholder: e.g. outbound sales campaign, Aug 2026
+    - button "Create promo code" [ref=f16e35]
+  - table [ref=f16e38]:
+    - rowgroup [ref=f16e39]:
+      - row [ref=f16e40]:
+        - columnheader "Code" [ref=f16e41]
+        - columnheader "Days" [ref=f16e42]
+        - columnheader "Redemptions" [ref=f16e43]
+        - columnheader "Expires" [ref=f16e44]
+        - columnheader "Note" [ref=f16e45]
+        - columnheader "Status" [ref=f16e46]
+        - columnheader [ref=f16e47]
+    - rowgroup [ref=f16e48]:
+      - row [ref=f16e49]:
+        - cell "TEST30" [ref=f16e50]
+        - cell "30" [ref=f16e51]
+        - cell "0" [ref=f16e52]
+        - cell "—" [ref=f16e53]
+        - cell "End-to-end test of trial gate flow" [ref=f16e54]
+        - cell "Active" [ref=f16e55]
+        - cell [ref=f16e57]:
+          - button "Deactivate" [ref=f16e58]

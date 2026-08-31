@@ -1,0 +1,57 @@
+- generic [ref=f11e3]:
+  - button "Show navigation" [ref=f11e6] [cursor=pointer]
+  - complementary [ref=f11e10]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=f11e13]:
+      - generic [ref=f11e14]: IZAYA Consulting, LLC
+      - generic [ref=f11e15]: Admin Portal
+    - navigation [ref=f11e16]:
+      - button "Staff Directory" [ref=f11e17] [cursor=pointer]
+      - button "Master Reports" [ref=f11e20] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f11e23] [cursor=pointer]
+    - generic [ref=f11e26]:
+      - paragraph [ref=f11e27]: Useful Links
+      - button "Company Information" [ref=f11e28] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f11e31] [cursor=pointer]
+      - button "Audit Log" [ref=f11e34] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f11e37] [cursor=pointer]
+    - generic [ref=f11e41]:
+      - img "Izaya" [ref=f11e42]
+      - paragraph [ref=f11e43]: Securely Powered by Izaya
+      - paragraph [ref=f11e44]: Early Intervention Simplified
+  - main [ref=f11e45]:
+    - generic [ref=f11e46]:
+      - generic [ref=f11e47]:
+        - button "Toggle menu" [ref=f11e48] [cursor=pointer]
+        - generic [ref=f11e51]: Early Intervention Simplified
+      - heading "Company Information" [level=2] [ref=f11e590]
+      - generic [ref=f11e54]:
+        - generic [ref=f11e55]:
+          - generic [ref=f11e56]: AZ
+          - generic [ref=f11e58]: Ahsan Zubair
+          - generic [ref=f11e59]: Admin
+        - button "Sign Out" [ref=f11e60] [cursor=pointer]
+    - generic [ref=f11e591]:
+      - generic [ref=f11e592]:
+        - heading "Company Information" [level=1] [ref=f11e593]
+        - paragraph [ref=f11e594]: Attach and manage the EIMS records Excel file used to run Compliance Analysis against practitioner-logged sessions.
+      - generic [ref=f11e595]:
+        - button "Company Information" [ref=f11e596] [cursor=pointer]
+        - button "EIMS Compliance Reference" [ref=f11e597] [cursor=pointer]
+        - button "Dropdown Options" [ref=f11e598] [cursor=pointer]
+      - generic [ref=f11e635]:
+        - generic [ref=f11e636]:
+          - heading "EIMS Compliance Reference" [level=2] [ref=f11e637]
+          - paragraph [ref=f11e638]: Attach the EIMS records Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+        - generic [ref=f11e639]:
+          - generic [ref=f11e644]:
+            - paragraph [ref=f11e645]: UPDATED Data File July 2026.xlsx
+            - paragraph [ref=f11e646]: 2.1 MB · Uploaded Aug 6, 2026
+          - generic [ref=f11e647]:
+            - button "Download" [active] [ref=f11e648] [cursor=pointer]
+            - button "Review column matching" [ref=f11e649] [cursor=pointer]
+            - generic [ref=f11e650] [cursor=pointer]: Add files
+            - button "Remove" [ref=f11e651] [cursor=pointer]
+        - generic [ref=f11e652]: Each month, use Add files to attach the new EIMS records file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically. Remove is only for starting over completely — it clears all EIMS compliance data, not just this file.
+        - generic [ref=f11e657]:
+          - paragraph [ref=f11e658]: No data summary on file yet for this document — generate one from what's currently loaded.
+          - button "Generate data summary" [ref=f11e659] [cursor=pointer]

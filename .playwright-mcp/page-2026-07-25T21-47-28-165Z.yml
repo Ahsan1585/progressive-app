@@ -1,0 +1,90 @@
+- generic [ref=f11e3]:
+  - button "Show navigation" [ref=f11e4] [cursor=pointer]
+  - complementary [ref=f11e8]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f11e75]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f11e12]:
+      - button "Staff Directory" [ref=f11e13] [cursor=pointer]
+      - button "Master Reports" [ref=f11e16] [cursor=pointer]
+      - button "Billing & Invoices" [active] [ref=f11e19] [cursor=pointer]
+      - button "Company Information" [ref=f11e22] [cursor=pointer]
+    - generic [ref=f11e25]:
+      - img "Izaya" [ref=f11e26]
+      - paragraph [ref=f11e27]: Securely Powered by Izaya
+      - paragraph [ref=f11e28]: Early Intervention Simplified
+  - main [ref=f11e29]:
+    - generic [ref=f11e30]:
+      - generic [ref=f11e31]:
+        - button "Toggle menu" [ref=f11e32] [cursor=pointer]
+        - generic [ref=f11e35]: Early Intervention Simplified
+        - heading "Billing & Invoices" [level=2] [ref=f11e267]
+      - generic [ref=f11e38]:
+        - generic [ref=f11e76]:
+          - generic [ref=f11e77]: JR
+          - generic [ref=f11e79]: Jason Roy
+          - generic [ref=f11e80]: Admin
+        - button "Sign Out" [ref=f11e39] [cursor=pointer]
+    - generic [ref=f11e268]:
+      - generic [ref=f11e269]:
+        - button "Pending Bills" [ref=f11e270] [cursor=pointer]
+        - button "Completed Bills" [ref=f11e271] [cursor=pointer]
+        - button "Invoice Status" [ref=f11e272] [cursor=pointer]
+      - generic [ref=f11e273]:
+        - generic [ref=f11e274]:
+          - generic [ref=f11e275]:
+            - generic [ref=f11e276]: Beta
+            - generic [ref=f11e277]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [checked] [ref=f11e278] [cursor=pointer]
+        - generic [ref=f11e280]:
+          - generic [ref=f11e281]:
+            - generic [ref=f11e282]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f11e287]
+          - generic [ref=f11e288]:
+            - generic [ref=f11e289]:
+              - generic [ref=f11e290]: Start Date
+              - textbox [ref=f11e291]
+            - generic [ref=f11e292]:
+              - generic [ref=f11e293]: End Date
+              - textbox [ref=f11e294]
+            - button "Reset" [ref=f11e295] [cursor=pointer]
+            - button "Refresh" [ref=f11e296] [cursor=pointer]
+        - generic [ref=f11e297]:
+          - generic [ref=f11e298]:
+            - textbox "Search practitioner..." [ref=f11e304]
+            - generic [ref=f11e305]:
+              - button "AL Amel Laura 3 sessions" [ref=f11e307] [cursor=pointer]:
+                - generic [ref=f11e308]: AL
+                - generic [ref=f11e309]:
+                  - generic [ref=f11e310]: Amel Laura
+                  - generic [ref=f11e311]: 3 sessions
+              - generic [ref=f11e314]:
+                - button "MH Mari Hernand 1 sessions" [ref=f11e315] [cursor=pointer]:
+                  - generic [ref=f11e316]: MH
+                  - generic [ref=f11e317]:
+                    - generic [ref=f11e318]: Mari Hernand
+                    - generic [ref=f11e319]: 1 sessions
+                - generic [ref=f11e326]:
+                  - generic [ref=f11e327]: Locked to you
+                  - button "Release" [ref=f11e331] [cursor=pointer]
+                - generic [ref=f11e332] [cursor=pointer]:
+                  - generic [ref=f11e335]:
+                    - generic [ref=f11e336]: Noa Court
+                    - generic [ref=f11e337]: 7/23/26
+                  - generic [ref=f11e338]:
+                    - generic "Service Status" [ref=f11e339]: S:1
+                    - generic "Service Type" [ref=f11e340]: IFSP
+                    - generic "Service Location" [ref=f11e341]: L:8
+                  - generic [ref=f11e342]:
+                    - generic [ref=f11e343]: Approved
+                    - generic [ref=f11e344]: 1h 0m
+                - generic [ref=f11e347]:
+                  - generic [ref=f11e348]:
+                    - generic [ref=f11e349]: 1 billable
+                    - generic [ref=f11e350]: 0 held/returned
+                    - generic [ref=f11e351]: 0 excluded
+                  - button "Generate & Issue" [ref=f11e352] [cursor=pointer]
+              - button "NC Nath Castr 9 sessions" [ref=f11e354] [cursor=pointer]:
+                - generic [ref=f11e355]: NC
+                - generic [ref=f11e356]:
+                  - generic [ref=f11e357]: Nath Castr
+                  - generic [ref=f11e358]: 9 sessions
+          - generic [ref=f11e361]: Select a session from the queue on the left.

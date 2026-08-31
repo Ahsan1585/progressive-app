@@ -1,0 +1,36 @@
+- generic [ref=e49]:
+  - main [ref=e50]:
+    - generic [ref=e51]:
+      - generic [ref=e53]:
+        - paragraph [ref=e54]: Welcome back
+        - heading "Steph" [level=1] [ref=e55]
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - generic [ref=e59]: "1"
+          - generic [ref=e60]: Logs this month
+        - generic [ref=e61]:
+          - generic [ref=e62]: "2.0"
+          - generic [ref=e63]: Hours this month
+        - generic [ref=e64]:
+          - generic [ref=e65]: "11"
+          - generic [ref=e66]: In pipeline
+      - button [ref=e67]:
+        - generic [ref=e70]:
+          - paragraph [ref=e71]: 2 logs need your attention
+          - paragraph [ref=e72]: Resubmit or acknowledge billing feedback in your Inbox.
+  - navigation "Primary" [ref=e75]:
+    - list [ref=e76]:
+      - listitem [ref=e77]:
+        - link [ref=e78] [cursor=pointer]:
+          - /url: /home
+      - listitem [ref=e84]:
+        - link [ref=e85] [cursor=pointer]:
+          - /url: /roster
+      - listitem [ref=e92]:
+        - link "2 Inbox" [ref=e93] [cursor=pointer]:
+          - /url: /inbox
+          - generic [ref=e94]: "2"
+          - text: Inbox
+      - listitem [ref=e99]:
+        - link [ref=e100] [cursor=pointer]:
+          - /url: /profile

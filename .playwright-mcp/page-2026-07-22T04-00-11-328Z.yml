@@ -1,0 +1,46 @@
+- generic [ref=f5e123]:
+  - main [ref=f5e124]:
+    - generic [ref=f5e125]:
+      - heading "Inbox" [level=1] [ref=f5e127]
+      - list "Rejected and declined logs" [ref=f5e129]:
+        - listitem [ref=f5e130]:
+          - button "Tris Guard Returned 5/7/2026 Developmental Intervention (DI) DATE WRONG Revise & resubmit" [ref=f5e131]:
+            - generic [ref=f5e132]:
+              - paragraph [ref=f5e133]: Tris Guard
+              - generic [ref=f5e134]: Returned
+            - generic [ref=f5e137]:
+              - generic [ref=f5e138]: 5/7/2026
+              - generic [ref=f5e139]: ·
+              - generic [ref=f5e140]: Developmental Intervention (DI)
+            - paragraph [ref=f5e141]: DATE WRONG
+            - generic [ref=f5e142]: Revise & resubmit
+        - listitem [ref=f5e145]:
+          - button "Isa Rei Returned 7/17/2026 Assessment (AS) TIME Revise & resubmit" [ref=f5e146]:
+            - generic [ref=f5e147]:
+              - paragraph [ref=f5e148]: Isa Rei
+              - generic [ref=f5e149]: Returned
+            - generic [ref=f5e152]:
+              - generic [ref=f5e153]: 7/17/2026
+              - generic [ref=f5e154]: ·
+              - generic [ref=f5e155]: Assessment (AS)
+            - paragraph [ref=f5e156]: TIME
+            - generic [ref=f5e157]: Revise & resubmit
+  - navigation "Primary" [ref=f5e160]:
+    - list [ref=f5e161]:
+      - listitem [ref=f5e162]:
+        - link [ref=f5e163] [cursor=pointer]:
+          - /url: /home
+      - listitem [ref=f5e168]:
+        - link [ref=f5e169] [cursor=pointer]:
+          - /url: /roster
+      - listitem [ref=f5e176]:
+        - link "2 Inbox" [ref=f5e177] [cursor=pointer]:
+          - /url: /inbox
+          - generic [ref=f5e179]: "2"
+          - text: Inbox
+      - listitem [ref=f5e184]:
+        - link [ref=f5e185] [cursor=pointer]:
+          - /url: /messages
+      - listitem [ref=f5e189]:
+        - link [ref=f5e190] [cursor=pointer]:
+          - /url: /profile

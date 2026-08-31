@@ -1,0 +1,257 @@
+- generic [ref=f38e44]:
+  - button "Show navigation" [active] [ref=f38e319] [cursor=pointer]
+  - complementary [ref=f38e45]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=f38e49]: Progressive StepsAdmin Portal
+    - navigation [ref=f38e50]:
+      - button "Staff Directory" [ref=f38e51] [cursor=pointer]
+      - button "Master Reports" [ref=f38e54] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f38e57] [cursor=pointer]
+    - paragraph [ref=f38e61]: Progressive Steps NJ
+  - main [ref=f38e62]:
+    - generic [ref=f38e63]:
+      - generic [ref=f38e64]:
+        - button "Toggle menu" [ref=f38e65] [cursor=pointer]
+        - heading "Staff Directory" [level=2] [ref=f38e68]
+      - generic [ref=f38e69]:
+        - generic [ref=f38e324]:
+          - generic [ref=f38e325]: JR
+          - generic [ref=f38e327]: Jason Roy
+          - generic [ref=f38e328]: Admin
+        - button "Sign Out" [ref=f38e70] [cursor=pointer]
+    - generic [ref=f38e75]:
+      - generic [ref=f38e76]:
+        - button "Staff Roster" [ref=f38e77] [cursor=pointer]
+        - button "Register New Account" [ref=f38e80] [cursor=pointer]
+      - generic [ref=f38e83]:
+        - generic [ref=f38e84]:
+          - heading "Staff Roster" [level=2] [ref=f38e87]
+          - generic [ref=f38e88]:
+            - button "Active" [ref=f38e89] [cursor=pointer]
+            - button "Deactivated" [ref=f38e90] [cursor=pointer]
+            - button "All" [ref=f38e91] [cursor=pointer]
+          - generic [ref=f38e92]: 12 members
+        - table [ref=f38e94]:
+          - rowgroup [ref=f38e95]:
+            - row [ref=f38e96]:
+              - columnheader "Name" [ref=f38e97]
+              - columnheader "Email" [ref=f38e98]
+              - columnheader "Position" [ref=f38e99]
+              - columnheader "Role" [ref=f38e100]
+              - columnheader [ref=f38e101]
+          - rowgroup [ref=f38e102]:
+            - row [ref=f38e103]:
+              - cell "AA Ashfaq Ahmad" [ref=f38e104]:
+                - generic [ref=f38e105]:
+                  - generic [ref=f38e106]: AA
+                  - text: Ashfaq Ahmad
+              - cell "ashfaq.ahmad.us@gmail.com" [ref=f38e108]
+              - cell "Speech Language Pathologist" [ref=f38e109]
+              - cell "Practitioner" [ref=f38e110]:
+                - combobox [ref=f38e111] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e112]:
+                - generic [ref=f38e113]:
+                  - button "Edit profile" [ref=f38e114] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e117] [cursor=pointer]
+            - row [ref=f38e121]:
+              - cell "ZM Zaya Mo" [ref=f38e122]:
+                - generic [ref=f38e123]:
+                  - generic [ref=f38e124]: ZM
+                  - text: Zaya Mo
+              - cell "zaya@gmail.com" [ref=f38e126]
+              - cell "Developmental Interventionist" [ref=f38e127]
+              - cell "Practitioner" [ref=f38e128]:
+                - combobox [ref=f38e129] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e130]:
+                - generic [ref=f38e131]:
+                  - button "Edit profile" [ref=f38e132] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e135] [cursor=pointer]
+            - row [ref=f38e139]:
+              - cell "ED Eli Divina" [ref=f38e140]:
+                - generic [ref=f38e141]:
+                  - generic [ref=f38e142]: ED
+                  - text: Eli Divina
+              - cell "elidivina@gmail.com" [ref=f38e144]
+              - cell "Physical Therapist" [ref=f38e145]
+              - cell "Practitioner" [ref=f38e146]:
+                - combobox [ref=f38e147] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e148]:
+                - generic [ref=f38e149]:
+                  - button "Edit profile" [ref=f38e150] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e153] [cursor=pointer]
+            - row [ref=f38e157]:
+              - cell "ME Martha Elana" [ref=f38e158]:
+                - generic [ref=f38e159]:
+                  - generic [ref=f38e160]: ME
+                  - text: Martha Elana
+              - cell "marthaelana@gmail.com" [ref=f38e162]
+              - cell "Developmental Interventionist" [ref=f38e163]
+              - cell "Practitioner" [ref=f38e164]:
+                - combobox [ref=f38e165] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e166]:
+                - generic [ref=f38e167]:
+                  - button "Edit profile" [ref=f38e168] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e171] [cursor=pointer]
+            - row [ref=f38e175]:
+              - cell "MJ Mik Johnson" [ref=f38e176]:
+                - generic [ref=f38e177]:
+                  - generic [ref=f38e178]: MJ
+                  - text: Mik Johnson
+              - cell "ahsan185@gmail.com" [ref=f38e180]
+              - cell "Developmental Interventionist" [ref=f38e181]
+              - cell "Practitioner" [ref=f38e182]:
+                - combobox [ref=f38e183] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e184]:
+                - generic [ref=f38e185]:
+                  - button "Edit profile" [ref=f38e186] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e189] [cursor=pointer]
+            - row [ref=f38e193]:
+              - cell "SG Steph Garci" [ref=f38e194]:
+                - generic [ref=f38e195]:
+                  - generic [ref=f38e196]: SG
+                  - text: Steph Garci
+              - cell "stephgarci@gmail.com" [ref=f38e198]
+              - cell "Developmental Interventionist" [ref=f38e199]
+              - cell "Practitioner" [ref=f38e200]:
+                - combobox [ref=f38e201] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e202]:
+                - generic [ref=f38e203]:
+                  - button "Edit profile" [ref=f38e204] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e207] [cursor=pointer]
+            - row [ref=f38e211]:
+              - cell "VL Vanes Libro" [ref=f38e212]:
+                - generic [ref=f38e213]:
+                  - generic [ref=f38e214]: VL
+                  - text: Vanes Libro
+              - cell "vaneslibro@gmail.com" [ref=f38e216]
+              - cell "Developmental Interventionist" [ref=f38e217]
+              - cell "Practitioner" [ref=f38e218]:
+                - combobox [ref=f38e219] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e220]:
+                - generic [ref=f38e221]:
+                  - button "Edit profile" [ref=f38e222] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e225] [cursor=pointer]
+            - row [ref=f38e229]:
+              - cell "EG Eric Green" [ref=f38e230]:
+                - generic [ref=f38e231]:
+                  - generic [ref=f38e232]: EG
+                  - text: Eric Green
+              - cell "sf5913@gmail.com" [ref=f38e234]
+              - cell "Developmental Interventionist" [ref=f38e235]
+              - cell "Practitioner" [ref=f38e236]:
+                - combobox [ref=f38e237] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e238]:
+                - generic [ref=f38e239]:
+                  - button "Edit profile" [ref=f38e240] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e243] [cursor=pointer]
+            - row [ref=f38e247]:
+              - cell "AA Ashfaq Ahmad" [ref=f38e248]:
+                - generic [ref=f38e249]:
+                  - generic [ref=f38e250]: AA
+                  - text: Ashfaq Ahmad
+              - cell "ashfaqahmad@gmail.com" [ref=f38e252]
+              - cell "Therapist" [ref=f38e253]
+              - cell "Billing Specialist" [ref=f38e254]:
+                - combobox [ref=f38e255] [cursor=pointer]:
+                  - option "Practitioner"
+                  - option "Office Manager"
+                  - option "Billing Specialist" [selected]
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e256]:
+                - generic [ref=f38e257]:
+                  - button "Edit profile" [ref=f38e258] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e261] [cursor=pointer]
+            - row [ref=f38e265]:
+              - cell "KK Kase Klag" [ref=f38e266]:
+                - generic [ref=f38e267]:
+                  - generic [ref=f38e268]: KK
+                  - text: Kase Klag
+              - cell "kaseklag@gmail.com" [ref=f38e270]
+              - cell "Speech Language Pathologist" [ref=f38e271]
+              - cell "Practitioner" [ref=f38e272]:
+                - combobox [ref=f38e273] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e274]:
+                - generic [ref=f38e275]:
+                  - button "Edit profile" [ref=f38e276] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e279] [cursor=pointer]
+            - row [ref=f38e283]:
+              - cell "LS Lori Safe" [ref=f38e284]:
+                - generic [ref=f38e285]:
+                  - generic [ref=f38e286]: LS
+                  - text: Lori Safe
+              - cell "lorisafe@gmail.com" [ref=f38e288]
+              - cell "Occupational Therapist" [ref=f38e289]
+              - cell "Practitioner" [ref=f38e290]:
+                - combobox [ref=f38e291] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=f38e292]:
+                - generic [ref=f38e293]:
+                  - button "Edit profile" [ref=f38e294] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e297] [cursor=pointer]
+            - row [ref=f38e301]:
+              - cell "JR Jason Roy" [ref=f38e302]:
+                - generic [ref=f38e303]:
+                  - generic [ref=f38e304]: JR
+                  - text: Jason Roy
+              - cell "jason@gmail.com" [ref=f38e306]
+              - cell "Speech Language Pathologist" [ref=f38e307]
+              - cell "Admin" [ref=f38e308]:
+                - combobox [ref=f38e309] [cursor=pointer]:
+                  - option "Practitioner"
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin" [selected]
+              - cell [ref=f38e310]:
+                - generic [ref=f38e311]:
+                  - button "Edit profile" [ref=f38e312] [cursor=pointer]
+                  - button "Deactivate user" [ref=f38e315] [cursor=pointer]

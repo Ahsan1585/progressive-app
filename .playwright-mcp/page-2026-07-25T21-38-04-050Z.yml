@@ -1,0 +1,99 @@
+- generic [ref=f6e174]:
+  - button "Show navigation" [ref=f6e175] [cursor=pointer]
+  - complementary [ref=f6e179]:
+    - heading "Progressive Steps for Early Intervention Admin Portal" [level=1] [ref=f6e182]: Progressive Steps for Early InterventionAdmin Portal
+    - navigation [ref=f6e183]:
+      - button "Staff Directory" [ref=f6e184] [cursor=pointer]
+      - button "Master Reports" [ref=f6e187] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f6e190] [cursor=pointer]
+      - button "Company Information" [ref=f6e193] [cursor=pointer]
+    - generic [ref=f6e196]:
+      - img "Izaya" [ref=f6e197]
+      - paragraph [ref=f6e198]: Securely Powered by Izaya
+      - paragraph [ref=f6e199]: Early Intervention Simplified
+  - main [ref=f6e200]:
+    - generic [ref=f6e201]:
+      - generic [ref=f6e202]:
+        - button "Toggle menu" [ref=f6e203] [cursor=pointer]
+        - generic [ref=f6e206]: Early Intervention Simplified
+        - heading "Billing & Invoices" [level=2] [ref=f6e437]
+      - generic [ref=f6e209]:
+        - generic [ref=f6e210]:
+          - generic [ref=f6e211]: JR
+          - generic [ref=f6e213]: Jason Roy
+          - generic [ref=f6e214]: Admin
+        - button "Sign Out" [ref=f6e215] [cursor=pointer]
+    - generic [ref=f6e438]:
+      - generic [ref=f6e439]:
+        - button "Pending Bills" [ref=f6e440] [cursor=pointer]
+        - button "Completed Bills" [ref=f6e441] [cursor=pointer]
+        - button "Invoice Status" [ref=f6e442] [cursor=pointer]
+      - generic [ref=f6e443]:
+        - generic [ref=f6e444]:
+          - generic [ref=f6e445]:
+            - generic [ref=f6e446]: Beta
+            - generic [ref=f6e447]: Try the new Batch Review layout for this queue — same data, same actions, different view.
+          - switch [active] [ref=f6e448] [cursor=pointer]
+        - generic [ref=f6e450]:
+          - generic [ref=f6e451]:
+            - generic [ref=f6e452]: Search Practitioners
+            - textbox "Search by name or ID..." [ref=f6e457]
+          - generic [ref=f6e458]:
+            - generic [ref=f6e459]:
+              - generic [ref=f6e460]: Start Date
+              - textbox [ref=f6e461]
+            - generic [ref=f6e462]:
+              - generic [ref=f6e463]: End Date
+              - textbox [ref=f6e464]
+            - button "Reset" [ref=f6e465] [cursor=pointer]
+            - button "Refresh" [ref=f6e466] [cursor=pointer]
+        - table [ref=f6e569]:
+          - caption [ref=f6e570]: Pending practitioner billing queue
+          - rowgroup [ref=f6e571]:
+            - row [ref=f6e572]:
+              - columnheader "Practitioner" [ref=f6e573]
+              - columnheader "Logs" [ref=f6e574]
+              - columnheader "Children" [ref=f6e575]
+              - columnheader "Status" [ref=f6e576]
+              - columnheader "SEVF Form" [ref=f6e577]
+              - columnheader "Invoice" [ref=f6e578]
+              - columnheader "Action" [ref=f6e579]
+          - rowgroup [ref=f6e580]:
+            - row [ref=f6e581]:
+              - 'cell "Expand logs Mari Hernand ID: 52 Release" [ref=f6e582]':
+                - generic [ref=f6e583]:
+                  - button "Expand logs" [ref=f6e584] [cursor=pointer]
+                  - generic [ref=f6e587]:
+                    - generic [ref=f6e588]: Mari Hernand
+                    - generic [ref=f6e589]: "ID: 52"
+                - button "Release" [ref=f6e590] [cursor=pointer]
+              - cell "1 1.0 hrs" [ref=f6e594]:
+                - generic [ref=f6e595]: "1"
+                - generic [ref=f6e596]: 1.0 hrs
+              - cell "1" [ref=f6e597]
+              - cell "Locked" [ref=f6e598]
+              - cell "-" [ref=f6e600]
+              - cell "-" [ref=f6e601]
+              - cell "Generate & Issue Expand to review logs" [ref=f6e602]:
+                - generic [ref=f6e603]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f6e604]: Expand to review logs
+            - row [ref=f6e605]:
+              - 'cell "Lock Nath Castr ID: 53" [ref=f6e606]':
+                - generic [ref=f6e607]:
+                  - button "Lock" [ref=f6e608] [cursor=pointer]
+                  - generic [ref=f6e609]:
+                    - generic [ref=f6e610]: Nath Castr
+                    - generic [ref=f6e611]: "ID: 53"
+              - cell "9 8.9 hrs (1 on hold)" [ref=f6e612]:
+                - generic [ref=f6e613]: "9"
+                - generic [ref=f6e614]: 8.9 hrs
+                - generic [ref=f6e615]: (1 on hold)
+              - cell "2" [ref=f6e616]
+              - cell "Awaiting Forms" [ref=f6e617]
+              - cell "-" [ref=f6e619]
+              - cell "-" [ref=f6e620]
+              - cell "Generate & Issue Lock to review logs" [ref=f6e621]:
+                - generic [ref=f6e622]:
+                  - button "Generate & Issue" [disabled]
+                  - generic [ref=f6e623]: Lock to review logs

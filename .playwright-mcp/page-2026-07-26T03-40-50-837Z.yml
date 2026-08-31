@@ -1,0 +1,105 @@
+- generic [ref=f24e3]:
+  - navigation [ref=f24e4]:
+    - link "IZAYA home" [ref=f24e5] [cursor=pointer]:
+      - /url: "#top"
+      - img "IZAYA" [ref=f24e6]
+    - generic [ref=f24e16]:
+      - link "Why Izaya" [ref=f24e17] [cursor=pointer]:
+        - /url: "#features"
+      - link "Get the App" [ref=f24e18] [cursor=pointer]:
+        - /url: "#download"
+  - banner [ref=f24e19]:
+    - generic [ref=f24e20]:
+      - generic [ref=f24e21]:
+        - generic [ref=f24e22]: Early Intervention Simplified
+        - heading [level=1] [ref=f24e23]:
+          - text: Every session becomes
+          - emphasis [ref=f24e24]: a paid invoice
+          - text: ", without the gaps."
+        - paragraph [ref=f24e25]: Izaya connects what happens in the field to what happens in your back office. A practitioner logs a visit, your team reviews it, the state-required NJEIS form is generated automatically, and a pay invoice goes out. It's one record, from the first signature to the final payment.
+        - generic [ref=f24e26]:
+          - generic [ref=f24e27]: One record, from session to invoice
+          - generic [ref=f24e31]: Your office reviews, returns, or approves every log before it's billed
+          - generic [ref=f24e35]: HIPAA-compliant, with a full audit trail
+      - generic [ref=f24e40]:
+        - heading "Welcome back" [level=2] [ref=f24e41]
+        - paragraph [ref=f24e42]: Sign in to your Izaya dashboard
+        - generic [ref=f24e43]: Secured & HIPAA Compliant
+        - generic [ref=f24e47]:
+          - generic [ref=f24e48]:
+            - generic [ref=f24e49]: Email Address
+            - textbox "Email Address" [ref=f24e50]:
+              - /placeholder: name@example.com
+          - generic [ref=f24e51]:
+            - generic [ref=f24e52]:
+              - generic [ref=f24e53]: Password
+              - link "Forgot password?" [ref=f24e54] [cursor=pointer]:
+                - /url: /eis/forgot-password
+            - generic [ref=f24e55]:
+              - textbox "Password" [ref=f24e56]
+              - button "Show password" [ref=f24e57]
+          - button "Sign In to Dashboard" [ref=f24e61] [cursor=pointer]
+        - generic [ref=f24e64]:
+          - text: New to Izaya? Your agency administrator will set up your account.Trouble signing in?
+          - link "support@izayaedge.com" [ref=f24e65] [cursor=pointer]:
+            - /url: mailto:support@izayaedge.com
+  - generic [ref=f24e66]:
+    - generic [ref=f24e70]:
+      - heading "Built for the full billing lifecycle" [level=2] [ref=f24e71]
+      - paragraph [ref=f24e72]: A practitioner delivers a service. Izaya carries that record through your office's review, into the state paperwork, and out the door as a paid invoice, with a clear record at every step.
+    - generic [ref=f24e73]:
+      - generic [ref=f24e80]:
+        - generic [ref=f24e81]: Step 01
+        - heading "Deliver & Document" [level=3] [ref=f24e82]
+        - paragraph [ref=f24e83]: A practitioner logs the visit (date, time, service type, location, and both signatures) in a few minutes, from a phone or a desktop.
+      - generic [ref=f24e90]:
+        - generic [ref=f24e91]: Step 02
+        - heading "Review & Control" [level=3] [ref=f24e92]
+        - paragraph [ref=f24e93]: Your office reviews every log, locks a practitioner's queue while working it, and accepts, returns, or declines it before anything gets billed.
+      - generic [ref=f24e99]:
+        - generic [ref=f24e100]: Step 03
+        - heading "Convert to State Forms" [level=3] [ref=f24e101]
+        - paragraph [ref=f24e102]: Approved logs generate the state-required NJEIS billing form automatically, without manual re-entry or transcription errors.
+      - generic [ref=f24e110]:
+        - generic [ref=f24e111]: Step 04
+        - heading "Invoice & Get Paid" [level=3] [ref=f24e112]
+        - paragraph [ref=f24e113]: A pay invoice generates straight from those same approved logs, and stays tracked from issued to printed to paid.
+    - paragraph [ref=f24e114]: It also includes direct messaging with your office and session scheduling with automatic calendar invites for parents.
+  - generic [ref=f24e119]:
+    - generic [ref=f24e120]:
+      - heading "Take Izaya with you" [level=2] [ref=f24e121]
+      - paragraph [ref=f24e122]: Practitioners can log sessions, message the office, and manage their schedule on the go. The full app installs straight from your phone's browser. No app store required.
+      - generic [ref=f24e123]:
+        - link "Install for iPhone" [ref=f24e124] [cursor=pointer]:
+          - /url: https://mobile-pied-two.vercel.app/login?install=1
+          - generic [ref=f24e127]:
+            - emphasis [ref=f24e128]: Install for
+            - generic [ref=f24e129]: iPhone
+        - link "Install for Android" [ref=f24e130] [cursor=pointer]:
+          - /url: https://mobile-pied-two.vercel.app/login?install=1
+          - generic [ref=f24e136]:
+            - emphasis [ref=f24e137]: Install for
+            - generic [ref=f24e138]: Android
+      - generic [ref=f24e139]:
+        - generic [ref=f24e140]:
+          - generic [ref=f24e141]: "1"
+          - text: Open your phone's camera
+        - generic [ref=f24e142]:
+          - generic [ref=f24e143]: "2"
+          - text: Scan the code & open the link
+        - generic [ref=f24e144]:
+          - generic [ref=f24e145]: "3"
+          - text: Tap "Install" and you're done
+      - generic [ref=f24e146]: Works on iPhone and Android. No app store needed.
+    - generic [ref=f24e149]:
+      - generic "QR code linking to mobile-pied-two.vercel.app" [ref=f24e150]
+      - generic [ref=f24e152]: Scan to install
+      - generic [ref=f24e153]: mobile-pied-two.vercel.app
+  - contentinfo [ref=f24e154]:
+    - generic [ref=f24e155]:
+      - generic [ref=f24e156]:
+        - img "IZAYA" [ref=f24e157]
+        - generic [ref=f24e167]: © 2026 Izaya Consulting LLC
+      - link "support@izayaedge.com" [ref=f24e169] [cursor=pointer]:
+        - /url: mailto:support@izayaedge.com
+      - generic [ref=f24e170]: HIPAA Compliant

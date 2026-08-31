@@ -1,0 +1,66 @@
+- generic [ref=e44]:
+  - button "Show navigation" [ref=e45] [cursor=pointer]
+  - complementary [ref=e49]:
+    - heading "Progressive Steps Admin Portal" [level=1] [ref=e53]: Progressive StepsAdmin Portal
+    - navigation [ref=e54]:
+      - button "Staff Directory" [ref=e55] [cursor=pointer]
+      - button "Master Reports" [ref=e58] [cursor=pointer]
+      - button "Billing & Invoices" [ref=e61] [cursor=pointer]
+    - generic [ref=e64]:
+      - paragraph [ref=e65]: Progressive Steps NJ
+      - paragraph [ref=e66]: Early Intervention Simplified
+  - main [ref=e67]:
+    - generic [ref=e68]:
+      - generic [ref=e69]:
+        - button "Toggle menu" [ref=e70] [cursor=pointer]
+        - heading "Staff Directory" [level=2] [ref=e74]
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]: JR
+          - generic [ref=e79]: Jason Roy
+          - generic [ref=e80]: Admin
+        - button "Sign Out" [ref=e81] [cursor=pointer]
+    - generic [ref=e87]:
+      - generic [ref=e88]:
+        - button "Staff Roster" [ref=e89] [cursor=pointer]
+        - button "Register New Account" [ref=e92] [cursor=pointer]
+      - generic [ref=e95]:
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - heading "Staff Roster" [level=2] [ref=e100]
+            - generic [ref=e101]:
+              - button "Active" [ref=e102] [cursor=pointer]
+              - button "Deactivated" [ref=e103] [cursor=pointer]
+              - button "All" [ref=e104] [cursor=pointer]
+            - generic [ref=e105]: 1 member
+          - generic [ref=e106]:
+            - textbox "Search by name, email, or position..." [active] [ref=e111]: Eric
+            - combobox [ref=e112]:
+              - generic: All Roles
+        - table [ref=e114]:
+          - rowgroup [ref=e115]:
+            - row [ref=e116]:
+              - columnheader "Name" [ref=e117]
+              - columnheader "Email" [ref=e118]
+              - columnheader "Position" [ref=e119]
+              - columnheader "Role" [ref=e120]
+              - columnheader [ref=e121]
+          - rowgroup [ref=e122]:
+            - row [ref=e249]:
+              - cell "EG Eric Green" [ref=e250]:
+                - generic [ref=e251]:
+                  - generic [ref=e252]: EG
+                  - text: Eric Green
+              - cell "sf5913@gmail.com" [ref=e254]
+              - cell "Developmental Interventionist" [ref=e255]
+              - cell "Practitioner" [ref=e256]:
+                - combobox [ref=e257] [cursor=pointer]:
+                  - option "Practitioner" [selected]
+                  - option "Office Manager"
+                  - option "Billing Specialist"
+                  - option "Account Specialist"
+                  - option "Admin"
+              - cell [ref=e258]:
+                - generic [ref=e259]:
+                  - button "Edit profile" [ref=e260] [cursor=pointer]
+                  - button "Deactivate user" [ref=e263] [cursor=pointer]

@@ -1,0 +1,22 @@
+- generic [ref=f5e3]:
+  - generic [ref=f5e6]:
+    - img "Progressive Steps" [ref=f5e8]
+    - heading "Set a new password" [level=2] [ref=f5e9]
+    - generic [ref=f5e10]:
+      - generic [ref=f5e11]:
+        - generic [ref=f5e12]: New Password
+        - generic [ref=f5e13]:
+          - textbox "New Password" [ref=f5e14]:
+            - /placeholder: Min 8 chars, 1 uppercase, 1 number, 1 special
+          - button "Show password" [ref=f5e15]
+      - generic [ref=f5e19]:
+        - generic [ref=f5e20]: Confirm New Password
+        - generic [ref=f5e21]:
+          - textbox "Confirm New Password" [ref=f5e22]
+          - button "Show password" [ref=f5e23]
+      - button "Reset Password" [ref=f5e27]
+  - generic [ref=f5e28]:
+    - generic [ref=f5e29]:
+      - generic [ref=f5e33]: Securely powered by
+      - img "Izaya Edge" [ref=f5e34]
+    - paragraph [ref=f5e35]: Izaya Consulting LLC

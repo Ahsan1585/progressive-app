@@ -1,0 +1,78 @@
+- generic [ref=f34e3]:
+  - navigation [ref=f34e4]:
+    - link "Izaya EI Simplified home" [ref=f34e5] [cursor=pointer]:
+      - /url: /eis
+      - generic [ref=f34e6]:
+        - img "IZAYA" [ref=f34e7]
+        - generic [ref=f34e17]: Early Intervention Simplified
+    - generic [ref=f34e18]:
+      - link "Home" [ref=f34e19] [cursor=pointer]:
+        - /url: /eis
+      - link "How it works" [ref=f34e20] [cursor=pointer]:
+        - /url: /eis/how-it-works
+      - link "Practitioner app" [ref=f34e21] [cursor=pointer]:
+        - /url: /eis/download
+      - link "Contact" [ref=f34e22] [cursor=pointer]:
+        - /url: /eis/contact
+      - link "Log In" [ref=f34e23] [cursor=pointer]:
+        - /url: /eis/login
+      - link "Schedule a demo" [ref=f34e24] [cursor=pointer]:
+        - /url: /eis/contact
+  - main [ref=f34e25]:
+    - generic [ref=f34e27]:
+      - heading "Welcome back" [level=1] [ref=f34e28]
+      - generic [ref=f34e29]: NJEIS Compliant
+      - generic [ref=f34e33]:
+        - generic [ref=f34e34]:
+          - generic [ref=f34e35]: Company Code
+          - textbox "Company Code" [ref=f34e36]:
+            - /placeholder: your-company
+            - text: izayaedge
+        - generic [ref=f34e37]:
+          - generic [ref=f34e38]: Email
+          - textbox "Email" [ref=f34e39]:
+            - /placeholder: name@example.com
+        - generic [ref=f34e40]:
+          - generic [ref=f34e41]:
+            - generic [ref=f34e42]: Password
+            - link "Forgot password?" [ref=f34e43] [cursor=pointer]:
+              - /url: /eis/forgot-password
+          - generic [ref=f34e44]:
+            - textbox "Password" [ref=f34e45]
+            - button "Show password" [ref=f34e46]
+        - button "Sign In" [ref=f34e50] [cursor=pointer]
+      - generic [ref=f34e53]:
+        - text: New agency?
+        - link "Sign up your company" [ref=f34e54] [cursor=pointer]:
+          - /url: /eis/signup
+        - text: and start a free 15-day trial.Already have an account but no Company Code? Ask your agency admin.Trouble signing in?
+        - link "support@izayaedge.com" [ref=f34e55] [cursor=pointer]:
+          - /url: mailto:support@izayaedge.com
+  - contentinfo [ref=f34e56]:
+    - generic [ref=f34e57]:
+      - generic [ref=f34e58]:
+        - img "IZAYA" [ref=f34e60]
+        - paragraph [ref=f34e70]: "EI Simplified automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children."
+      - generic [ref=f34e71]:
+        - heading "Explore" [level=3] [ref=f34e72]
+        - list [ref=f34e73]:
+          - listitem [ref=f34e74]:
+            - link "How it works" [ref=f34e75] [cursor=pointer]:
+              - /url: /eis/how-it-works
+          - listitem [ref=f34e76]:
+            - link "Practitioner app" [ref=f34e77] [cursor=pointer]:
+              - /url: /eis/download
+          - listitem [ref=f34e78]:
+            - link "Schedule a demo" [ref=f34e79] [cursor=pointer]:
+              - /url: /eis/contact
+      - generic [ref=f34e80]:
+        - heading "Contact" [level=3] [ref=f34e81]
+        - list [ref=f34e82]:
+          - listitem [ref=f34e83]:
+            - link "support@izayaedge.com" [ref=f34e84] [cursor=pointer]:
+              - /url: mailto:support@izayaedge.com
+          - listitem [ref=f34e85]:
+            - link "(405) 740-2647" [ref=f34e86] [cursor=pointer]:
+              - /url: tel:+14057402647
+          - listitem [ref=f34e87]: Old Bridge, NJ 08857
+    - paragraph [ref=f34e88]: © 2026 Izaya Consulting. EI Simplified is a trademark of Izaya Consulting.

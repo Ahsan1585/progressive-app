@@ -1,0 +1,108 @@
+- generic:
+  - generic:
+    - generic:
+      - banner:
+        - button
+        - heading [level=1]: Log Session
+      - generic:
+        - paragraph: Logging session for
+        - paragraph: Michael Smith
+      - generic:
+        - generic:
+          - checkbox
+          - generic:
+            - generic: Telepractice (Video) Session
+            - generic: We'll email the parent a link to review and sign remotely instead of collecting their signature here.
+      - generic:
+        - button: Details
+        - button: Codes
+        - button: Notes
+        - button: Signatures
+      - generic:
+        - generic:
+          - heading [level=2]: Visit details
+          - generic:
+            - generic: Service date
+            - textbox: 2026-08-29
+          - generic:
+            - generic:
+              - generic: Start time
+              - textbox: 09:00
+            - generic:
+              - generic: End time
+              - textbox: 10:00
+          - generic:
+            - checkbox
+            - text: Session was cancelled — log with 0 time
+          - generic:
+            - paragraph: Total time
+            - paragraph: 1.00 hrs (60 min)
+        - generic:
+          - heading [level=2]: Service codes
+          - generic:
+            - generic: Service type
+            - button:
+              - generic: Developmental Intervention
+          - generic:
+            - generic: Status
+            - button [expanded]:
+              - generic: Select...
+          - generic:
+            - generic: Location
+            - button:
+              - generic: Select...
+          - generic:
+            - generic: Group size category
+            - button:
+              - generic: Direct Child Service - Individual
+        - generic:
+          - heading [level=2]: Notes
+          - generic:
+            - generic: Notes(optional)
+            - textbox:
+              - /placeholder: Add any context on this session...
+        - generic:
+          - heading [level=2]: Signatures
+          - generic:
+            - generic: Parent/caregiver signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+          - generic:
+            - generic: Practitioner signature
+            - button: Use my saved signature
+            - generic:
+              - paragraph: Sign with your finger or stylus
+            - generic:
+              - button: Clear
+              - button [disabled]: Done
+      - generic:
+        - paragraph: 4 fields still missing
+        - generic:
+          - button: Save Session
+          - button
+  - dialog [ref=f14e293]:
+    - heading "Status" [level=2] [ref=f14e297]
+    - listbox "Status" [ref=f14e298]:
+      - listitem [ref=f14e299]:
+        - option "Direct Child Service" [active] [ref=f14e300]
+      - listitem [ref=f14e301]:
+        - option "Practitioner Cancelled (inc weather related)" [ref=f14e302]
+      - listitem [ref=f14e303]:
+        - option "Family Cancelled (inc weather related)" [ref=f14e304]
+      - listitem [ref=f14e305]:
+        - option "Make Up Direct Child Service" [ref=f14e306]
+      - listitem [ref=f14e307]:
+        - option "Family Missed (within 3 hours)" [ref=f14e308]
+      - listitem [ref=f14e309]:
+        - option "Team Mtg – IFSP" [ref=f14e310]
+      - listitem [ref=f14e311]:
+        - option "Transition Planning Conference" [ref=f14e312]
+      - listitem [ref=f14e313]:
+        - option "Bilingual Interpretation" [ref=f14e314]
+      - listitem [ref=f14e315]:
+        - option "Makeup Bilingual Interpretation" [ref=f14e316]
+      - listitem [ref=f14e317]:
+        - option "Family/Training/Education Service" [ref=f14e318]

@@ -1,0 +1,6 @@
+- generic [active] [ref=f42e1]:
+  - link "Skip to main content" [ref=f42e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f42e4]:
+    - status [ref=f42e5]: Loading...
+    - img "Lovable" [ref=f42e7]

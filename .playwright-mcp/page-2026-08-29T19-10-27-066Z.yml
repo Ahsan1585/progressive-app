@@ -1,0 +1,90 @@
+- generic [ref=f7e6]:
+  - complementary [ref=f7e7]:
+    - heading "IZAYA Early Intervention Services Admin Portal" [level=1] [ref=f7e10]:
+      - generic [ref=f7e11]: IZAYA Early Intervention Services
+      - generic [ref=f7e12]: Admin Portal
+    - navigation [ref=f7e13]:
+      - button "Staff Directory" [ref=f7e14] [cursor=pointer]
+      - button "Master Reports" [ref=f7e17] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f7e20] [cursor=pointer]
+    - generic [ref=f7e23]:
+      - paragraph [ref=f7e24]: Useful Links
+      - button "Company Information" [ref=f7e25] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f7e28] [cursor=pointer]
+      - button "Audit Log" [ref=f7e31] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f7e34] [cursor=pointer]
+    - generic [ref=f7e38]:
+      - generic [ref=f7e39]:
+        - generic [ref=f7e40]:
+          - img "IZAYA" [ref=f7e41]
+          - generic [ref=f7e51]: EIS
+        - generic [ref=f7e52]: Early Intervention Simplified
+      - paragraph [ref=f7e53]: Securely Powered by Izaya
+  - main [ref=f7e54]:
+    - generic [ref=f7e55]:
+      - generic [ref=f7e56]:
+        - button "Toggle menu" [ref=f7e57] [cursor=pointer]
+        - generic [ref=f7e60]: IZAYA Early Intervention Services
+      - heading "Company Information" [level=2] [ref=f7e62]
+      - generic [ref=f7e63]:
+        - generic [ref=f7e64]:
+          - generic [ref=f7e65]: AA
+          - generic [ref=f7e67]: Ahsan Ashfaq
+          - generic [ref=f7e68]: Admin
+        - button "Sign Out" [ref=f7e69] [cursor=pointer]
+    - generic [ref=f7e73]:
+      - generic [ref=f7e77]:
+        - heading "Free trial" [level=4] [ref=f7e78]
+        - paragraph [ref=f7e79]: 20 days left in your free trial.
+      - generic [ref=f7e81]:
+        - generic [ref=f7e230]:
+          - heading "Company Information" [level=1] [ref=f7e231]
+          - paragraph [ref=f7e232]: Attach and manage the EIMS records Excel file used to run Compliance Analysis against practitioner-logged sessions.
+        - generic [ref=f7e233]:
+          - button "Company Information" [ref=f7e234] [cursor=pointer]
+          - button "EIMS Compliance Reference" [ref=f7e235] [cursor=pointer]
+          - button "Dropdown Options" [ref=f7e236] [cursor=pointer]
+        - generic [ref=f7e237]: "Compliance data updated: 0 state rows parsed, 0 matched to a patient in our system."
+        - generic [ref=f7e238]:
+          - generic [ref=f7e239]:
+            - heading "EIMS Compliance Reference" [level=2] [ref=f7e240]
+            - paragraph [ref=f7e241]: Attach the EIMS records Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+          - generic [ref=f7e242]:
+            - generic [ref=f7e247]:
+              - paragraph [ref=f7e248]: eims-demo-reference-2026-08.xlsx
+              - paragraph [ref=f7e249]: 7 KB · Uploaded Aug 29, 2026
+            - generic [ref=f7e250]:
+              - button "Download" [ref=f7e251] [cursor=pointer]
+              - button "Review column matching" [ref=f7e252] [cursor=pointer]
+              - generic [ref=f7e253] [cursor=pointer]: Add files
+          - generic [ref=f7e254]: Each month, use Add files to attach the new EIMS records file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically.
+          - generic [ref=f7e259]:
+            - generic [ref=f7e260]:
+              - generic [ref=f7e261]:
+                - heading "Data currently on file" [level=3] [ref=f7e262]
+                - paragraph [ref=f7e263]: From the last confirmed upload — updates the next time a file is applied, or when refreshed.
+              - generic [ref=f7e264]:
+                - generic [ref=f7e265]: As of Aug 29, 2026
+                - button "Refresh" [ref=f7e266] [cursor=pointer]
+            - table [ref=f7e267]:
+              - rowgroup [ref=f7e268]:
+                - row [ref=f7e269]:
+                  - columnheader "Month" [ref=f7e270]
+                  - columnheader "Records" [ref=f7e271]
+                  - columnheader "Date range on file" [ref=f7e272]
+                  - columnheader [ref=f7e273]
+              - rowgroup [ref=f7e274]:
+                - row [ref=f7e275]:
+                  - cell "June 2026" [ref=f7e276]
+                  - cell "8388" [ref=f7e277]
+                  - cell "Jun 1-30, 2026" [ref=f7e278]
+                  - cell [ref=f7e279]:
+                    - button "Download" [ref=f7e280] [cursor=pointer]
+                    - button "Delete" [ref=f7e281] [cursor=pointer]
+                - row [ref=f7e282]:
+                  - cell "July 2026" [ref=f7e283]
+                  - cell "8388" [ref=f7e284]
+                  - cell "Jul 1-31, 2026" [ref=f7e285]
+                  - cell [ref=f7e286]:
+                    - button "Download" [ref=f7e287] [cursor=pointer]
+                    - button "Delete" [ref=f7e288] [cursor=pointer]

@@ -1,0 +1,314 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - heading [level=1]:
+              - generic: IZAYA Early Intervention Services
+              - generic: Admin Portal
+        - navigation:
+          - button: Staff Directory
+          - button: Master Reports
+          - button: Billing & Invoices
+        - generic:
+          - paragraph: Useful Links
+          - button: Company Information
+          - button: Subscription & Billing
+          - button: Audit Log
+          - button: Roles & Permissions
+        - generic:
+          - generic:
+            - generic: EIS
+            - generic: Early Intervention Simplified
+          - paragraph: Securely Powered by Izaya
+      - main:
+        - generic:
+          - generic:
+            - button
+            - generic: IZAYA Early Intervention Services
+          - heading [level=2]: Billing & Invoices
+          - generic:
+            - generic:
+              - generic: AA
+              - generic: Ahsan Ashfaq
+              - generic: Admin
+            - button:
+              - generic: Sign Out
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=4]: Free trial
+              - paragraph: 20 days left in your free trial.
+          - generic:
+            - generic:
+              - generic:
+                - button: Pending Bills
+                - button: Completed Bills
+                - button: Invoice Status
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Billing Period
+                    - textbox: 2026-08
+                    - generic:
+                      - button:
+                        - generic: Biweekly 1
+                        - generic: Aug 1–15
+                      - button [disabled]:
+                        - generic: Biweekly 2
+                        - generic: Aug 16–31
+                      - button [disabled]:
+                        - generic: Monthly
+                        - generic: Aug 1–31
+                    - generic: Reviewing Biweekly 1 (2026-08-01 – 2026-08-15)
+                  - generic:
+                    - generic:
+                      - generic: Practitioner Queue
+                      - generic:
+                        - generic:
+                          - textbox:
+                            - /placeholder: Search practitioner...
+                      - generic:
+                        - generic:
+                          - button:
+                            - generic: LJ
+                            - generic:
+                              - generic: Linda Jones
+                              - generic: 3 sessions
+                            - generic: Locked to you
+                          - generic:
+                            - generic:
+                              - generic: Locked to you
+                              - button: Release
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Michael Smith
+                                - generic: 8/7/26
+                            - generic:
+                              - generic: S:1
+                              - generic: DI
+                              - generic: L:2
+                            - generic:
+                              - generic: Approved
+                              - generic: 2h 29m
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Michael Smith
+                                - generic: 8/12/26
+                            - generic:
+                              - generic: S:TPC
+                              - generic: DI
+                              - generic: L:6
+                            - generic:
+                              - generic: Approved
+                              - generic: 1h 36m
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic: Michael Smith
+                                - generic: 8/12/26
+                            - generic:
+                              - generic: S:TPC
+                              - generic: DI
+                              - generic: L:7
+                            - generic:
+                              - generic: Declined
+                              - generic: 0m
+                          - generic:
+                            - generic:
+                              - generic: 2 billable
+                              - generic: 0 held/returned
+                              - generic: 1 excluded
+                            - button: Generate & Issue
+                    - generic:
+                      - generic: Review Panel
+                      - generic:
+                        - generic:
+                          - button: Session Detail
+                          - button: Compliance Analysis
+                          - button: Compliance Matching
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: Compliance Analysis
+                              - paragraph: "Each session below is EIMS Matched by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time."
+                          - button: Re-run analysis
+                          - generic:
+                            - button:
+                              - generic: "3"
+                              - generic: Sessions Checked
+                            - button:
+                              - generic: "2"
+                              - generic: Match with EIMS
+                            - button:
+                              - generic: "1"
+                              - generic: Flagged
+                            - button:
+                              - generic: "0"
+                              - generic: Missing in EIMS
+                          - generic: Side-by-side comparison · Linda Jones
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Michael Smith
+                                  - generic: 8/7/26
+                                  - generic: Match
+                                - generic:
+                                  - combobox
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: EIMS Record
+                                    - columnheader
+                                - rowgroup:
+                                  - row:
+                                    - cell:
+                                      - generic: Child ID
+                                    - cell: "900000006"
+                                    - cell: "900000006"
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Child Name
+                                    - cell: Michael Smith
+                                    - cell: Michael Smith
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Practitioner
+                                    - cell: Linda Jones
+                                    - cell: Linda Jones
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Service Date
+                                    - cell: 2026-08-07
+                                    - cell: 2026-08-07
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Start Time
+                                    - cell: 7:01 AM
+                                    - cell: 7:01 AM
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: End Time
+                                    - cell: 9:30 AM
+                                    - cell: 9:30 AM
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Service Type
+                                    - cell: Developmental Intervention
+                                    - cell: Developmental Intervention
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Location
+                                    - cell: Residential Facility
+                                    - cell: Residential Facility
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Group Size Category
+                                    - cell: Direct Child Service - Individual
+                                    - cell: Direct Child Service - Individual
+                                    - cell
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Michael Smith
+                                  - generic: 8/12/26
+                                  - generic: 1 field flagged
+                                - generic:
+                                  - combobox
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: EIMS Record
+                                    - columnheader
+                                - rowgroup:
+                                  - row:
+                                    - cell:
+                                      - generic: Child ID
+                                    - cell: "900000006"
+                                    - cell: "900000006"
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Child Name
+                                    - cell: Michael Smith
+                                    - cell: Michael Smith
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Practitioner
+                                    - cell: Linda Jones
+                                    - cell: Linda Jones
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Service Date
+                                    - cell: 2026-08-12
+                                    - cell: 2026-08-12
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Start Time
+                                    - cell: 10:55 PM
+                                    - cell: 10:55 PM
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: End Time
+                                    - cell: 12:31 AM
+                                    - cell: 12:31 AM
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Service Type
+                                    - cell: Developmental Intervention
+                                    - cell: Developmental Intervention
+                                    - cell
+                                  - row:
+                                    - cell:
+                                      - generic: Location
+                                    - cell: EC Program - Inclusive Community
+                                    - cell: Home
+                                    - cell:
+                                      - button: Allow
+                                  - row:
+                                    - cell:
+                                      - generic: Group Size Category
+                                    - cell: Direct Child Service - Individual
+                                    - cell: Direct Child Service - Individual
+                                    - cell
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: Michael Smith
+                                  - generic: 8/12/26
+                              - table:
+                                - rowgroup:
+                                  - row:
+                                    - columnheader
+                                    - columnheader: Our Log
+                                    - columnheader: EIMS Record
+                                    - columnheader
+                                - rowgroup:
+                                  - row:
+                                    - cell: No matching record found in EIMS for this session — showing our own logged values below
+  - dialog [ref=f10e560]:
+    - paragraph [ref=f10e561]: You are only allowing "Location" as a one-time allow for this log, based on your review — this will not be used to teach the system for future logs.
+    - generic [ref=f10e562]:
+      - button "Cancel" [active] [ref=f10e563] [cursor=pointer]
+      - button "Confirm" [ref=f10e564] [cursor=pointer]

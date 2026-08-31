@@ -1,0 +1,95 @@
+- generic [ref=f34e89]:
+  - button "Show navigation" [ref=f34e90] [cursor=pointer]
+  - complementary [ref=f34e94]:
+    - heading "IZAYA Consulting, LLC Admin Portal" [level=1] [ref=f34e97]:
+      - generic [ref=f34e98]: IZAYA Consulting, LLC
+      - generic [ref=f34e99]: Admin Portal
+    - navigation [ref=f34e100]:
+      - button "Staff Directory" [ref=f34e101] [cursor=pointer]
+      - button "Master Reports" [ref=f34e104] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f34e107] [cursor=pointer]
+    - generic [ref=f34e110]:
+      - paragraph [ref=f34e111]: Useful Links
+      - button "Company Information" [ref=f34e112] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f34e115] [cursor=pointer]
+      - button "Audit Log" [ref=f34e118] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f34e121] [cursor=pointer]
+    - generic [ref=f34e125]:
+      - img "Izaya" [ref=f34e126]
+      - paragraph [ref=f34e127]: Securely Powered by Izaya
+      - paragraph [ref=f34e128]: Early Intervention Simplified
+  - main [ref=f34e129]:
+    - generic [ref=f34e130]:
+      - generic [ref=f34e131]:
+        - button "Toggle menu" [ref=f34e132] [cursor=pointer]
+        - generic [ref=f34e135]: Early Intervention Simplified
+      - heading "Company Information" [level=2] [ref=f34e674]
+      - generic [ref=f34e138]:
+        - generic [ref=f34e139]:
+          - generic [ref=f34e140]: AZ
+          - generic [ref=f34e142]: Ahsan Zubair
+          - generic [ref=f34e143]: Admin
+        - button "Sign Out" [ref=f34e144] [cursor=pointer]
+    - generic [ref=f34e675]:
+      - generic [ref=f34e676]:
+        - heading "Company Information" [level=1] [ref=f34e677]
+        - paragraph [ref=f34e678]: Attach and manage the EIMS records Excel file used to run Compliance Analysis against practitioner-logged sessions.
+      - generic [ref=f34e679]:
+        - button "Company Information" [ref=f34e680] [cursor=pointer]
+        - button "EIMS Compliance Reference" [active] [ref=f34e681] [cursor=pointer]
+        - button "Dropdown Options" [ref=f34e682] [cursor=pointer]
+      - generic [ref=f34e719]:
+        - generic [ref=f34e720]:
+          - heading "EIMS Compliance Reference" [level=2] [ref=f34e721]
+          - paragraph [ref=f34e722]: Attach the EIMS records Excel file. Billing & Invoices uses this on file to run Compliance Analysis against practitioner-logged sessions in the Batch Review beta.
+        - generic [ref=f34e723]:
+          - generic [ref=f34e728]:
+            - paragraph [ref=f34e729]: PROGRESSIVE Data File MAY 2026.xlsx
+            - paragraph [ref=f34e730]: 2.2 MB · Uploaded Aug 19, 2026
+          - generic [ref=f34e731]:
+            - button "Download" [ref=f34e732] [cursor=pointer]
+            - button "Review column matching" [ref=f34e733] [cursor=pointer]
+            - generic [ref=f34e734] [cursor=pointer]: Add files
+            - button "Remove" [ref=f34e735] [cursor=pointer]
+        - generic [ref=f34e736]: Each month, use Add files to attach the new EIMS records file — it keeps everything from the last 90 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 90 days (by service date) drops off automatically. Remove is only for starting over completely — it clears all EIMS compliance data, not just this file.
+        - generic [ref=f34e741]:
+          - generic [ref=f34e742]:
+            - generic [ref=f34e743]:
+              - heading "Data currently on file" [level=3] [ref=f34e744]
+              - paragraph [ref=f34e745]: From the last confirmed upload — updates the next time a file is applied, or when refreshed.
+            - generic [ref=f34e746]:
+              - generic [ref=f34e747]: As of Aug 19, 2026
+              - button "Refresh" [ref=f34e748] [cursor=pointer]
+          - table [ref=f34e749]:
+            - rowgroup [ref=f34e750]:
+              - row [ref=f34e751]:
+                - columnheader "Month" [ref=f34e752]
+                - columnheader "Records" [ref=f34e753]
+                - columnheader "Earliest service date" [ref=f34e754]
+                - columnheader "Latest service date" [ref=f34e755]
+                - columnheader [ref=f34e756]
+            - rowgroup [ref=f34e757]:
+              - row [ref=f34e758]:
+                - cell "May 2026" [ref=f34e759]
+                - cell "2932" [ref=f34e760]
+                - cell "May 21, 2026" [ref=f34e761]
+                - cell "May 31, 2026" [ref=f34e762]
+                - cell [ref=f34e763]:
+                  - button "Download" [ref=f34e764] [cursor=pointer]
+                  - button "Delete" [ref=f34e765] [cursor=pointer]
+              - row [ref=f34e766]:
+                - cell "June 2026" [ref=f34e767]
+                - cell "9311" [ref=f34e768]
+                - cell "Jun 1, 2026" [ref=f34e769]
+                - cell "Jun 30, 2026" [ref=f34e770]
+                - cell [ref=f34e771]:
+                  - button "Download" [ref=f34e772] [cursor=pointer]
+                  - button "Delete" [ref=f34e773] [cursor=pointer]
+              - row [ref=f34e774]:
+                - cell "July 2026" [ref=f34e775]
+                - cell "8388" [ref=f34e776]
+                - cell "Jul 1, 2026" [ref=f34e777]
+                - cell "Jul 31, 2026" [ref=f34e778]
+                - cell [ref=f34e779]:
+                  - button "Download" [ref=f34e780] [cursor=pointer]
+                  - button "Delete" [ref=f34e781] [cursor=pointer]

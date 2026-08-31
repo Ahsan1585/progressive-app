@@ -1,0 +1,17 @@
+- generic [ref=f15e107]:
+  - banner [ref=f15e108]:
+    - button "Back" [ref=f15e109]
+    - heading "My Invoices" [level=1] [ref=f15e112]
+  - list [ref=f15e114]:
+    - listitem [ref=f15e115]:
+      - button "7/17/2026 – 7/31/2026 Approved — payment pending Approved" [ref=f15e116]:
+        - generic [ref=f15e121]:
+          - paragraph [ref=f15e122]: 7/17/2026 – 7/31/2026
+          - paragraph [ref=f15e123]: Approved — payment pending
+        - generic [ref=f15e124]: Approved
+    - listitem [ref=f15e125]:
+      - button "6/3/2026 – 6/3/2026 Approved — payment pending Approved" [ref=f15e126]:
+        - generic [ref=f15e131]:
+          - paragraph [ref=f15e132]: 6/3/2026 – 6/3/2026
+          - paragraph [ref=f15e133]: Approved — payment pending
+        - generic [ref=f15e134]: Approved

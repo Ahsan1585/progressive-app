@@ -1,0 +1,170 @@
+- generic [ref=f8e1]:
+  - link "Skip to main content" [ref=f8e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Cookie banner" [ref=f8e17]:
+    - generic [ref=f8e19]:
+      - text: We use cookies to enhance your development experience and keep your data secure.
+      - link "Privacy Policy" [ref=f8e20] [cursor=pointer]:
+        - /url: /privacy
+      - text: ·
+      - link "Cookie Policy" [ref=f8e21] [cursor=pointer]:
+        - /url: /cookie-policy
+    - generic [ref=f8e23]:
+      - button "Manage preferences" [ref=f8e24] [cursor=pointer]
+      - button "OK" [ref=f8e27] [cursor=pointer]
+  - generic [ref=f8e30]:
+    - generic [ref=f8e32]:
+      - generic [ref=f8e37]:
+        - generic [ref=f8e38]: Preview deployment
+        - generic [ref=f8e39]: "- Use this page to preview your project and collaborate on feedback."
+      - button "Dismiss preview notice" [ref=f8e40] [cursor=pointer]
+    - generic [ref=f8e42]:
+      - main [ref=f8e43]:
+        - iframe [active] [ref=f8e44]:
+          - generic [ref=f10e1]:
+            - generic [ref=f10e2]:
+              - banner [ref=f10e3]:
+                - generic [ref=f10e4]:
+                  - link "Izaya EI Simplified" [ref=f10e5] [cursor=pointer]:
+                    - /url: /
+                    - generic [ref=f10e11]:
+                      - generic [ref=f10e12]: Izaya
+                      - generic [ref=f10e13]: EI Simplified
+                  - navigation [ref=f10e14]:
+                    - link "Home" [ref=f10e15] [cursor=pointer]:
+                      - /url: /
+                    - link "How it works" [ref=f10e16] [cursor=pointer]:
+                      - /url: /how-it-works
+                    - link "Practitioner app" [active] [ref=f10e17] [cursor=pointer]:
+                      - /url: /download
+                    - link "Contact" [ref=f10e18] [cursor=pointer]:
+                      - /url: /contact
+                  - link "Schedule a demo" [ref=f10e20] [cursor=pointer]:
+                    - /url: /contact
+              - main [ref=f10e21]:
+                - generic [ref=f10e268]:
+                  - paragraph [ref=f10e269]: Practitioner app
+                  - heading "Install EI Simplified on your phone" [level=1] [ref=f10e270]
+                  - paragraph [ref=f10e271]: The practitioner app installs straight from your browser to your home screen. No app store account, no download queue, no IT ticket.
+                - generic [ref=f10e274]:
+                  - paragraph [ref=f10e280]: Scan with your phone
+                  - generic [ref=f10e281]:
+                    - paragraph [ref=f10e282]: Two ways in
+                    - heading "Scan the code, or open the link" [level=2] [ref=f10e283]
+                    - paragraph [ref=f10e284]: Point your phone camera at the QR code, or tap the button below if you're already reading this on the device you'll use for sessions. Then follow the install steps for your phone.
+                    - generic [ref=f10e285]:
+                      - link "Open the app" [ref=f10e286] [cursor=pointer]:
+                        - /url: https://app.izayaconsulting.com
+                      - link "Need an account?" [ref=f10e287] [cursor=pointer]:
+                        - /url: /contact
+                - generic [ref=f10e289]:
+                  - generic [ref=f10e290]:
+                    - paragraph [ref=f10e291]: Add to home screen
+                    - heading "Install steps for your phone" [level=2] [ref=f10e292]
+                  - generic [ref=f10e293]:
+                    - generic [ref=f10e294]:
+                      - heading "iPhone & iPad (Safari)" [level=3] [ref=f10e295]
+                      - list [ref=f10e296]:
+                        - listitem [ref=f10e297]:
+                          - generic [ref=f10e298]: "1"
+                          - generic [ref=f10e299]: Open the app link in Safari on your iPhone or iPad.
+                        - listitem [ref=f10e300]:
+                          - generic [ref=f10e301]: "2"
+                          - generic [ref=f10e302]: Tap the Share button at the bottom of the screen.
+                        - listitem [ref=f10e303]:
+                          - generic [ref=f10e304]: "3"
+                          - generic [ref=f10e305]: Scroll down and tap “Add to Home Screen”.
+                        - listitem [ref=f10e306]:
+                          - generic [ref=f10e307]: "4"
+                          - generic [ref=f10e308]: Tap “Add” — the EI Simplified icon appears with your other apps.
+                    - generic [ref=f10e309]:
+                      - heading "Android (Chrome)" [level=3] [ref=f10e310]
+                      - list [ref=f10e311]:
+                        - listitem [ref=f10e312]:
+                          - generic [ref=f10e313]: "1"
+                          - generic [ref=f10e314]: Open the app link in Chrome on your Android phone.
+                        - listitem [ref=f10e315]:
+                          - generic [ref=f10e316]: "2"
+                          - generic [ref=f10e317]: Tap the three-dot menu in the top right.
+                        - listitem [ref=f10e318]:
+                          - generic [ref=f10e319]: "3"
+                          - generic [ref=f10e320]: Tap “Install app” (or “Add to Home screen”).
+                        - listitem [ref=f10e321]:
+                          - generic [ref=f10e322]: "4"
+                          - generic [ref=f10e323]: Confirm — the app installs to your home screen.
+                - generic [ref=f10e325]:
+                  - generic [ref=f10e326]:
+                    - paragraph [ref=f10e327]: In the app
+                    - heading "Everything a practitioner needs, nothing they don't" [level=2] [ref=f10e328]
+                  - generic [ref=f10e329]:
+                    - generic [ref=f10e330]:
+                      - heading "Log sessions in the field" [level=3] [ref=f10e335]
+                      - paragraph [ref=f10e336]: Client, service, date, and times with a live total-time calculation.
+                    - generic [ref=f10e337]:
+                      - heading "Capture signatures" [level=3] [ref=f10e340]
+                      - paragraph [ref=f10e341]: Parent and practitioner signatures on the device, with a reusable saved signature.
+                    - generic [ref=f10e342]:
+                      - heading "Save drafts" [level=3] [ref=f10e347]
+                      - paragraph [ref=f10e348]: Start a log between visits and finish it later without losing anything.
+                    - generic [ref=f10e349]:
+                      - heading "Fix returned logs" [level=3] [ref=f10e353]
+                      - paragraph [ref=f10e354]: See exactly what was flagged, correct it, and resubmit in seconds.
+                    - generic [ref=f10e355]:
+                      - heading "Message the office" [level=3] [ref=f10e358]
+                      - paragraph [ref=f10e359]: Talk to your billing team in the app instead of chasing email threads.
+                - generic [ref=f10e361]:
+                  - paragraph [ref=f10e362]: Not using EI Simplified yet? See what your billing cycle looks like without the paperwork.
+                  - link "Schedule a demo" [ref=f10e363] [cursor=pointer]:
+                    - /url: /contact
+              - contentinfo [ref=f10e211]:
+                - generic [ref=f10e212]:
+                  - generic [ref=f10e213]:
+                    - generic [ref=f10e220]:
+                      - generic [ref=f10e221]: Izaya
+                      - generic [ref=f10e222]: EI Simplified
+                    - paragraph [ref=f10e223]: "EI Simplified automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children."
+                  - generic [ref=f10e224]:
+                    - heading "Explore" [level=3] [ref=f10e225]
+                    - list [ref=f10e226]:
+                      - listitem [ref=f10e227]:
+                        - link "How it works" [ref=f10e228] [cursor=pointer]:
+                          - /url: /how-it-works
+                      - listitem [ref=f10e229]:
+                        - link "Practitioner app" [ref=f10e230] [cursor=pointer]:
+                          - /url: /download
+                      - listitem [ref=f10e231]:
+                        - link "Schedule a demo" [ref=f10e232] [cursor=pointer]:
+                          - /url: /contact
+                  - generic [ref=f10e233]:
+                    - heading "Contact" [level=3] [ref=f10e234]
+                    - list [ref=f10e235]:
+                      - listitem [ref=f10e236]:
+                        - link "www.izayaconsulting.com" [ref=f10e240] [cursor=pointer]:
+                          - /url: https://www.izayaconsulting.com
+                      - listitem [ref=f10e241]:
+                        - link "info@izayaconsulting.com" [ref=f10e245] [cursor=pointer]:
+                          - /url: mailto:info@izayaconsulting.com
+                      - listitem [ref=f10e246]:
+                        - link "(732) 900-9048" [ref=f10e249] [cursor=pointer]:
+                          - /url: tel:+17329009048
+                      - listitem [ref=f10e250]: Old Bridge, NJ 08857
+                - paragraph [ref=f10e255]: © 2026 Izaya Consulting. EI Simplified is a trademark of Izaya Consulting.
+            - region "Notifications alt+T"
+            - complementary "Edit with Lovable" [ref=f10e256]:
+              - link "Edit with Lovable" [ref=f10e257] [cursor=pointer]:
+                - /url: https://lovable.dev/projects/lovp_38h8kqyv0v8rwadqmfjmpcyqgq?utm_source=lovable-badge
+                - generic [ref=f10e258]: Edit with
+              - button "Dismiss" [ref=f10e264] [cursor=pointer]
+        - generic [ref=f8e48]:
+          - button "Browse" [pressed] [ref=f8e49] [cursor=pointer]
+          - button "Comment" [ref=f8e53] [cursor=pointer]
+      - complementary [ref=f8e57]:
+        - button "Collapse comments" [ref=f8e59] [cursor=pointer]
+        - generic [ref=f8e61]:
+          - heading "Comments" [level=1] [ref=f8e63]
+          - generic [ref=f8e65]:
+            - img "Lovable" [ref=f8e67]
+            - paragraph [ref=f8e77]: No comments, yet
+            - paragraph [ref=f8e78]: Select “Comment” in the toolbar and then click anywhere on the preview to leave a comment
+            - button "Get started" [ref=f8e80] [cursor=pointer]
+  - region "Notifications, shortcut alt+T"

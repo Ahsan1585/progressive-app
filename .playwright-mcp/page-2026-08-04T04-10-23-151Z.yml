@@ -1,0 +1,204 @@
+- generic [ref=f11e3]:
+  - navigation [ref=f11e4]:
+    - generic [ref=f11e5]:
+      - link "IZAYA home" [ref=f11e6] [cursor=pointer]:
+        - /url: https://izayaedge.com
+        - img "IZAYA" [ref=f11e7]
+      - generic [ref=f11e17]: Early Intervention Simplified
+    - generic [ref=f11e18]:
+      - link "Why Izaya" [ref=f11e19] [cursor=pointer]:
+        - /url: "#features"
+      - link "The Moat" [ref=f11e20] [cursor=pointer]:
+        - /url: "#moat"
+      - link "Get the App" [ref=f11e21] [cursor=pointer]:
+        - /url: "#download"
+      - link "Sign In" [ref=f11e22] [cursor=pointer]:
+        - /url: "#login"
+  - banner [ref=f11e23]:
+    - generic [ref=f11e24]:
+      - generic [ref=f11e25]:
+        - generic [ref=f11e26]: Built for New Jersey EI Agencies
+        - heading [level=1] [ref=f11e30]:
+          - text: Automated billing,
+          - emphasis [ref=f11e31]: from session to invoice.
+        - paragraph [ref=f11e32]: Log a session. Izaya matches it, fills the form, and sends the invoice. No one has to touch it.
+        - generic [ref=f11e33]:
+          - generic [ref=f11e34]: One record, from session to invoice
+          - generic [ref=f11e38]: State matches approve instantly. Office only reviews what doesn't match.
+          - generic [ref=f11e42]: HIPAA-compliant, with a full audit trail
+      - generic [ref=f11e47]:
+        - heading "Welcome back" [level=2] [ref=f11e48]
+        - generic [ref=f11e49]: NJEIS Compliant
+        - generic [ref=f11e53]:
+          - generic [ref=f11e54]:
+            - generic [ref=f11e55]: Company Code
+            - textbox "Company Code" [ref=f11e56]:
+              - /placeholder: your-company
+          - generic [ref=f11e57]:
+            - generic [ref=f11e58]: Email
+            - textbox "Email" [ref=f11e59]:
+              - /placeholder: name@example.com
+          - generic [ref=f11e60]:
+            - generic [ref=f11e61]:
+              - generic [ref=f11e62]: Password
+              - link "Forgot password?" [ref=f11e63] [cursor=pointer]:
+                - /url: /eis/forgot-password
+            - generic [ref=f11e64]:
+              - textbox "Password" [ref=f11e65]
+              - button "Show password" [ref=f11e66]
+          - button "Sign In" [ref=f11e70] [cursor=pointer]
+        - generic [ref=f11e73]:
+          - text: New agency?
+          - link "Sign up your company" [ref=f11e74] [cursor=pointer]:
+            - /url: /eis/signup
+          - text: and start a free 15-day trial.Already have an account but no Company Code? Ask your agency admin.Trouble signing in?
+          - link "support@izayaedge.com" [ref=f11e75] [cursor=pointer]:
+            - /url: mailto:support@izayaedge.com
+  - generic [ref=f11e95]:
+    - generic [ref=f11e96]:
+      - generic [ref=f11e97]: End to End
+      - heading "Matches approve themselves. Only exceptions need you." [level=2] [ref=f11e98]
+    - generic [ref=f11e99]:
+      - generic [ref=f11e102]:
+        - generic [ref=f11e106]: Log Submitted
+        - generic [ref=f11e107]: Automated
+      - generic [ref=f11e108]:
+        - generic [ref=f11e113]: Matched to State Records
+        - generic [ref=f11e114]: Automated
+      - generic [ref=f11e115]:
+        - generic [ref=f11e119]: Auto-Approved
+        - generic [ref=f11e120]: Automated
+      - generic [ref=f11e121]:
+        - generic [ref=f11e126]: Form Auto-Filled
+        - generic [ref=f11e127]: Automated
+      - generic [ref=f11e128]:
+        - generic [ref=f11e132]: Invoice Generated
+        - generic [ref=f11e133]: Automated
+    - generic [ref=f11e142]:
+      - generic [ref=f11e143]: Flagged for Review
+      - generic [ref=f11e144]: Only on mismatch — the one human step
+    - generic [ref=f11e145]:
+      - generic [ref=f11e146]:
+        - generic [ref=f11e147]: "5"
+        - generic [ref=f11e148]: automated steps
+      - generic [ref=f11e149]:
+        - generic [ref=f11e150]: Exceptions Only
+        - generic [ref=f11e151]: is all a human ever reviews
+      - generic [ref=f11e152]:
+        - generic [ref=f11e153]: Instant
+        - generic [ref=f11e154]: on a match — no queue, no wait
+  - generic [ref=f11e156]:
+    - generic [ref=f11e157]:
+      - generic [ref=f11e158]: Inside the Automated Steps
+      - heading "How the form fills itself" [level=2] [ref=f11e159]
+    - generic [ref=f11e160]:
+      - generic [ref=f11e161]:
+        - generic [ref=f11e162]: NJEIS-020
+        - generic [ref=f11e174]:
+          - heading "One log. Form filled, signed, done." [level=3] [ref=f11e175]
+          - paragraph [ref=f11e176]: No re-typing into the state PDF — ever.
+      - generic [ref=f11e177]:
+        - generic [ref=f11e179]:
+          - generic [ref=f11e180]:
+            - generic [ref=f11e181]:
+              - generic [ref=f11e182]: Date
+              - generic [ref=f11e183]: Svc Code
+              - generic [ref=f11e184]: Hrs
+            - generic [ref=f11e185]:
+              - generic [ref=f11e186]: 7/14
+              - generic [ref=f11e187]: DI
+              - generic [ref=f11e188]: "1.0"
+            - generic [ref=f11e189]:
+              - generic [ref=f11e190]: 7/15
+              - generic [ref=f11e191]: SLP
+              - generic [ref=f11e192]: "0.5"
+          - generic [ref=f11e193]: Header changed
+        - generic [ref=f11e194]:
+          - heading "State changes a column. We notice." [level=3] [ref=f11e195]
+          - paragraph [ref=f11e196]: Flagged for review — never silently wrong.
+  - generic [ref=f11e198]:
+    - heading "Built for the full billing lifecycle" [level=2] [ref=f11e200]
+    - generic [ref=f11e201]:
+      - generic [ref=f11e202]:
+        - heading "Auto-Approval on Match" [level=3] [ref=f11e207]
+        - paragraph [ref=f11e208]: Matches state records instantly. Only mismatches reach a human.
+      - generic [ref=f11e209]:
+        - heading "Parent Calendar Sync" [level=3] [ref=f11e215]
+        - paragraph [ref=f11e216]: Reschedule updates the invite — never duplicates it.
+      - generic [ref=f11e217]:
+        - heading "Every PHI Touch, Logged" [level=3] [ref=f11e222]
+        - paragraph [ref=f11e223]: Who, what, when — visible to admins, always on.
+      - generic [ref=f11e224]:
+        - heading "Staff Messaging, Built In" [level=3] [ref=f11e228]
+        - paragraph [ref=f11e229]: Coordination stays in the record, not a text thread.
+      - generic [ref=f11e230]:
+        - heading "Signed URLs, Never Public" [level=3] [ref=f11e235]
+        - paragraph [ref=f11e236]: Every document link expires. Nothing sits exposed.
+      - generic [ref=f11e237]:
+        - heading "Two Portals, One Record" [level=3] [ref=f11e244]
+        - paragraph [ref=f11e245]: Practitioners and admins see exactly what they need.
+  - generic [ref=f11e247]:
+    - generic [ref=f11e248]: Security
+    - heading "Built to survive an audit" [level=2] [ref=f11e249]
+    - generic [ref=f11e250]:
+      - generic [ref=f11e251]:
+        - generic [ref=f11e256]: Audit Logged
+        - generic [ref=f11e257]: §164.312(b)
+      - generic [ref=f11e258]:
+        - generic [ref=f11e263]: Signed URLs
+        - generic [ref=f11e264]: Links expire, files don't leak
+      - generic [ref=f11e265]:
+        - generic [ref=f11e269]: Point-of-Care Signature
+        - generic [ref=f11e270]: Captured, not reconstructed
+      - generic [ref=f11e271]:
+        - generic [ref=f11e278]: Role-Scoped
+        - generic [ref=f11e279]: By design, not by luck
+  - generic [ref=f11e281]:
+    - generic [ref=f11e282]: One System
+    - heading "Two experiences" [level=2] [ref=f11e283]
+    - generic [ref=f11e284]:
+      - generic [ref=f11e285]:
+        - generic [ref=f11e286]: Practitioner
+        - generic [ref=f11e287]: Patients, sessions, pay
+      - generic [ref=f11e289]: OneRecord
+      - generic [ref=f11e291]:
+        - generic [ref=f11e292]: Admin
+        - generic [ref=f11e293]: Staff, billing, compliance
+  - generic [ref=f11e295]:
+    - generic [ref=f11e296]:
+      - heading "Take Izaya with you" [level=2] [ref=f11e297]
+      - paragraph [ref=f11e298]: Practitioners can log sessions, message the office, and manage their schedule on the go. The full app installs straight from your phone's browser. No app store required.
+      - generic [ref=f11e299]:
+        - link "Install for iPhone" [ref=f11e300] [cursor=pointer]:
+          - /url: https://app.izayaedge.com/EIS/login?install=1
+          - generic [ref=f11e303]:
+            - generic [ref=f11e304]: Install for
+            - text: iPhone
+        - link "Install for Android" [ref=f11e305] [cursor=pointer]:
+          - /url: https://app.izayaedge.com/EIS/login?install=1
+          - generic [ref=f11e311]:
+            - generic [ref=f11e312]: Install for
+            - text: Android
+      - generic [ref=f11e313]:
+        - generic [ref=f11e314]:
+          - generic [ref=f11e315]: "1"
+          - text: Open your phone's camera
+        - generic [ref=f11e316]:
+          - generic [ref=f11e317]: "2"
+          - text: Scan the code & open the link
+        - generic [ref=f11e318]:
+          - generic [ref=f11e319]: "3"
+          - text: Tap "Install" and you're done
+      - generic [ref=f11e320]: Works on iPhone and Android. No app store needed.
+    - generic [ref=f11e323]:
+      - generic "QR code linking to app.izayaedge.com" [ref=f11e324]
+      - generic [ref=f11e326]: Scan to install
+      - generic [ref=f11e327]: app.izayaedge.com
+  - contentinfo [ref=f11e328]:
+    - generic [ref=f11e329]:
+      - generic [ref=f11e330]:
+        - img "IZAYA" [ref=f11e331]
+        - generic [ref=f11e341]: © 2026 Izaya Consulting LLC
+      - link "support@izayaedge.com" [ref=f11e343] [cursor=pointer]:
+        - /url: mailto:support@izayaedge.com
+      - generic [ref=f11e344]: HIPAA Compliant

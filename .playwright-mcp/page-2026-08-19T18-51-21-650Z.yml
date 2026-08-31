@@ -1,0 +1,9 @@
+- generic [ref=f28e3]:
+  - generic [ref=f28e4]:
+    - img "IZAYA" [ref=f28e5]
+    - generic [ref=f28e15]: Early Intervention Simplified
+  - generic [ref=f28e18]:
+    - heading "Platform Admin" [level=1] [ref=f28e19]
+    - generic [ref=f28e20]:
+      - button "Companies" [ref=f28e21]
+      - button "Promo Codes" [ref=f28e22]

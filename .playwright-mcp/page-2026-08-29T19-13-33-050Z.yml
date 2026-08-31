@@ -1,0 +1,284 @@
+- generic [ref=f10e6]:
+  - complementary [ref=f10e7]:
+    - heading "IZAYA Early Intervention Services Admin Portal" [level=1] [ref=f10e10]:
+      - generic [ref=f10e11]: IZAYA Early Intervention Services
+      - generic [ref=f10e12]: Admin Portal
+    - navigation [ref=f10e13]:
+      - button "Staff Directory" [ref=f10e14] [cursor=pointer]
+      - button "Master Reports" [ref=f10e17] [cursor=pointer]
+      - button "Billing & Invoices" [ref=f10e20] [cursor=pointer]
+    - generic [ref=f10e23]:
+      - paragraph [ref=f10e24]: Useful Links
+      - button "Company Information" [ref=f10e25] [cursor=pointer]
+      - button "Subscription & Billing" [ref=f10e28] [cursor=pointer]
+      - button "Audit Log" [ref=f10e31] [cursor=pointer]
+      - button "Roles & Permissions" [ref=f10e34] [cursor=pointer]
+    - generic [ref=f10e38]:
+      - generic [ref=f10e39]:
+        - generic [ref=f10e40]:
+          - img "IZAYA" [ref=f10e41]
+          - generic [ref=f10e51]: EIS
+        - generic [ref=f10e52]: Early Intervention Simplified
+      - paragraph [ref=f10e53]: Securely Powered by Izaya
+  - main [ref=f10e54]:
+    - generic [ref=f10e55]:
+      - generic [ref=f10e56]:
+        - button "Toggle menu" [ref=f10e57] [cursor=pointer]
+        - generic [ref=f10e60]: IZAYA Early Intervention Services
+      - heading "Billing & Invoices" [level=2] [ref=f10e62]
+      - generic [ref=f10e63]:
+        - generic [ref=f10e64]:
+          - generic [ref=f10e65]: AA
+          - generic [ref=f10e67]: Ahsan Ashfaq
+          - generic [ref=f10e68]: Admin
+        - button "Sign Out" [ref=f10e69] [cursor=pointer]
+    - generic [ref=f10e73]:
+      - generic [ref=f10e77]:
+        - heading "Free trial" [level=4] [ref=f10e78]
+        - paragraph [ref=f10e79]: 20 days left in your free trial.
+      - generic [ref=f10e81]:
+        - generic [ref=f10e82]:
+          - button "Pending Bills" [ref=f10e83] [cursor=pointer]
+          - button "Completed Bills" [ref=f10e84] [cursor=pointer]
+          - button "Invoice Status" [ref=f10e85] [cursor=pointer]
+        - generic [ref=f10e87]:
+          - generic [ref=f10e88]:
+            - generic [ref=f10e89]: Billing Period
+            - textbox [ref=f10e93]: 2026-08
+            - generic [ref=f10e94]:
+              - button "Biweekly 1 Aug 1–15" [ref=f10e95] [cursor=pointer]:
+                - generic [ref=f10e96]: Biweekly 1
+                - generic [ref=f10e97]: Aug 1–15
+              - button "Biweekly 2 Aug 16–31" [disabled] [ref=f10e98]:
+                - generic [ref=f10e99]: Biweekly 2
+                - generic [ref=f10e103]: Aug 16–31
+              - button "Monthly Aug 1–31" [disabled] [ref=f10e104]:
+                - generic [ref=f10e105]: Monthly
+                - generic [ref=f10e109]: Aug 1–31
+            - generic [ref=f10e110]: Reviewing Biweekly 1 (2026-08-01 – 2026-08-15)
+          - generic [ref=f10e111]:
+            - generic [ref=f10e112]:
+              - generic [ref=f10e113]: Practitioner Queue
+              - textbox "Search practitioner..." [ref=f10e125]
+              - generic [ref=f10e127]:
+                - button "LJ Linda Jones 3 sessions Locked to you" [ref=f10e128] [cursor=pointer]:
+                  - generic [ref=f10e129]: LJ
+                  - generic [ref=f10e130]:
+                    - generic [ref=f10e131]: Linda Jones
+                    - generic [ref=f10e132]: 3 sessions
+                  - generic [ref=f10e133]: Locked to you
+                - generic [ref=f10e140]:
+                  - generic [ref=f10e141]: Locked to you
+                  - button "Release" [ref=f10e145] [cursor=pointer]
+                - generic [ref=f10e146] [cursor=pointer]:
+                  - generic [ref=f10e149]:
+                    - generic [ref=f10e150]: Michael Smith
+                    - generic [ref=f10e151]: 8/7/26
+                  - generic [ref=f10e152]:
+                    - generic "Service Status" [ref=f10e153]: S:1
+                    - generic "Service Type" [ref=f10e154]: DI
+                    - generic "Service Location" [ref=f10e155]: L:2
+                  - generic [ref=f10e156]:
+                    - generic [ref=f10e157]: Approved
+                    - generic [ref=f10e158]: 2h 29m
+                - generic [ref=f10e161] [cursor=pointer]:
+                  - generic [ref=f10e164]:
+                    - generic [ref=f10e165]: Michael Smith
+                    - generic [ref=f10e166]: 8/12/26
+                  - generic [ref=f10e167]:
+                    - generic "Service Status" [ref=f10e168]: S:TPC
+                    - generic "Service Type" [ref=f10e169]: DI
+                    - generic "Service Location" [ref=f10e170]: L:6
+                  - generic [ref=f10e171]:
+                    - generic [ref=f10e172]: Approved
+                    - generic [ref=f10e173]: 1h 36m
+                - generic [ref=f10e176] [cursor=pointer]:
+                  - generic [ref=f10e179]:
+                    - generic [ref=f10e180]: Michael Smith
+                    - generic [ref=f10e181]: 8/12/26
+                  - generic [ref=f10e182]:
+                    - generic "Service Status" [ref=f10e183]: S:TPC
+                    - generic "Service Type" [ref=f10e184]: DI
+                    - generic "Service Location" [ref=f10e185]: L:7
+                  - generic [ref=f10e186]:
+                    - generic [ref=f10e187]: Declined
+                    - generic [ref=f10e188]: 0m
+                - generic [ref=f10e191]:
+                  - generic [ref=f10e192]:
+                    - generic [ref=f10e193]: 2 billable
+                    - generic [ref=f10e194]: 0 held/returned
+                    - generic [ref=f10e195]: 1 excluded
+                  - button "Generate & Issue" [ref=f10e196] [cursor=pointer]
+            - generic [ref=f10e197]:
+              - generic [ref=f10e198]: Review Panel
+              - generic [ref=f10e203]:
+                - generic [ref=f10e204]:
+                  - button "Session Detail" [ref=f10e212] [cursor=pointer]
+                  - button "Compliance Analysis" [ref=f10e213] [cursor=pointer]
+                  - button "Compliance Matching" [ref=f10e217] [cursor=pointer]
+                - generic [ref=f10e312]:
+                  - generic [ref=f10e318]:
+                    - generic [ref=f10e319]: Compliance Analysis
+                    - paragraph [ref=f10e320]: "Each session below is EIMS Matched by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time."
+                  - button "Re-run analysis" [ref=f10e321] [cursor=pointer]
+                  - generic [ref=f10e327]:
+                    - button "3 Sessions Checked" [ref=f10e328] [cursor=pointer]:
+                      - generic [ref=f10e329]: "3"
+                      - generic [ref=f10e330]: Sessions Checked
+                    - button "3 Match with EIMS" [ref=f10e565] [cursor=pointer]:
+                      - generic [ref=f10e332]: "3"
+                      - generic [ref=f10e333]: Match with EIMS
+                    - button "0 Flagged" [ref=f10e566] [cursor=pointer]:
+                      - generic [ref=f10e335]: "0"
+                      - generic [ref=f10e336]: Flagged
+                    - button "0 Missing in EIMS" [ref=f10e337] [cursor=pointer]:
+                      - generic [ref=f10e338]: "0"
+                      - generic [ref=f10e339]: Missing in EIMS
+                  - generic [ref=f10e340]: Side-by-side comparison · Linda Jones
+                  - generic [ref=f10e342]:
+                    - generic [ref=f10e343]:
+                      - generic [ref=f10e344]:
+                        - generic [ref=f10e345]:
+                          - generic [ref=f10e346]: Michael Smith
+                          - generic [ref=f10e347]: 8/7/26
+                          - generic [ref=f10e348]: Match
+                        - combobox [ref=f10e353] [cursor=pointer]:
+                          - option "Approved" [selected]
+                          - option "Reset to Pending"
+                          - option "Return..."
+                          - option "Reject..."
+                          - option "Hold"
+                      - table [ref=f10e354]:
+                        - rowgroup [ref=f10e355]:
+                          - row [ref=f10e356]:
+                            - columnheader [ref=f10e357]
+                            - columnheader "Our Log" [ref=f10e358]
+                            - columnheader "EIMS Record" [ref=f10e359]
+                            - columnheader [ref=f10e360]
+                        - rowgroup [ref=f10e361]:
+                          - row [ref=f10e362]:
+                            - cell "Child ID" [ref=f10e363]
+                            - cell "900000006" [ref=f10e368]
+                            - cell "900000006" [ref=f10e369]
+                            - cell [ref=f10e370]
+                          - row [ref=f10e371]:
+                            - cell "Child Name" [ref=f10e372]
+                            - cell "Michael Smith" [ref=f10e377]
+                            - cell "Michael Smith" [ref=f10e378]
+                            - cell [ref=f10e379]
+                          - row [ref=f10e380]:
+                            - cell "Practitioner" [ref=f10e381]
+                            - cell "Linda Jones" [ref=f10e386]
+                            - cell "Linda Jones" [ref=f10e387]
+                            - cell [ref=f10e388]
+                          - row [ref=f10e389]:
+                            - cell "Service Date" [ref=f10e390]
+                            - cell "2026-08-07" [ref=f10e395]
+                            - cell "2026-08-07" [ref=f10e396]
+                            - cell [ref=f10e397]
+                          - row [ref=f10e398]:
+                            - cell "Start Time" [ref=f10e399]
+                            - cell "7:01 AM" [ref=f10e404]
+                            - cell "7:01 AM" [ref=f10e405]
+                            - cell [ref=f10e406]
+                          - row [ref=f10e407]:
+                            - cell "End Time" [ref=f10e408]
+                            - cell "9:30 AM" [ref=f10e413]
+                            - cell "9:30 AM" [ref=f10e414]
+                            - cell [ref=f10e415]
+                          - row [ref=f10e416]:
+                            - cell "Service Type" [ref=f10e417]
+                            - cell "Developmental Intervention" [ref=f10e422]
+                            - cell "Developmental Intervention" [ref=f10e423]
+                            - cell [ref=f10e424]
+                          - row [ref=f10e425]:
+                            - cell "Location" [ref=f10e426]
+                            - cell "Residential Facility" [ref=f10e431]
+                            - cell "Residential Facility" [ref=f10e432]
+                            - cell [ref=f10e433]
+                          - row [ref=f10e434]:
+                            - cell "Group Size Category" [ref=f10e435]
+                            - cell "Direct Child Service - Individual" [ref=f10e440]
+                            - cell "Direct Child Service - Individual" [ref=f10e441]
+                            - cell [ref=f10e442]
+                    - generic [ref=f10e443]:
+                      - generic [ref=f10e444]:
+                        - generic [ref=f10e445]:
+                          - generic [ref=f10e446]: Michael Smith
+                          - generic [ref=f10e447]: 8/12/26
+                          - generic [ref=f10e448]: Match
+                        - combobox [ref=f10e453] [cursor=pointer]:
+                          - option "Approved" [selected]
+                          - option "Reset to Pending"
+                          - option "Return..."
+                          - option "Reject..."
+                          - option "Hold"
+                      - table [ref=f10e454]:
+                        - rowgroup [ref=f10e455]:
+                          - row [ref=f10e456]:
+                            - columnheader [ref=f10e457]
+                            - columnheader "Our Log" [ref=f10e458]
+                            - columnheader "EIMS Record" [ref=f10e459]
+                            - columnheader [ref=f10e460]
+                        - rowgroup [ref=f10e461]:
+                          - row [ref=f10e462]:
+                            - cell "Child ID" [ref=f10e463]
+                            - cell "900000006" [ref=f10e468]
+                            - cell "900000006" [ref=f10e469]
+                            - cell [ref=f10e470]
+                          - row [ref=f10e471]:
+                            - cell "Child Name" [ref=f10e472]
+                            - cell "Michael Smith" [ref=f10e477]
+                            - cell "Michael Smith" [ref=f10e478]
+                            - cell [ref=f10e479]
+                          - row [ref=f10e480]:
+                            - cell "Practitioner" [ref=f10e481]
+                            - cell "Linda Jones" [ref=f10e486]
+                            - cell "Linda Jones" [ref=f10e487]
+                            - cell [ref=f10e488]
+                          - row [ref=f10e489]:
+                            - cell "Service Date" [ref=f10e490]
+                            - cell "2026-08-12" [ref=f10e495]
+                            - cell "2026-08-12" [ref=f10e496]
+                            - cell [ref=f10e497]
+                          - row [ref=f10e498]:
+                            - cell "Start Time" [ref=f10e499]
+                            - cell "10:55 PM" [ref=f10e504]
+                            - cell "10:55 PM" [ref=f10e505]
+                            - cell [ref=f10e506]
+                          - row [ref=f10e507]:
+                            - cell "End Time" [ref=f10e508]
+                            - cell "12:31 AM" [ref=f10e513]
+                            - cell "12:31 AM" [ref=f10e514]
+                            - cell [ref=f10e515]
+                          - row [ref=f10e516]:
+                            - cell "Service Type" [ref=f10e517]
+                            - cell "Developmental Intervention" [ref=f10e522]
+                            - cell "Developmental Intervention" [ref=f10e523]
+                            - cell [ref=f10e524]
+                          - row [ref=f10e570]:
+                            - cell "Location Allowed for this log" [ref=f10e571]:
+                              - generic [ref=f10e527]: Location
+                              - generic [ref=f10e575]: Allowed for this log
+                            - cell "EC Program - Inclusive Community" [ref=f10e531]
+                            - cell "Home" [ref=f10e532]
+                            - cell [ref=f10e576]
+                          - row [ref=f10e535]:
+                            - cell "Group Size Category" [ref=f10e536]
+                            - cell "Direct Child Service - Individual" [ref=f10e541]
+                            - cell "Direct Child Service - Individual" [ref=f10e542]
+                            - cell [ref=f10e543]
+                    - generic [ref=f10e544]:
+                      - generic [ref=f10e546]:
+                        - generic [ref=f10e547]: Michael Smith
+                        - generic [ref=f10e548]: 8/12/26
+                      - table [ref=f10e549]:
+                        - rowgroup [ref=f10e550]:
+                          - row [ref=f10e551]:
+                            - columnheader [ref=f10e552]
+                            - columnheader "Our Log" [ref=f10e553]
+                            - columnheader "EIMS Record" [ref=f10e554]
+                            - columnheader [ref=f10e555]
+                        - rowgroup [ref=f10e556]:
+                          - row [ref=f10e557]:
+                            - cell "No matching record found in EIMS for this session — showing our own logged values below" [ref=f10e558]

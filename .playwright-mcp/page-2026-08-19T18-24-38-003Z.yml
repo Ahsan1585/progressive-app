@@ -1,0 +1,6 @@
+- generic [ref=f16e4]:
+  - heading "Platform Admin" [level=1] [ref=f16e10]
+  - generic [ref=f16e11]:
+    - generic [ref=f16e12]: Admin key
+    - textbox "Admin key" [active] [ref=f16e13]
+  - button "Unlock" [disabled]

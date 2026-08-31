@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Izaya EIS — Redesign Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Mockup only: loaded from Google Fonts CDN for quick preview. The real
+     Login.jsx self-hosts these via @fontsource (see its CSP comment) — the
+     final port keeps that pattern, this file is throwaway. -->
+<style>
+  :root{
+    --il-navy:#132A3E; --il-navy-deep:#0C1D2C; --il-teal:#0E6E67; --il-mint:#2FBF9F; --il-sky:#2E8FC7;
+    --il-paper:#F7FAF9; --il-card:#FFFFFF; --il-ink:#1B2B38; --il-slate:#5C6B73; --il-body:#3D4B54;
+    --il-line:#E2EAE8; --il-focus-glow: 0 0 0 4px rgba(47,191,159,0.22); --il-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; font-family:'Inter Variable','Inter',sans-serif; color:var(--il-ink); background:var(--il-paper);
+    overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{ font-family:'Fraunces Variable','Fraunces',serif; color:var(--il-navy); margin:0; }
+  p{ margin:0; }
+  a{ color:inherit; }
+  img{ max-width:100%; display:block; }
+  ::selection{ background:rgba(47,191,159,0.28); }
+
+  /* ---------- utility ---------- */
+  .wrap{ max-width:1180px; margin:0 auto; padding-inline:48px; }
+  .tag{ font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--il-mint); margin-bottom:12px; }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:11px; font-weight:600; font-size:14.5px; text-decoration:none; cursor:pointer; border:none; padding:14px 26px; transition:filter .18s ease, transform .12s ease, box-shadow .18s ease; }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:linear-gradient(135deg, var(--il-teal), var(--il-navy)); color:#fff; box-shadow:0 14px 30px -10px rgba(14,110,103,0.55); }
+  .btn-primary:hover{ filter:brightness(1.1); box-shadow:0 18px 36px -10px rgba(14,110,103,0.6); }
+  .btn-ghost{ background:transparent; color:var(--il-navy); border:1.5px solid var(--il-line); }
+  .btn-ghost:hover{ border-color:var(--il-navy); background:rgba(19,42,62,0.03); }
+  .btn-small{ padding:10px 18px; font-size:13.5px; }
+  .btn:focus-visible{ outline:none; box-shadow:var(--il-focus-glow); }
+
+  /* ---------- nav ---------- */
+  nav{ position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:20px 48px; transition: background .25s ease, box-shadow .25s ease; }
+  nav.scrolled{ background:rgba(247,250,249,0.92); backdrop-filter:blur(14px); box-shadow:0 1px 0 rgba(19,42,62,0.07); }
+  .nav-brand{ display:flex; align-items:center; gap:14px; }
+  .nav-logo{ width:112px; height:auto; }
+  .nav-right{ display:flex; align-items:center; gap:22px; }
+  .nav-link{ font-size:13.5px; font-weight:500; color:var(--il-ink); opacity:.72; text-decoration:none; transition:opacity .15s ease; }
+  .nav-link:hover{ opacity:1; }
+  .nav-signin{ font-size:13.5px; font-weight:600; color:var(--il-navy); text-decoration:none; }
+  .nav-signin:hover{ text-decoration:underline; }
+
+  .ilg-n{ stroke:var(--il-navy); fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
+  .ilg-m{ stroke:var(--il-mint); fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
+  .ilg-node{ fill:var(--il-mint); }
+
+  /* ---------- hero ---------- */
+  .hero{ position:relative; padding:168px 48px 96px; overflow:hidden; }
+  .hero::before{ content:""; position:absolute; inset:0; background: radial-gradient(55% 45% at 85% 0%, rgba(46,143,199,0.10), transparent 62%), radial-gradient(45% 38% at 4% 8%, rgba(47,191,159,0.10), transparent 62%), linear-gradient(180deg, #EEF6F4 0%, var(--il-paper) 65%); z-index:0; }
+  .hero-inner{ position:relative; z-index:2; max-width:760px; margin:0 auto; text-align:center; }
+  .hero-badge{ display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--il-sky); background:rgba(46,143,199,0.1); border:1px solid rgba(46,143,199,0.28); padding:7px 16px 7px 13px; border-radius:999px; margin-bottom:26px; }
+  .hero-badge svg{ width:12px; height:12px; }
+  h1.hero-h1{ font-size:clamp(38px, 5vw, 58px); font-weight:600; line-height:1.09; letter-spacing:-0.025em; text-wrap:balance; }
+  h1.hero-h1 em{ font-style:normal; color:var(--il-teal); }
+  .hero-sub{ font-size:18px; color:var(--il-body); line-height:1.55; max-width:560px; margin:22px auto 0; text-wrap:pretty; }
+  .hero-ctas{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:38px; flex-wrap:wrap; }
+  .hero-note{ margin-top:16px; font-size:12.5px; color:var(--il-slate); }
+  .hero-note a{ color:var(--il-teal); font-weight:600; text-decoration:none; }
+  .hero-note a:hover{ text-decoration:underline; }
+
+  .hero-checklist{ display:flex; align-items:center; justify-content:center; gap:26px; margin-top:40px; flex-wrap:wrap; }
+  .hc-item{ display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:500; color:var(--il-ink); }
+  .hc-check{ width:19px; height:19px; border-radius:50%; background:var(--il-mint); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .hc-check svg{ width:10px; height:10px; stroke:currentColor; stroke-width:3; fill:none; }
+
+  /* ---------- how it works (merged real-screens section) ---------- */
+  .how{ padding:30px 48px 100px; }
+  .how-head{ text-align:center; max-width:620px; margin:0 auto 56px; }
+  .how-head h2{ font-size:clamp(26px, 3vw, 36px); font-weight:600; letter-spacing:-0.02em; line-height:1.2; text-wrap:balance; }
+  .how-head p{ font-size:15.5px; color:var(--il-body); margin-top:14px; line-height:1.55; }
+
+  .how-steps{ display:grid; grid-template-columns:repeat(3, 1fr); gap:28px; max-width:1080px; margin:0 auto; }
+  .step{ position:relative; }
+  .step-num{ position:absolute; top:-14px; left:24px; width:30px; height:30px; border-radius:50%; background:var(--il-navy); color:#fff; font-family:'Fraunces Variable',serif; font-weight:600; font-size:14px; display:flex; align-items:center; justify-content:center; z-index:3; box-shadow:0 6px 14px -4px rgba(19,42,62,0.4); }
+  .step-card{ background:var(--il-navy); border-radius:20px; overflow:hidden; padding-top:26px; }
+  .step-stage{ height:236px; display:flex; align-items:center; justify-content:center; position:relative; background:radial-gradient(70% 90% at 50% 100%, rgba(47,191,159,0.14), transparent); }
+  .shot-phone{ height:206px; width:auto; aspect-ratio:607/807; border-radius:18px; border:5px solid #0C1D2C; background:#0C1D2C; overflow:hidden; box-shadow:0 16px 30px rgba(0,0,0,0.35); }
+  .shot-phone.tall{ aspect-ratio:447/812; }
+  .shot-phone img{ width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
+  .shot-panel{ width:90%; height:196px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); box-shadow:0 16px 30px rgba(0,0,0,0.35); }
+  .shot-panel img{ width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
+  .step-caption{ padding:22px 24px 26px; }
+  .step-caption h3{ color:#fff; font-size:16.5px; font-weight:600; margin-bottom:6px; }
+  .step-caption p{ color:rgba(255,255,255,0.65); font-size:12.5px; line-height:1.55; }
+
+  /* ---------- features ---------- */
+  .features{ padding:90px 48px; background:var(--il-card); border-top:1px solid var(--il-line); border-bottom:1px solid var(--il-line); }
+  .section-head{ text-align:center; max-width:620px; margin:0 auto 46px; }
+  .section-head h2{ font-size:clamp(26px, 3vw, 34px); font-weight:600; letter-spacing:-0.02em; line-height:1.2; text-wrap:balance; }
+  .fgrid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px; max-width:1080px; margin:0 auto; }
+  .fcard{ background:var(--il-paper); border-radius:16px; padding:28px 26px; transition:transform .25s var(--il-ease), box-shadow .25s var(--il-ease); }
+  .fcard:hover{ transform:translateY(-3px); box-shadow:0 20px 40px -20px rgba(19,42,62,0.22); }
+  .f-icon{ width:42px; height:42px; border-radius:12px; background:rgba(14,110,103,0.1); display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .f-icon svg{ width:20px; height:20px; stroke:var(--il-teal); fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+  .fcard h3{ font-size:15.5px; font-weight:600; margin-bottom:6px; }
+  .fcard p{ font-size:12.5px; color:var(--il-body); line-height:1.55; }
+
+  /* ---------- compliance ---------- */
+  .compliance{ padding:90px 48px; }
+  .compliance-inner{ max-width:1080px; margin:0 auto; text-align:center; }
+  .badge-row{ display:flex; justify-content:center; gap:18px; flex-wrap:wrap; margin-top:46px; }
+  .cbadge{ width:186px; background:var(--il-navy); border-radius:16px; padding:24px 18px; color:#fff; }
+  .cbadge .ci{ width:38px; height:38px; border-radius:10px; background:rgba(47,191,159,0.2); display:flex; align-items:center; justify-content:center; margin:0 auto 13px; }
+  .cbadge .ci svg{ width:18px; height:18px; stroke:var(--il-mint); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .cbadge .ct{ font-size:13px; font-weight:700; margin-bottom:4px; }
+  .cbadge .cs{ font-family:'IBM Plex Mono','ui-monospace',monospace; font-size:10.5px; color:rgba(255,255,255,0.72); }
+
+  /* ---------- portals ---------- */
+  .portals{ padding:90px 48px; background:var(--il-card); border-top:1px solid var(--il-line); }
+  .portals-inner{ max-width:900px; margin:0 auto; text-align:center; }
+  .split{ display:flex; align-items:center; justify-content:center; gap:0; margin-top:46px; }
+  .split-node{ width:118px; height:118px; border-radius:50%; background:linear-gradient(135deg, var(--il-teal), var(--il-navy)); display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Fraunces Variable',serif; font-weight:600; font-size:13px; text-align:center; flex-shrink:0; box-shadow:0 16px 30px -10px rgba(19,42,62,0.4); }
+  .split-line{ width:90px; height:2px; background:repeating-linear-gradient(90deg, var(--il-line) 0 6px, transparent 6px 12px); }
+  .split-end{ width:172px; padding:20px; border-radius:16px; text-align:left; }
+  .split-end.prac{ background:rgba(47,191,159,0.08); border:1.5px solid rgba(47,191,159,0.3); }
+  .split-end.admin{ background:rgba(46,143,199,0.08); border:1.5px solid rgba(46,143,199,0.3); }
+  .split-end .et{ font-size:13px; font-weight:700; margin-bottom:4px; }
+  .split-end .es{ font-size:11.5px; color:var(--il-body); }
+
+  /* ---------- signin (demoted, standalone section) ---------- */
+  .signin{ padding:90px 48px; }
+  .signin-inner{ max-width:1080px; margin:0 auto; display:grid; grid-template-columns:1fr 0.62fr; gap:56px; align-items:center; }
+  .signin-copy h2{ font-size:clamp(24px, 2.6vw, 30px); font-weight:600; letter-spacing:-0.02em; margin-bottom:14px; }
+  .signin-copy p{ font-size:14.5px; color:var(--il-body); line-height:1.6; max-width:420px; }
+  .signin-card{ background:var(--il-card); border:1px solid var(--il-line); border-radius:18px; padding:30px 30px 24px; box-shadow:0 1px 2px rgba(19,42,62,0.05), 0 24px 50px -20px rgba(19,42,62,0.18); }
+  .signin-card h3{ font-size:19px; font-weight:600; margin-bottom:18px; }
+  .field{ margin-bottom:15px; }
+  .field label{ display:block; font-size:12.5px; font-weight:600; color:var(--il-navy); margin-bottom:5px; }
+  .field-hint{ font-size:11.5px; color:var(--il-slate); margin-top:5px; line-height:1.4; }
+  .field input{ width:100%; padding:11px 13px; border:1.5px solid var(--il-line); border-radius:10px; font-size:13.5px; font-family:inherit; color:var(--il-navy); background:#FCFDFD; }
+  .field input:focus{ outline:none; border-color:var(--il-mint); box-shadow:var(--il-focus-glow); background:#fff; }
+  .field-row{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
+  .forgot{ font-size:12px; color:var(--il-teal); text-decoration:none; font-weight:600; }
+  .signin-btn{ width:100%; margin-top:6px; }
+  .signin-foot{ margin-top:16px; padding-top:15px; border-top:1px solid var(--il-line); font-size:12px; color:var(--il-body); text-align:center; line-height:1.5; }
+  .signin-foot a{ color:var(--il-teal); font-weight:600; text-decoration:none; }
+
+  /* ---------- CTA band ---------- */
+  .cta-band-wrap{ padding:20px 48px 100px; }
+  .cta-band{ max-width:1080px; margin:0 auto; border-radius:24px; padding:60px 56px; text-align:center;
+    background: radial-gradient(75% 130% at 85% 0%, rgba(47,191,159,0.16), transparent 55%), radial-gradient(65% 120% at 8% 100%, rgba(46,143,199,0.13), transparent 55%), linear-gradient(150deg, var(--il-navy) 0%, var(--il-navy-deep) 100%);
+    box-shadow:0 30px 70px -24px rgba(12,29,44,0.5); }
+  .cta-band h2{ color:#fff; font-size:clamp(24px, 2.8vw, 32px); font-weight:600; letter-spacing:-0.02em; margin-bottom:12px; }
+  .cta-band p{ color:rgba(255,255,255,0.75); font-size:14.5px; max-width:460px; margin:0 auto 30px; line-height:1.6; }
+  .cta-band-btns{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .btn-on-dark{ background:#fff; color:var(--il-navy); }
+  .btn-on-dark:hover{ filter:brightness(0.96); }
+  .btn-ghost-dark{ border:1.5px solid rgba(255,255,255,0.3); color:#fff; }
+  .btn-ghost-dark:hover{ border-color:#fff; background:rgba(255,255,255,0.06); }
+
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--il-line); padding:32px 48px 44px; }
+  .foot-inner{ max-width:1080px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .foot-brand{ display:flex; align-items:center; gap:12px; }
+  .foot-brand svg{ width:86px; height:auto; }
+  .foot-brand span{ font-size:12px; color:var(--il-slate); }
+  .foot-links{ display:flex; gap:20px; }
+  .foot-links a{ font-size:12px; color:var(--il-body); text-decoration:none; }
+  .foot-links a:hover{ color:var(--il-navy); }
+  .foot-hipaa{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--il-teal); }
+  .foot-hipaa svg{ width:12px; height:12px; }
+
+  @media (max-width:980px){
+    .hero{ padding:140px 24px 72px; }
+    .how, .features, .compliance, .portals, .signin{ padding-left:24px; padding-right:24px; }
+    .how-steps{ grid-template-columns:1fr; max-width:420px; }
+    .signin-inner{ grid-template-columns:1fr; gap:36px; text-align:center; }
+    .signin-copy p{ margin-inline:auto; }
+    .signin-card{ max-width:400px; margin:0 auto; }
+    .split{ flex-direction:column; gap:16px; }
+    .split-line{ width:2px; height:36px; }
+    .nav-link{ display:none; }
+    .cta-band{ padding:44px 30px; }
+  }
+
+  @media (max-width:560px){
+    nav{ padding:14px 18px; }
+    .nav-logo{ width:92px; }
+    .nav-signin{ display:none; }
+    .btn.btn-small{ padding:9px 14px; font-size:12.5px; white-space:nowrap; }
+    .hero{ padding:118px 18px 60px; }
+    .hero-ctas{ flex-direction:column; width:100%; }
+    .hero-ctas .btn{ width:100%; }
+    .hero-checklist{ flex-direction:column; align-items:flex-start; gap:12px; text-align:left; }
+  }
+</style>
+</head>
+<body>
+
+  <nav id="siteNav">
+    <div class="nav-brand">
+      <svg class="nav-logo" viewBox="0 0 460 130" role="img" aria-label="IZAYA">
+        <path class="ilg-m" d="M22 32 L60 63 L22 94" />
+        <path class="ilg-n" d="M96 28 L96 98" />
+        <path class="ilg-n" d="M130 28 L196 28" />
+        <path class="ilg-m" d="M196 28 L130 98" />
+        <path class="ilg-n" d="M130 98 L196 98" />
+        <path class="ilg-n" d="M216 98 L248 28 L280 98" />
+        <path class="ilg-n" d="M230 74 L266 74" />
+        <path class="ilg-n" d="M300 28 L332 64" />
+        <path class="ilg-n" d="M364 28 L332 64" />
+        <path class="ilg-n" d="M332 64 L332 98" />
+        <path class="ilg-n" d="M384 98 L416 28 L448 98" />
+        <path class="ilg-n" d="M398 74 L434 74" />
+        <circle class="ilg-node" cx="248" cy="28" r="13" />
+        <circle class="ilg-node" cx="332" cy="64" r="13" />
+        <circle class="ilg-node" cx="416" cy="28" r="13" />
+      </svg>
+    </div>
+    <div class="nav-right">
+      <a class="nav-link" href="#how">How It Works</a>
+      <a class="nav-link" href="#security">Security</a>
+      <a class="nav-signin" href="#signin">Sign In</a>
+      <a class="btn btn-primary btn-small" href="#trial">Start Free Trial</a>
+    </div>
+  </nav>
+
+  <!-- HERO — marketing-only, no login form competing for space -->
+  <header class="hero" id="top">
+    <div class="hero-inner">
+      <div class="hero-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>
+        Built for New Jersey EI Agencies
+      </div>
+      <h1 class="hero-h1">Automated billing,<br><em>from session to invoice.</em></h1>
+      <p class="hero-sub">Log a session. Izaya matches it against the state's EIMS records, fills the NJEIS form, and sends the invoice — no one has to touch it unless something doesn't match.</p>
+
+      <div class="hero-ctas">
+        <a class="btn btn-primary" id="trial" href="#trial-form">Start Free Trial — 15 Days</a>
+        <a class="btn btn-ghost" href="#signin">Already a customer? Sign In</a>
+      </div>
+      <div class="hero-note">No credit card required · Set up in one afternoon</div>
+
+      <div class="hero-checklist">
+        <div class="hc-item"><span class="hc-check"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" /></svg></span>One record, from session to invoice</div>
+        <div class="hc-item"><span class="hc-check"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" /></svg></span>Office only reviews what doesn't match</div>
+        <div class="hc-item"><span class="hc-check"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" /></svg></span>HIPAA-compliant, full audit trail</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HOW IT WORKS — the merged, real-screenshot section (replaces both old Pipeline + Moat sections) -->
+  <section class="how" id="how">
+    <div class="how-head">
+      <h2>See it in action — not a mockup</h2>
+      <p>Three real screens from the actual product. This is the whole loop: log it, the system checks it against the state, you only step in when something's off.</p>
+    </div>
+    <div class="how-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-card">
+          <div class="step-stage">
+            <div class="shot-phone">
+              <img src="assets/screenshot-dashboard.png" alt="Practitioner home screen showing sessions logged this month and a Log a Session button" loading="lazy">
+            </div>
+          </div>
+          <div class="step-caption">
+            <h3>Log a session, right from the field</h3>
+            <p>Practitioners log service codes, time, and notes from their phone — no paperwork to carry.</p>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-card">
+          <div class="step-stage">
+            <div class="shot-phone tall">
+              <img src="assets/screenshot-log-session.png" alt="The Log Session form with service codes, time fields, and notes" loading="lazy">
+            </div>
+          </div>
+          <div class="step-caption">
+            <h3>Izaya checks it against EIMS</h3>
+            <p>The state's own records system. A clean match approves itself — instantly, no queue.</p>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-card">
+          <div class="step-stage">
+            <div class="shot-panel">
+              <img src="assets/screenshot-billing-review.png" alt="Billing review panel with Approve, Return, Reject, or Hold actions" loading="lazy">
+            </div>
+          </div>
+          <div class="step-caption">
+            <h3>Only mismatches reach your office</h3>
+            <p>One review panel — Approve, Return, Reject, or Hold. Everything else is already done.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="section-head">
+      <h2>Built for the full billing lifecycle</h2>
+    </div>
+    <div class="fgrid">
+      <div class="fcard">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg></div>
+        <h3>Auto-Approval on Match</h3>
+        <p>Matches EIMS records instantly. Only mismatches reach a human.</p>
+      </div>
+      <div class="fcard">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 16l2 2 4-4" /></svg></div>
+        <h3>Parent Calendar Sync</h3>
+        <p>Reschedule updates the invite — never duplicates it.</p>
+      </div>
+      <div class="fcard">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="9" /></svg></div>
+        <h3>Every PHI Touch, Logged</h3>
+        <p>Who, what, when — visible to admins, always on.</p>
+      </div>
+      <div class="fcard">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></div>
+        <h3>Staff Messaging, Built In</h3>
+        <p>Coordination stays in the record, not a text thread.</p>
+      </div>
+      <div class="fcard">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg></div>
+        <h3>Signed URLs, Never Public</h3>
+        <p>Every document link expires. Nothing sits exposed.</p>
+      </div>
+      <div class="fcard">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg></div>
+        <h3>Two Portals, One Record</h3>
+        <p>Practitioners and admins see exactly what they need.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECURITY -->
+  <section class="compliance" id="security">
+    <div class="compliance-inner">
+      <div class="tag">Security</div>
+      <h2>Built to survive an audit</h2>
+      <div class="badge-row">
+        <div class="cbadge">
+          <div class="ci"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="9" /></svg></div>
+          <div class="ct">Audit Logged</div>
+          <div class="cs">§164.312(b)</div>
+        </div>
+        <div class="cbadge">
+          <div class="ci"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg></div>
+          <div class="ct">Signed URLs</div>
+          <div class="cs">Links expire, files don't leak</div>
+        </div>
+        <div class="cbadge">
+          <div class="ci"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg></div>
+          <div class="ct">Point-of-Care Signature</div>
+          <div class="cs">Captured, not reconstructed</div>
+        </div>
+        <div class="cbadge">
+          <div class="ci"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg></div>
+          <div class="ct">Role-Scoped</div>
+          <div class="cs">By design, not by luck</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PORTALS -->
+  <section class="portals">
+    <div class="portals-inner">
+      <div class="tag">One System</div>
+      <h2>Two experiences, one record</h2>
+      <div class="split">
+        <div class="split-end prac"><div class="et">Practitioner</div><div class="es">Patients, sessions, pay</div></div>
+        <div class="split-line"></div>
+        <div class="split-node">One<br>Record</div>
+        <div class="split-line"></div>
+        <div class="split-end admin"><div class="et">Admin</div><div class="es">Staff, billing, compliance</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIGN IN — demoted, standalone, not competing with the hero -->
+  <section class="signin" id="signin">
+    <div class="signin-inner">
+      <div class="signin-copy">
+        <h2>Already using Izaya?</h2>
+        <p>Sign in with the Company Code your agency admin set up when you joined. New here instead? <a href="#trial-form" style="color:var(--il-teal); font-weight:600; text-decoration:none;">Start a free trial</a> — no Company Code needed yet.</p>
+      </div>
+      <div class="signin-card">
+        <h3>Sign in</h3>
+        <div class="field">
+          <label for="company">Company Code</label>
+          <input id="company" type="text" placeholder="your-company" autocapitalize="none" autocorrect="off">
+          <div class="field-hint">Set by your agency admin — ask them if you don't have yours.</div>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="name@example.com">
+        </div>
+        <div class="field">
+          <div class="field-row">
+            <label for="password" style="margin-bottom:0;">Password</label>
+            <a class="forgot" href="#">Forgot password?</a>
+          </div>
+          <input id="password" type="password" placeholder="••••••••">
+        </div>
+        <button class="btn btn-primary signin-btn" type="button">Sign In</button>
+        <div class="signin-foot">
+          Trouble signing in? <a href="mailto:support@izayaedge.com">support@izayaedge.com</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BAND -->
+  <section class="cta-band-wrap" id="trial-form">
+    <div class="cta-band">
+      <h2>Start your 15-day free trial</h2>
+      <p>Set up your agency, invite your team, and log your first session today. No credit card required.</p>
+      <div class="cta-band-btns">
+        <a class="btn btn-on-dark" href="#">Start Free Trial</a>
+        <a class="btn btn-ghost-dark" href="mailto:support@izayaedge.com">Talk to Us First</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="foot-inner">
+      <div class="foot-brand">
+        <svg viewBox="0 0 460 130" role="img" aria-label="IZAYA">
+          <path class="ilg-m" d="M22 32 L60 63 L22 94" />
+          <path class="ilg-n" d="M96 28 L96 98" />
+          <path class="ilg-n" d="M130 28 L196 28" />
+          <path class="ilg-m" d="M196 28 L130 98" />
+          <path class="ilg-n" d="M130 98 L196 98" />
+          <path class="ilg-n" d="M216 98 L248 28 L280 98" />
+          <path class="ilg-n" d="M230 74 L266 74" />
+          <path class="ilg-n" d="M300 28 L332 64" />
+          <path class="ilg-n" d="M364 28 L332 64" />
+          <path class="ilg-n" d="M332 64 L332 98" />
+          <path class="ilg-n" d="M384 98 L416 28 L448 98" />
+          <path class="ilg-n" d="M398 74 L434 74" />
+          <circle class="ilg-node" cx="248" cy="28" r="13" />
+          <circle class="ilg-node" cx="332" cy="64" r="13" />
+          <circle class="ilg-node" cx="416" cy="28" r="13" />
+        </svg>
+        <span>© 2026 Izaya Consulting LLC</span>
+      </div>
+      <div class="foot-links">
+        <a href="mailto:support@izayaedge.com">support@izayaedge.com</a>
+      </div>
+      <div class="foot-hipaa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></svg>
+        HIPAA Compliant
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    window.addEventListener('scroll', function(){
+      document.getElementById('siteNav').classList.toggle('scrolled', window.scrollY > 24);
+    }, { passive: true });
+  </script>
+</body>
+</html>

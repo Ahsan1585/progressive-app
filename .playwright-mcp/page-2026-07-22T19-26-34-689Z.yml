@@ -1,0 +1,105 @@
+- generic [ref=f5e3]:
+  - navigation [ref=f5e4]:
+    - link "IZAYA home" [ref=f5e5] [cursor=pointer]:
+      - /url: "#top"
+      - img "IZAYA" [ref=f5e6]
+    - generic [ref=f5e16]:
+      - link "Why Izaya" [ref=f5e17] [cursor=pointer]:
+        - /url: "#features"
+      - link "Get the App" [ref=f5e18] [cursor=pointer]:
+        - /url: "#download"
+  - banner [ref=f5e19]:
+    - generic [ref=f5e20]:
+      - generic [ref=f5e21]:
+        - generic [ref=f5e22]: Early Intervention Simplified
+        - heading [level=1] [ref=f5e23]:
+          - text: Every session becomes
+          - emphasis [ref=f5e24]: a paid invoice
+          - text: — no gaps.
+        - paragraph [ref=f5e25]: "Izaya connects what happens in the field to what happens in your back office: a practitioner delivers a service and logs it, your team reviews and controls it, the state-required NJEIS form generates itself, and a pay invoice goes out — one continuous, auditable record from first signature to final payment."
+        - generic [ref=f5e26]:
+          - generic [ref=f5e27]: One record, from session to signature to state form to invoice
+          - generic [ref=f5e31]: Built-in oversight — review, return, or approve every log before it's billed
+          - generic [ref=f5e35]: HIPAA-compliant and audit-ready, end to end
+      - generic [ref=f5e40]:
+        - heading "Welcome back" [level=2] [ref=f5e41]
+        - paragraph [ref=f5e42]: Sign in to your Izaya dashboard
+        - generic [ref=f5e43]: Secured & HIPAA Compliant
+        - generic [ref=f5e47]:
+          - generic [ref=f5e48]:
+            - generic [ref=f5e49]: Email Address
+            - textbox "Email Address" [ref=f5e50]:
+              - /placeholder: name@example.com
+          - generic [ref=f5e51]:
+            - generic [ref=f5e52]:
+              - generic [ref=f5e53]: Password
+              - link "Forgot password?" [ref=f5e54] [cursor=pointer]:
+                - /url: /eis/forgot-password
+            - generic [ref=f5e55]:
+              - textbox "Password" [ref=f5e56]
+              - button "Show password" [ref=f5e57]
+          - button "Sign In to Dashboard" [ref=f5e61] [cursor=pointer]
+        - generic [ref=f5e64]:
+          - text: New to Izaya? Your agency administrator will set up your account.Trouble signing in?
+          - link "support@izayaedge.com" [ref=f5e65] [cursor=pointer]:
+            - /url: mailto:support@izayaedge.com
+  - generic [ref=f5e66]:
+    - generic [ref=f5e70]:
+      - heading "The complete lifecycle, not just a log" [level=2] [ref=f5e71]
+      - paragraph [ref=f5e72]: A practitioner delivers a service. Izaya carries that record through your office's review, into the state's paperwork, and out the door as a paid invoice — every step traceable, every dollar accounted for.
+    - generic [ref=f5e73]:
+      - generic [ref=f5e80]:
+        - generic [ref=f5e81]: Step 01
+        - heading "Deliver & Document" [level=3] [ref=f5e82]
+        - paragraph [ref=f5e83]: A practitioner logs the visit — date, time, service type, location, and both signatures — in minutes, from a phone or a desktop.
+      - generic [ref=f5e90]:
+        - generic [ref=f5e91]: Step 02
+        - heading "Review & Control" [level=3] [ref=f5e92]
+        - paragraph [ref=f5e93]: Your office reviews every log, locks a practitioner's queue while working it, and accepts, returns, or declines it before anything gets billed.
+      - generic [ref=f5e99]:
+        - generic [ref=f5e100]: Step 03
+        - heading "Convert to State Forms" [level=3] [ref=f5e101]
+        - paragraph [ref=f5e102]: Approved logs generate the state-required NJEIS billing form automatically — no manual re-entry, no transcription errors.
+      - generic [ref=f5e110]:
+        - generic [ref=f5e111]: Step 04
+        - heading "Invoice & Get Paid" [level=3] [ref=f5e112]
+        - paragraph [ref=f5e113]: A pay invoice generates straight from those same approved logs, and stays tracked from issued to printed to paid.
+    - paragraph [ref=f5e114]: Plus direct messaging with your office and session scheduling with automatic parent calendar invites — built in, not bolted on.
+  - generic [ref=f5e119]:
+    - generic [ref=f5e120]:
+      - heading "Take Izaya with you" [level=2] [ref=f5e121]
+      - paragraph [ref=f5e122]: Practitioners can log sessions, message the office, and manage their schedule on the go — the full app installs straight from your phone's browser, no app store, ready in seconds.
+      - generic [ref=f5e123]:
+        - link "Install for iPhone" [ref=f5e124] [cursor=pointer]:
+          - /url: https://mobile-pied-two.vercel.app/login?install=1
+          - generic [ref=f5e127]:
+            - emphasis [ref=f5e128]: Install for
+            - generic [ref=f5e129]: iPhone
+        - link "Install for Android" [ref=f5e130] [cursor=pointer]:
+          - /url: https://mobile-pied-two.vercel.app/login?install=1
+          - generic [ref=f5e136]:
+            - emphasis [ref=f5e137]: Install for
+            - generic [ref=f5e138]: Android
+      - generic [ref=f5e139]:
+        - generic [ref=f5e140]:
+          - generic [ref=f5e141]: "1"
+          - text: Open your phone's camera
+        - generic [ref=f5e142]:
+          - generic [ref=f5e143]: "2"
+          - text: Scan the code & open the link
+        - generic [ref=f5e144]:
+          - generic [ref=f5e145]: "3"
+          - text: Tap "Install" — that's it
+      - generic [ref=f5e146]: Works on iPhone & Android — no app store needed
+    - generic [ref=f5e149]:
+      - generic "QR code linking to mobile-pied-two.vercel.app" [ref=f5e150]
+      - generic [ref=f5e152]: Scan to install
+      - generic [ref=f5e153]: mobile-pied-two.vercel.app
+  - contentinfo [ref=f5e154]:
+    - generic [ref=f5e155]:
+      - generic [ref=f5e156]:
+        - img "IZAYA" [ref=f5e157]
+        - generic [ref=f5e167]: © 2026 Izaya Consulting LLC
+      - link "support@izayaedge.com" [ref=f5e169] [cursor=pointer]:
+        - /url: mailto:support@izayaedge.com
+      - generic [ref=f5e170]: HIPAA Compliant
