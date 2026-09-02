@@ -283,7 +283,7 @@ const sendSessionScheduledEmail = async (toEmail, {
 };
 
 const sendContactRequestEmail = async ({
-  fullName, workEmail, agencyName, phone, practitionerCount, message,
+  fullName, workEmail, agencyName, practitionerCount, message,
 }) => {
   const to = process.env.CONTACT_TO_EMAIL || 'support@izayaedge.com';
   if (!resend) {
@@ -301,7 +301,6 @@ const sendContactRequestEmail = async ({
       ${detailRow('Name', fullName)}
       ${detailRow('Work email', `<a href="mailto:${workEmail}" style="color:${COLORS.teal};">${workEmail}</a>`)}
       ${detailRow('Agency', agencyName)}
-      ${detailRow('Phone', phone)}
       ${detailRow('Practitioners', practitionerCount)}
     </table>
     ${message ? `<p style="margin:0; white-space:pre-wrap;">${message}</p>` : ''}

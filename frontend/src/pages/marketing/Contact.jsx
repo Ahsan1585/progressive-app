@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { MarketingLayout } from '../../components/marketing/MarketingLayout';
 import api from '@/api/axiosInstance';
 
-const PHONE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg>;
 const MAIL_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16v16H4z" /><path d="M22 6l-10 7L2 6" /></svg>;
 
 export default function Contact() {
   const [form, setForm] = useState({
-    fullName: '', workEmail: '', agencyName: '', phone: '', practitionerCount: '', message: '',
+    fullName: '', workEmail: '', agencyName: '', practitionerCount: '', message: '',
   });
   const [status, setStatus] = useState('idle'); // idle | submitting | success | error
   const [error, setError] = useState('');
@@ -59,15 +58,9 @@ export default function Contact() {
                     <input id="contact-email" type="email" value={form.workEmail} onChange={update('workEmail')} required />
                   </div>
                 </div>
-                <div className="mk-form-row">
-                  <div className="mk-field">
-                    <label htmlFor="contact-agency">Agency / company *</label>
-                    <input id="contact-agency" type="text" value={form.agencyName} onChange={update('agencyName')} required />
-                  </div>
-                  <div className="mk-field">
-                    <label htmlFor="contact-phone">Phone</label>
-                    <input id="contact-phone" type="tel" value={form.phone} onChange={update('phone')} />
-                  </div>
+                <div className="mk-field">
+                  <label htmlFor="contact-agency">Agency / company *</label>
+                  <input id="contact-agency" type="text" value={form.agencyName} onChange={update('agencyName')} required />
                 </div>
                 <div className="mk-field">
                   <label htmlFor="contact-count">How many practitioners?</label>
@@ -86,9 +79,8 @@ export default function Contact() {
 
           <div className="mk-contact-direct">
             <h3>Talk to us directly</h3>
-            <p>Prefer a phone call? We're happy to answer questions about compliance, onboarding, or how Izaya EISimplified™ fits alongside your current systems.</p>
+            <p>Email us anytime — we're happy to answer questions about compliance, onboarding, or how Izaya EISimplified™ fits alongside your current systems.</p>
             <div className="mk-contact-direct-list">
-              <div className="mk-contact-direct-item">{PHONE_ICON}<a href="tel:+14054737367">(405) 473-7367</a></div>
               <div className="mk-contact-direct-item">{MAIL_ICON}<a href="mailto:support@izayaedge.com">support@izayaedge.com</a></div>
             </div>
           </div>

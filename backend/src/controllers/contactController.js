@@ -8,7 +8,6 @@ const submitContactRequest = async (req, res) => {
     const fullName = String(req.body.fullName || '').trim();
     const workEmail = String(req.body.workEmail || '').trim();
     const agencyName = String(req.body.agencyName || '').trim();
-    const phone = String(req.body.phone || '').trim();
     const practitionerCount = String(req.body.practitionerCount || '').trim();
     const message = String(req.body.message || '').trim();
 
@@ -19,7 +18,7 @@ const submitContactRequest = async (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid work email.' });
     }
 
-    await sendContactRequestEmail({ fullName, workEmail, agencyName, phone, practitionerCount, message });
+    await sendContactRequestEmail({ fullName, workEmail, agencyName, practitionerCount, message });
 
     res.json({ success: true });
   } catch (err) {

@@ -23,7 +23,6 @@ export function MarketingFooter() {
           <h3>Contact</h3>
           <ul>
             <li><a href="mailto:support@izayaedge.com">support@izayaedge.com</a></li>
-            <li><a href="tel:+14054737367">(405) 473-7367</a></li>
           </ul>
         </div>
       </div>

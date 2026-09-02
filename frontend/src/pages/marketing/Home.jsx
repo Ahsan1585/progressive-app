@@ -196,7 +196,7 @@ export default function Home() {
             </div>
             <div className="mk-cta-band-actions">
               <Link to="/contact" className="mk-btn-primary">Schedule a demo today</Link>
-              <p className="mk-cta-band-call">Or call <a href="tel:+14054737367">(405) 473-7367</a></p>
+              <p className="mk-cta-band-call">Or email <a href="mailto:support@izayaedge.com">support@izayaedge.com</a></p>
             </div>
           </div>
         </div>
