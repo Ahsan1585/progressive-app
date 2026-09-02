@@ -358,7 +358,7 @@ than after a claim gets rejected.
   as a **single-snapshot table** (wiped and replaced on every upload — a bug, since reviewing
   an older still-open billing period would lose its reference data on a newer upload); now a
   **rolling window**: each upload only replaces its own covered date range, and both upload
-  and every read lazily purge rows older than **90 days** (widened from 60).
+  and every read lazily purge rows older than **120 days** (widened from 90, and 60 before that).
 - `compliance_match_overrides` — the "learned vocabulary": one row per confirmed
   `(field, state's raw text, our value)` pairing, auto-matches on every future run.
 - `compliance_field_acknowledgments` — one-off "allow just this log" records, also doubling as
@@ -418,7 +418,7 @@ on the left.
 ### 9.6 Month-by-month data summary
 A **frozen snapshot** (not a live query), stored in `company_settings.compliance_doc_analysis`,
 recomputed automatically every time an upload's column mapping is confirmed, and manually
-refreshable via a button — because the 90-day rolling purge happens silently in the
+refreshable via a button — because the 120-day rolling purge happens silently in the
 background, this table (Month | Records | Earliest/Latest date, "As of {date}") is the only
 way for staff to see what's actually currently on file without querying the database.
 
@@ -531,7 +531,7 @@ Roughly (most-recent-first, grouped rather than commit-by-commit given ~280 comm
 - A string of seed/dev-endpoint hardening fixes (compliance-aware wipe, signature/address
   randomization for test data).
 - Compliance Analysis matching refinements: order-dependent duplicate cross-pairing fix,
-  90-day retention window, custom-field-teaches-the-system learning, custom dropdown
+  120-day retention window, custom-field-teaches-the-system learning, custom dropdown
   categories as compareTo targets, scroll-sync with the practitioner queue.
 - Compliance Analysis feature build-out from scratch: upload UI → real matching engine →
   stats/badges/review workflow → self-improving matching → duplicate detection → rolling
