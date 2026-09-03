@@ -45,6 +45,12 @@ export const CompanySettings = ({ onSettingsChange }) => {
   // each field before we parse the whole file into compliance_state_logs.
   const [mappingInfo, setMappingInfo] = useState(null); // { headers, targetFields, suggestedMapping, previousMapping } | null
   const [mapping, setMapping] = useState({});
+  // Baseline fields the user has toggled OFF — kept on the screen, just
+  // skipped by Compliance Analysis. `mapping` still holds their remembered
+  // column so flipping the toggle back on restores the match instantly;
+  // applyMapping masks these to '' in the payload. Required fields can't
+  // be disabled.
+  const [disabledFields, setDisabledFields] = useState(new Set());
   const [customFields, setCustomFields] = useState([]); // [{ label, header }] — state-only extra fields beyond the fixed 11
   const [customCategories, setCustomCategories] = useState([]); // active company-defined dropdown categories, for the compareTo picker
   const [isLoadingMapping, setIsLoadingMapping] = useState(false);
@@ -182,11 +188,36 @@ export const CompanySettings = ({ onSettingsChange }) => {
   const openMappingScreen = (data) => {
     setMappingInfo(data);
     const initial = {};
+    const initialDisabled = new Set();
     for (const field of data.targetFields) {
-      initial[field.key] = data.suggestedMapping[field.key] || data.previousMapping?.[field.key] || '';
+      const value = data.suggestedMapping[field.key] || data.previousMapping?.[field.key] || '';
+      initial[field.key] = value;
+      // Optional fields that don't resolve to any column start toggled OFF
+      // (they're not in this file) — the user flips them on to point them
+      // at a column. Required fields are always on.
+      if (!field.required && !value) initialDisabled.add(field.key);
     }
     setMapping(initial);
+    setDisabledFields(initialDisabled);
     setCustomFields((data.previousCustomFields || []).map((cf) => ({ ...cf })));
+  };
+
+  const toggleField = (field) => {
+    if (field.required) return;
+    setDisabledFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(field.key)) {
+        next.delete(field.key);
+        // Re-enabling: if nothing's remembered, fall back to auto-detected.
+        setMapping((m) => ({
+          ...m,
+          [field.key]: m[field.key] || mappingInfo?.suggestedMapping?.[field.key] || mappingInfo?.previousMapping?.[field.key] || '',
+        }));
+      } else {
+        next.add(field.key);
+      }
+      return next;
+    });
   };
 
   const handleAddCustomField = () => {
@@ -224,7 +255,11 @@ export const CompanySettings = ({ onSettingsChange }) => {
     setToast(null);
     try {
       const cleanCustomFields = customFields.filter((cf) => cf.label && cf.header);
-      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping, customFields: cleanCustomFields });
+      // Toggled-off fields go out unmapped (backend skips column 0) even
+      // though `mapping` still remembers their column for the toggle.
+      const effectiveMapping = { ...mapping };
+      for (const key of disabledFields) effectiveMapping[key] = '';
+      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping: effectiveMapping, customFields: cleanCustomFields });
       const { rowsParsed, matchedPatients, unmatchedCount } = response.data;
       setToast({
         type: 'success',
@@ -600,7 +635,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
             <div>
               <h3 className="text-sm font-bold text-slate-800">Match columns</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Confirm which column in the Excel file feeds each field below. We pre-fill these from the file's headers — review anything highlighted before confirming. To skip a field, set it to "Not matched" — it stays here and can be turned back on any time.
+                Confirm which column in the Excel file feeds each field below. We pre-fill these from the file's headers — review anything highlighted before confirming. Use the switch to turn a field off — it stays here and can be turned back on any time. Child ID and Service Date are required and can't be turned off.
               </p>
             </div>
 
@@ -609,12 +644,16 @@ export const CompanySettings = ({ onSettingsChange }) => {
                 const suggested = mappingInfo.suggestedMapping[field.key];
                 const previous = mappingInfo.previousMapping?.[field.key];
                 const current = mapping[field.key] || '';
+                const isDisabled = disabledFields.has(field.key);
+                const enabled = !isDisabled;
                 const requiredMissing = field.required && !current;
-                const changed = !!current && !!previous && current !== previous;
-                const status = requiredMissing
+                const changed = enabled && !!current && !!previous && current !== previous;
+                const status = isDisabled
+                  ? { text: 'Disabled — not matched', className: 'text-slate-500 bg-slate-50 border-slate-200' }
+                  : requiredMissing
                   ? { text: 'Required — pick a column', className: 'text-red-600 bg-red-50 border-red-200' }
                   : !current
-                  ? { text: 'Disabled — not matched', className: 'text-slate-500 bg-slate-50 border-slate-200' }
+                  ? { text: 'Pick a column', className: 'text-amber-700 bg-amber-50 border-amber-200' }
                   : changed
                   ? { text: `Changed since last upload (was "${previous}")`, className: 'text-amber-700 bg-amber-50 border-amber-200' }
                   : current === suggested
@@ -622,17 +661,30 @@ export const CompanySettings = ({ onSettingsChange }) => {
                   : { text: 'Matched', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
 
                 return (
-                  <div key={field.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${requiredMissing ? 'border-red-200 bg-red-50/40' : changed ? 'border-amber-200 bg-amber-50/40' : !current ? 'border-slate-200 bg-slate-50/60' : 'border-slate-200 bg-white'}`}>
-                    <div className="w-48 flex-shrink-0">
-                      <p className="text-sm font-semibold text-slate-800">{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
+                  <div key={field.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${requiredMissing ? 'border-red-200 bg-red-50/40' : changed ? 'border-amber-200 bg-amber-50/40' : isDisabled ? 'border-slate-200 bg-slate-50/60' : 'border-slate-200 bg-white'}`}>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={enabled}
+                      aria-label={`${enabled ? 'Disable' : 'Enable'} ${field.label}`}
+                      disabled={field.required}
+                      onClick={() => toggleField(field)}
+                      title={field.required ? `${field.label} is required and can't be turned off` : enabled ? 'Turn this field off' : 'Turn this field on'}
+                      className={`flex-shrink-0 relative w-9 h-5 rounded-full transition-colors ${field.required ? 'bg-emerald-300 cursor-not-allowed' : enabled ? 'bg-emerald-500 cursor-pointer' : 'bg-slate-300 cursor-pointer'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-4' : ''}`} />
+                    </button>
+                    <div className="w-44 flex-shrink-0">
+                      <p className={`text-sm font-semibold ${isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
                       <span className={`inline-block mt-0.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
                     </div>
                     <select
-                      className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm ${!current ? 'bg-slate-50 text-slate-500' : 'bg-white'}`}
+                      className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm ${isDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'}`}
                       value={current}
+                      disabled={isDisabled}
                       onChange={(e) => setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
                     >
-                      <option value="" disabled={field.required}>{field.required ? '— Select a column —' : '— Not matched (disabled) —'}</option>
+                      <option value="" disabled={field.required}>{field.required ? '— Select a column —' : '— No column —'}</option>
                       {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                     </select>
                   </div>
