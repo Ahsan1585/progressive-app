@@ -208,7 +208,7 @@ async function readWorkbookFromBuffer(buffer) {
   return workbook.worksheets[0];
 }
 
-async function buildMappingResponse(buffer, previousMapping, previousCustomFields, removedFieldKeys) {
+async function buildMappingResponse(buffer, previousMapping, previousCustomFields) {
   const sheet = await readWorkbookFromBuffer(buffer);
   const found = findHeaderRow(sheet);
   if (!found) {
@@ -220,18 +220,16 @@ async function buildMappingResponse(buffer, previousMapping, previousCustomField
   // their chosen header still exists in this file — same "don't silently
   // mis-map" principle as the fixed fields' changed/needs-input flagging.
   const carriedCustomFields = (previousCustomFields || []).filter((cf) => headers.includes(cf.header));
-  // Fields explicitly removed on a prior confirm stay removed — otherwise
-  // they'd just get auto-re-detected from the file's headers every time
-  // this screen reopens, making "delete" look like it did nothing.
-  const removedSet = new Set(removedFieldKeys || []);
-  const visibleTargetFields = TARGET_FIELDS.filter((f) => !removedSet.has(f.key));
+  // The baseline TARGET_FIELDS are always shown — the user can leave one
+  // unmapped ("disabled", skipped by Compliance Analysis) but can't delete
+  // it. Disabling is just an empty mapping entry; the parser treats an
+  // unmapped field as column 0 (not compared).
   return {
     headers,
-    targetFields: visibleTargetFields,
+    targetFields: TARGET_FIELDS,
     suggestedMapping,
     previousMapping: previousMapping || null,
     previousCustomFields: carriedCustomFields,
-    removedFields: [...removedSet],
     rowCount: sheet.rowCount - rowNumber,
   };
 }
@@ -256,12 +254,11 @@ const uploadComplianceDoc = async (req, res) => {
     const base64Data = fileBase64.slice(fileBase64.indexOf(',') + 1);
     const buffer = Buffer.from(base64Data, 'base64');
 
-    const { rows: existingBeforeUpload } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping, compliance_doc_custom_fields, compliance_doc_removed_fields FROM company_settings WHERE id = 1');
+    const { rows: existingBeforeUpload } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping, compliance_doc_custom_fields FROM company_settings WHERE id = 1');
     const previousMapping = existingBeforeUpload[0]?.compliance_doc_column_mapping || null;
     const previousCustomFields = existingBeforeUpload[0]?.compliance_doc_custom_fields || [];
-    const removedFieldKeys = existingBeforeUpload[0]?.compliance_doc_removed_fields || [];
 
-    const mappingInfo = await buildMappingResponse(buffer, previousMapping, previousCustomFields, removedFieldKeys);
+    const mappingInfo = await buildMappingResponse(buffer, previousMapping, previousCustomFields);
     if (mappingInfo.error) return res.status(400).json(mappingInfo);
 
     const path = `${COMPLIANCE_DOC_PREFIX}${Date.now()}-${filename}`;
@@ -308,7 +305,7 @@ const uploadComplianceDoc = async (req, res) => {
 // export layout) without requiring a fresh upload.
 const getComplianceDocMapping = async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping, compliance_doc_custom_fields, compliance_doc_removed_fields FROM company_settings WHERE id = 1');
+    const { rows } = await pool.query('SELECT compliance_doc_path, compliance_doc_column_mapping, compliance_doc_custom_fields FROM company_settings WHERE id = 1');
     const path = rows[0]?.compliance_doc_path;
     if (!path) return res.status(404).json({ error: 'No compliance document on file' });
 
@@ -316,8 +313,7 @@ const getComplianceDocMapping = async (req, res) => {
     const mappingInfo = await buildMappingResponse(
       buffer,
       rows[0]?.compliance_doc_column_mapping || null,
-      rows[0]?.compliance_doc_custom_fields || [],
-      rows[0]?.compliance_doc_removed_fields || []
+      rows[0]?.compliance_doc_custom_fields || []
     );
     if (mappingInfo.error) return res.status(400).json(mappingInfo);
 
@@ -333,17 +329,14 @@ const getComplianceDocMapping = async (req, res) => {
 // history — see schema.sql), and saves the mapping so next upload's
 // suggested/previous-mapping diff can flag anything that changed.
 const applyComplianceDocMapping = async (req, res) => {
-  const { mapping, customFields: rawCustomFields, removedFields: rawRemovedFields } = req.body;
+  const { mapping, customFields: rawCustomFields } = req.body;
   try {
     if (!mapping || typeof mapping !== 'object') {
       return res.status(400).json({ error: 'mapping is required' });
     }
-    // Fields the user removed on the mapping screen — persisted so they stay
-    // gone on the next reopen instead of getting auto-re-detected from the
-    // file's headers every time (that made "delete" look like a no-op).
-    const removedFields = Array.isArray(rawRemovedFields)
-      ? [...new Set(rawRemovedFields.filter((k) => typeof k === 'string'))].filter((k) => !TARGET_FIELDS.find((f) => f.key === k)?.required)
-      : [];
+    // A baseline field left unmapped is "disabled" — kept on the screen,
+    // just skipped by Compliance Analysis (parser treats it as column 0).
+    // Required fields still can't be left unmapped.
     const requiredMissing = TARGET_FIELDS.filter((f) => f.required && !mapping[f.key]);
     if (requiredMissing.length > 0) {
       return res.status(400).json({ error: `Missing required field mapping(s): ${requiredMissing.map((f) => f.label).join(', ')}` });
@@ -520,8 +513,8 @@ const applyComplianceDocMapping = async (req, res) => {
       const complianceDocAnalysis = await computeComplianceDocAnalysis(client);
 
       await client.query(
-        `UPDATE company_settings SET compliance_doc_column_mapping = $1, compliance_doc_custom_fields = $2, compliance_doc_removed_fields = $3, compliance_doc_applied_path = $4, compliance_doc_analysis = $5, updated_at = now() WHERE id = 1`,
-        [JSON.stringify(mapping), JSON.stringify(customFields), JSON.stringify(removedFields), path, JSON.stringify(complianceDocAnalysis)]
+        `UPDATE company_settings SET compliance_doc_column_mapping = $1, compliance_doc_custom_fields = $2, compliance_doc_removed_fields = '[]', compliance_doc_applied_path = $3, compliance_doc_analysis = $4, updated_at = now() WHERE id = 1`,
+        [JSON.stringify(mapping), JSON.stringify(customFields), path, JSON.stringify(complianceDocAnalysis)]
       );
       await client.query('COMMIT');
     } catch (err) {

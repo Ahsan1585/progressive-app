@@ -45,7 +45,6 @@ export const CompanySettings = ({ onSettingsChange }) => {
   // each field before we parse the whole file into compliance_state_logs.
   const [mappingInfo, setMappingInfo] = useState(null); // { headers, targetFields, suggestedMapping, previousMapping } | null
   const [mapping, setMapping] = useState({});
-  const [removedFields, setRemovedFields] = useState(new Set());
   const [customFields, setCustomFields] = useState([]); // [{ label, header }] — state-only extra fields beyond the fixed 11
   const [customCategories, setCustomCategories] = useState([]); // active company-defined dropdown categories, for the compareTo picker
   const [isLoadingMapping, setIsLoadingMapping] = useState(false);
@@ -187,20 +186,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
       initial[field.key] = data.suggestedMapping[field.key] || data.previousMapping?.[field.key] || '';
     }
     setMapping(initial);
-    setRemovedFields(new Set(data.removedFields || []));
     setCustomFields((data.previousCustomFields || []).map((cf) => ({ ...cf })));
-  };
-
-  const handleRemoveField = async (field) => {
-    if (field.required) {
-      showAlert(`${field.label} is required for Compliance Analysis and can't be removed.`);
-      return;
-    }
-    if (!(await showConfirm(`Remove "${field.label}" from column matching? It won't be compared in Compliance Analysis, and stays removed until you add it back (e.g. as a custom field).`))) {
-      return;
-    }
-    setRemovedFields((prev) => new Set(prev).add(field.key));
-    setMapping((prev) => ({ ...prev, [field.key]: '' }));
   };
 
   const handleAddCustomField = () => {
@@ -238,7 +224,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
     setToast(null);
     try {
       const cleanCustomFields = customFields.filter((cf) => cf.label && cf.header);
-      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping, customFields: cleanCustomFields, removedFields: [...removedFields] });
+      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping, customFields: cleanCustomFields });
       const { rowsParsed, matchedPatients, unmatchedCount } = response.data;
       setToast({
         type: 'success',
@@ -614,47 +600,41 @@ export const CompanySettings = ({ onSettingsChange }) => {
             <div>
               <h3 className="text-sm font-bold text-slate-800">Match columns</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Confirm which column in the Excel file feeds each field below. We pre-fill these from the file's headers — review anything highlighted before confirming.
+                Confirm which column in the Excel file feeds each field below. We pre-fill these from the file's headers — review anything highlighted before confirming. To skip a field, set it to "Not matched" — it stays here and can be turned back on any time.
               </p>
             </div>
 
             <div className="space-y-2.5">
-              {mappingInfo.targetFields.filter((field) => !removedFields.has(field.key)).map((field) => {
+              {mappingInfo.targetFields.map((field) => {
                 const suggested = mappingInfo.suggestedMapping[field.key];
                 const previous = mappingInfo.previousMapping?.[field.key];
-                const needsInput = field.required && !suggested;
-                const changed = !needsInput && previous && suggested && previous !== suggested;
-                const status = needsInput
-                  ? { text: 'Not found in this file — pick manually', className: 'text-red-600 bg-red-50 border-red-200' }
+                const current = mapping[field.key] || '';
+                const requiredMissing = field.required && !current;
+                const changed = !!current && !!previous && current !== previous;
+                const status = requiredMissing
+                  ? { text: 'Required — pick a column', className: 'text-red-600 bg-red-50 border-red-200' }
+                  : !current
+                  ? { text: 'Disabled — not matched', className: 'text-slate-500 bg-slate-50 border-slate-200' }
                   : changed
                   ? { text: `Changed since last upload (was "${previous}")`, className: 'text-amber-700 bg-amber-50 border-amber-200' }
-                  : suggested
+                  : current === suggested
                   ? { text: 'Auto-detected', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
-                  : { text: 'Not in this file', className: 'text-slate-500 bg-slate-50 border-slate-200' };
+                  : { text: 'Matched', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
 
                 return (
-                  <div key={field.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${needsInput ? 'border-red-200 bg-red-50/40' : changed ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-white'}`}>
+                  <div key={field.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${requiredMissing ? 'border-red-200 bg-red-50/40' : changed ? 'border-amber-200 bg-amber-50/40' : !current ? 'border-slate-200 bg-slate-50/60' : 'border-slate-200 bg-white'}`}>
                     <div className="w-48 flex-shrink-0">
                       <p className="text-sm font-semibold text-slate-800">{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
                       <span className={`inline-block mt-0.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
                     </div>
                     <select
-                      className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
-                      value={mapping[field.key] || ''}
+                      className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm ${!current ? 'bg-slate-50 text-slate-500' : 'bg-white'}`}
+                      value={current}
                       onChange={(e) => setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
                     >
-                      <option value="">— Not in this file —</option>
+                      <option value="" disabled={field.required}>{field.required ? '— Select a column —' : '— Not matched (disabled) —'}</option>
                       {mappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                     </select>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveField(field)}
-                      title="Remove this field from column matching"
-                      aria-label={`Remove column match for ${field.label}`}
-                      className="flex-shrink-0 w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
                   </div>
                 );
               })}
