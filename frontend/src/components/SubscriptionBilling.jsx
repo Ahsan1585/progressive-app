@@ -344,6 +344,7 @@ export const SubscriptionBilling = () => {
           </div>
           <div className="text-4xl font-bold text-slate-900 tracking-tight">{summary.activePractitionerCount}</div>
           <div className="text-sm text-slate-500 mt-1.5">of {summary.totalPractitionerCount} total practitioners &middot; {formatPeriod(summary.periodStart, summary.periodEnd)}</div>
+          <div className="text-xs font-semibold text-slate-400 mt-1.5">{money(summary.pricePerPractitioner)} / mo per active practitioner</div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
@@ -357,6 +358,7 @@ export const SubscriptionBilling = () => {
           <div className="text-sm text-slate-500 mt-1.5">
             {summary.extraStaffSeats > 0 ? `${summary.extraStaffSeats} extra office staff` : 'included in your plan'}
           </div>
+          <div className="text-xs font-semibold text-slate-400 mt-1.5">{summary.includedStaffSeats} seats included &middot; {money(summary.extraStaffSeatPrice)} / mo per extra seat</div>
         </div>
         </div>
       </div>

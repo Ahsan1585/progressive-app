@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import axios from 'axios';
-import { Loader2, Plus, Ban, KeyRound, LogOut } from 'lucide-react';
+import { Loader2, Plus, Ban, KeyRound, LogOut, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -137,10 +137,88 @@ function TrialEndEditor({ company, client, onSaved }) {
   );
 }
 
+// Per-company subscription pricing (what this tenant pays Izaya). Reads
+// from / writes to the tenant's own company_settings via the platform-admin
+// cross-DB endpoints. A change only affects the current and future billing
+// periods — closed invoices keep the rate they were generated with.
+function PricingEditor({ slug, client }) {
+  const [pricing, setPricing] = useState(null);
+  const [form, setForm] = useState({ pricePerPractitioner: '', includedStaffSeats: '', extraStaffSeatPrice: '' });
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+
+  useEffect(() => {
+    client.get(`/api/platform/companies/${slug}/pricing`)
+      .then(({ data }) => {
+        setPricing(data.pricing);
+        setForm({
+          pricePerPractitioner: String(data.pricing.pricePerPractitioner),
+          includedStaffSeats: String(data.pricing.includedStaffSeats),
+          extraStaffSeatPrice: String(data.pricing.extraStaffSeatPrice),
+        });
+      })
+      .catch((err) => setLoadError(err.response?.data?.error || 'Failed to load pricing.'));
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      const { data } = await client.post(`/api/platform/companies/${slug}/pricing`, {
+        pricePerPractitioner: Number(form.pricePerPractitioner),
+        includedStaffSeats: Number(form.includedStaffSeats),
+        extraStaffSeatPrice: Number(form.extraStaffSeatPrice),
+      });
+      setPricing(data.pricing);
+      setSavedAt(Date.now());
+    } catch (err) {
+      setSaveError(err.response?.data?.error || 'Failed to save.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (loadError) return <p className="text-sm text-red-600 font-medium">{loadError}</p>;
+  if (!pricing) return <div className="flex py-3"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <Label htmlFor={`pp-${slug}`}>$ / active practitioner / mo</Label>
+          <Input id={`pp-${slug}`} type="number" min="0" step="0.01" value={form.pricePerPractitioner}
+            onChange={(e) => setForm({ ...form, pricePerPractitioner: e.target.value })} className="h-9" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`is-${slug}`}>Included office-staff seats</Label>
+          <Input id={`is-${slug}`} type="number" min="0" step="1" value={form.includedStaffSeats}
+            onChange={(e) => setForm({ ...form, includedStaffSeats: e.target.value })} className="h-9" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`es-${slug}`}>$ / extra office-staff seat / mo</Label>
+          <Input id={`es-${slug}`} type="number" min="0" step="0.01" value={form.extraStaffSeatPrice}
+            onChange={(e) => setForm({ ...form, extraStaffSeatPrice: e.target.value })} className="h-9" />
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Button type="button" size="sm" disabled={isSaving} onClick={handleSave} className="h-8">
+          {isSaving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
+          Save pricing
+        </Button>
+        {savedAt && !saveError && <span className="text-xs font-semibold text-teal-700">Saved — applies to the current and future periods.</span>}
+        {saveError && <span className="text-xs font-medium text-red-600">{saveError}</span>}
+      </div>
+    </div>
+  );
+}
+
 function CompaniesTable({ apiKey }) {
   const client = platformApi(apiKey);
   const [companies, setCompanies] = useState(null);
   const [error, setError] = useState('');
+  const [expandedSlug, setExpandedSlug] = useState(null);
 
   const fetchCompanies = () => {
     client.get('/api/platform/companies')
@@ -168,6 +246,7 @@ function CompaniesTable({ apiKey }) {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
+              <th className="w-8 px-2 py-3" />
               <th className="text-left px-4 py-3">Company</th>
               <th className="text-left px-4 py-3">Company code</th>
               <th className="text-left px-4 py-3">Status</th>
@@ -179,8 +258,21 @@ function CompaniesTable({ apiKey }) {
           <tbody className="divide-y divide-slate-100">
             {companies.map((c) => {
               const left = c.status === 'trial' ? daysLeft(c.trial_ends_at) : null;
+              const expanded = expandedSlug === c.slug;
               return (
-                <tr key={c.slug}>
+                <Fragment key={c.slug}>
+                <tr className={expanded ? 'bg-slate-50/60' : ''}>
+                  <td className="px-2 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSlug(expanded ? null : c.slug)}
+                      aria-label={expanded ? 'Hide pricing' : 'Edit pricing'}
+                      title="Subscription pricing"
+                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                  </td>
                   <td className="px-4 py-3 font-semibold text-slate-800">{c.display_name}</td>
                   <td className="px-4 py-3 font-mono text-slate-500">{c.slug}</td>
                   <td className="px-4 py-3">
@@ -198,6 +290,16 @@ function CompaniesTable({ apiKey }) {
                     <TrialEndEditor company={c} client={client} onSaved={fetchCompanies} />
                   </td>
                 </tr>
+                {expanded && (
+                  <tr className="bg-slate-50/60">
+                    <td />
+                    <td colSpan={6} className="px-4 pb-4 pt-1">
+                      <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Subscription pricing</div>
+                      <PricingEditor slug={c.slug} client={client} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>

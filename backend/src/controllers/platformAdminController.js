@@ -1,4 +1,16 @@
 const { platformPool } = require('../config/platformDb');
+const { getTenantPool } = require('../config/tenantPoolRegistry');
+
+// Resolves a company slug to its tenant database name (registry lookup),
+// then hands back a pool bound to that tenant's DB — the same per-tenant
+// pool the app uses per-request, just addressed explicitly here rather
+// than via the AsyncLocalStorage context (platform-admin has no tenant
+// request context). Returns null if the slug doesn't exist.
+async function tenantPoolForSlug(slug) {
+  const { rows } = await platformPool.query('SELECT tenant_db_name FROM companies WHERE slug = $1', [slug]);
+  if (!rows[0]) return null;
+  return getTenantPool(rows[0].tenant_db_name);
+}
 
 // Deliberately no PHI in this response — only registry metadata (see the
 // multi-tenant-foundation plan, section F/G).
@@ -100,4 +112,76 @@ const setTrialEndDate = async (req, res) => {
   }
 };
 
-module.exports = { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate };
+// Per-company subscription pricing — what that tenant is charged per active
+// practitioner and per office-staff seat beyond the included allotment.
+// Lives in the tenant's own company_settings (row id = 1); this endpoint is
+// just the cross-DB read for the platform-admin editor. Closed
+// subscription_invoices snapshot these values at close time, so an edit
+// only affects the current and future periods, never billed history.
+const getCompanyPricing = async (req, res) => {
+  try {
+    const tenantPool = await tenantPoolForSlug(req.params.slug);
+    if (!tenantPool) return res.status(404).json({ error: 'Company not found' });
+    const { rows } = await tenantPool.query(
+      `SELECT subscription_price_per_practitioner, subscription_included_staff_seats,
+              subscription_extra_staff_seat_price
+       FROM company_settings WHERE id = 1`
+    );
+    const row = rows[0] || {};
+    res.json({
+      success: true,
+      pricing: {
+        pricePerPractitioner: Number(row.subscription_price_per_practitioner ?? 18),
+        includedStaffSeats: Number(row.subscription_included_staff_seats ?? 5),
+        extraStaffSeatPrice: Number(row.subscription_extra_staff_seat_price ?? 5),
+      },
+    });
+  } catch (error) {
+    console.error('Error reading company pricing:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const setCompanyPricing = async (req, res) => {
+  const pricePerPractitioner = Number(req.body.pricePerPractitioner);
+  const includedStaffSeats = Number(req.body.includedStaffSeats);
+  const extraStaffSeatPrice = Number(req.body.extraStaffSeatPrice);
+
+  const validMoney = (n) => Number.isFinite(n) && n >= 0 && n <= 100000;
+  if (!validMoney(pricePerPractitioner) || !validMoney(extraStaffSeatPrice)) {
+    return res.status(400).json({ error: 'Prices must be numbers between 0 and 100000.' });
+  }
+  if (!Number.isInteger(includedStaffSeats) || includedStaffSeats < 0 || includedStaffSeats > 1000) {
+    return res.status(400).json({ error: 'Included staff seats must be a whole number between 0 and 1000.' });
+  }
+
+  try {
+    const tenantPool = await tenantPoolForSlug(req.params.slug);
+    if (!tenantPool) return res.status(404).json({ error: 'Company not found' });
+    const { rows } = await tenantPool.query(
+      `UPDATE company_settings
+       SET subscription_price_per_practitioner = $1,
+           subscription_included_staff_seats = $2,
+           subscription_extra_staff_seat_price = $3,
+           updated_at = now()
+       WHERE id = 1
+       RETURNING subscription_price_per_practitioner, subscription_included_staff_seats,
+                 subscription_extra_staff_seat_price`,
+      [pricePerPractitioner.toFixed(2), includedStaffSeats, extraStaffSeatPrice.toFixed(2)]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'This company has no settings row yet.' });
+    res.json({
+      success: true,
+      pricing: {
+        pricePerPractitioner: Number(rows[0].subscription_price_per_practitioner),
+        includedStaffSeats: Number(rows[0].subscription_included_staff_seats),
+        extraStaffSeatPrice: Number(rows[0].subscription_extra_staff_seat_price),
+      },
+    });
+  } catch (error) {
+    console.error('Error setting company pricing:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate, getCompanyPricing, setCompanyPricing };
