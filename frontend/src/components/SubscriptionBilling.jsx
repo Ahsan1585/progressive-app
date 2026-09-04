@@ -177,7 +177,6 @@ export const SubscriptionBilling = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [pmTab, setPmTab] = useState('card');
   const [toast, setToast] = useState(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [isPayingBill, setIsPayingBill] = useState(false);
 
@@ -256,30 +255,6 @@ export const SubscriptionBilling = () => {
     () => (config?.stripeConfigured && config?.stripePublishableKey ? loadStripe(config.stripePublishableKey) : null),
     [config]
   );
-
-  const handleGenerateInvoice = async () => {
-    const confirmed = await showConfirm(
-      config?.stripeConfigured && paymentMethod
-        ? "Close out the last completed billing period and charge the saved payment method? This can't be undone."
-        : "Close out the last completed billing period and record an invoice? No card is on file yet, so it will be recorded as pending — nothing will be charged."
-    );
-    if (!confirmed) return;
-    setIsGenerating(true);
-    setToast(null);
-    try {
-      const { data } = await api.post('/api/subscription/invoices/generate');
-      setToast({
-        type: data.invoice.status === 'paid' ? 'success' : 'success',
-        message: `Invoice for ${formatPeriod(data.invoice.period_start, data.invoice.period_end)} recorded (${data.invoice.status}).`,
-      });
-      const { data: invoicesData } = await api.get('/api/subscription/invoices');
-      setInvoices(invoicesData.invoices);
-    } catch (error) {
-      setToast({ type: 'error', message: error.response?.data?.error || 'Failed to generate invoice.' });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handlePayOutstanding = async () => {
     if (outstandingInvoices.length === 0) return;
@@ -529,19 +504,7 @@ export const SubscriptionBilling = () => {
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-800">Invoice History</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateInvoice}
-                disabled={isGenerating}
-                className="text-xs h-8"
-              >
-                {isGenerating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
-                Close &amp; Bill Last Period
-              </Button>
-            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Invoice History</h3>
             {invoices.length === 0 ? (
               <div className="text-center py-8 text-sm text-slate-500">
                 No invoices yet — your first monthly invoice will appear here once a billing period closes.
