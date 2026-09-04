@@ -189,13 +189,19 @@ export const CompanySettings = ({ onSettingsChange }) => {
     setMappingInfo(data);
     const initial = {};
     const initialDisabled = new Set();
+    // Whether this company has ever confirmed a mapping. If so, a field is
+    // "on" only when it's in that applied mapping — auto-detecting a column
+    // in the file doesn't silently switch a field back on, so the toggle
+    // state always matches what Compliance Analysis actually compares.
+    // First-ever upload has nothing applied yet, so auto-detected fields
+    // start on.
+    const hasAppliedMapping = data.previousMapping && Object.keys(data.previousMapping).length > 0;
     for (const field of data.targetFields) {
-      const value = data.suggestedMapping[field.key] || data.previousMapping?.[field.key] || '';
-      initial[field.key] = value;
-      // Optional fields that don't resolve to any column start toggled OFF
-      // (they're not in this file) — the user flips them on to point them
-      // at a column. Required fields are always on.
-      if (!field.required && !value) initialDisabled.add(field.key);
+      const applied = data.previousMapping?.[field.key] || '';
+      const detected = data.suggestedMapping[field.key] || '';
+      initial[field.key] = applied || detected || '';
+      const on = field.required || (hasAppliedMapping ? !!applied : !!(applied || detected));
+      if (!on) initialDisabled.add(field.key);
     }
     setMapping(initial);
     setDisabledFields(initialDisabled);
@@ -649,7 +655,9 @@ export const CompanySettings = ({ onSettingsChange }) => {
                 const requiredMissing = field.required && !current;
                 const changed = enabled && !!current && !!previous && current !== previous;
                 const status = isDisabled
-                  ? { text: 'Disabled — not matched', className: 'text-slate-500 bg-slate-50 border-slate-200' }
+                  ? current
+                    ? { text: 'Off — turn on to match this column', className: 'text-slate-500 bg-slate-50 border-slate-200' }
+                    : { text: 'Off — not in this file', className: 'text-slate-500 bg-slate-50 border-slate-200' }
                   : requiredMissing
                   ? { text: 'Required — pick a column', className: 'text-red-600 bg-red-50 border-red-200' }
                   : !current
