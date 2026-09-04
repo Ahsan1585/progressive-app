@@ -17,6 +17,12 @@ const formatPeriod = (start, end) => {
   return `${s.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} – ${e.toLocaleDateString('en-US', opts)}`;
 };
 const formatDate = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+// An invoice is due the 15th of the month after its period ends
+// (mirrors invoiceDueDate in backend/src/utils/subscriptionBilling.js).
+const invoiceDueDate = (periodEnd) => {
+  const end = new Date(`${periodEnd}T00:00:00Z`);
+  return new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15)).toISOString().slice(0, 10);
+};
 
 const STATUS_STYLES = {
   paid: 'bg-teal-50 text-teal-700 border-teal-200',
@@ -203,12 +209,10 @@ export const SubscriptionBilling = () => {
   // The oldest unpaid invoice's due date — the one that's been outstanding
   // longest, so it's the most meaningful single date to show alongside the
   // combined total.
-  const outstandingDueDate = useMemo(() => {
-    if (outstandingInvoices.length === 0) return null;
-    const end = new Date(`${outstandingInvoices[0].period_end}T00:00:00Z`);
-    const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
-    return due.toISOString().slice(0, 10);
-  }, [outstandingInvoices]);
+  const outstandingDueDate = useMemo(
+    () => (outstandingInvoices.length === 0 ? null : invoiceDueDate(outstandingInvoices[0].period_end)),
+    [outstandingInvoices]
+  );
   const hasOverdueInvoice = outstandingInvoices.some((inv) => inv.status === 'overdue');
   const hasFailedInvoice = outstandingInvoices.some((inv) => inv.status === 'failed');
 
@@ -217,12 +221,10 @@ export const SubscriptionBilling = () => {
   // only worth surfacing if a prior bill is still sitting unpaid, so it
   // doesn't pile up silently on top of it.
   const showUpcomingBillNotice = outstandingInvoices.length > 0 && summary && new Date().getDate() > 20;
-  const upcomingBillDueDate = useMemo(() => {
-    if (!summary) return null;
-    const end = new Date(`${summary.periodEnd}T00:00:00Z`);
-    const due = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 15));
-    return due.toISOString().slice(0, 10);
-  }, [summary]);
+  const upcomingBillDueDate = useMemo(
+    () => (summary ? invoiceDueDate(summary.periodEnd) : null),
+    [summary]
+  );
 
   const fetchAll = useCallback(async () => {
     try {
@@ -408,6 +410,7 @@ export const SubscriptionBilling = () => {
                   <span className="text-slate-600">{formatPeriod(inv.period_start, inv.period_end)}</span>
                   {inv.status === 'overdue' && <span className="text-[10px] font-bold uppercase text-red-600">Overdue</span>}
                   {inv.status === 'failed' && <span className="text-[10px] font-bold uppercase text-red-600">Failed</span>}
+                  {inv.status === 'pending' && <span className="text-[11px] font-semibold text-slate-400">Due {formatDate(invoiceDueDate(inv.period_end))}</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-slate-800">{money(inv.total_amount)}</span>
