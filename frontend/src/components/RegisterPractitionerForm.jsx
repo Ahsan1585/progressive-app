@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MessageCircle, Mail } from 'lucide-react';
+import { Search, MessageCircle, Mail, Loader2, Upload } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,6 +113,21 @@ export const RegisterPractitionerForm = () => {
     roleId: ''
   });
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // --- Bulk Register (Excel upload) State ---
+  // step: 'upload' -> 'mapping' -> 'results'. mappingInfo/mapping/disabledFields
+  // mirror CompanySettings.jsx's compliance-doc "Match columns" screen so the
+  // two Excel-upload features in this app behave identically.
+  const [bulkStep, setBulkStep] = useState('upload');
+  const [bulkFileName, setBulkFileName] = useState('');
+  const [bulkFileDataUrl, setBulkFileDataUrl] = useState(''); // kept so Confirm can resend the same file without re-prompting
+  const [bulkMappingInfo, setBulkMappingInfo] = useState(null); // { headers, targetFields, suggestedMapping, rowCount } | null
+  const [bulkMapping, setBulkMapping] = useState({});
+  const [bulkDisabledFields, setBulkDisabledFields] = useState(new Set());
+  const [bulkIsUploading, setBulkIsUploading] = useState(false);
+  const [bulkIsSubmitting, setBulkIsSubmitting] = useState(false);
+  const [bulkError, setBulkError] = useState('');
+  const [bulkResults, setBulkResults] = useState(null); // { created, skipped } | null
 
   useEffect(() => {
     api.get('/api/auth/staff')
@@ -397,6 +412,92 @@ export const RegisterPractitionerForm = () => {
     setActiveTab('roster');
   };
 
+  const resetBulkImport = () => {
+    setBulkStep('upload');
+    setBulkFileName('');
+    setBulkFileDataUrl('');
+    setBulkMappingInfo(null);
+    setBulkMapping({});
+    setBulkDisabledFields(new Set());
+    setBulkError('');
+    setBulkResults(null);
+  };
+
+  const handleBulkFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+      setBulkError('Please select an Excel file (.xlsx or .xls).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setBulkError('File is too large — please use a file under 10MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result;
+      setBulkIsUploading(true);
+      setBulkError('');
+      try {
+        const { data } = await api.post('/api/auth/staff/bulk-import/preview', { fileBase64: dataUrl });
+        setBulkFileName(file.name);
+        setBulkFileDataUrl(dataUrl);
+        setBulkMappingInfo(data);
+        // Every target field is required for this import, so all start
+        // enabled with whatever this file auto-detected (or blank, if the
+        // admin needs to point it at a column manually).
+        const initial = {};
+        for (const field of data.targetFields) {
+          initial[field.key] = data.suggestedMapping[field.key] || '';
+        }
+        setBulkMapping(initial);
+        setBulkDisabledFields(new Set());
+        setBulkStep('mapping');
+      } catch (error) {
+        setBulkError(error.response?.data?.error || 'Failed to read this file.');
+      } finally {
+        setBulkIsUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBulkConfirm = async () => {
+    setBulkIsSubmitting(true);
+    setBulkError('');
+    try {
+      const effectiveMapping = { ...bulkMapping };
+      for (const key of bulkDisabledFields) effectiveMapping[key] = '';
+      const { data } = await api.post('/api/auth/staff/bulk-import/confirm', {
+        fileBase64: bulkFileDataUrl,
+        mapping: effectiveMapping,
+      });
+      setBulkResults(data);
+      setBulkStep('results');
+      setStaffList((prev) => {
+        // Newly created rows only carry the fields the roster list needs to
+        // render a Pending Activation row correctly — merge them in without
+        // waiting on a full refetch.
+        const existingIds = new Set(prev.map((s) => s.id));
+        const additions = data.created.filter((c) => !existingIds.has(c.id)).map((c) => ({ ...c, role: 'practitioner', is_active: true, is_pending_activation: true }));
+        return [...additions, ...prev];
+      });
+    } catch (error) {
+      setBulkError(error.response?.data?.error || 'Failed to process this file.');
+    } finally {
+      setBulkIsSubmitting(false);
+    }
+  };
+
+  const handleBulkDone = () => {
+    resetBulkImport();
+    setActiveTab('roster');
+  };
+
   const visibleStaff = staffList.filter(s => {
     const matchesStatus = statusFilter === 'all' ? true : statusFilter === 'active' ? s.is_active !== false : s.is_active === false;
     const matchesRole = roleFilter === 'all' ? true : s.role === roleFilter;
@@ -437,6 +538,17 @@ export const RegisterPractitionerForm = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
           Register New User
+        </button>
+        <button
+          onClick={() => { resetBulkImport(); setActiveTab('bulkRegister'); }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === 'bulkRegister'
+              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-violet-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <Upload className={`w-4 h-4 ${activeTab === 'bulkRegister' ? 'text-violet-600' : ''}`} />
+          Bulk Register
         </button>
         <button
           onClick={() => setActiveTab('children')}
@@ -908,6 +1020,148 @@ export const RegisterPractitionerForm = () => {
             </Button>
           </div>
         </form>
+      </div>
+      )}
+
+      {/* ── SECTION 2b: BULK REGISTER (Excel upload) ── */}
+      {activeTab === 'bulkRegister' && (
+      <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
+          <Upload className="w-5 h-5 text-slate-400" />
+          Bulk Register Practitioners
+        </h2>
+        <p className="text-sm text-slate-500 mb-6">
+          Upload an Excel roster to invite several practitioners at once. Each row gets a normal invite-link email — same as registering one at a time.
+        </p>
+
+        {bulkError && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 font-medium">{bulkError}</div>
+        )}
+
+        {bulkStep === 'upload' && (
+          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl px-4 py-12 cursor-pointer hover:border-violet-300 hover:bg-violet-50/40 transition-colors">
+            {bulkIsUploading ? <Loader2 className="w-8 h-8 text-violet-400 animate-spin" /> : <Upload className="w-8 h-8 text-slate-300" />}
+            <span className="text-sm font-semibold text-violet-700">{bulkIsUploading ? 'Reading file...' : 'Click to attach an Excel roster'}</span>
+            <span className="text-xs text-slate-400">.xlsx or .xls, up to 10MB — needs First Name, Last Name, Email, Pay Rate, Position Title, and Service Type(s) columns</span>
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBulkFileSelect} disabled={bulkIsUploading} />
+          </label>
+        )}
+
+        {bulkStep === 'mapping' && bulkMappingInfo && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Match columns</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {bulkFileName} &middot; {bulkMappingInfo.rowCount} row{bulkMappingInfo.rowCount === 1 ? '' : 's'} found. Confirm which column in the file feeds each field below.
+                </p>
+              </div>
+              <button type="button" onClick={resetBulkImport} className="text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer">
+                Choose a different file
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {bulkMappingInfo.targetFields.map((field) => {
+                const suggested = bulkMappingInfo.suggestedMapping[field.key];
+                const current = bulkMapping[field.key] || '';
+                const isDisabled = bulkDisabledFields.has(field.key);
+                const enabled = !isDisabled;
+                const requiredMissing = field.required && !current;
+                const status = isDisabled
+                  ? { text: 'Off — not matched', className: 'text-slate-500 bg-slate-50 border-slate-200' }
+                  : requiredMissing
+                  ? { text: 'Required — pick a column', className: 'text-red-600 bg-red-50 border-red-200' }
+                  : current === suggested
+                  ? { text: 'Auto-detected', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
+                  : { text: 'Matched', className: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+
+                return (
+                  <div key={field.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${requiredMissing ? 'border-red-200 bg-red-50/40' : isDisabled ? 'border-slate-200 bg-slate-50/60' : 'border-slate-200 bg-white'}`}>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={enabled}
+                      aria-label={`${enabled ? 'Disable' : 'Enable'} ${field.label}`}
+                      disabled={field.required}
+                      onClick={() => setBulkDisabledFields((prev) => {
+                        const next = new Set(prev);
+                        next.has(field.key) ? next.delete(field.key) : next.add(field.key);
+                        return next;
+                      })}
+                      title={field.required ? `${field.label} is required and can't be turned off` : enabled ? 'Turn this field off' : 'Turn this field on'}
+                      className={`flex-shrink-0 relative w-9 h-5 rounded-full transition-colors ${field.required ? 'bg-emerald-300 cursor-not-allowed' : enabled ? 'bg-emerald-500 cursor-pointer' : 'bg-slate-300 cursor-pointer'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-4' : ''}`} />
+                    </button>
+                    <div className="w-44 flex-shrink-0">
+                      <p className={`text-sm font-semibold ${isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
+                      <span className={`inline-block mt-0.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
+                    </div>
+                    <select
+                      className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm ${isDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'}`}
+                      value={current}
+                      disabled={isDisabled}
+                      onChange={(e) => setBulkMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    >
+                      <option value="" disabled={field.required}>{field.required ? '— Select a column —' : '— No column —'}</option>
+                      {bulkMappingInfo.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={resetBulkImport} className="flex-1 py-6">
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleBulkConfirm}
+                disabled={bulkIsSubmitting || bulkMappingInfo.targetFields.some((f) => f.required && !bulkMapping[f.key])}
+                className="flex-1 bg-violet-600 text-white hover:bg-violet-700 py-6"
+              >
+                {bulkIsSubmitting ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> Registering...</> : `Register ${bulkMappingInfo.rowCount} Practitioner${bulkMappingInfo.rowCount === 1 ? '' : 's'}`}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {bulkStep === 'results' && bulkResults && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                <div className="text-2xl font-bold text-emerald-700">{bulkResults.created.length}</div>
+                <div className="text-xs font-semibold text-emerald-700">Registered &amp; invited</div>
+              </div>
+              {bulkResults.skipped.length > 0 && (
+                <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <div className="text-2xl font-bold text-amber-700">{bulkResults.skipped.length}</div>
+                  <div className="text-xs font-semibold text-amber-700">Skipped</div>
+                </div>
+              )}
+            </div>
+
+            {bulkResults.skipped.length > 0 && (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">Skipped rows</div>
+                <div className="divide-y divide-slate-100">
+                  {bulkResults.skipped.map((s, i) => (
+                    <div key={i} className="px-4 py-2.5 text-sm">
+                      <span className="font-semibold text-slate-700">{s.row}</span>
+                      <span className="text-slate-500"> — {s.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Button type="button" onClick={handleBulkDone} className="w-full bg-violet-600 text-white hover:bg-violet-700 py-6">
+              Done — back to Staff Roster
+            </Button>
+          </div>
+        )}
       </div>
       )}
 

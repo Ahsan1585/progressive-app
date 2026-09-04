@@ -1,9 +1,10 @@
 const ExcelJS = require('exceljs');
 const { pool } = require('../config/db');
 const { NJEIS_FORMS_BUCKET, uploadFile, downloadFile, getSignedUrl, removeFiles } = require('../config/storage');
-const { TARGET_FIELDS, suggestMapping, norm } = require('../constants/complianceMapping');
+const { TARGET_FIELDS, suggestMapping } = require('../constants/complianceMapping');
 const { mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode } = require('../constants/njeis');
 const { logAudit } = require('../utils/auditLog');
+const { readWorkbookFromBuffer, findHeaderRow: findHeaderRowGeneric } = require('../utils/excelSheet');
 
 // A resized/compressed PNG data URL comfortably fits well under this — this
 // mainly guards against a client sending an uncompressed original by mistake.
@@ -122,20 +123,11 @@ const updateCompanyLogo = async (req, res) => {
 // before the real header row (title, date range, generated-by, generated-
 // date), so the header row's position isn't fixed — locate it by content
 // (must contain a "Service Date" column) rather than a hardcoded row number.
+// readWorkbookFromBuffer/findHeaderRowGeneric (shared with the practitioner
+// bulk-import feature) live in ../utils/excelSheet; this wraps the generic
+// finder with this feature's specific required header.
 function findHeaderRow(sheet) {
-  const maxScan = Math.min(sheet.rowCount, 20);
-  for (let r = 1; r <= maxScan; r++) {
-    const row = sheet.getRow(r);
-    const values = [];
-    row.eachCell({ includeEmpty: false }, (cell) => {
-      const v = cell.value;
-      if (typeof v === 'string' && v.trim()) values.push(v.trim());
-    });
-    if (values.some((v) => norm(v) === 'service date')) {
-      return { rowNumber: r, headers: values };
-    }
-  }
-  return null;
+  return findHeaderRowGeneric(sheet, 'Service Date');
 }
 
 // Excel time-only cells (no real calendar date) round-trip through ExcelJS
@@ -200,12 +192,6 @@ function extractPeriod(sheet) {
     }
   }
   return { periodStart: null, periodEnd: null };
-}
-
-async function readWorkbookFromBuffer(buffer) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
-  return workbook.worksheets[0];
 }
 
 async function buildMappingResponse(buffer, previousMapping, previousCustomFields) {

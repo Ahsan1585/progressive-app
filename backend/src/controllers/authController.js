@@ -7,20 +7,16 @@ const { logAudit } = require('../utils/auditLog');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { lookupCompanyBySlug } = require('../middleware/tenantMiddleware');
 const { platformPool } = require('../config/platformDb');
-
 // Placeholder password_hash for an invited-but-not-yet-activated account —
 // never a real bcrypt hash, so it can never match a bcrypt.compare() and
-// doubles as the "still pending" check in activateAccount below.
-const INVITE_PENDING = 'INVITE_PENDING';
-const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — longer than a password-reset link, since this is first-time onboarding, not an urgent forgotten-password flow
-const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
-
-// Service Type Code legend from the NJEIS-020 form — must match
-// frontend/src/pages/dashboard.jsx's serviceTypeMap and mobile/src/constants/njeis.ts
-const VALID_SERVICE_TYPE_CODES = [
-  'EV', 'AS', 'IFSP', 'AU', 'DI', 'FT', 'HS', 'MS', 'NU', 'NT',
-  'OT', 'PT', 'PSY', 'SLP', 'SW', 'VI', 'CC', 'I/T', 'ES', 'TPC'
-];
+// doubles as the "still pending" check in activateAccount below. Shared
+// with the Staff Directory's bulk practitioner import
+// (practitionerImportController.js), which goes through the exact same
+// invite-pending row shape via insertInvitedPractitioner.
+const {
+  insertInvitedPractitioner, getValidServiceTypeCodes,
+  INVITE_PENDING, INVITE_TOKEN_TTL_MS, hashToken,
+} = require('../utils/practitionerRegistration');
 
 // --- Function 1: Admin Provisions a Practitioner (invite-link based — the
 // admin fills in every field except a password; the invitee gets a
@@ -72,7 +68,7 @@ const provisionPractitioner = async (req, res) => {
     }
 
     const serviceTypes = Array.isArray(service_types)
-      ? service_types.filter(code => VALID_SERVICE_TYPE_CODES.includes(code))
+      ? service_types.filter(code => getValidServiceTypeCodes().includes(code))
       : [];
 
     if (isPractitionerRegistration && !isOfficeStaff && serviceTypes.length === 0) {
@@ -83,57 +79,18 @@ const provisionPractitioner = async (req, res) => {
       return res.status(403).json({ error: 'You can only register Practitioner accounts.' });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const { rows: existingRows } = await pool.query(
-      'SELECT id FROM practitioners WHERE email = $1',
-      [normalizedEmail]
-    );
-    if (existingRows[0]) return res.status(400).json({ error: 'This email is already registered.' });
-
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = hashToken(rawToken);
-    const tokenExpiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
-
-    // Optional fields are omitted from the INSERT entirely (not passed as NULL)
-    // when absent, so the column's DB default applies — matching the original
-    // Supabase insert, which only included keys that were truthy.
-    const columns = ['first_name', 'last_name', 'email', 'password_hash', 'requires_password_change', 'role', 'reset_token_hash', 'reset_token_expires'];
-    const values = [firstName, lastName, normalizedEmail, INVITE_PENDING, true, legacyRole, tokenHash, tokenExpiresAt];
-    const addColumn = (column, value) => { columns.push(column); values.push(value); };
-
-    if (address) addColumn('address', address);
-    if (phone_number) addColumn('phone_number', phone_number);
-    if (payRate) addColumn('pay_rate', parseFloat(payRate));
-    if (position_title) addColumn('position_title', position_title);
-    if (ssn) addColumn('ssn', ssn);
-    if (serviceTypes.length > 0) addColumn('service_types', serviceTypes);
-    if (resolvedRoleId) addColumn('role_id', resolvedRoleId);
-
-    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
-    const { rows: insertedRows } = await pool.query(
-      `INSERT INTO practitioners (${columns.join(', ')})
-       VALUES (${placeholders})
-       RETURNING id, first_name, last_name, email, requires_password_change, created_at`,
-      values
-    );
-
-    const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
-    const companyName = companyRows[0]?.display_name || 'Izaya EIS';
-    const slug = req.practitioner.slug;
-
     // The app is served under the /eis base path (see frontend/vite.config.js's
     // `base: "/eis/"`), so FRONTEND_URL must include it.
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
-    const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
 
-    try {
-      await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
-    } catch (emailError) {
-      console.error('Failed to send account invite email:', emailError);
-    }
+    const result = await insertInvitedPractitioner({
+      firstName, lastName, email, address, phoneNumber: phone_number, payRate,
+      positionTitle: position_title, ssn, serviceTypes, legacyRole, resolvedRoleId,
+      slug: req.practitioner.slug, frontendUrl,
+    });
+    if (!result.ok) return res.status(result.statusCode).json({ error: result.error });
 
-    res.status(201).json({ message: 'Invite sent successfully', practitioner: insertedRows[0] });
+    res.status(201).json({ message: 'Invite sent successfully', practitioner: result.practitioner });
   } catch (error) {
     console.error('Provisioning error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -573,7 +530,7 @@ const updateStaffProfile = async (req, res) => {
 
     if (service_types !== undefined) {
       const serviceTypes = Array.isArray(service_types)
-        ? service_types.filter(code => VALID_SERVICE_TYPE_CODES.includes(code))
+        ? service_types.filter(code => getValidServiceTypeCodes().includes(code))
         : [];
       const isOfficeStaff = position_title === 'Office Staff';
       if (target.role === 'practitioner' && !isOfficeStaff && serviceTypes.length === 0) {

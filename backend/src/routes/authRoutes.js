@@ -43,6 +43,11 @@ const {
   getMe
 } = require('../controllers/authController');
 
+const {
+  previewPractitionerImport,
+  confirmPractitionerImport,
+} = require('../controllers/practitionerImportController');
+
 // Throttle account activation attempts the same way as login/reset —
 // prevents brute-forcing an invite/activation token.
 const activateLimiter = rateLimit({
@@ -64,6 +69,13 @@ router.post('/register-practitioner', protect, loadPermissions, requirePermissio
 // Resend an activation link for an account that hasn't activated yet
 // (e.g. the original 7-day link expired) — same permission as inviting.
 router.post('/staff/:id/resend-invite', protect, loadPermissions, requirePermission('register_new_user'), resendInvite);
+
+// Staff Directory's bulk (Excel upload) practitioner registration —
+// practitioner-only, same permission as the single-registration form.
+// Preview parses the file and returns the auto-detected column mapping;
+// Confirm re-parses with the reviewed mapping and creates every valid row.
+router.post('/staff/bulk-import/preview', protect, loadPermissions, requirePermission('register_new_user'), previewPractitionerImport);
+router.post('/staff/bulk-import/confirm', protect, loadPermissions, requirePermission('register_new_user'), confirmPractitionerImport);
 
 // View all staff (staff_directory_view)
 router.get('/staff', protect, loadPermissions, requirePermission('staff_directory_view'), getAllStaff);
