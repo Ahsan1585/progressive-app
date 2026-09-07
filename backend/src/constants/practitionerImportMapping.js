@@ -13,19 +13,64 @@ const TARGET_FIELDS = [
   { key: 'email', label: 'Email', required: true, candidates: ['Email', 'Email Address'] },
   { key: 'pay_rate', label: 'Hourly Pay Rate', required: true, candidates: ['Pay Rate', 'Hourly Rate', 'Hourly Pay Rate'] },
   { key: 'position_title', label: 'Position Title', required: true, candidates: ['Position Title', 'Discipline', 'Discipline / Position Title'] },
-  { key: 'service_types', label: 'Service Type(s)', required: true, candidates: ['Service Type', 'Service Types', 'Service Type(s)'] },
+  // multiple: true — a practitioner can offer several service types, and a
+  // roster may spread them across several columns (e.g. "Service Type 1",
+  // "Service Type 2", ...) instead of one comma-separated cell. Auto-detect
+  // matches every header in the family, not just the first; the mapping
+  // screen renders one column-picker per matched header, unbounded.
+  { key: 'service_types', label: 'Service Type(s)', required: true, multiple: true, candidates: ['Service Type', 'Service Types', 'Service Type(s)'] },
   { key: 'address', label: 'Address', required: false, candidates: ['Address', 'Full Address'] },
   { key: 'phone_number', label: 'Phone Number', required: false, candidates: ['Phone Number', 'Phone', 'Phone #'] },
   { key: 'ssn', label: 'SSN / EIN', required: false, candidates: ['SSN', 'EIN', 'SSN / EIN', 'SSN/EIN', 'Tax ID'] },
 ];
 
-// Best-effort auto-match: for each target field, find the first sheet
-// header whose normalized text exactly matches one of its candidates.
+// A header counts as part of the "Service Type" family if it's an exact
+// candidate match, OR one of its candidates plus a trailing number/letter
+// suffix ("Service Type 1", "Service Type A", "Service Types 2"). Matches
+// are returned in the header's own sheet order; the trailing token (if any)
+// is kept alongside for a natural (numeric-aware) sort afterward.
+function matchesFieldFamily(header, candidates) {
+  const n = normalizeForMatch(header);
+  for (const candidate of candidates) {
+    const c = normalizeForMatch(candidate);
+    if (n === c) return { suffix: '' };
+    if (n.startsWith(c)) {
+      const suffix = header.slice(candidate.length).trim().replace(/^[\s()#-]+|[\s()]+$/g, '');
+      if (suffix && suffix.length <= 3) return { suffix };
+    }
+  }
+  return null;
+}
+
+function naturalSuffixCompare(a, b) {
+  const na = Number(a.suffix);
+  const nb = Number(b.suffix);
+  if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+  return a.suffix.localeCompare(b.suffix);
+}
+
+// Best-effort auto-match. Most fields resolve to a single sheet header
+// (string, or null if nothing matched). Fields flagged `multiple: true`
+// resolve to an array of every header in that candidate family, in natural
+// order — an empty array if nothing matched, never null, so callers don't
+// need two shapes to check.
 function suggestMapping(headers) {
   const suggestion = {};
   for (const field of TARGET_FIELDS) {
-    const match = headers.find((h) => field.candidates.some((c) => normalizeForMatch(c) === normalizeForMatch(h)));
-    suggestion[field.key] = match || null;
+    if (field.multiple) {
+      const matches = headers
+        .map((h) => {
+          const m = matchesFieldFamily(h, field.candidates);
+          return m ? { header: h, suffix: m.suffix } : null;
+        })
+        .filter(Boolean)
+        .sort(naturalSuffixCompare)
+        .map((m) => m.header);
+      suggestion[field.key] = matches;
+    } else {
+      const match = headers.find((h) => field.candidates.some((c) => normalizeForMatch(c) === normalizeForMatch(h)));
+      suggestion[field.key] = match || null;
+    }
   }
   return suggestion;
 }

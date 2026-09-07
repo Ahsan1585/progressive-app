@@ -73,7 +73,11 @@ const confirmPractitionerImport = async (req, res) => {
     if (!fileBase64) return res.status(400).json({ error: 'fileBase64 is required' });
     if (!mapping || typeof mapping !== 'object') return res.status(400).json({ error: 'mapping is required' });
 
-    const requiredMissing = TARGET_FIELDS.filter((f) => f.required && !mapping[f.key]);
+    // A `multiple: true` field (currently only service_types) maps to an
+    // array of headers instead of one; "missing" means an empty/absent
+    // array rather than a falsy string.
+    const isFieldMapped = (field) => (field.multiple ? Array.isArray(mapping[field.key]) && mapping[field.key].length > 0 : !!mapping[field.key]);
+    const requiredMissing = TARGET_FIELDS.filter((f) => f.required && !isFieldMapped(f));
     if (requiredMissing.length > 0) {
       return res.status(400).json({ error: `Missing required column mapping(s): ${requiredMissing.map((f) => f.label).join(', ')}` });
     }
@@ -82,10 +86,18 @@ const confirmPractitionerImport = async (req, res) => {
     if (parsed.error) return res.status(400).json(parsed);
     const { sheet, rowNumber, headers } = parsed;
 
+    // colIndex[key] is a single 1-based column index for most fields, or an
+    // array of them for a `multiple: true` field — 0 (or an empty array)
+    // means "not mapped".
     const colIndex = {};
     for (const field of TARGET_FIELDS) {
-      const header = mapping[field.key];
-      colIndex[field.key] = header ? headers.indexOf(header) + 1 : 0; // 0 = not mapped
+      if (field.multiple) {
+        const mappedHeaders = Array.isArray(mapping[field.key]) ? mapping[field.key] : [];
+        colIndex[field.key] = mappedHeaders.filter(Boolean).map((h) => headers.indexOf(h) + 1).filter((i) => i > 0);
+      } else {
+        const header = mapping[field.key];
+        colIndex[field.key] = header ? headers.indexOf(header) + 1 : 0; // 0 = not mapped
+      }
     }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
@@ -97,13 +109,18 @@ const confirmPractitionerImport = async (req, res) => {
     for (let r = rowNumber + 1; r <= sheet.rowCount; r++) {
       const row = sheet.getRow(r);
       const get = (key) => (colIndex[key] ? cellToText(row.getCell(colIndex[key]).value) : null);
+      // Every mapped service-type column's cell (each itself possibly
+      // comma/semicolon-separated) joined into one string — resolveServiceTypes
+      // below re-splits the whole thing, so a value spread across N columns
+      // is handled identically to N values packed into one cell.
+      const getMulti = (key) => colIndex[key].map((idx) => cellToText(row.getCell(idx).value)).filter(Boolean).join(', ') || null;
 
       const firstName = get('first_name');
       const lastName = get('last_name');
       const email = get('email');
       const payRateRaw = get('pay_rate');
       const positionTitleRaw = get('position_title');
-      const serviceTypesRaw = get('service_types');
+      const serviceTypesRaw = getMulti('service_types');
       const address = get('address');
       const phoneNumber = get('phone_number');
       const ssn = get('ssn');
