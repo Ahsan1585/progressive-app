@@ -46,6 +46,7 @@ const {
 const {
   previewPractitionerImport,
   confirmPractitionerImport,
+  retryPractitionerImportRows,
 } = require('../controllers/practitionerImportController');
 
 // Throttle account activation attempts the same way as login/reset —
@@ -76,6 +77,9 @@ router.post('/staff/:id/resend-invite', protect, loadPermissions, requirePermiss
 // Confirm re-parses with the reviewed mapping and creates every valid row.
 router.post('/staff/bulk-import/preview', protect, loadPermissions, requirePermission('register_new_user'), previewPractitionerImport);
 router.post('/staff/bulk-import/confirm', protect, loadPermissions, requirePermission('register_new_user'), confirmPractitionerImport);
+// The results screen's fix-up table for skipped rows — same permission,
+// no file re-parse (the admin's corrected values are sent directly).
+router.post('/staff/bulk-import/retry', protect, loadPermissions, requirePermission('register_new_user'), retryPractitionerImportRows);
 
 // View all staff (staff_directory_view, or practitioner_manage alone — a
 // role scoped to just managing practitioners still needs to see the list)

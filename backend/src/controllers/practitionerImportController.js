@@ -1,6 +1,6 @@
 const { readWorkbookFromBuffer, findHeaderRow } = require('../utils/excelSheet');
 const { TARGET_FIELDS, suggestMapping, resolvePositionTitle, resolveServiceTypes } = require('../constants/practitionerImportMapping');
-const { insertInvitedPractitioner } = require('../utils/practitionerRegistration');
+const { insertInvitedPractitioner, getValidServiceTypeCodes } = require('../utils/practitionerRegistration');
 
 // Staff Directory's bulk practitioner import: upload an Excel roster once
 // (previewPractitionerImport), confirm/adjust the column mapping, then
@@ -130,9 +130,13 @@ const confirmPractitionerImport = async (req, res) => {
       if (!firstName && !lastName && !email) continue;
 
       const rowLabel = `Row ${r}${email ? ` (${email})` : firstName || lastName ? ` (${[firstName, lastName].filter(Boolean).join(' ')})` : ''}`;
+      // Whatever this row's cells actually contained, raw — carried on every
+      // skip entry so the admin can fix just the bad field(s) and resubmit
+      // via /bulk-import/retry instead of re-uploading the whole file.
+      const rawData = { firstName, lastName, email, payRate: payRateRaw, positionTitle: positionTitleRaw, serviceTypes: serviceTypesRaw, address, phoneNumber, ssn };
 
       if (!firstName || !lastName || !email) {
-        skipped.push({ row: rowLabel, reason: 'Missing first name, last name, or email.' });
+        skipped.push({ row: rowLabel, reason: 'Missing first name, last name, or email.', data: rawData });
         continue;
       }
       const payRate = parseFloat(payRateRaw);
@@ -140,17 +144,17 @@ const confirmPractitionerImport = async (req, res) => {
       // 10^8 overflows that column and previously threw a raw Postgres
       // error that aborted the whole batch instead of just this row.
       if (!payRateRaw || Number.isNaN(payRate) || payRate < 0 || payRate >= 100000000) {
-        skipped.push({ row: rowLabel, reason: `Missing or invalid hourly pay rate: "${payRateRaw || ''}".` });
+        skipped.push({ row: rowLabel, reason: `Missing or invalid hourly pay rate: "${payRateRaw || ''}".`, data: rawData });
         continue;
       }
       const positionTitle = resolvePositionTitle(positionTitleRaw);
       if (!positionTitle) {
-        skipped.push({ row: rowLabel, reason: `Unrecognized position title/discipline: "${positionTitleRaw || ''}".` });
+        skipped.push({ row: rowLabel, reason: `Unrecognized position title/discipline: "${positionTitleRaw || ''}".`, data: rawData });
         continue;
       }
       const { codes: serviceTypes, unmatched } = resolveServiceTypes(serviceTypesRaw);
       if (serviceTypes.length === 0) {
-        skipped.push({ row: rowLabel, reason: `Unrecognized service type(s): "${serviceTypesRaw || ''}".` });
+        skipped.push({ row: rowLabel, reason: `Unrecognized service type(s): "${serviceTypesRaw || ''}".`, data: rawData });
         continue;
       }
 
@@ -161,7 +165,11 @@ const confirmPractitionerImport = async (req, res) => {
       });
 
       if (!result.ok) {
-        skipped.push({ row: rowLabel, reason: result.error });
+        // This row's fields all resolved fine — carry the RESOLVED position
+        // title/service types (not the raw sheet text) so a retry (e.g.
+        // after the admin changes the duplicate email) doesn't need to
+        // re-run resolvePositionTitle/resolveServiceTypes at all.
+        skipped.push({ row: rowLabel, reason: result.error, data: { ...rawData, positionTitle, serviceTypes } });
         continue;
       }
       created.push({
@@ -181,4 +189,72 @@ const confirmPractitionerImport = async (req, res) => {
   }
 };
 
-module.exports = { previewPractitionerImport, confirmPractitionerImport };
+// --- Retry: the admin fixed up one or more skipped rows on the results
+// screen (editing via the same widgets as the single Register form — a
+// Position Title dropdown, a Service Type(s) checklist) and resubmits just
+// those. No file re-parse needed — the frontend already holds each row's
+// corrected values from the results screen's fix-up table. Unlike Confirm,
+// positionTitle/serviceTypes arrive already resolved (a real label / real
+// codes picked from a dropdown), not raw sheet text, so no
+// resolvePositionTitle/resolveServiceTypes re-matching happens here — only
+// the same required-field + pay-rate-bound + valid-service-type-code checks
+// every other registration path already applies. ---
+const retryPractitionerImportRows = async (req, res) => {
+  try {
+    const { rows } = req.body;
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'rows is required' });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
+    const slug = req.practitioner.slug;
+    const validServiceCodes = getValidServiceTypeCodes();
+
+    const created = [];
+    const skipped = [];
+
+    for (const row of rows) {
+      const { firstName, lastName, email, payRate: payRateRaw, positionTitle, address, phoneNumber, ssn } = row;
+      const serviceTypes = Array.isArray(row.serviceTypes) ? row.serviceTypes.filter((c) => validServiceCodes.includes(c)) : [];
+      const rowLabel = email || [firstName, lastName].filter(Boolean).join(' ') || 'this row';
+
+      if (!firstName || !lastName || !email) {
+        skipped.push({ row: rowLabel, reason: 'Missing first name, last name, or email.', data: row });
+        continue;
+      }
+      const payRate = parseFloat(payRateRaw);
+      if (!payRateRaw || Number.isNaN(payRate) || payRate < 0 || payRate >= 100000000) {
+        skipped.push({ row: rowLabel, reason: `Missing or invalid hourly pay rate: "${payRateRaw || ''}".`, data: row });
+        continue;
+      }
+      if (!positionTitle) {
+        skipped.push({ row: rowLabel, reason: 'A position title/discipline is required.', data: row });
+        continue;
+      }
+      if (serviceTypes.length === 0) {
+        skipped.push({ row: rowLabel, reason: 'At least one valid service type is required.', data: row });
+        continue;
+      }
+
+      const result = await insertInvitedPractitioner({
+        firstName, lastName, email, address, phoneNumber, payRate, positionTitle,
+        ssn, serviceTypes, legacyRole: 'practitioner', resolvedRoleId: null,
+        slug, frontendUrl,
+      });
+
+      if (!result.ok) {
+        skipped.push({ row: rowLabel, reason: result.error, data: row });
+        continue;
+      }
+      created.push(result.practitioner);
+
+      // Same rate-limit-friendly pacing as the main confirm loop.
+      await sleep(600);
+    }
+
+    res.json({ success: true, created, skipped });
+  } catch (error) {
+    console.error('Error retrying practitioner bulk import rows:', error);
+    res.status(500).json({ error: 'Failed to register these rows.' });
+  }
+};
+
+module.exports = { previewPractitionerImport, confirmPractitionerImport, retryPractitionerImportRows };

@@ -47,6 +47,16 @@ const ROLE_BADGE_COLORS = {
   practitioner: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
+// Mirrors backend/src/utils/disciplineCodes.js's DISCIPLINE_CODE_MAP keys —
+// the fixed 8-item discipline list, reused by the bulk-import results
+// screen's fix-up dropdown (see Register New User's own inline <select>
+// above for the same list; kept here as a shared array instead of also
+// inlining it a third time).
+const DISCIPLINE_OPTIONS = [
+  'Developmental Interventionist', 'Speech Language Pathologist', 'Occupational Therapist',
+  'Physical Therapist', 'Social Worker', 'Special Educator', 'Family Therapist', 'Foreign Language Interpreter',
+];
+
 export const RegisterPractitionerForm = () => {
   // What this screen offers is decided by the caller's live permission set
   // (same GET /api/auth/me AdminDashboard.jsx uses), not the localStorage role
@@ -137,6 +147,13 @@ export const RegisterPractitionerForm = () => {
   const [bulkIsSubmitting, setBulkIsSubmitting] = useState(false);
   const [bulkError, setBulkError] = useState('');
   const [bulkResults, setBulkResults] = useState(null); // { created, skipped } | null
+  // Editable copy of bulkResults.skipped, seeded once results come back —
+  // lets the admin fix a bad field inline and resubmit via /bulk-import/retry
+  // instead of re-uploading the whole file. Row identity is its array index
+  // (skipped rows have no id yet), not carried across a retry — a retry
+  // response replaces this array outright with whatever's still skipped.
+  const [bulkFixups, setBulkFixups] = useState([]);
+  const [bulkIsRetrying, setBulkIsRetrying] = useState(false);
 
   useEffect(() => {
     api.get('/api/auth/staff')
@@ -430,6 +447,7 @@ export const RegisterPractitionerForm = () => {
     setBulkDisabledFields(new Set());
     setBulkError('');
     setBulkResults(null);
+    setBulkFixups([]);
   };
 
   const handleBulkFileSelect = async (e) => {
@@ -475,6 +493,62 @@ export const RegisterPractitionerForm = () => {
     reader.readAsDataURL(file);
   };
 
+  // Turns one backend skip entry into an editable fix-up row. positionTitle/
+  // serviceTypes on `data` are either raw sheet text (a position/service-type
+  // skip) or already-resolved values (a duplicate-email-style skip, where
+  // every field parsed fine) — normalize both into what the dropdown/
+  // checklist widgets expect: a label that's actually one of the 8 options,
+  // and an array of valid codes. Anything that doesn't match starts blank
+  // rather than silently keeping unparseable raw text in a controlled input.
+  const seedBulkFixup = (skip) => {
+    const d = skip.data || {};
+    const positionTitle = DISCIPLINE_OPTIONS.includes(d.positionTitle) ? d.positionTitle : '';
+    const serviceTypes = Array.isArray(d.serviceTypes)
+      ? d.serviceTypes.filter((c) => SERVICE_TYPE_OPTIONS.some((o) => o.code === c))
+      : [];
+    return {
+      reason: skip.reason,
+      firstName: d.firstName || '', lastName: d.lastName || '', email: d.email || '',
+      payRate: typeof d.payRate === 'number' ? String(d.payRate) : (d.payRate || ''),
+      positionTitle, serviceTypes,
+      address: d.address || '', phoneNumber: d.phoneNumber || '', ssn: d.ssn || '',
+    };
+  };
+
+  const updateBulkFixup = (index, field, value) => {
+    setBulkFixups((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+
+  const toggleBulkFixupServiceType = (index, code) => {
+    setBulkFixups((prev) => prev.map((row, i) => {
+      if (i !== index) return row;
+      const serviceTypes = row.serviceTypes.includes(code) ? row.serviceTypes.filter((c) => c !== code) : [...row.serviceTypes, code];
+      return { ...row, serviceTypes };
+    }));
+  };
+
+  const handleBulkRetry = async () => {
+    setBulkIsRetrying(true);
+    setBulkError('');
+    try {
+      const { data } = await api.post('/api/auth/staff/bulk-import/retry', { rows: bulkFixups });
+      setBulkResults((prev) => ({
+        created: [...prev.created, ...data.created],
+        skipped: data.skipped, // whatever's still skipped replaces the old list — a row either got fixed or it didn't
+      }));
+      setBulkFixups(data.skipped.map(seedBulkFixup));
+      setStaffList((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const additions = data.created.filter((c) => !existingIds.has(c.id)).map((c) => ({ ...c, role: 'practitioner', is_active: true, is_pending_activation: true }));
+        return [...additions, ...prev];
+      });
+    } catch (error) {
+      setBulkError(error.response?.data?.error || 'Failed to register these rows.');
+    } finally {
+      setBulkIsRetrying(false);
+    }
+  };
+
   const handleBulkConfirm = async () => {
     setBulkIsSubmitting(true);
     setBulkError('');
@@ -489,6 +563,7 @@ export const RegisterPractitionerForm = () => {
         mapping: effectiveMapping,
       });
       setBulkResults(data);
+      setBulkFixups(data.skipped.map(seedBulkFixup));
       setBulkStep('results');
       setStaffList((prev) => {
         // Newly created rows only carry the fields the roster list needs to
@@ -1361,16 +1436,61 @@ export const RegisterPractitionerForm = () => {
 
             {bulkResults.skipped.length > 0 && (
               <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <div className="px-4 py-2 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">Skipped rows</div>
+                <div className="px-4 py-2 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Skipped rows — fix and register below
+                </div>
                 <div className="divide-y divide-slate-100">
-                  {bulkResults.skipped.map((s, i) => (
-                    <div key={i} className="px-4 py-2.5 text-sm">
-                      <span className="font-semibold text-slate-700">{s.row}</span>
-                      <span className="text-slate-500"> — {s.reason}</span>
+                  {bulkFixups.map((row, i) => (
+                    <div key={i} className="px-4 py-4 space-y-3">
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 inline-block">{bulkResults.skipped[i]?.reason}</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        <Input placeholder="First Name" value={row.firstName} onChange={(e) => updateBulkFixup(i, 'firstName', e.target.value)} className="text-sm" />
+                        <Input placeholder="Last Name" value={row.lastName} onChange={(e) => updateBulkFixup(i, 'lastName', e.target.value)} className="text-sm" />
+                        <Input type="email" placeholder="Email" value={row.email} onChange={(e) => updateBulkFixup(i, 'email', e.target.value)} className="text-sm" />
+                        <Input type="number" step="0.01" placeholder="Hourly Pay Rate" value={row.payRate} onChange={(e) => updateBulkFixup(i, 'payRate', e.target.value)} className="text-sm" />
+                        <select
+                          value={row.positionTitle}
+                          onChange={(e) => updateBulkFixup(i, 'positionTitle', e.target.value)}
+                          className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="" disabled>Select a discipline...</option>
+                          {DISCIPLINE_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <Input placeholder="Address (optional)" value={row.address} onChange={(e) => updateBulkFixup(i, 'address', e.target.value)} className="text-sm" />
+                        <Input placeholder="Phone Number (optional)" value={row.phoneNumber} onChange={(e) => updateBulkFixup(i, 'phoneNumber', e.target.value)} className="text-sm" />
+                        <Input placeholder="SSN / EIN (optional)" value={row.ssn} onChange={(e) => updateBulkFixup(i, 'ssn', e.target.value)} className="text-sm" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-600 mb-1.5">Service Types</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2.5 border border-slate-200 rounded-md bg-slate-50">
+                          {SERVICE_TYPE_OPTIONS.map((opt) => (
+                            <label key={opt.code} className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={row.serviceTypes.includes(opt.code)}
+                                onChange={() => toggleBulkFixupServiceType(i, opt.code)}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              {opt.label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+            )}
+
+            {bulkFixups.length > 0 && (
+              <Button
+                type="button"
+                onClick={handleBulkRetry}
+                disabled={bulkIsRetrying || bulkFixups.every((r) => !r.firstName && !r.lastName && !r.email)}
+                className="w-full bg-amber-600 text-white hover:bg-amber-700 py-6"
+              >
+                {bulkIsRetrying ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> Registering...</> : `Register ${bulkFixups.length} Fixed Practitioner${bulkFixups.length === 1 ? '' : 's'}`}
+              </Button>
             )}
 
             <Button type="button" onClick={handleBulkDone} className="w-full bg-violet-600 text-white hover:bg-violet-700 py-6">
