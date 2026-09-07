@@ -43,7 +43,7 @@ function getValidServiceTypeCodes() {
 // and bulk practitioner import (practitioner-only).
 async function insertInvitedPractitioner({
   firstName, lastName, email, address, phoneNumber, payRate, positionTitle,
-  ssn, serviceTypes, legacyRole, resolvedRoleId, slug, frontendUrl,
+  ssn, serviceTypes, legacyRole, resolvedRoleId, slug, frontendUrl, sendEmail = true,
 }) {
   const normalizedEmail = String(email).trim().toLowerCase();
 
@@ -77,14 +77,22 @@ async function insertInvitedPractitioner({
   );
   const practitioner = insertedRows[0];
 
-  const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
-  const companyName = companyRows[0]?.display_name || 'Izaya EIS';
-  const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
+  // sendEmail: false lets a caller create the invite-pending row (and its
+  // reset token, so the existing per-practitioner resend-invite endpoint
+  // works normally) WITHOUT emailing yet — bulk import defers every send to
+  // an explicit admin action instead of firing N emails the moment "Register"
+  // is clicked, since a large batch may include rows the admin isn't ready
+  // to invite yet (or wants to review first).
+  if (sendEmail) {
+    const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
+    const companyName = companyRows[0]?.display_name || 'Izaya EIS';
+    const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
 
-  try {
-    await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
-  } catch (emailError) {
-    console.error('Failed to send account invite email:', emailError);
+    try {
+      await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
+    } catch (emailError) {
+      console.error('Failed to send account invite email:', emailError);
+    }
   }
 
   return { ok: true, practitioner };

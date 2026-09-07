@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { StaffChatPopover } from '@/components/StaffChatPopover';
 import { ActionRequired } from '@/components/ActionRequired';
 import { StaffDirectoryChildren } from '@/components/StaffDirectoryChildren';
-import { showAlert } from '@/utils/dialogStore';
+import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
 
 const MESSAGE_THREADS_POLL_MS = 5000;
@@ -154,6 +154,15 @@ export const RegisterPractitionerForm = () => {
   // response replaces this array outright with whatever's still skipped.
   const [bulkFixups, setBulkFixups] = useState([]);
   const [bulkIsRetrying, setBulkIsRetrying] = useState(false);
+  // Newly-created bulk rows are invite-pending but NOT emailed automatically
+  // (see backend/src/utils/practitionerRegistration.js's sendEmail: false) —
+  // the admin picks which ones to actually invite from here. Selection
+  // defaults to "all" since sending is the expected next step for most of a
+  // batch; ids move to bulkInvitedIds once sent so the UI can show them as
+  // done instead of re-offering them.
+  const [bulkSelectedForInvite, setBulkSelectedForInvite] = useState(new Set());
+  const [bulkInvitedIds, setBulkInvitedIds] = useState(new Set());
+  const [bulkIsSendingInvites, setBulkIsSendingInvites] = useState(false);
 
   useEffect(() => {
     api.get('/api/auth/staff')
@@ -412,7 +421,8 @@ export const RegisterPractitionerForm = () => {
       const response = await api.post('/api/auth/register-practitioner', payload);
 
       if (response.data.success || response.status === 201) {
-        showAlert('Account successfully created!');
+        const newId = response.data.practitioner?.id;
+        const newName = `${payload.firstName} ${payload.lastName}`.trim();
         setRegForm({
           firstName: '', lastName: '', email: '',
           payRate: '', positionTitle: '', serviceTypes: [], address: '', phoneNumber: '', ssn: '',
@@ -421,6 +431,22 @@ export const RegisterPractitionerForm = () => {
         // Refresh roster and switch to it so the new member is visible
         api.get('/api/auth/staff').then(res => setStaffList(res.data.staff || []));
         setActiveTab('roster');
+        // The account is created invite-pending but NOT emailed yet (see
+        // backend's sendEmail: false) — ask right here instead of leaving
+        // the admin to remember the roster's resend-invite icon later.
+        if (newId) {
+          const shouldSend = await showConfirm(`Account created for ${newName}. Send their activation invite now?`, { confirmLabel: 'Send Invite Now', cancelLabel: "I'll do it later" });
+          if (shouldSend) {
+            try {
+              await api.post(`/api/auth/staff/${newId}/resend-invite`);
+              showAlert('Activation invite sent.');
+            } catch (err) {
+              showAlert(err.response?.data?.error || 'Failed to send the activation invite.');
+            }
+          }
+        } else {
+          showAlert('Account successfully created!');
+        }
       }
     } catch (err) {
       showAlert(err.response?.data?.error || 'Failed to create account.');
@@ -448,6 +474,8 @@ export const RegisterPractitionerForm = () => {
     setBulkError('');
     setBulkResults(null);
     setBulkFixups([]);
+    setBulkSelectedForInvite(new Set());
+    setBulkInvitedIds(new Set());
   };
 
   const handleBulkFileSelect = async (e) => {
@@ -537,6 +565,9 @@ export const RegisterPractitionerForm = () => {
         skipped: data.skipped, // whatever's still skipped replaces the old list — a row either got fixed or it didn't
       }));
       setBulkFixups(data.skipped.map(seedBulkFixup));
+      // Newly-fixed rows join the invite-selection list pre-checked, same as
+      // the initial confirm — they're not emailed yet either.
+      setBulkSelectedForInvite((prev) => new Set([...prev, ...data.created.map((c) => c.id)]));
       setStaffList((prev) => {
         const existingIds = new Set(prev.map((s) => s.id));
         const additions = data.created.filter((c) => !existingIds.has(c.id)).map((c) => ({ ...c, role: 'practitioner', is_active: true, is_pending_activation: true }));
@@ -564,6 +595,10 @@ export const RegisterPractitionerForm = () => {
       });
       setBulkResults(data);
       setBulkFixups(data.skipped.map(seedBulkFixup));
+      // Every newly-created row starts selected — sending is the expected
+      // next step for most of a batch; the admin unchecks any they don't
+      // want invited yet rather than having to check each one they do.
+      setBulkSelectedForInvite(new Set(data.created.map((c) => c.id)));
       setBulkStep('results');
       setStaffList((prev) => {
         // Newly created rows only carry the fields the roster list needs to
@@ -577,6 +612,43 @@ export const RegisterPractitionerForm = () => {
       setBulkError(error.response?.data?.error || 'Failed to process this file.');
     } finally {
       setBulkIsSubmitting(false);
+    }
+  };
+
+  const toggleBulkInviteSelection = (id) => {
+    setBulkSelectedForInvite((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleBulkInviteSelectAll = (ids) => {
+    setBulkSelectedForInvite((prev) => {
+      const allSelected = ids.every((id) => prev.has(id));
+      return allSelected ? new Set() : new Set(ids);
+    });
+  };
+
+  // Sends the invite email for every checked, not-yet-invited row, reusing
+  // the same per-practitioner resend-invite endpoint the roster's individual
+  // resend button already calls — no new backend endpoint needed, since a
+  // freshly bulk-created row is invite-pending exactly like any other.
+  const handleBulkSendInvites = async (pendingIds) => {
+    const targets = pendingIds.filter((id) => bulkSelectedForInvite.has(id) && !bulkInvitedIds.has(id));
+    if (targets.length === 0) return;
+    setBulkIsSendingInvites(true);
+    setBulkError('');
+    try {
+      const results = await Promise.allSettled(targets.map((id) => api.post(`/api/auth/staff/${id}/resend-invite`)));
+      const succeededIds = targets.filter((_, i) => results[i].status === 'fulfilled');
+      const failedCount = results.length - succeededIds.length;
+      setBulkInvitedIds((prev) => new Set([...prev, ...succeededIds]));
+      if (failedCount > 0) {
+        setBulkError(`Sent ${succeededIds.length} invite${succeededIds.length === 1 ? '' : 's'}, but ${failedCount} failed — try those again.`);
+      }
+    } finally {
+      setBulkIsSendingInvites(false);
     }
   };
 
@@ -1424,7 +1496,7 @@ export const RegisterPractitionerForm = () => {
             <div className="flex items-center gap-4">
               <div className="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200">
                 <div className="text-2xl font-bold text-emerald-700">{bulkResults.created.length}</div>
-                <div className="text-xs font-semibold text-emerald-700">Registered &amp; invited</div>
+                <div className="text-xs font-semibold text-emerald-700">Registered</div>
               </div>
               {bulkResults.skipped.length > 0 && (
                 <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
@@ -1433,6 +1505,61 @@ export const RegisterPractitionerForm = () => {
                 </div>
               )}
             </div>
+
+            {bulkResults.created.length > 0 && (() => {
+              const pendingIds = bulkResults.created.map((c) => c.id);
+              const notYetInvitedIds = pendingIds.filter((id) => !bulkInvitedIds.has(id));
+              return (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2 bg-slate-50 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Send activation invites</span>
+                    {notYetInvitedIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleBulkInviteSelectAll(notYetInvitedIds)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
+                      >
+                        {notYetInvitedIds.every((id) => bulkSelectedForInvite.has(id)) ? 'Deselect all' : 'Select all'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {bulkResults.created.map((c) => {
+                      const invited = bulkInvitedIds.has(c.id);
+                      return (
+                        <label key={c.id} className={`flex items-center gap-3 px-4 py-2.5 text-sm ${invited ? '' : 'cursor-pointer hover:bg-slate-50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={invited || bulkSelectedForInvite.has(c.id)}
+                            disabled={invited}
+                            onChange={() => toggleBulkInviteSelection(c.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <span className="flex-1 text-slate-700">{c.first_name} {c.last_name} <span className="text-slate-400">— {c.email}</span></span>
+                          {invited && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border text-emerald-700 bg-emerald-50 border-emerald-200">Invited</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {notYetInvitedIds.length > 0 && (
+                    <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
+                      <Button
+                        type="button"
+                        onClick={() => handleBulkSendInvites(pendingIds)}
+                        disabled={bulkIsSendingInvites || notYetInvitedIds.every((id) => !bulkSelectedForInvite.has(id))}
+                        className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        {bulkIsSendingInvites
+                          ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin inline" /> Sending...</>
+                          : `Send Invite to ${notYetInvitedIds.filter((id) => bulkSelectedForInvite.has(id)).length} Selected`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {bulkResults.skipped.length > 0 && (
               <div className="border border-slate-200 rounded-lg overflow-hidden">

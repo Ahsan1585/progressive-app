@@ -201,10 +201,15 @@ const confirmPractitionerImport = async (req, res) => {
         continue;
       }
 
+      // sendEmail: false — the account is created invite-pending, but no
+      // email goes out yet. The admin selects which newly-created rows to
+      // actually invite from the results screen (existing per-practitioner
+      // resend-invite endpoint), instead of a large batch silently emailing
+      // everyone the moment "Register" is clicked.
       const result = await insertInvitedPractitioner({
         firstName, lastName, email, address, phoneNumber, payRate, positionTitle,
         ssn, serviceTypes, legacyRole: 'practitioner', resolvedRoleId: null,
-        slug, frontendUrl,
+        slug, frontendUrl, sendEmail: false,
       });
 
       if (!result.ok) {
@@ -277,10 +282,15 @@ const retryPractitionerImportRows = async (req, res) => {
         continue;
       }
 
+      // sendEmail: false — the account is created invite-pending, but no
+      // email goes out yet. The admin selects which newly-created rows to
+      // actually invite from the results screen (existing per-practitioner
+      // resend-invite endpoint), instead of a large batch silently emailing
+      // everyone the moment "Register" is clicked.
       const result = await insertInvitedPractitioner({
         firstName, lastName, email, address, phoneNumber, payRate, positionTitle,
         ssn, serviceTypes, legacyRole: 'practitioner', resolvedRoleId: null,
-        slug, frontendUrl,
+        slug, frontendUrl, sendEmail: false,
       });
 
       if (!result.ok) {

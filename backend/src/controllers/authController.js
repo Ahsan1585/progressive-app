@@ -86,14 +86,18 @@ const provisionPractitioner = async (req, res) => {
     // `base: "/eis/"`), so FRONTEND_URL must include it.
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
 
+    // sendEmail: false — the account is created invite-pending, but the
+    // admin now explicitly sends the invite afterward (the frontend's
+    // "Send Invite Now" button on the success screen), rather than it going
+    // out automatically the instant the form is submitted.
     const result = await insertInvitedPractitioner({
       firstName, lastName, email, address, phoneNumber: phone_number, payRate,
       positionTitle: position_title, ssn, serviceTypes, legacyRole, resolvedRoleId,
-      slug: req.practitioner.slug, frontendUrl,
+      slug: req.practitioner.slug, frontendUrl, sendEmail: false,
     });
     if (!result.ok) return res.status(result.statusCode).json({ error: result.error });
 
-    res.status(201).json({ message: 'Invite sent successfully', practitioner: result.practitioner });
+    res.status(201).json({ message: 'Account created', practitioner: result.practitioner });
   } catch (error) {
     console.error('Provisioning error:', error);
     res.status(500).json({ error: 'Server error' });
