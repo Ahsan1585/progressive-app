@@ -131,6 +131,7 @@ const groupSizeCodeLabel = (code) => codeLabel('group_size', code);
 const statusCodeLabel = (code) => codeLabel('service_status', code);
 
 module.exports = {
+  activeOptions,
   get SERVICE_TYPE_OPTIONS() { return activeOptions('service_type'); },
   get LOCATION_CODE_OPTIONS() { return activeOptions('location'); },
   get GROUP_SIZE_OPTIONS() { return activeOptions('group_size'); },
