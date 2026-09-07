@@ -19,7 +19,9 @@ import { BrandLockup } from '@/components/BrandLockup';
 // used where one tab hosts several independently-grantable actions). Admin
 // always sees everything.
 const TAB_PERMISSION = {
-  practitioners: 'staff_directory_view',
+  // Any-of: staff_directory_view for the full directory, or practitioner_manage
+  // alone (e.g. Program Coordinator) just to reach the Practitioners tab.
+  practitioners: ['staff_directory_view', 'practitioner_manage'],
   reports:       'master_reports',
   billing:       ['billing_pending', 'billing_completed', 'billing_invoice_status'],
   company:       ['company_info_compliance_doc', 'company_info_dropdown_options'],

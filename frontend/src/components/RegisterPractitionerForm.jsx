@@ -95,8 +95,17 @@ export const RegisterPractitionerForm = () => {
   const [editForm, setEditForm] = useState(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  // --- Tab State: 'roster' | 'register' ---
+  // --- Tab State: 'roster' | 'practitioners' | 'register' | 'bulkRegister' | 'children' | 'actionRequired' ---
+  // A user who only holds practitioner_manage (e.g. Program Coordinator, no
+  // staff_directory_view) can't see the Staff Roster tab at all, so land
+  // them on Practitioners instead — corrected once `me` loads, below.
   const [activeTab, setActiveTab] = useState('roster');
+  useEffect(() => {
+    if (me && !hasPermission('staff_directory_view') && hasPermission('practitioner_manage')) {
+      setActiveTab('practitioners');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me]);
 
   // --- Registration Form State ---
   const [regForm, setRegForm] = useState({
@@ -498,21 +507,210 @@ export const RegisterPractitionerForm = () => {
     setActiveTab('roster');
   };
 
-  const visibleStaff = staffList.filter(s => {
+  // Staff Roster is office-staff only (Admin/Staff-tier accounts);
+  // practitioners get their own tab below. Split once here so both tabs'
+  // filters (status/role/search) apply within their own pool only.
+  const matchesCommonFilters = (s) => {
     const matchesStatus = statusFilter === 'all' ? true : statusFilter === 'active' ? s.is_active !== false : s.is_active === false;
-    const matchesRole = roleFilter === 'all' ? true : s.role === roleFilter;
     const term = staffSearch.trim().toLowerCase();
     const matchesSearch = !term || [s.first_name, s.last_name, s.email, s.position_title]
       .filter(Boolean)
       .some(field => field.toLowerCase().includes(term));
-    return matchesStatus && matchesRole && matchesSearch;
+    return matchesStatus && matchesSearch;
+  };
+  const visibleStaff = staffList.filter(s => {
+    if (s.role === 'practitioner') return false;
+    const matchesRole = roleFilter === 'all' ? true : s.role === roleFilter;
+    return matchesCommonFilters(s) && matchesRole;
   });
+  const visiblePractitioners = staffList.filter(s => s.role === 'practitioner' && matchesCommonFilters(s));
+  // A practitioner's own deactivate/reactivate needs either the broad
+  // staff_directory_edit_role or the narrower practitioner_manage; an
+  // office-staff/Admin target still needs the broad one only (mirrors
+  // authController.js's canManageTarget).
+  const canManagePractitioners = canManageRoles || hasPermission('practitioner_manage');
+
+  // Shared row/table markup for both the Staff Roster and Practitioners
+  // tabs — same columns and per-row logic (role dropdown only for
+  // non-practitioners, chat only for practitioners, etc.), just fed a
+  // different, already-filtered `rows` array.
+  const renderStaffTable = (rows, emptyMessage) => (
+    loadingStaff ? (
+      <div className="p-8 text-center text-sm text-slate-400">Loading staff...</div>
+    ) : rows.length === 0 ? (
+      <div className="p-8 text-center text-sm text-slate-400">{emptyMessage}</div>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-100">
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
+              {/* Actions column — anyone who can reach this screen is office
+                  staff (it needs staff_directory_view), so the column always
+                  renders; each button inside is permission-gated on its own. */}
+              <th className="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map(member => {
+              const isDeactivated = member.is_active === false;
+              const canDeactivateThis = member.role === 'practitioner' ? canManagePractitioners : canManageRoles;
+              return (
+              <tr key={member.id} className="hover:bg-slate-50 transition-colors">
+                <td className={`px-6 py-3 font-medium text-slate-800 ${isDeactivated ? 'opacity-60' : ''}`}>
+                  <div className="flex items-center gap-2">
+                    {member.profile_picture ? (
+                      <button
+                        type="button"
+                        onClick={() => setViewingPhoto({ url: member.profile_picture, name: `${member.first_name} ${member.last_name}` })}
+                        className="w-7 h-7 rounded-full flex-shrink-0 cursor-pointer ring-offset-1 hover:ring-2 hover:ring-blue-400 transition-all"
+                        title="View photo"
+                      >
+                        <img
+                          src={member.profile_picture}
+                          alt=""
+                          className="w-7 h-7 rounded-full object-cover"
+                        />
+                      </button>
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs font-bold">
+                          {member.first_name?.[0]}{member.last_name?.[0]}
+                        </span>
+                      </div>
+                    )}
+                    {member.first_name} {member.last_name}
+                    {isDeactivated && (
+                      <span className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
+                        Deactivated
+                      </span>
+                    )}
+                    {(member.pending_address || member.pending_phone_number) && (
+                      <button
+                        type="button"
+                        onClick={() => setReviewingContact(member)}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wide cursor-pointer hover:bg-amber-100 transition-colors"
+                        title="Review contact info change"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Pending Update
+                      </button>
+                    )}
+                  </div>
+                </td>
+                <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.email}</td>
+                <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.position_title || '—'}</td>
+                <td className={`px-4 py-3 ${isDeactivated ? 'opacity-60' : ''}`}>
+                  {canManageRoles && member.role !== 'practitioner' ? (
+                    <select
+                      value={member.role_id || ''}
+                      onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                      disabled={updatingId === member.id}
+                      className={`text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'} ${updatingId === member.id ? 'opacity-50 cursor-wait' : ''}`}
+                    >
+                      <option value="" disabled>Select a role...</option>
+                      {roles.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className={`inline-block text-xs font-semibold border rounded-md px-2 py-1 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                      {member.role_name || ROLE_LABELS[member.role] || member.role}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {member.role === 'practitioner' && (
+                        <button
+                          onClick={() => handleOpenChat(member)}
+                          className={`relative p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            openChatMember?.id === member.id
+                              ? 'text-blue-600 bg-blue-50'
+                              : 'text-slate-700 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
+                          title="Message practitioner"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          {unreadByPractitioner[member.id] > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                            </span>
+                          )}
+                        </button>
+                      )}
+                      {member.is_pending_activation && (canManageRoles || hasPermission('register_new_user')) && (
+                        <button
+                          onClick={() => handleResendInvite(member.id)}
+                          disabled={resendingId === member.id}
+                          className="p-1.5 rounded-lg text-slate-700 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40 cursor-pointer"
+                          title="Resend activation link"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </button>
+                      )}
+                      {/* Mirrors updateStaffProfile's backend rule: editing
+                          needs staff_directory_edit, and without
+                          staff_directory_edit_role only Practitioner
+                          accounts may be edited. */}
+                      {canEditStaff && (canManageRoles || member.role === 'practitioner') && (
+                        <button
+                          onClick={() => handleOpenEdit(member)}
+                          className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                          title="Edit profile"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      )}
+                      {canDeactivateThis && (
+                        isDeactivated ? (
+                          <button
+                            onClick={() => handleReactivate(member.id)}
+                            disabled={reactivatingId === member.id}
+                            className="p-1.5 rounded-lg text-slate-700 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40 cursor-pointer"
+                            title="Reactivate user"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 12a7.5 7.5 0 0113-5.1M19.5 12a7.5 7.5 0 01-13 5.1M4.5 5v3h3M19.5 19v-3h-3" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDelete(member)}
+                            disabled={deletingId === member.id}
+                            className="p-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
+                            title="Deactivate user"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.6 5.6l12.8 12.8" />
+                            </svg>
+                          </button>
+                        )
+                      )}
+                    </div>
+                </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
+  );
 
   return (
     <div className="space-y-6">
 
       {/* ── TAB SWITCHER ── */}
       <div className="inline-flex items-center gap-1 p-1 bg-slate-200 rounded-xl shadow-inner">
+        {hasPermission('staff_directory_view') && (
         <button
           onClick={() => setActiveTab('roster')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
@@ -526,6 +724,23 @@ export const RegisterPractitionerForm = () => {
           </svg>
           Staff Roster
         </button>
+        )}
+        {(hasPermission('staff_directory_view') || hasPermission('practitioner_manage')) && (
+        <button
+          onClick={() => setActiveTab('practitioners')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === 'practitioners'
+              ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-teal-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <svg className={`w-4 h-4 ${activeTab === 'practitioners' ? 'text-teal-600' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8L2 22M17.5 15H9" />
+          </svg>
+          Practitioners
+        </button>
+        )}
         <button
           onClick={() => setActiveTab('register')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
@@ -628,7 +843,7 @@ export const RegisterPractitionerForm = () => {
               <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                {Object.entries(ROLE_LABELS).filter(([key]) => key !== 'practitioner').map(([key, label]) => (
                   <SelectItem key={key} value={key}>{label}</SelectItem>
                 ))}
               </SelectContent>
@@ -636,176 +851,68 @@ export const RegisterPractitionerForm = () => {
           </div>
         </div>
 
-        {loadingStaff ? (
-          <div className="p-8 text-center text-sm text-slate-400">Loading staff...</div>
-        ) : visibleStaff.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-400">
-            {staffSearch.trim() || roleFilter !== 'all'
-              ? 'No staff match your search or filters.'
-              : statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.'}
+        {renderStaffTable(
+          visibleStaff,
+          staffSearch.trim() || roleFilter !== 'all'
+            ? 'No staff match your search or filters.'
+            : statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.'
+        )}
+      </div>
+      )}
+
+      {/* ── SECTION 1B: PRACTITIONERS ── */}
+      {activeTab === 'practitioners' && (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8L2 22M17.5 15H9" />
+            </svg>
+            <h2 className="text-base font-bold text-slate-800">Practitioners</h2>
+
+            <div className="ml-auto flex items-center gap-1 bg-slate-200 rounded-lg p-1 shadow-inner">
+              {[
+                { key: 'active', label: 'Active', dot: 'bg-emerald-500', text: 'text-emerald-700', ring: 'ring-emerald-500/25' },
+                { key: 'deactivated', label: 'Deactivated', dot: 'bg-rose-500', text: 'text-rose-700', ring: 'ring-rose-500/25' },
+                { key: 'all', label: 'All', dot: 'bg-blue-500', text: 'text-blue-700', ring: 'ring-blue-500/25' },
+              ].map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => setStatusFilter(opt.key)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                    statusFilter === opt.key
+                      ? `bg-white ${opt.text} shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ${opt.ring}`
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === opt.key ? opt.dot : 'bg-slate-400'}`} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-slate-400 font-medium">{visiblePractitioners.length} practitioner{visiblePractitioners.length !== 1 ? 's' : ''}</span>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
-                  {/* Actions column — anyone who can reach this screen is office
-                      staff (it needs staff_directory_view), so the column always
-                      renders; each button inside is permission-gated on its own. */}
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {visibleStaff.map(member => {
-                  const isDeactivated = member.is_active === false;
-                  return (
-                  <tr key={member.id} className="hover:bg-slate-50 transition-colors">
-                    <td className={`px-6 py-3 font-medium text-slate-800 ${isDeactivated ? 'opacity-60' : ''}`}>
-                      <div className="flex items-center gap-2">
-                        {member.profile_picture ? (
-                          <button
-                            type="button"
-                            onClick={() => setViewingPhoto({ url: member.profile_picture, name: `${member.first_name} ${member.last_name}` })}
-                            className="w-7 h-7 rounded-full flex-shrink-0 cursor-pointer ring-offset-1 hover:ring-2 hover:ring-blue-400 transition-all"
-                            title="View photo"
-                          >
-                            <img
-                              src={member.profile_picture}
-                              alt=""
-                              className="w-7 h-7 rounded-full object-cover"
-                            />
-                          </button>
-                        ) : (
-                          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-xs font-bold">
-                              {member.first_name?.[0]}{member.last_name?.[0]}
-                            </span>
-                          </div>
-                        )}
-                        {member.first_name} {member.last_name}
-                        {isDeactivated && (
-                          <span className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
-                            Deactivated
-                          </span>
-                        )}
-                        {(member.pending_address || member.pending_phone_number) && (
-                          <button
-                            type="button"
-                            onClick={() => setReviewingContact(member)}
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wide cursor-pointer hover:bg-amber-100 transition-colors"
-                            title="Review contact info change"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            Pending Update
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.email}</td>
-                    <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.position_title || '—'}</td>
-                    <td className={`px-4 py-3 ${isDeactivated ? 'opacity-60' : ''}`}>
-                      {canManageRoles && member.role !== 'practitioner' ? (
-                        <select
-                          value={member.role_id || ''}
-                          onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                          disabled={updatingId === member.id}
-                          className={`text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'} ${updatingId === member.id ? 'opacity-50 cursor-wait' : ''}`}
-                        >
-                          <option value="" disabled>Select a role...</option>
-                          {roles.map(r => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className={`inline-block text-xs font-semibold border rounded-md px-2 py-1 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                          {member.role_name || ROLE_LABELS[member.role] || member.role}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {member.role === 'practitioner' && (
-                            <button
-                              onClick={() => handleOpenChat(member)}
-                              className={`relative p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                openChatMember?.id === member.id
-                                  ? 'text-blue-600 bg-blue-50'
-                                  : 'text-slate-700 hover:text-blue-600 hover:bg-blue-50'
-                              }`}
-                              title="Message practitioner"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                              {unreadByPractitioner[member.id] > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
-                                </span>
-                              )}
-                            </button>
-                          )}
-                          {member.is_pending_activation && (canManageRoles || hasPermission('register_new_user')) && (
-                            <button
-                              onClick={() => handleResendInvite(member.id)}
-                              disabled={resendingId === member.id}
-                              className="p-1.5 rounded-lg text-slate-700 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40 cursor-pointer"
-                              title="Resend activation link"
-                            >
-                              <Mail className="w-4 h-4" />
-                            </button>
-                          )}
-                          {/* Mirrors updateStaffProfile's backend rule: editing
-                              needs staff_directory_edit, and without
-                              staff_directory_edit_role only Practitioner
-                              accounts may be edited. */}
-                          {canEditStaff && (canManageRoles || member.role === 'practitioner') && (
-                            <button
-                              onClick={() => handleOpenEdit(member)}
-                              className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                              title="Edit profile"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                          )}
-                          {canManageRoles && (
-                            isDeactivated ? (
-                              <button
-                                onClick={() => handleReactivate(member.id)}
-                                disabled={reactivatingId === member.id}
-                                className="p-1.5 rounded-lg text-slate-700 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40 cursor-pointer"
-                                title="Reactivate user"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 12a7.5 7.5 0 0113-5.1M19.5 12a7.5 7.5 0 01-13 5.1M4.5 5v3h3M19.5 19v-3h-3" />
-                                </svg>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => setConfirmDelete(member)}
-                                disabled={deletingId === member.id}
-                                className="p-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 cursor-pointer"
-                                title="Deactivate user"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <circle cx="12" cy="12" r="9" strokeWidth={2} />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.6 5.6l12.8 12.8" />
-                                </svg>
-                              </button>
-                            )
-                          )}
-                        </div>
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[220px] max-w-sm">
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search by name, email, or position..."
+                className="pl-9"
+                value={staffSearch}
+                onChange={(e) => setStaffSearch(e.target.value)}
+              />
+            </div>
           </div>
+        </div>
+
+        {renderStaffTable(
+          visiblePractitioners,
+          staffSearch.trim()
+            ? 'No practitioners match your search.'
+            : statusFilter === 'deactivated' ? 'No deactivated practitioners.' : statusFilter === 'active' ? 'No active practitioners.' : 'No practitioners registered yet.'
         )}
       </div>
       )}

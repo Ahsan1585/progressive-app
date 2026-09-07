@@ -127,6 +127,17 @@ const requirePermission = (key) => (req, res, next) => {
   return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
 };
 
+// Passes if the caller holds ANY one of the given keys — e.g. GET /staff is
+// useful to both a general staff_directory_view holder and a role scoped
+// down to just practitioner_manage (who still needs to see the list to act
+// on it, but shouldn't need the broader view permission granted too).
+const requireAnyPermission = (...keys) => (req, res, next) => {
+  if (req.isAdmin || keys.some((key) => req.permissions?.has(key))) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+};
+
 const requireOfficeStaff = (req, res, next) => {
   if (req.practitioner?.role === 'practitioner') {
     return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
@@ -142,4 +153,4 @@ const requireRole = (allowedRoles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect, requireRole, loadPermissions, requirePermission, requireOfficeStaff };
+module.exports = { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireOfficeStaff };

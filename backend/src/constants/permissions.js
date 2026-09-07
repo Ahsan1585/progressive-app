@@ -1,13 +1,20 @@
 // backend/src/constants/permissions.js
 //
-// The fixed 13-key permission catalog for Phase 2's role system. Adding a
+// The fixed 14-key permission catalog for Phase 2's role system. Adding a
 // new permission key requires updating this list AND adding a matching
 // requirePermission(...) call at whatever route it's meant to guard —
 // neither alone is sufficient.
 const PERMISSION_KEYS = [
   'staff_directory_view',
   'staff_directory_edit',
+  // Deliberately separate from staff_directory_edit_role: that key also
+  // grants changing an office-staff member's role (including promoting to
+  // Admin) and deactivating/reactivating them, which a role scoped to just
+  // "manage practitioners" (e.g. Program Coordinator) shouldn't get for
+  // free. Checked in authController.js's deleteStaffMember/
+  // reactivateStaffMember for a target whose role is 'practitioner'.
   'staff_directory_edit_role',
+  'practitioner_manage',
   'register_new_user',
   'master_reports',
   'billing_pending',

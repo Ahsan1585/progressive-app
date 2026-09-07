@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-const { protect, requireRole, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
+const { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission } = require('../middleware/authMiddleware');
 const { resolveTenantBySlug } = require('../middleware/tenantMiddleware');
 
 // Throttle login attempts to slow brute-force / credential-stuffing (HIPAA §164.308(a)(5))
@@ -77,21 +77,26 @@ router.post('/staff/:id/resend-invite', protect, loadPermissions, requirePermiss
 router.post('/staff/bulk-import/preview', protect, loadPermissions, requirePermission('register_new_user'), previewPractitionerImport);
 router.post('/staff/bulk-import/confirm', protect, loadPermissions, requirePermission('register_new_user'), confirmPractitionerImport);
 
-// View all staff (staff_directory_view)
-router.get('/staff', protect, loadPermissions, requirePermission('staff_directory_view'), getAllStaff);
+// View all staff (staff_directory_view, or practitioner_manage alone — a
+// role scoped to just managing practitioners still needs to see the list)
+router.get('/staff', protect, loadPermissions, requireAnyPermission('staff_directory_view', 'practitioner_manage'), getAllStaff);
 
 // Edit a staff member's profile (staff_directory_edit; controller restricts
 // non-role-editors to Practitioner-role targets)
 router.patch('/staff/:id', protect, loadPermissions, requirePermission('staff_directory_edit'), updateStaffProfile);
 
-// Change a staff member's role (staff_directory_edit_role)
+// Change a staff member's role (staff_directory_edit_role) — practitioners
+// don't have a role_id to change, so this one stays single-permission.
 router.patch('/staff/:id/role', protect, loadPermissions, requirePermission('staff_directory_edit_role'), updateStaffRole);
 
-// Delete a staff member (staff_directory_edit_role)
-router.delete('/staff/:id', protect, loadPermissions, requirePermission('staff_directory_edit_role'), deleteStaffMember);
+// Delete (deactivate) a staff member. Gate is target-dependent — a
+// practitioner only needs practitioner_manage; an office-staff/Admin target
+// still needs the broader staff_directory_edit_role — so the actual check
+// happens inside the controller once it knows the target's role.
+router.delete('/staff/:id', protect, loadPermissions, deleteStaffMember);
 
-// Reactivate a deactivated staff member (staff_directory_edit_role)
-router.patch('/staff/:id/reactivate', protect, loadPermissions, requirePermission('staff_directory_edit_role'), reactivateStaffMember);
+// Reactivate a deactivated staff member — same target-dependent gate as delete.
+router.patch('/staff/:id/reactivate', protect, loadPermissions, reactivateStaffMember);
 
 // Accept or reject a practitioner's self-submitted contact info change
 // (staff_directory_edit — same tier as editing staff profiles)

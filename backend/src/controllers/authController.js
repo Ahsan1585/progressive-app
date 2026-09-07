@@ -634,12 +634,29 @@ const updateStaffRole = async (req, res) => {
   }
 };
 
+// Deactivating a practitioner only needs practitioner_manage; deactivating
+// an office-staff/Admin account still needs the broader
+// staff_directory_edit_role — checked here (not at the route) since it
+// depends on which the target actually is.
+function canManageTarget(req, targetRole) {
+  if (req.isAdmin) return true;
+  if (targetRole === 'practitioner') {
+    return req.permissions.has('practitioner_manage') || req.permissions.has('staff_directory_edit_role');
+  }
+  return req.permissions.has('staff_directory_edit_role');
+}
+
 const deleteStaffMember = async (req, res) => {
   try {
     const { id } = req.params;
     const requesterId = req.practitioner.practitionerId;
     if (String(id) === String(requesterId)) {
       return res.status(400).json({ error: 'You cannot delete your own account.' });
+    }
+    const { rows: targetRows } = await pool.query('SELECT role FROM practitioners WHERE id = $1', [id]);
+    if (!targetRows[0]) return res.status(404).json({ error: 'Account not found.' });
+    if (!canManageTarget(req, targetRows[0].role)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
     }
     // Same last-Admin rail as updateStaffRole — deactivating the only remaining
     // active Admin would leave the agency with no full-access account.
@@ -658,6 +675,11 @@ const deleteStaffMember = async (req, res) => {
 const reactivateStaffMember = async (req, res) => {
   try {
     const { id } = req.params;
+    const { rows: targetRows } = await pool.query('SELECT role FROM practitioners WHERE id = $1', [id]);
+    if (!targetRows[0]) return res.status(404).json({ error: 'Account not found.' });
+    if (!canManageTarget(req, targetRows[0].role)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+    }
     await pool.query('UPDATE practitioners SET is_active = true WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {

@@ -11,7 +11,7 @@ import { showAlert, showConfirm } from '@/utils/dialogStore';
 const PERMISSION_GROUPS = [
   {
     label: 'Staff Directory',
-    keys: ['staff_directory_view', 'staff_directory_edit', 'staff_directory_edit_role', 'register_new_user'],
+    keys: ['staff_directory_view', 'staff_directory_edit', 'staff_directory_edit_role', 'practitioner_manage', 'register_new_user'],
   },
   {
     label: 'Billing & Invoices',
@@ -35,6 +35,7 @@ const PERMISSION_LABELS = {
   staff_directory_view: 'View staff directory',
   staff_directory_edit: 'Edit staff profiles',
   staff_directory_edit_role: 'Manage roles & staff access',
+  practitioner_manage: 'Deactivate & reactivate practitioners',
   register_new_user: 'Register new users',
   billing_pending: 'Pending bills',
   billing_completed: 'Completed bills',
