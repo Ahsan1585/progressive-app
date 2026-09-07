@@ -1,6 +1,7 @@
 const { readWorkbookFromBuffer, findHeaderRow } = require('../utils/excelSheet');
 const { TARGET_FIELDS, suggestMapping, resolvePositionTitle, resolveServiceTypes } = require('../constants/practitionerImportMapping');
 const { insertInvitedPractitioner, getValidServiceTypeCodes } = require('../utils/practitionerRegistration');
+const { pool } = require('../config/db');
 
 // Staff Directory's bulk practitioner import: upload an Excel roster once
 // (previewPractitionerImport), confirm/adjust the column mapping, then
@@ -103,6 +104,36 @@ const confirmPractitionerImport = async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
     const slug = req.practitioner.slug;
 
+    // Upfront duplicate check, once, instead of one SELECT per row inside
+    // the insert loop: (1) every email already registered in this tenant's
+    // practitioners table (case-insensitive, matching insertInvitedPractitioner's
+    // own normalization), and (2) any email repeated more than once within
+    // this same file — the second (and later) occurrence is reported as an
+    // in-file duplicate rather than a confusing "already registered", since
+    // nothing was registered yet when this file was uploaded.
+    const emailCol = colIndex.email;
+    const seenEmails = new Set();
+    const duplicateEmailsInFile = new Set();
+    for (let r = rowNumber + 1; r <= sheet.rowCount; r++) {
+      const raw = emailCol ? cellToText(sheet.getRow(r).getCell(emailCol).value) : null;
+      if (!raw) continue;
+      const normalized = raw.trim().toLowerCase();
+      if (seenEmails.has(normalized)) duplicateEmailsInFile.add(normalized);
+      seenEmails.add(normalized);
+    }
+    let alreadyRegisteredEmails = new Set();
+    if (seenEmails.size > 0) {
+      const { rows: existingRows } = await pool.query(
+        'SELECT email FROM practitioners WHERE LOWER(email) = ANY($1::text[])',
+        [[...seenEmails]]
+      );
+      alreadyRegisteredEmails = new Set(existingRows.map((r) => r.email.toLowerCase()));
+    }
+    // Only the SECOND-and-later occurrence of a repeated email is flagged as
+    // an in-file duplicate — the first occurrence is a normal candidate row
+    // (it may still fail on other grounds, but not on this one).
+    const emailOccurrenceSeen = new Set();
+
     const created = [];
     const skipped = [];
 
@@ -138,6 +169,18 @@ const confirmPractitionerImport = async (req, res) => {
       if (!firstName || !lastName || !email) {
         skipped.push({ row: rowLabel, reason: 'Missing first name, last name, or email.', data: rawData });
         continue;
+      }
+      const normalizedEmail = email.trim().toLowerCase();
+      if (alreadyRegisteredEmails.has(normalizedEmail)) {
+        skipped.push({ row: rowLabel, reason: `This email is already registered: "${email}".`, data: rawData });
+        continue;
+      }
+      if (duplicateEmailsInFile.has(normalizedEmail)) {
+        if (emailOccurrenceSeen.has(normalizedEmail)) {
+          skipped.push({ row: rowLabel, reason: `Duplicate email within this file: "${email}" appears more than once — only the first occurrence was kept as a candidate.`, data: rawData });
+          continue;
+        }
+        emailOccurrenceSeen.add(normalizedEmail);
       }
       const payRate = parseFloat(payRateRaw);
       // practitioners.pay_rate is numeric(10,2) — anything at or beyond
