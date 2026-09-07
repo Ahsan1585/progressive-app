@@ -1,0 +1,13 @@
+-- Tracks the last time an activation invite email actually went out for a
+-- practitioner — distinct from account creation, since registration
+-- (single-add and bulk import) now defers sending until the admin
+-- explicitly asks (see backend/src/utils/practitionerRegistration.js's
+-- insertInvitedPractitioner sendEmail param). Without this column there was
+-- no durable way to tell "created but never emailed" apart from "emailed
+-- once" — both looked identical (is_active/password_hash/reset_token_expires
+-- are set the same way either way).
+--
+-- NULL means no invite has ever been sent. Set every time one goes out:
+-- initial creation (when sendEmail: true), a bulk-import selective send, or
+-- a manual resend from the roster's existing resend-invite button.
+ALTER TABLE practitioners ADD COLUMN IF NOT EXISTS invite_sent_at timestamptz;

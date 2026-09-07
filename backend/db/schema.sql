@@ -50,6 +50,7 @@ CREATE TABLE practitioners (
   is_active boolean NOT NULL DEFAULT true,
   service_types text[] DEFAULT '{}'::text[],
   profile_picture text,
+  invite_sent_at timestamptz,
   PRIMARY KEY (id),
   CONSTRAINT practitioners_email_key UNIQUE (email),
   -- Phase 2 collapsed the 3 fine-grained office-staff values into the single

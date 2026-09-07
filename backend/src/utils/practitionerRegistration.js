@@ -90,6 +90,7 @@ async function insertInvitedPractitioner({
 
     try {
       await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
+      await pool.query('UPDATE practitioners SET invite_sent_at = now() WHERE id = $1', [practitioner.id]);
     } catch (emailError) {
       console.error('Failed to send account invite email:', emailError);
     }

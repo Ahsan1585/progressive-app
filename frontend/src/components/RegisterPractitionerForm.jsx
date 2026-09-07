@@ -308,6 +308,7 @@ export const RegisterPractitionerForm = () => {
     setResendingId(id);
     try {
       await api.post(`/api/auth/staff/${id}/resend-invite`);
+      setStaffList(prev => prev.map(s => s.id === id ? { ...s, invite_sent_at: new Date().toISOString() } : s));
       showAlert('A new activation link has been sent.');
     } catch (err) {
       showAlert(err.response?.data?.error || 'Failed to resend the activation link.');
@@ -439,6 +440,7 @@ export const RegisterPractitionerForm = () => {
           if (shouldSend) {
             try {
               await api.post(`/api/auth/staff/${newId}/resend-invite`);
+              setStaffList(prev => prev.map(s => s.id === newId ? { ...s, invite_sent_at: new Date().toISOString() } : s));
               showAlert('Activation invite sent.');
             } catch (err) {
               showAlert(err.response?.data?.error || 'Failed to send the activation invite.');
@@ -644,6 +646,8 @@ export const RegisterPractitionerForm = () => {
       const succeededIds = targets.filter((_, i) => results[i].status === 'fulfilled');
       const failedCount = results.length - succeededIds.length;
       setBulkInvitedIds((prev) => new Set([...prev, ...succeededIds]));
+      const succeededIdSet = new Set(succeededIds);
+      setStaffList((prev) => prev.map((s) => (succeededIdSet.has(s.id) ? { ...s, invite_sent_at: new Date().toISOString() } : s)));
       if (failedCount > 0) {
         setBulkError(`Sent ${succeededIds.length} invite${succeededIds.length === 1 ? '' : 's'}, but ${failedCount} failed — try those again.`);
       }
@@ -736,6 +740,19 @@ export const RegisterPractitionerForm = () => {
                     {isDeactivated && (
                       <span className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
                         Deactivated
+                      </span>
+                    )}
+                    {/* invite_sent_at is set only when an activation email has
+                        actually gone out (registration used to email
+                        immediately; now it's deferred until the admin
+                        explicitly sends it) — a Pending Activation account
+                        with no invite_sent_at was created but never invited. */}
+                    {member.is_pending_activation && !member.invite_sent_at && (
+                      <span
+                        className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-orange-50 text-orange-700 border-orange-200 uppercase tracking-wide"
+                        title="This account was created but no activation email has been sent yet"
+                      >
+                        Not Yet Invited
                       </span>
                     )}
                     {(member.pending_address || member.pending_phone_number) && (
