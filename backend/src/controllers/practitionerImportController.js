@@ -136,8 +136,11 @@ const confirmPractitionerImport = async (req, res) => {
         continue;
       }
       const payRate = parseFloat(payRateRaw);
-      if (!payRateRaw || Number.isNaN(payRate) || payRate < 0) {
-        skipped.push({ row: rowLabel, reason: 'Missing or invalid hourly pay rate.' });
+      // practitioners.pay_rate is numeric(10,2) — anything at or beyond
+      // 10^8 overflows that column and previously threw a raw Postgres
+      // error that aborted the whole batch instead of just this row.
+      if (!payRateRaw || Number.isNaN(payRate) || payRate < 0 || payRate >= 100000000) {
+        skipped.push({ row: rowLabel, reason: `Missing or invalid hourly pay rate: "${payRateRaw || ''}".` });
         continue;
       }
       const positionTitle = resolvePositionTitle(positionTitleRaw);

@@ -44,7 +44,10 @@ const provisionPractitioner = async (req, res) => {
   const isPractitionerRegistration = role === 'practitioner';
 
   try {
-    if (isPractitionerRegistration && !isOfficeStaff && (!payRate || isNaN(payRate))) {
+    // practitioners.pay_rate is numeric(10,2) — anything at or beyond 10^8
+    // overflows that column and would otherwise surface as a raw Postgres
+    // error instead of a normal validation message.
+    if (isPractitionerRegistration && !isOfficeStaff && (!payRate || isNaN(payRate) || payRate < 0 || payRate >= 100000000)) {
       return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
     }
 
@@ -524,8 +527,9 @@ const updateStaffProfile = async (req, res) => {
     if (ssn) addSet('ssn', ssn.trim());
 
     if (payRate !== undefined && payRate !== '') {
-      if (isNaN(payRate)) return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
-      addSet('pay_rate', parseFloat(payRate));
+      const parsedPayRate = parseFloat(payRate);
+      if (isNaN(payRate) || parsedPayRate < 0 || parsedPayRate >= 100000000) return res.status(400).json({ error: 'A valid hourly pay rate is required.' });
+      addSet('pay_rate', parsedPayRate);
     }
 
     if (service_types !== undefined) {
