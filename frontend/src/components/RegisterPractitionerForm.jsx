@@ -550,12 +550,31 @@ export const RegisterPractitionerForm = () => {
   // checklist widgets expect: a label that's actually one of the 8 options,
   // and an array of valid codes. Anything that doesn't match starts blank
   // rather than silently keeping unparseable raw text in a controlled input.
+  // Resolves the raw, unresolved "Service Type(s)" text the backend
+  // captured for a skipped row (e.g. "Speech Therapy, Team Meetings" — the
+  // sheet's own labels/codes joined with commas, not yet matched against
+  // this tenant's dropdown) into a set of valid codes to pre-check in the
+  // fix-up form. Without this, a row skipped for an unrelated reason (an
+  // over-length phone number, say) would silently lose its perfectly valid
+  // service-type selections, forcing the admin to re-pick them by hand.
+  const resolveRawServiceTypes = (raw) => {
+    if (!raw) return [];
+    const norm = (s) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+    const tokens = String(raw).split(/[,;]/).map((t) => t.trim()).filter(Boolean);
+    const codes = [];
+    for (const token of tokens) {
+      const match = SERVICE_TYPE_OPTIONS.find((o) => norm(o.code) === norm(token) || norm(o.label) === norm(token));
+      if (match) codes.push(match.code);
+    }
+    return [...new Set(codes)];
+  };
+
   const seedBulkFixup = (skip, batchRowIndex) => {
     const d = skip.data || {};
     const positionTitle = DISCIPLINE_OPTIONS.includes(d.positionTitle) ? d.positionTitle : '';
     const serviceTypes = Array.isArray(d.serviceTypes)
       ? d.serviceTypes.filter((c) => SERVICE_TYPE_OPTIONS.some((o) => o.code === c))
-      : [];
+      : resolveRawServiceTypes(d.serviceTypes);
     return {
       reason: skip.reason,
       firstName: d.firstName || '', lastName: d.lastName || '', email: d.email || '',
