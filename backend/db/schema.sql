@@ -61,6 +61,21 @@ CREATE TABLE practitioners (
 );
 ALTER SEQUENCE practitioners_id_seq OWNED BY practitioners.id;
 
+-- bulk_import_batches: FK -> practitioners. Persists a bulk practitioner
+-- import's skipped rows so an admin can resume fixing them after leaving
+-- the Bulk Register tab or refreshing the page (see
+-- backend/db/migrations/add_bulk_import_batches.sql for the full rationale).
+CREATE TABLE bulk_import_batches (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_by integer REFERENCES practitioners(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  file_name text,
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved', 'discarded')),
+  skipped_rows jsonb NOT NULL DEFAULT '[]'::jsonb
+);
+CREATE INDEX idx_bulk_import_batches_status ON bulk_import_batches (status);
+
 -- patients: FK -> practitioners
 CREATE SEQUENCE patients_id_seq;
 CREATE TABLE patients (

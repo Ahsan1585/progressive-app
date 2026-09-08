@@ -21,6 +21,7 @@ const MIGRATIONS = [
   'add_telepractice_signature_requests.sql',
   'add_practitioner_manage_permission.sql',
   'add_invite_sent_at.sql',
+  'add_bulk_import_batches.sql',
 ];
 
 module.exports = { MIGRATIONS };

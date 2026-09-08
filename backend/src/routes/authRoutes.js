@@ -47,6 +47,8 @@ const {
   previewPractitionerImport,
   confirmPractitionerImport,
   retryPractitionerImportRows,
+  getOpenBulkImportBatch,
+  updateBulkImportBatch,
 } = require('../controllers/practitionerImportController');
 
 // Throttle account activation attempts the same way as login/reset —
@@ -80,6 +82,12 @@ router.post('/staff/bulk-import/confirm', protect, loadPermissions, requirePermi
 // The results screen's fix-up table for skipped rows — same permission,
 // no file re-parse (the admin's corrected values are sent directly).
 router.post('/staff/bulk-import/retry', protect, loadPermissions, requirePermission('register_new_user'), retryPractitionerImportRows);
+
+// Resumable-batch support — an unresolved import's skipped rows persist
+// past a page refresh/navigation-away. Same permission as the rest of bulk
+// import throughout.
+router.get('/staff/bulk-import/batches/open', protect, loadPermissions, requirePermission('register_new_user'), getOpenBulkImportBatch);
+router.patch('/staff/bulk-import/batches/:id', protect, loadPermissions, requirePermission('register_new_user'), updateBulkImportBatch);
 
 // View all staff (staff_directory_view, or practitioner_manage alone — a
 // role scoped to just managing practitioners still needs to see the list)

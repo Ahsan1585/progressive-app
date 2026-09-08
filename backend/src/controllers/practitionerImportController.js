@@ -70,7 +70,7 @@ const previewPractitionerImport = async (req, res) => {
 // batch. ---
 const confirmPractitionerImport = async (req, res) => {
   try {
-    const { fileBase64, mapping } = req.body;
+    const { fileBase64, mapping, fileName } = req.body;
     if (!fileBase64) return res.status(400).json({ error: 'fileBase64 is required' });
     if (!mapping || typeof mapping !== 'object') return res.status(400).json({ error: 'mapping is required' });
 
@@ -230,10 +230,83 @@ const confirmPractitionerImport = async (req, res) => {
       await sleep(600);
     }
 
-    res.json({ success: true, created, skipped });
+    // Persist skipped rows as a resumable batch so they survive a page
+    // refresh/navigation-away instead of only living in the results
+    // screen's React state. No batch is created when there's nothing to
+    // resume (every row either registered or was silently blank).
+    let batchId = null;
+    if (skipped.length > 0) {
+      const skippedForStorage = skipped.map((s) => ({ ...s, dismissed: false }));
+      const { rows: batchRows } = await pool.query(
+        `INSERT INTO bulk_import_batches (created_by, file_name, status, skipped_rows)
+         VALUES ($1, $2, 'open', $3::jsonb) RETURNING id`,
+        [req.practitioner.id, fileName || null, JSON.stringify(skippedForStorage)]
+      );
+      batchId = batchRows[0].id;
+    }
+
+    res.json({ success: true, created, skipped, batchId });
   } catch (error) {
     console.error('Error confirming practitioner bulk import:', error);
     res.status(500).json({ error: 'Failed to process this file.' });
+  }
+};
+
+// --- Whether this tenant has an unresolved import batch to resume, and if
+// so, its skipped rows — used by the Bulk Register tab's resume banner,
+// checked once on mount instead of the admin having to remember an import
+// was left unfinished. Only ever the most recent open batch; if an admin
+// somehow has more than one abandoned batch, the others stay in the table
+// (discoverable via a DB query) but aren't surfaced — one active resume
+// target at a time keeps this simple. ---
+const getOpenBulkImportBatch = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, created_at, file_name, skipped_rows FROM bulk_import_batches
+       WHERE status = 'open' ORDER BY created_at DESC LIMIT 1`
+    );
+    res.json({ batch: rows[0] || null });
+  } catch (error) {
+    console.error('Error fetching open bulk import batch:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// --- Dismiss one row (by its position in skipped_rows) without registering
+// it, or discard the whole batch outright. Either way, re-checks whether
+// the batch is now fully resolved (every row registered-away or dismissed)
+// and flips status accordingly. ---
+const updateBulkImportBatch = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, rowIndex } = req.body; // action: 'dismissRow' | 'discard'
+
+    const { rows } = await pool.query('SELECT skipped_rows FROM bulk_import_batches WHERE id = $1 AND status = $2', [id, 'open']);
+    const batch = rows[0];
+    if (!batch) return res.status(404).json({ error: 'No open import batch found with that id.' });
+
+    if (action === 'discard') {
+      await pool.query(`UPDATE bulk_import_batches SET status = 'discarded', updated_at = now() WHERE id = $1`, [id]);
+      return res.json({ success: true, status: 'discarded' });
+    }
+
+    if (action === 'dismissRow') {
+      if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= batch.skipped_rows.length) {
+        return res.status(400).json({ error: 'Invalid rowIndex.' });
+      }
+      const nextRows = batch.skipped_rows.map((r, i) => (i === rowIndex ? { ...r, dismissed: true } : r));
+      const stillOpen = nextRows.some((r) => !r.dismissed);
+      await pool.query(
+        `UPDATE bulk_import_batches SET skipped_rows = $1::jsonb, status = $2, updated_at = now() WHERE id = $3`,
+        [JSON.stringify(nextRows), stillOpen ? 'open' : 'resolved', id]
+      );
+      return res.json({ success: true, status: stillOpen ? 'open' : 'resolved', skipped_rows: nextRows });
+    }
+
+    return res.status(400).json({ error: 'Unknown action.' });
+  } catch (error) {
+    console.error('Error updating bulk import batch:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
@@ -249,7 +322,7 @@ const confirmPractitionerImport = async (req, res) => {
 // every other registration path already applies. ---
 const retryPractitionerImportRows = async (req, res) => {
   try {
-    const { rows } = req.body;
+    const { rows, batchId } = req.body;
     if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'rows is required' });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
@@ -258,6 +331,11 @@ const retryPractitionerImportRows = async (req, res) => {
 
     const created = [];
     const skipped = [];
+    // batchRowIndex, when present on a row (the persisted-batch resume flow
+    // sends it), identifies that row's position in the batch's own
+    // skipped_rows array — tracked separately from this loop's own index
+    // since a row can be dropped (blank/etc.) without shifting the others.
+    const registeredBatchRowIndexes = new Set();
 
     for (const row of rows) {
       const { firstName, lastName, email, payRate: payRateRaw, positionTitle, address, phoneNumber, ssn } = row;
@@ -298,9 +376,28 @@ const retryPractitionerImportRows = async (req, res) => {
         continue;
       }
       created.push(result.practitioner);
+      if (Number.isInteger(row.batchRowIndex)) registeredBatchRowIndexes.add(row.batchRowIndex);
 
       // Same rate-limit-friendly pacing as the main confirm loop.
       await sleep(600);
+    }
+
+    // A row successfully registered here is removed from the persisted
+    // batch entirely (not marked dismissed — it's not being skipped, it's
+    // done); anything still in the array either failed again or was never
+    // part of this batch to begin with. The batch resolves once every
+    // remaining row is dismissed (registering removes rows outright, so an
+    // empty remainder after filtering dismissed ones also counts as resolved).
+    if (batchId && registeredBatchRowIndexes.size > 0) {
+      const { rows: batchRows } = await pool.query('SELECT skipped_rows FROM bulk_import_batches WHERE id = $1 AND status = $2', [batchId, 'open']);
+      if (batchRows[0]) {
+        const nextRows = batchRows[0].skipped_rows.filter((_, i) => !registeredBatchRowIndexes.has(i));
+        const stillOpen = nextRows.some((r) => !r.dismissed);
+        await pool.query(
+          `UPDATE bulk_import_batches SET skipped_rows = $1::jsonb, status = $2, updated_at = now() WHERE id = $3`,
+          [JSON.stringify(nextRows), stillOpen ? 'open' : 'resolved', batchId]
+        );
+      }
     }
 
     res.json({ success: true, created, skipped });
@@ -310,4 +407,7 @@ const retryPractitionerImportRows = async (req, res) => {
   }
 };
 
-module.exports = { previewPractitionerImport, confirmPractitionerImport, retryPractitionerImportRows };
+module.exports = {
+  previewPractitionerImport, confirmPractitionerImport, retryPractitionerImportRows,
+  getOpenBulkImportBatch, updateBulkImportBatch,
+};

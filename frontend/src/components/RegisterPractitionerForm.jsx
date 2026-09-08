@@ -163,12 +163,25 @@ export const RegisterPractitionerForm = () => {
   const [bulkSelectedForInvite, setBulkSelectedForInvite] = useState(new Set());
   const [bulkInvitedIds, setBulkInvitedIds] = useState(new Set());
   const [bulkIsSendingInvites, setBulkIsSendingInvites] = useState(false);
+  // An unresolved import from an earlier visit — checked once on mount so
+  // the Bulk Register tab can offer to resume it instead of the admin
+  // losing track of skipped rows they never got around to fixing.
+  // { id, created_at, file_name, skipped_rows } | null | undefined (undefined = still checking)
+  const [openBulkBatch, setOpenBulkBatch] = useState(undefined);
+  const [bulkBatchId, setBulkBatchId] = useState(null); // the batch this session's fix-up table is tied to, if any
+  const [bulkIsDiscardingBatch, setBulkIsDiscardingBatch] = useState(false);
 
   useEffect(() => {
     api.get('/api/auth/staff')
       .then(res => setStaffList(res.data.staff || []))
       .catch(() => {})
       .finally(() => setLoadingStaff(false));
+  }, []);
+
+  useEffect(() => {
+    api.get('/api/auth/staff/bulk-import/batches/open')
+      .then(res => setOpenBulkBatch(res.data.batch))
+      .catch(() => setOpenBulkBatch(null));
   }, []);
 
   useEffect(() => {
@@ -478,6 +491,13 @@ export const RegisterPractitionerForm = () => {
     setBulkFixups([]);
     setBulkSelectedForInvite(new Set());
     setBulkInvitedIds(new Set());
+    setBulkBatchId(null);
+    // Re-check for an open batch — resetBulkImport runs after "Done" too,
+    // and a Resume/edit session may have just fully resolved (or the admin
+    // may have started a fresh upload leaving the old one still open).
+    api.get('/api/auth/staff/bulk-import/batches/open')
+      .then(res => setOpenBulkBatch(res.data.batch))
+      .catch(() => {});
   };
 
   const handleBulkFileSelect = async (e) => {
@@ -530,7 +550,7 @@ export const RegisterPractitionerForm = () => {
   // checklist widgets expect: a label that's actually one of the 8 options,
   // and an array of valid codes. Anything that doesn't match starts blank
   // rather than silently keeping unparseable raw text in a controlled input.
-  const seedBulkFixup = (skip) => {
+  const seedBulkFixup = (skip, batchRowIndex) => {
     const d = skip.data || {};
     const positionTitle = DISCIPLINE_OPTIONS.includes(d.positionTitle) ? d.positionTitle : '';
     const serviceTypes = Array.isArray(d.serviceTypes)
@@ -542,7 +562,58 @@ export const RegisterPractitionerForm = () => {
       payRate: typeof d.payRate === 'number' ? String(d.payRate) : (d.payRate || ''),
       positionTitle, serviceTypes,
       address: d.address || '', phoneNumber: d.phoneNumber || '', ssn: d.ssn || '',
+      // Only present when this fix-up row came from a persisted batch
+      // (Resume) — tells /bulk-import/retry which entry to remove from the
+      // batch's own skipped_rows once this row registers successfully.
+      ...(Number.isInteger(batchRowIndex) ? { batchRowIndex } : {}),
     };
+  };
+
+  // Loads a previously-abandoned import's still-open skipped rows straight
+  // into the same fix-up table the normal Confirm flow already renders —
+  // same UI, just fed from a persisted batch instead of a fresh response.
+  const handleResumeBulkBatch = () => {
+    const openRows = openBulkBatch.skipped_rows
+      .map((skip, i) => ({ skip, i }))
+      .filter(({ skip }) => !skip.dismissed);
+    setBulkResults({ created: [], skipped: openRows.map(({ skip }) => skip) });
+    setBulkFixups(openRows.map(({ skip, i }) => seedBulkFixup(skip, i)));
+    setBulkBatchId(openBulkBatch.id);
+    setBulkSelectedForInvite(new Set());
+    setBulkInvitedIds(new Set());
+    setBulkStep('results');
+  };
+
+  const handleDiscardBulkBatch = async () => {
+    if (!openBulkBatch) return;
+    const confirmed = await showConfirm('Discard this unfinished import? The rows still needing a fix will be permanently dropped — none of them will be registered.', { danger: true, confirmLabel: 'Discard Import' });
+    if (!confirmed) return;
+    setBulkIsDiscardingBatch(true);
+    try {
+      await api.patch(`/api/auth/staff/bulk-import/batches/${openBulkBatch.id}`, { action: 'discard' });
+      setOpenBulkBatch(null);
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to discard this import.');
+    } finally {
+      setBulkIsDiscardingBatch(false);
+    }
+  };
+
+  // Drops one fix-up row without registering it. If it belongs to a
+  // persisted batch (Resume flow), that's recorded server-side too so it
+  // stays gone after a future refresh instead of reappearing.
+  const handleDismissBulkFixup = async (index) => {
+    const row = bulkFixups[index];
+    setBulkFixups((prev) => prev.filter((_, i) => i !== index));
+    setBulkResults((prev) => ({ ...prev, skipped: prev.skipped.filter((_, i) => i !== index) }));
+    if (bulkBatchId && Number.isInteger(row.batchRowIndex)) {
+      try {
+        await api.patch(`/api/auth/staff/bulk-import/batches/${bulkBatchId}`, { action: 'dismissRow', rowIndex: row.batchRowIndex });
+      } catch {
+        // Non-fatal — the row is still gone from this screen; worst case it
+        // reappears in a future resume, where it can be dismissed again.
+      }
+    }
   };
 
   const updateBulkFixup = (index, field, value) => {
@@ -561,12 +632,21 @@ export const RegisterPractitionerForm = () => {
     setBulkIsRetrying(true);
     setBulkError('');
     try {
-      const { data } = await api.post('/api/auth/staff/bulk-import/retry', { rows: bulkFixups });
+      const { data } = await api.post('/api/auth/staff/bulk-import/retry', { rows: bulkFixups, batchId: bulkBatchId || undefined });
       setBulkResults((prev) => ({
         created: [...prev.created, ...data.created],
         skipped: data.skipped, // whatever's still skipped replaces the old list — a row either got fixed or it didn't
       }));
-      setBulkFixups(data.skipped.map(seedBulkFixup));
+      // The backend processes rows in the same order they were sent, so a
+      // still-skipped entry's position in data.skipped lines up with the
+      // submitted row of the same identity — recover its batchRowIndex from
+      // there instead of losing it (the retry response's skipped entries
+      // don't carry it themselves).
+      const submittedByIdentity = new Map(bulkFixups.map((r) => [`${r.email}|${r.firstName}|${r.lastName}`, r.batchRowIndex]));
+      setBulkFixups(data.skipped.map((skip) => {
+        const key = `${skip.data?.email}|${skip.data?.firstName}|${skip.data?.lastName}`;
+        return seedBulkFixup(skip, submittedByIdentity.get(key));
+      }));
       // Newly-fixed rows join the invite-selection list pre-checked, same as
       // the initial confirm — they're not emailed yet either.
       setBulkSelectedForInvite((prev) => new Set([...prev, ...data.created.map((c) => c.id)]));
@@ -594,9 +674,11 @@ export const RegisterPractitionerForm = () => {
       const { data } = await api.post('/api/auth/staff/bulk-import/confirm', {
         fileBase64: bulkFileDataUrl,
         mapping: effectiveMapping,
+        fileName: bulkFileName,
       });
       setBulkResults(data);
-      setBulkFixups(data.skipped.map(seedBulkFixup));
+      setBulkBatchId(data.batchId || null);
+      setBulkFixups(data.skipped.map((skip, i) => seedBulkFixup(skip, data.batchId ? i : undefined)));
       // Every newly-created row starts selected — sending is the expected
       // next step for most of a batch; the admin unchecks any they don't
       // want invited yet rather than having to check each one they do.
@@ -1312,6 +1394,24 @@ export const RegisterPractitionerForm = () => {
           <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 font-medium">{bulkError}</div>
         )}
 
+        {bulkStep === 'upload' && openBulkBatch && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="text-sm font-semibold text-amber-800">
+              You have {openBulkBatch.skipped_rows.filter((r) => !r.dismissed).length} unresolved row{openBulkBatch.skipped_rows.filter((r) => !r.dismissed).length === 1 ? '' : 's'} from an import
+              {openBulkBatch.file_name ? ` of "${openBulkBatch.file_name}"` : ''} on {new Date(openBulkBatch.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}.
+            </p>
+            <p className="text-xs text-amber-700 mt-1 mb-3">These rows were never registered — fix them below, or discard the import if you no longer need to.</p>
+            <div className="flex gap-2">
+              <Button type="button" onClick={handleResumeBulkBatch} className="bg-amber-600 text-white hover:bg-amber-700">
+                Resume
+              </Button>
+              <Button type="button" variant="outline" onClick={handleDiscardBulkBatch} disabled={bulkIsDiscardingBatch} className="border-amber-300 text-amber-700 hover:bg-amber-100">
+                {bulkIsDiscardingBatch ? 'Discarding...' : 'Discard Import'}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {bulkStep === 'upload' && (
           <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl px-4 py-12 cursor-pointer hover:border-violet-300 hover:bg-violet-50/40 transition-colors">
             {bulkIsUploading ? <Loader2 className="w-8 h-8 text-violet-400 animate-spin" /> : <Upload className="w-8 h-8 text-slate-300" />}
@@ -1586,7 +1686,17 @@ export const RegisterPractitionerForm = () => {
                 <div className="divide-y divide-slate-100">
                   {bulkFixups.map((row, i) => (
                     <div key={i} className="px-4 py-4 space-y-3">
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 inline-block">{bulkResults.skipped[i]?.reason}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 inline-block">{bulkResults.skipped[i]?.reason}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleDismissBulkFixup(i)}
+                          title="Drop this row without registering it"
+                          className="flex-shrink-0 text-xs font-semibold text-slate-400 hover:text-red-600 cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                         <Input placeholder="First Name" value={row.firstName} onChange={(e) => updateBulkFixup(i, 'firstName', e.target.value)} className="text-sm" />
                         <Input placeholder="Last Name" value={row.lastName} onChange={(e) => updateBulkFixup(i, 'lastName', e.target.value)} className="text-sm" />
