@@ -524,11 +524,19 @@ const updateStaffProfile = async (req, res) => {
     if (lastName !== undefined) addSet('last_name', lastName.trim());
     if (position_title !== undefined) addSet('position_title', position_title);
     if (address !== undefined) addSet('address', address.trim());
-    if (phone_number !== undefined) addSet('phone_number', phone_number.trim());
+    if (phone_number !== undefined) {
+      const trimmedPhone = phone_number.trim();
+      if (trimmedPhone.length > 20) return res.status(400).json({ error: 'Phone number is too long (max 20 characters).' });
+      addSet('phone_number', trimmedPhone);
+    }
     // Write-only: getAllStaff never returns ssn, so the edit form always
     // starts blank — only touch the stored value when the admin actually
     // types a new one, an empty submission leaves the existing SSN/EIN alone.
-    if (ssn) addSet('ssn', ssn.trim());
+    if (ssn) {
+      const trimmedSsn = ssn.trim();
+      if (trimmedSsn.length > 11) return res.status(400).json({ error: 'SSN / EIN is too long (max 11 characters).' });
+      addSet('ssn', trimmedSsn);
+    }
 
     if (payRate !== undefined && payRate !== '') {
       const parsedPayRate = parseFloat(payRate);

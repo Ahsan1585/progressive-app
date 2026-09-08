@@ -200,6 +200,18 @@ const confirmPractitionerImport = async (req, res) => {
         skipped.push({ row: rowLabel, reason: `Unrecognized service type(s): "${serviceTypesRaw || ''}".`, data: rawData });
         continue;
       }
+      // practitioners.phone_number is varchar(20) and .ssn is varchar(11) —
+      // an over-length cell (extra formatting, a note appended, two numbers
+      // pasted into one cell) previously threw a raw Postgres "value too
+      // long" error that aborted the whole batch instead of just this row.
+      if (phoneNumber && phoneNumber.length > 20) {
+        skipped.push({ row: rowLabel, reason: `Phone number is too long (max 20 characters): "${phoneNumber}".`, data: rawData });
+        continue;
+      }
+      if (ssn && ssn.length > 11) {
+        skipped.push({ row: rowLabel, reason: `SSN / EIN is too long (max 11 characters): "${ssn}".`, data: rawData });
+        continue;
+      }
 
       // sendEmail: false — the account is created invite-pending, but no
       // email goes out yet. The admin selects which newly-created rows to
@@ -357,6 +369,14 @@ const retryPractitionerImportRows = async (req, res) => {
       }
       if (serviceTypes.length === 0) {
         skipped.push({ row: rowLabel, reason: 'At least one valid service type is required.', data: row });
+        continue;
+      }
+      if (phoneNumber && phoneNumber.length > 20) {
+        skipped.push({ row: rowLabel, reason: `Phone number is too long (max 20 characters): "${phoneNumber}".`, data: row });
+        continue;
+      }
+      if (ssn && ssn.length > 11) {
+        skipped.push({ row: rowLabel, reason: `SSN / EIN is too long (max 11 characters): "${ssn}".`, data: row });
         continue;
       }
 

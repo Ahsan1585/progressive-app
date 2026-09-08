@@ -50,6 +50,18 @@ async function insertInvitedPractitioner({
   const { rows: existingRows } = await pool.query('SELECT id FROM practitioners WHERE email = $1', [normalizedEmail]);
   if (existingRows[0]) return { ok: false, statusCode: 400, error: 'This email is already registered.' };
 
+  // Defense-in-depth: practitioners.phone_number is varchar(20) and .ssn is
+  // varchar(11). Callers (bulk import, single registration) already check
+  // this themselves so they can report a clean per-row reason instead of a
+  // raw Postgres error, but this is the one choke point every path shares —
+  // catch it here too so nothing can slip through and abort a whole batch.
+  if (phoneNumber && String(phoneNumber).length > 20) {
+    return { ok: false, statusCode: 400, error: `Phone number is too long (max 20 characters): "${phoneNumber}".` };
+  }
+  if (ssn && String(ssn).length > 11) {
+    return { ok: false, statusCode: 400, error: `SSN / EIN is too long (max 11 characters): "${ssn}".` };
+  }
+
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashToken(rawToken);
   const tokenExpiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
