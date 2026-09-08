@@ -797,7 +797,7 @@ export const RegisterPractitionerForm = () => {
               return (
               <tr key={member.id} className="hover:bg-slate-50 transition-colors">
                 <td className={`px-6 py-3 font-medium text-slate-800 ${isDeactivated ? 'opacity-60' : ''}`}>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
                     {member.profile_picture ? (
                       <button
                         type="button"
