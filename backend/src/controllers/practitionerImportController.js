@@ -17,8 +17,6 @@ const { pool } = require('../config/db');
 // full of names/SSNs after this one request completes. The frontend holds
 // the file and resends it (as base64) on Confirm.
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 function cellToText(value) {
   if (value == null) return null;
   if (value instanceof Date) return null;
@@ -236,10 +234,6 @@ const confirmPractitionerImport = async (req, res) => {
         ...result.practitioner,
         unmatchedServiceTypes: unmatched.length > 0 ? unmatched : undefined,
       });
-
-      // Sequential with a short delay between sends — a large batch fired
-      // all at once would exceed the email provider's default rate limit.
-      await sleep(600);
     }
 
     // Persist skipped rows as a resumable batch so they survive a page
@@ -397,9 +391,6 @@ const retryPractitionerImportRows = async (req, res) => {
       }
       created.push(result.practitioner);
       if (Number.isInteger(row.batchRowIndex)) registeredBatchRowIndexes.add(row.batchRowIndex);
-
-      // Same rate-limit-friendly pacing as the main confirm loop.
-      await sleep(600);
     }
 
     // A row successfully registered here is removed from the persisted
