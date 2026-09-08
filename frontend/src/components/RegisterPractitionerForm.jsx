@@ -797,7 +797,7 @@ export const RegisterPractitionerForm = () => {
               return (
               <tr key={member.id} className="hover:bg-slate-50 transition-colors">
                 <td className={`px-6 py-3 font-medium text-slate-800 ${isDeactivated ? 'opacity-60' : ''}`}>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {member.profile_picture ? (
                       <button
                         type="button"
@@ -820,7 +820,7 @@ export const RegisterPractitionerForm = () => {
                     )}
                     {member.first_name} {member.last_name}
                     {isDeactivated && (
-                      <span className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
+                      <span className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
                         Deactivated
                       </span>
                     )}
@@ -831,7 +831,7 @@ export const RegisterPractitionerForm = () => {
                         with no invite_sent_at was created but never invited. */}
                     {member.is_pending_activation && !member.invite_sent_at && (
                       <span
-                        className="inline-block text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-orange-50 text-orange-700 border-orange-200 uppercase tracking-wide"
+                        className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-orange-50 text-orange-700 border-orange-200 uppercase tracking-wide"
                         title="This account was created but no activation email has been sent yet"
                       >
                         Not Yet Invited
@@ -841,7 +841,7 @@ export const RegisterPractitionerForm = () => {
                       <button
                         type="button"
                         onClick={() => setReviewingContact(member)}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wide cursor-pointer hover:bg-amber-100 transition-colors"
+                        className="inline-flex items-center gap-1 flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wide cursor-pointer hover:bg-amber-100 transition-colors"
                         title="Review contact info change"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
