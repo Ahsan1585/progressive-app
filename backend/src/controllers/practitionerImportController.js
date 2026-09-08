@@ -20,6 +20,15 @@ const { pool } = require('../config/db');
 function cellToText(value) {
   if (value == null) return null;
   if (value instanceof Date) return null;
+  // A hyperlinked cell (e.g. Excel auto-linkifying a pasted email address
+  // into a clickable mailto: link) comes back as { text, hyperlink } —
+  // richText lives one level deeper, nested under `.text`, not on the
+  // hyperlink object itself. Left unhandled, this fell through to
+  // String(value), which stringified the whole object into the literal
+  // text "[object Object]" — silently corrupting that one row's email
+  // (or any other hyperlinked field) into a value that then collided with
+  // every other hyperlinked row as a fake "duplicate email".
+  if (typeof value === 'object' && value.hyperlink != null) return cellToText(value.text);
   if (typeof value === 'object' && value.richText) return value.richText.map((t) => t.text).join('').trim() || null;
   const s = String(value).trim();
   return s || null;
