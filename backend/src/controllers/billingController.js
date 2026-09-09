@@ -1087,7 +1087,7 @@ async function loadOverridesByField() {
 async function loadAcknowledgments(assessmentIds) {
   if (!assessmentIds.length) return new Map();
   const { rows } = await pool.query(
-    'SELECT assessment_id, field_key FROM compliance_field_acknowledgments WHERE assessment_id = ANY($1::int[])',
+    'SELECT assessment_id, field_key, our_value, state_value FROM compliance_field_acknowledgments WHERE assessment_id = ANY($1::int[])',
     [assessmentIds]
   );
   const map = new Map();
@@ -1347,9 +1347,13 @@ function buildFieldsForSession(session, match, ctx) {
       );
       if (hit) return { ...f, match: true, learnedMatch: true };
     }
-    // Per-log acknowledgment layer: applies to any field, including ones
-    // that don't generalize into a learned rule.
-    if (ackByKey.get(`${session.id}:${f.key}`)) {
+    // Per-log acknowledgment layer: a one-time "Allow" clicked on this
+    // field for this log. It only still applies if the values it was
+    // granted against are unchanged — if the log was edited/resubmitted (or
+    // the state record changed) so that our value or the state value is now
+    // different, the field re-flags and the reviewer must look again.
+    const ack = ackByKey.get(`${session.id}:${f.key}`);
+    if (ack && (ack.our_value ?? null) === (f.ours ?? null) && (ack.state_value ?? null) === (f.state ?? null)) {
       return { ...f, match: true, acknowledged: true };
     }
     return f;
@@ -1967,6 +1971,17 @@ const revertBillingBatch = async (req, res) => {
       "UPDATE assessments SET billing_status = 'pending', billing_review = NULL, billing_batch_id = NULL WHERE billing_batch_id = $1 RETURNING id",
       [batchId]
     );
+
+    // These logs are going back to a genuinely unreviewed state, so any
+    // one-time "Allow" clicked on a flagged compliance field before the
+    // invoice was generated must NOT carry over — the reviewer has to look
+    // again. Mirrors the same cleanup in updateLogStatus's reset path.
+    // A learned rule (compliance_match_overrides, "added to Compliance
+    // Matching") is a standing cross-log decision and is left in place.
+    const revertedIds = revertedAssessments.map((a) => a.id);
+    if (revertedIds.length > 0) {
+      await pool.query('DELETE FROM compliance_field_acknowledgments WHERE assessment_id = ANY($1::int[])', [revertedIds]);
+    }
 
     const filePaths = [batch.njeis_path, batch.invoice_path].filter(Boolean);
     if (filePaths.length > 0) {

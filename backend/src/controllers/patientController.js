@@ -317,6 +317,13 @@ const resubmitLog = async (req, res) => {
        JSON.stringify({ custom_fields: sanitizedCustomFields }), assessmentId]
     );
 
+    // The log is going back into billing review with revised data — any
+    // one-time "Allow" a billing specialist clicked on a flagged compliance
+    // field before must not carry over (buildFieldsForSession also value-
+    // checks acks, but clear them outright so the record is clean). A
+    // reusable learned rule (compliance_match_overrides) is untouched.
+    await pool.query('DELETE FROM compliance_field_acknowledgments WHERE assessment_id = $1', [assessmentId]);
+
     // Optional — the practitioner's note on why/how they revised the log,
     // kept alongside the billing specialist's original return note so the
     // full back-and-forth is visible even after rejection_note is cleared.
