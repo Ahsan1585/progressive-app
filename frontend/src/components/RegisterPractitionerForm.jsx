@@ -186,12 +186,44 @@ export const RegisterPractitionerForm = () => {
   const [bulkBatchId, setBulkBatchId] = useState(null); // the batch this session's fix-up table is tied to, if any
   const [bulkIsDiscardingBatch, setBulkIsDiscardingBatch] = useState(false);
 
-  useEffect(() => {
+  const refreshStaff = () =>
     api.get('/api/auth/staff')
-      .then(res => setStaffList(res.data.staff || []))
-      .catch(() => {})
-      .finally(() => setLoadingStaff(false));
+      .then(res => { setStaffList(res.data.staff || []); return res.data.staff || []; })
+      .catch(() => null);
+
+  useEffect(() => {
+    refreshStaff().finally(() => setLoadingStaff(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // After sending invites, delivery status ('sent' -> 'delivered'/'bounced'/
+  // 'complained') comes back via the Resend webhook a few seconds later —
+  // poll the roster briefly so the badge updates without a manual refresh.
+  // Stops early once every id we're watching has resolved past 'sent'.
+  const pollTimersRef = React.useRef([]);
+  const pollInviteResults = (ids) => {
+    pollTimersRef.current.forEach(clearTimeout);
+    pollTimersRef.current = [];
+    if (!ids || ids.length === 0) return;
+    const watch = new Set(ids);
+    const delays = [3000, 6000, 10000, 16000, 24000]; // ~24s total, then give up
+    delays.forEach((delay) => {
+      const t = setTimeout(async () => {
+        const staff = await refreshStaff();
+        if (!staff) return;
+        const allResolved = [...watch].every((id) => {
+          const s = staff.find((x) => x.id === id);
+          return !s || (s.invite_delivery_status && s.invite_delivery_status !== 'sent');
+        });
+        if (allResolved) {
+          pollTimersRef.current.forEach(clearTimeout);
+          pollTimersRef.current = [];
+        }
+      }, delay);
+      pollTimersRef.current.push(t);
+    });
+  };
+  useEffect(() => () => pollTimersRef.current.forEach(clearTimeout), []);
 
   useEffect(() => {
     api.get('/api/auth/staff/bulk-import/batches/open')
@@ -336,7 +368,8 @@ export const RegisterPractitionerForm = () => {
     setResendingId(id);
     try {
       await api.post(`/api/auth/staff/${id}/resend-invite`);
-      setStaffList(prev => prev.map(s => s.id === id ? { ...s, invite_sent_at: new Date().toISOString() } : s));
+      setStaffList(prev => prev.map(s => s.id === id ? { ...s, invite_sent_at: new Date().toISOString(), invite_delivery_status: 'sent' } : s));
+      pollInviteResults([id]);
       showAlert('A new activation link has been sent.');
     } catch (err) {
       showAlert(err.response?.data?.error || 'Failed to resend the activation link.');
@@ -384,12 +417,13 @@ export const RegisterPractitionerForm = () => {
       const succeededIds = targets.filter((_, i) => results[i].status === 'fulfilled');
       const failedCount = results.length - succeededIds.length;
       const succeededSet = new Set(succeededIds);
-      setStaffList((prev) => prev.map((s) => (succeededSet.has(s.id) ? { ...s, invite_sent_at: new Date().toISOString() } : s)));
+      setStaffList((prev) => prev.map((s) => (succeededSet.has(s.id) ? { ...s, invite_sent_at: new Date().toISOString(), invite_delivery_status: 'sent' } : s)));
       setRosterSelectedForInvite((prev) => {
         const next = new Set(prev);
         succeededIds.forEach((id) => next.delete(id));
         return next;
       });
+      pollInviteResults(succeededIds);
       if (failedCount > 0) {
         setRosterInviteError(`Sent ${succeededIds.length} invite${succeededIds.length === 1 ? '' : 's'}, but ${failedCount} failed — try those again.`);
       } else {
@@ -513,7 +547,7 @@ export const RegisterPractitionerForm = () => {
           role: 'practitioner', roleId: ''
         });
         // Refresh roster and switch to it so the new member is visible
-        api.get('/api/auth/staff').then(res => setStaffList(res.data.staff || []));
+        refreshStaff();
         setActiveTab('roster');
         // The account is created invite-pending but NOT emailed yet (see
         // backend's sendEmail: false) — ask right here instead of leaving
@@ -523,7 +557,8 @@ export const RegisterPractitionerForm = () => {
           if (shouldSend) {
             try {
               await api.post(`/api/auth/staff/${newId}/resend-invite`);
-              setStaffList(prev => prev.map(s => s.id === newId ? { ...s, invite_sent_at: new Date().toISOString() } : s));
+              setStaffList(prev => prev.map(s => s.id === newId ? { ...s, invite_sent_at: new Date().toISOString(), invite_delivery_status: 'sent' } : s));
+              pollInviteResults([newId]);
               showAlert('Activation invite sent.');
             } catch (err) {
               showAlert(err.response?.data?.error || 'Failed to send the activation invite.');
@@ -818,7 +853,8 @@ export const RegisterPractitionerForm = () => {
       const failedCount = results.length - succeededIds.length;
       setBulkInvitedIds((prev) => new Set([...prev, ...succeededIds]));
       const succeededIdSet = new Set(succeededIds);
-      setStaffList((prev) => prev.map((s) => (succeededIdSet.has(s.id) ? { ...s, invite_sent_at: new Date().toISOString() } : s)));
+      setStaffList((prev) => prev.map((s) => (succeededIdSet.has(s.id) ? { ...s, invite_sent_at: new Date().toISOString(), invite_delivery_status: 'sent' } : s)));
+      pollInviteResults(succeededIds);
       if (failedCount > 0) {
         setBulkError(`Sent ${succeededIds.length} invite${succeededIds.length === 1 ? '' : 's'}, but ${failedCount} failed — try those again.`);
       }
