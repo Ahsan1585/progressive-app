@@ -23,6 +23,7 @@ const MIGRATIONS = [
   'add_invite_sent_at.sql',
   'add_bulk_import_batches.sql',
   'add_invite_delivery_tracking.sql',
+  'add_realtime_messaging.sql',
 ];
 
 module.exports = { MIGRATIONS };

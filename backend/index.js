@@ -11,6 +11,8 @@ if (!process.env.JWT_SECRET) {
 const { PDFDocument } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const { initRealtime } = require('./src/realtime');
 
 // --- Database Initialization ---
 const { pool } = require('./src/config/db');
@@ -55,6 +57,7 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // Restrict CORS to known frontend origin(s). Set CORS_ORIGIN (comma-separated) in the environment.
+// Shared with the socket.io server (see initRealtime below) so the two never drift.
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
   .split(',')
   .map(o => o.trim())
@@ -596,9 +599,13 @@ async function sweepAllTenantsOverdueInvoices() {
 // is no tenant context available at this point, so it's lazily populated
 // per tenant on first authenticated request instead (see authMiddleware.js
 // and dropdownOptionsCache.js).
+// Wrap the Express app in a raw HTTP server so socket.io can share the port.
+const httpServer = http.createServer(app);
+initRealtime(httpServer, app, allowedOrigins);
+
 runMigrations()
   .then(() => {
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
 
       // Runs on its own here so it isn't dependent on a ceo happening to

@@ -42,6 +42,8 @@ const Login = () => {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('role', response.data.practitioner.role);
         localStorage.setItem('companySlug', slug);
+        // Wakes the MessagingProvider (App.jsx) to connect the chat socket.
+        window.dispatchEvent(new Event('auth-changed'));
 
         const role = response.data.practitioner.role;
 

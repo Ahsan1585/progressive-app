@@ -27,6 +27,8 @@ export function clearSessionAndNotify() {
   localStorage.removeItem('token');
   localStorage.removeItem('role');
   window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+  // Tells the MessagingProvider (App.jsx) to tear the chat socket + dock down.
+  window.dispatchEvent(new Event('auth-changed'));
 }
 
 // Centralized auth-failure handling: on any 401, clear the session and return to login.

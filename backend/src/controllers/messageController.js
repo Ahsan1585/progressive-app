@@ -1,4 +1,6 @@
 const { pool } = require('../config/db');
+const { getCurrentTenantDb } = require('../config/tenantContext');
+const { emitMessageNew, emitUnread } = require('../realtime/bus');
 
 // Anyone who isn't a practitioner is office-side. Phase 2 collapsed the old
 // fine-grained staff role strings into the single catch-all 'staff', so an
@@ -27,6 +29,7 @@ const getThreads = async (req, res) => {
         last_msg.body AS last_message,
         last_msg.created_at AS last_message_at,
         last_msg.sender_role AS last_message_sender_role,
+        last_office.replier_name AS last_office_reply_name,
         COALESCE(unread.count, 0) AS unread_count
       FROM practitioners p
       LEFT JOIN LATERAL (
@@ -36,6 +39,14 @@ const getThreads = async (req, res) => {
         ORDER BY m.created_at DESC
         LIMIT 1
       ) last_msg ON true
+      LEFT JOIN LATERAL (
+        SELECT (s.first_name || ' ' || s.last_name) AS replier_name
+        FROM messages m2
+        JOIN practitioners s ON s.id = m2.sender_id
+        WHERE m2.practitioner_id = p.id AND m2.sender_role <> 'practitioner'
+        ORDER BY m2.created_at DESC
+        LIMIT 1
+      ) last_office ON true
       LEFT JOIN (
         SELECT practitioner_id, COUNT(*) AS count
         FROM messages
@@ -107,7 +118,38 @@ const postMessage = async (req, res) => {
        VALUES ($1, $2, $3, $4) RETURNING id, practitioner_id, sender_id, sender_role, body, created_at`,
       [practitionerId, req.practitioner.practitionerId, req.practitioner.role, body]
     );
-    res.status(201).json(result.rows[0]);
+    const row = result.rows[0];
+    res.status(201).json(row);
+
+    // Real-time fan-out (best-effort; the REST response already succeeded).
+    // Tenant is taken from the AsyncLocalStorage context set by `protect`,
+    // never from the request body — the emit can only reach this tenant.
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const tenantDb = getCurrentTenantDb();
+        emitMessageNew(io, tenantDb, practitionerId, row);
+        if (!isOffice) {
+          // A practitioner just wrote in — bump the office's global unread.
+          const r = await pool.query(
+            `SELECT COUNT(*)::int AS c FROM messages
+             WHERE sender_role = 'practitioner' AND office_read_at IS NULL`
+          );
+          emitUnread(io, tenantDb, practitionerId, r.rows[0].c, 'office');
+          io.to(`t:${tenantDb}:office`).emit('office:unread-total', { total: r.rows[0].c });
+        } else {
+          // Office wrote in — this practitioner now has an unread.
+          const r = await pool.query(
+            `SELECT COUNT(*)::int AS c FROM messages
+             WHERE practitioner_id = $1 AND sender_role <> 'practitioner' AND practitioner_read_at IS NULL`,
+            [practitionerId]
+          );
+          emitUnread(io, tenantDb, practitionerId, r.rows[0].c, 'thread');
+        }
+      }
+    } catch (emitErr) {
+      console.error('postMessage emit error (non-fatal):', emitErr);
+    }
   } catch (err) {
     console.error('postMessage error:', err);
     res.status(500).json({ error: 'Failed to send message.' });

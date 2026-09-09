@@ -17,6 +17,7 @@ import TelepracticeSign from './pages/TelepracticeSign';
 import AdminDashboard from './pages/AdminDashboard';
 import PlatformAdmin from './pages/PlatformAdmin';
 import { DialogHost } from './components/DialogHost';
+import { MessagingProvider } from './context/MessagingContext';
 
 // Office-side accounts. Phase 2 collapsed the old fine-grained staff role strings
 // ('staff_director', 'billing', 'account_specialist') into the single catch-all 'staff';
@@ -151,26 +152,30 @@ function App() {
   if (IS_DESKTOP) {
     return (
       <HashRouter>
-        <IdleLogout />
-        <SessionExpiredListener />
-        <ScrollToTop />
-        <DialogHost />
-        <Routes>
-          {DESKTOP_ROUTES}
-        </Routes>
+        <MessagingProvider>
+          <IdleLogout />
+          <SessionExpiredListener />
+          <ScrollToTop />
+          <DialogHost />
+          <Routes>
+            {DESKTOP_ROUTES}
+          </Routes>
+        </MessagingProvider>
       </HashRouter>
     );
   }
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-      <IdleLogout />
-      <SessionExpiredListener />
-      <ScrollToTop />
-      <DialogHost />
-      <Routes>
-        {WEB_ROUTES}
-      </Routes>
+      <MessagingProvider>
+        <IdleLogout />
+        <SessionExpiredListener />
+        <ScrollToTop />
+        <DialogHost />
+        <Routes>
+          {WEB_ROUTES}
+        </Routes>
+      </MessagingProvider>
     </BrowserRouter>
   );
 }

@@ -7,13 +7,12 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { StaffChatPopover } from '@/components/StaffChatPopover';
+import { useMessaging } from '@/context/useMessaging';
 import { ActionRequired } from '@/components/ActionRequired';
 import { StaffDirectoryChildren } from '@/components/StaffDirectoryChildren';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { useDropdownOptions, activeOnly } from '@/hooks/useDropdownOptions';
 
-const MESSAGE_THREADS_POLL_MS = 5000;
 
 const formatPhone = (val) => {
   const d = val.replace(/\D/g, '').slice(0, 10);
@@ -103,9 +102,10 @@ export const RegisterPractitionerForm = () => {
   // an office-staff account and by the CEO's per-row role reassignment. ---
   const [roles, setRoles] = useState([]);
 
-  // --- Messaging (integrated into the roster row, not a separate tab) ---
-  const [unreadByPractitioner, setUnreadByPractitioner] = useState({}); // { [practitionerId]: count }
-  const [openChatMember, setOpenChatMember] = useState(null); // member object or null
+  // --- Messaging — the persistent chat dock (MessagingProvider) owns the
+  // socket, threads, and unread counts. This tab just opens a window and
+  // reads the unread badge from the shared context.
+  const { openThread, unreadById } = useMessaging();
 
   // --- Edit Profile State ---
   const [editingMember, setEditingMember] = useState(null); // member object being edited, or null
@@ -236,56 +236,6 @@ export const RegisterPractitionerForm = () => {
       .then(res => setRoles(Array.isArray(res.data) ? res.data : []))
       .catch(() => {});
   }, []);
-
-  const fetchMessageThreads = async () => {
-    try {
-      const res = await api.get('/api/messages/threads');
-      const next = {};
-      for (const t of res.data) next[t.practitioner_id] = t.unread_count;
-      setUnreadByPractitioner(next);
-    } catch {
-      // Non-critical — the blinking indicator just won't update this tick.
-    }
-  };
-
-  // Only poll while this tab is actually visible — leaving Staff Directory
-  // open in a background tab all day shouldn't keep hitting the backend.
-  // Refetches immediately on refocus so the indicator is caught up right away.
-  useEffect(() => {
-    let interval = null;
-
-    const startPolling = () => {
-      if (interval) return;
-      fetchMessageThreads();
-      interval = setInterval(fetchMessageThreads, MESSAGE_THREADS_POLL_MS);
-    };
-    const stopPolling = () => {
-      if (!interval) return;
-      clearInterval(interval);
-      interval = null;
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') startPolling();
-      else stopPolling();
-    };
-
-    if (document.visibilityState === 'visible') startPolling();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      stopPolling();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  const handleOpenChat = (member) => {
-    setOpenChatMember((prev) => (prev?.id === member.id ? null : member));
-    // Opening the thread marks the office's unread messages read server-side
-    // (GET /api/messages/:id) — clear the blink immediately rather than
-    // waiting for the next poll tick.
-    setUnreadByPractitioner((prev) => ({ ...prev, [member.id]: 0 }));
-  };
 
   const handleOpenEdit = (member) => {
     setEditingMember(member);
@@ -1043,16 +993,12 @@ export const RegisterPractitionerForm = () => {
                     <div className="flex items-center justify-end gap-1">
                       {member.role === 'practitioner' && (
                         <button
-                          onClick={() => handleOpenChat(member)}
-                          className={`relative p-1.5 rounded-lg transition-colors cursor-pointer ${
-                            openChatMember?.id === member.id
-                              ? 'text-blue-600 bg-blue-50'
-                              : 'text-slate-700 hover:text-blue-600 hover:bg-blue-50'
-                          }`}
+                          onClick={() => openThread(member.id)}
+                          className="relative p-1.5 rounded-lg transition-colors cursor-pointer text-slate-700 hover:text-blue-600 hover:bg-blue-50"
                           title="Message practitioner"
                         >
                           <MessageCircle className="w-4 h-4" />
-                          {unreadByPractitioner[member.id] > 0 && (
+                          {(unreadById[member.id] || 0) > 0 && (
                             <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
                               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
@@ -2226,10 +2172,6 @@ export const RegisterPractitionerForm = () => {
             </form>
           </div>
         </div>
-      )}
-
-      {openChatMember && (
-        <StaffChatPopover practitioner={openChatMember} onClose={() => setOpenChatMember(null)} />
       )}
 
     </div>

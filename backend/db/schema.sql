@@ -236,6 +236,23 @@ CREATE TABLE messages (
   FOREIGN KEY (sender_id) REFERENCES practitioners(id)
 );
 ALTER SEQUENCE messages_id_seq OWNED BY messages.id;
+-- Added by add_realtime_messaging.sql — the messages table originally
+-- shipped with only its primary key.
+CREATE INDEX idx_messages_practitioner_created ON messages (practitioner_id, created_at);
+CREATE INDEX idx_messages_office_unread ON messages (practitioner_id)
+  WHERE sender_role = 'practitioner' AND office_read_at IS NULL;
+CREATE INDEX idx_messages_prac_unread ON messages (practitioner_id)
+  WHERE sender_role <> 'practitioner' AND practitioner_read_at IS NULL;
+
+-- message_dock_state: per-office-staffer chat-dock persistence (which
+-- practitioner conversations they have open, order, minimized state) so the
+-- dock survives navigation and logout -> re-login. Keyed by the staff
+-- member's own practitioners.id. See add_realtime_messaging.sql.
+CREATE TABLE message_dock_state (
+  practitioner_id integer PRIMARY KEY REFERENCES practitioners(id) ON DELETE CASCADE,
+  open_threads jsonb NOT NULL DEFAULT '[]'::jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 
 -- scheduled_sessions: a practitioner-created appointment for one of their
 -- patients. If the patient has a parent_email, creating/updating/cancelling

@@ -83,6 +83,7 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
+    window.dispatchEvent(new Event('auth-changed')); // tear down chat socket/dock
     navigate('/login');
   };
 

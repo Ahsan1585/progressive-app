@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 
 // Practitioner-side messaging — a single thread with the office (the
 // practitioner's own practitioner_id is the thread key server-side, so no
-// practitioner list is needed here, unlike the office's MessageCenter).
-export function MessagesPanel({ open, onOpenChange, onThreadRead }) {
+// practitioner list is needed here, unlike the office's chat dock).
+// `liveMessages` (from usePractitionerMessages) are socket-delivered rows
+// that arrived after the initial fetch; merged in and de-duplicated by id.
+export function MessagesPanel({ open, onOpenChange, onThreadRead, liveMessages = [] }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +34,16 @@ export function MessagesPanel({ open, onOpenChange, onThreadRead }) {
     if (open) fetchThread();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Merge any socket-delivered messages the panel hasn't shown yet.
+  useEffect(() => {
+    if (liveMessages.length === 0) return;
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const additions = liveMessages.filter((m) => !seen.has(m.id));
+      return additions.length ? [...prev, ...additions] : prev;
+    });
+  }, [liveMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
