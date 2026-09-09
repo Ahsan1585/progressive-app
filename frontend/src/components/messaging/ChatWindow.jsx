@@ -23,8 +23,35 @@ export function ChatWindow({ practitionerId }) {
 
   useEffect(() => {
     fetchThreadHistory(practitionerId);
-    focusThread(practitionerId);
     return () => blurThread(practitionerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [practitionerId]);
+
+  // "Focused" — a message arriving here is treated as already-seen (no
+  // sound, no unread bump) only while this window is the one the user is
+  // actively in: the browser tab is visible AND either the user clicked
+  // into this window or interacted with its input. Switching tabs, or
+  // clicking into a different window, releases it.
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const claim = () => { if (!document.hidden) focusThread(practitionerId); };
+    const release = () => blurThread(practitionerId);
+    const onFocusOut = (e) => { if (!el.contains(e.relatedTarget)) release(); };
+    const onVisibility = () => { if (document.hidden) release(); };
+
+    el.addEventListener('focusin', claim);
+    el.addEventListener('pointerdown', claim);
+    el.addEventListener('focusout', onFocusOut);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      el.removeEventListener('focusin', claim);
+      el.removeEventListener('pointerdown', claim);
+      el.removeEventListener('focusout', onFocusOut);
+      document.removeEventListener('visibilitychange', onVisibility);
+      release();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practitionerId]);
 
@@ -64,6 +91,7 @@ export function ChatWindow({ practitionerId }) {
 
   return (
     <div
+      ref={rootRef}
       className="flex h-[460px] w-[86vw] max-w-[340px] flex-col overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-[0_20px_60px_-12px_rgba(0,0,0,0.55)]"
       onClick={() => focusThread(practitionerId)}
     >

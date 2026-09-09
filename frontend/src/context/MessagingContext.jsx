@@ -47,25 +47,53 @@ export function MessagingProvider({ children }) {
 
   const focusedThreadRef = useRef(null); // practitionerId of the window with keyboard focus
   const saveTimerRef = useRef(null);
-  const audioRef = useRef(null);
   const myStaffId = useRef(myIdFromToken());
   const openThreadsRef = useRef(openThreads); // latest openThreads for the reconnect handler
   useEffect(() => { openThreadsRef.current = openThreads; }, [openThreads]);
   const soundEnabledRef = useRef(soundEnabled);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
-  // Plays the notification chime. Defined as a ref-backed function so the
-  // socket effect (which mounts once per session) can call the latest
-  // version without re-subscribing.
+  // Plays the notification chime. Uses the Web Audio API when available — a
+  // single decoded buffer replayed via a fresh BufferSource each time, which
+  // (unlike reusing one <audio> element) fires reliably on every message,
+  // back-to-back. Falls back to a per-call <audio> element otherwise.
+  const audioCtxRef = useRef(null);
+  const chimeBufferRef = useRef(null);
+
+  const ensureChime = useCallback(async () => {
+    if (chimeBufferRef.current || typeof window === 'undefined') return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
+    try {
+      const res = await fetch(SOUND_URL);
+      const arr = await res.arrayBuffer();
+      chimeBufferRef.current = await audioCtxRef.current.decodeAudioData(arr);
+    } catch { /* fall back to <audio> */ }
+  }, []);
+
   const playSound = useCallback(() => {
     if (!soundEnabledRef.current) return;
+    const ctx = audioCtxRef.current;
+    const buf = chimeBufferRef.current;
+    if (ctx && buf) {
+      try {
+        if (ctx.state === 'suspended') ctx.resume();
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.4;
+        src.connect(gain).connect(ctx.destination);
+        src.start(0);
+        return;
+      } catch { /* fall through to <audio> */ }
+    }
+    // Fallback: a brand-new element per call so a still-playing previous one
+    // doesn't swallow the next.
     try {
-      if (!audioRef.current) {
-        audioRef.current = new Audio(SOUND_URL);
-        audioRef.current.volume = 0.4;
-      }
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
+      const a = new Audio(SOUND_URL);
+      a.volume = 0.4;
+      a.play().catch(() => {});
     } catch { /* ignore */ }
   }, []);
   const playSoundRef = useRef(playSound);
@@ -85,16 +113,12 @@ export function MessagingProvider({ children }) {
   const setSoundEnabled = useCallback((v) => {
     setSoundEnabledState(v);
     localStorage.setItem(SOUND_KEY, String(v));
-    // Toggling on is a user gesture — play the chime once so they hear what
-    // it sounds like and the audio element is definitely unlocked.
+    // Toggling on is a user gesture — decode + resume + play once so they
+    // hear the chime and audio is unlocked for real.
     if (v) {
-      try {
-        if (!audioRef.current) { audioRef.current = new Audio(SOUND_URL); audioRef.current.volume = 0.4; }
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {});
-      } catch { /* ignore */ }
+      ensureChime().then(() => { soundEnabledRef.current = true; playSoundRef.current?.(); });
     }
-  }, []);
+  }, [ensureChime]);
 
   // ---- persist dock state (debounced) ----
   const persistDock = useCallback((next) => {
@@ -114,7 +138,6 @@ export function MessagingProvider({ children }) {
 
   // ---- socket wiring ----
   useEffect(() => {
-    console.info('[messaging] provider effect; active =', active, 'role =', localStorage.getItem('role'));
     if (!active) {
       // Session ended (logout / idle-logout). Drop the socket and wipe every
       // cached conversation so nothing lingers on the login screen or bleeds
@@ -133,10 +156,6 @@ export function MessagingProvider({ children }) {
 
     myStaffId.current = myIdFromToken();
     const socket = connectSocket();
-    console.info('[messaging] connectSocket called; socket id =', socket?.id, 'connected =', socket?.connected);
-    socket.on('connect', () => console.info('[messaging] socket CONNECTED', socket.id));
-    socket.on('connect_error', (e) => console.warn('[messaging] socket connect_error:', e?.message));
-    socket.on('disconnect', (r) => console.info('[messaging] socket disconnected:', r));
 
     // Initial load
     const load = async () => {
@@ -196,7 +215,6 @@ export function MessagingProvider({ children }) {
       // to a thread whose window isn't the focused one.
       const isInbound = row.sender_role === 'practitioner';
       const isFocused = focusedThreadRef.current === pid && !document.hidden;
-      console.info('[messaging] message:new pid=', pid, 'inbound=', isInbound, 'focused=', isFocused);
       if (isInbound && !isFocused) {
         setThreadsById((prev) => ({
           ...prev,
@@ -259,32 +277,24 @@ export function MessagingProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  // Browser autoplay policy blocks Audio.play() until the page has had a
-  // user gesture. Prime the element on the first few interactions (some fail
-  // if the very first fires mid-scroll) and stop once one succeeds.
+  // Browser autoplay policy blocks audio until the page has had a user
+  // gesture. On the first interaction: decode the chime and resume the
+  // AudioContext, then stop listening.
   useEffect(() => {
     if (!active) return;
-    let unlocked = false;
-    const unlock = () => {
-      if (unlocked) return;
-      try {
-        if (!audioRef.current) { audioRef.current = new Audio(SOUND_URL); audioRef.current.volume = 0.4; }
-        audioRef.current.play()
-          .then(() => {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            unlocked = true;
-            console.info('[messaging] notification audio unlocked');
-            teardown();
-          })
-          .catch(() => { /* try again on the next gesture */ });
-      } catch { /* ignore */ }
+    let done = false;
+    const unlock = async () => {
+      if (done) return;
+      done = true;
+      await ensureChime();
+      try { if (audioCtxRef.current?.state === 'suspended') await audioCtxRef.current.resume(); } catch { /* ignore */ }
+      teardown();
     };
     const events = ['pointerdown', 'keydown', 'click', 'touchend'];
     const teardown = () => events.forEach((e) => window.removeEventListener(e, unlock));
     events.forEach((e) => window.addEventListener(e, unlock));
     return teardown;
-  }, [active]);
+  }, [active, ensureChime]);
 
   // ---- actions ----
   const fetchThreadHistory = useCallback(async (practitionerId) => {
