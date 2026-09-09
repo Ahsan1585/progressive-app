@@ -102,6 +102,7 @@ export function MessagingProvider({ children }) {
 
   // ---- socket wiring ----
   useEffect(() => {
+    console.info('[messaging] provider effect; active =', active, 'role =', localStorage.getItem('role'));
     if (!active) {
       // Session ended (logout / idle-logout). Drop the socket and wipe every
       // cached conversation so nothing lingers on the login screen or bleeds
@@ -120,6 +121,10 @@ export function MessagingProvider({ children }) {
 
     myStaffId.current = myIdFromToken();
     const socket = connectSocket();
+    console.info('[messaging] connectSocket called; socket id =', socket?.id, 'connected =', socket?.connected);
+    socket.on('connect', () => console.info('[messaging] socket CONNECTED', socket.id));
+    socket.on('connect_error', (e) => console.warn('[messaging] socket connect_error:', e?.message));
+    socket.on('disconnect', (r) => console.info('[messaging] socket disconnected:', r));
 
     // Initial load
     const load = async () => {

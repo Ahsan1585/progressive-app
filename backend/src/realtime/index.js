@@ -27,7 +27,10 @@ function initRealtime(httpServer, app, allowedOrigins) {
   });
 
   io.use(authHandshake);
-  io.on('connection', (socket) => registerHandlers(io, socket));
+  io.on('connection', (socket) => {
+    console.log(`[realtime] socket connected: staffId=${socket.data.staffId} role=${socket.data.role} tenant=${socket.data.tenantDb} office=${socket.data.isOffice}`);
+    registerHandlers(io, socket);
+  });
 
   // Controllers reach `io` via `req.app.get('io')`.
   app.set('io', io);

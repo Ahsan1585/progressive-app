@@ -128,6 +128,9 @@ const postMessage = async (req, res) => {
       const io = req.app.get('io');
       if (io) {
         const tenantDb = getCurrentTenantDb();
+        const officeRoomName = `t:${tenantDb}:office`;
+        const officeRoomSize = io.sockets.adapter.rooms.get(officeRoomName)?.size || 0;
+        console.log(`[realtime] postMessage emit: tenant=${tenantDb} thread=${practitionerId} sender=${req.practitioner.role} officeRoomSockets=${officeRoomSize}`);
         emitMessageNew(io, tenantDb, practitionerId, row);
         if (!isOffice) {
           // A practitioner just wrote in — bump the office's global unread.
