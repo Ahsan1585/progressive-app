@@ -98,13 +98,20 @@ const generateNjeisPDF = async (practitioner, child, encounters, targetMonthYear
 
       // 🌟 3. Apply targeted tweaks to the Practitioner Signature
       if (fieldName.includes('Practitioner')) {
-        // ⬆️ POSITION: Changed from -15 to -3 to bring it back up to the line
-        finalYPosition = rect.y - 3;
-
-        // 🔎 SIZE: Multiply the width and height to make it larger! (1.5 = 50% bigger)
-        // If it is still too small, change 1.5 to 1.8 or 2.0
-        finalWidth = baseDims.width * 1.5;
-        finalHeight = baseDims.height * 1.5;
+        // Signature-pad captures carry a lot of blank canvas around the
+        // actual stroke, so a plain fit-to-box scale renders the visible
+        // mark small. Enlarge past the box (aspect-ratio preserved), keep
+        // it left-anchored — a signature reads from the left of this wide
+        // field, not centered — and let it sit a bit below the line, which
+        // is how a real signature rests on a ruled line. Cap the width so
+        // it can't run off the field's right edge.
+        const enlarged = 2.4;
+        finalWidth = Math.min(baseDims.width * enlarged, rect.width);
+        finalHeight = finalWidth * (baseDims.height / baseDims.width);
+        finalX = rect.x;
+        // Anchor the image's baseline just under the line, then let the
+        // extra height grow upward from there.
+        finalYPosition = rect.y - Math.max(0, (finalHeight - rect.height) * 0.35);
       } else {
         // Parent signature source images are mostly blank canvas around a small
         // stroke, so a tight fit-to-box scale still reads as tiny — enlarge
