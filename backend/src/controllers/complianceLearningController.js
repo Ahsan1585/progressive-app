@@ -2,13 +2,14 @@ const { pool } = require('../config/db');
 const { normalizeForMatch } = require('../utils/textMatch');
 const { computeSessionCompliance } = require('./billingController');
 
-// A mismatch only gets taught as a reusable rule if the two display values
-// share at least one word — that's the signal it's plausibly a labeling/
-// formatting variant of the same thing (e.g. "Speech Therapy" vs "Speech
-// Language Therapy"). Zero shared words (e.g. "Developmental Intervention"
-// vs "Speech Therapy") means these are genuinely different values, not a
-// variant of each other, so persisting a rule would silently paper over a
-// real data mismatch on every future log instead of just this one.
+// A reusable rule is only ever taught when the reviewer explicitly opts in
+// (the "remember" flag) AND the two display values share at least one word.
+// The word overlap is a hard backstop, not the trigger: zero shared words
+// (e.g. "Developmental Intervention" vs "Speech Therapy") means these are
+// genuinely different values, not a labeling variant, so a rule would
+// silently paper over a real data mismatch on every future log — we refuse
+// to persist one even if the client asks. Word overlap alone no longer
+// causes teaching; without "remember", every Allow is one-time only.
 function hasWordOverlap(a, b) {
   const tokensA = new Set(normalizeForMatch(a || '').split(' ').filter(Boolean));
   const tokensB = new Set(normalizeForMatch(b || '').split(' ').filter(Boolean));
@@ -17,17 +18,15 @@ function hasWordOverlap(a, b) {
   return false;
 }
 
-// Billing clicks "Allow" on a flagged field: records a one-off acknowledgment
-// for this exact log (unblocks Approve for it), and — for any field carrying
-// `_learn` metadata (the base fixed fields, plus any custom field tied via
-// compareTo to one of our real bounded vocabularies — see buildFieldsForSession
-// in billingController.js), where a mismatch is usually a labeling/formatting
-// difference rather than a one-time typo, AND the two values actually share
-// some wording — also upserts a reusable learned rule so every future log
-// with the same (field, state text, our value) pairing auto-matches without
-// needing a human again.
+// Billing clicks "Allow" on a flagged field: always records a one-off
+// acknowledgment for this exact log (unblocks Approve for it). Only when the
+// reviewer explicitly ticks "remember this match" (`remember: true`) — and
+// the field carries `_learn` metadata and the two values share some wording
+// — does it also upsert a reusable learned rule so every future log with the
+// same (field, state text, our value) pairing auto-matches without a human.
+// The default is one-time only: a plain Allow click never teaches anything.
 const allowComplianceField = async (req, res) => {
-  const { assessmentId, fieldKey } = req.body;
+  const { assessmentId, fieldKey, remember = false } = req.body;
   if (!assessmentId || !fieldKey) {
     return res.status(400).json({ error: 'assessmentId and fieldKey are required' });
   }
@@ -47,7 +46,8 @@ const allowComplianceField = async (req, res) => {
       [assessmentId, fieldKey, field.ours, field.state, req.practitioner.practitionerId]
     );
 
-    if (field._learn && hasWordOverlap(field.ours, field.state)) {
+    let remembered = false;
+    if (remember && field._learn && hasWordOverlap(field.ours, field.state)) {
       const stateValueNormalized = normalizeForMatch(field._learn.stateValueRaw || '');
       if (stateValueNormalized && field._learn.ourValue) {
         await pool.query(
@@ -56,12 +56,13 @@ const allowComplianceField = async (req, res) => {
            ON CONFLICT (field_key, state_value_normalized, our_value) DO NOTHING`,
           [fieldKey, stateValueNormalized, field._learn.stateValueRaw, field._learn.ourValue, req.practitioner.practitionerId]
         );
+        remembered = true;
       }
     }
 
     const updated = await computeSessionCompliance(assessmentId);
     const updatedField = updated.fields.find((f) => f.key === fieldKey);
-    res.json({ success: true, field: updatedField, flagged: updated.flagged });
+    res.json({ success: true, field: updatedField, flagged: updated.flagged, remembered });
   } catch (error) {
     console.error('Error allowing compliance field:', error);
     res.status(500).json({ error: 'Failed to allow field' });

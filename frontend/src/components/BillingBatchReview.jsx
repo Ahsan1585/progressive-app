@@ -1208,12 +1208,12 @@ function ActionButton({ label, icon, onClick, active, tone }) {
   );
 }
 
-// Mirrors complianceLearningController.js's hasWordOverlap — a learnable
-// field only actually becomes a reusable rule server-side if the two values
-// share at least one word (a plausible labeling variant, not a genuinely
-// different value like "Developmental Intervention" vs "Speech Therapy").
-// Used here purely so the confirmation dialog warns accurately about what
-// Allow is about to do, without a round-trip to ask the server first.
+// Mirrors complianceLearningController.js's hasWordOverlap — even when the
+// reviewer ticks "remember this match", the server refuses to persist a
+// reusable rule unless the two values share at least one word (a plausible
+// labeling variant, not a genuinely different value like "Developmental
+// Intervention" vs "Speech Therapy"). Used here to decide whether to even
+// offer the "remember" checkbox, without a round-trip to ask the server.
 function hasWordOverlap(a, b) {
   const norm = (s) => (s || '').toString().toLowerCase().replace(/[,.()\-–—'"]/g, ' ').replace(/\s+/g, ' ').trim();
   const tokensA = new Set(norm(a).split(' ').filter(Boolean));
@@ -1235,9 +1235,9 @@ const FIELD_LABELS = {
 
 // --- Compliance Matching: the strictness profile that controls how
 // forgiving the baseline field comparison is (see resolveStrictnessProfile,
-// backend/src/constants/njeis.js), plus every learned rule the feedback
-// loop has picked up from billing clicking "Allow" on a flagged field (see
-// compliance_match_overrides, backend/src/controllers/complianceLearningController.js).
+// backend/src/constants/njeis.js), plus every learned rule billing opted
+// into by ticking "Also remember this match" when allowing a flagged field
+// (see compliance_match_overrides, backend/src/controllers/complianceLearningController.js).
 // Strictness is ceo-only to change; both are visible to any billing user.
 function ComplianceMatchingSettings({ isAdmin }) {
   const [strictness, setStrictness] = useState('moderate');
@@ -1322,13 +1322,13 @@ function ComplianceMatchingSettings({ isAdmin }) {
         <div>
           <h2 className="text-base font-bold text-slate-800">Learned Matches</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Every pairing billing has confirmed by clicking "Allow" on a flagged field — these auto-match on every future analysis. Remove one to go back to strictness-only matching for that pairing.
+            Pairings billing chose to remember when allowing a flagged field (by ticking "Also remember this match") — these auto-match on every future analysis. Remove one to go back to strictness-only matching for that pairing.
           </p>
         </div>
         {isLoadingOverrides ? (
           <div className="text-sm text-slate-400 py-4 text-center">Loading…</div>
         ) : overrides.length === 0 ? (
-          <div className="text-sm text-slate-400 py-4 text-center">No learned matches yet — they appear here once billing clicks "Allow" on a flagged field.</div>
+          <div className="text-sm text-slate-400 py-4 text-center">No learned matches yet — they appear here when billing ticks "Also remember this match" while allowing a flagged field.</div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-sm">
@@ -1413,26 +1413,37 @@ function ComplianceAnalysisPreview({
   const [isDecidingMissing, setIsDecidingMissing] = useState(false);
 
   // Billing confirms a flagged field is actually fine — clears it for this
-  // log (and, for any field carrying `_learn` metadata — the base fixed
-  // fields plus any custom field tied via compareTo to one of our real
-  // bounded vocabularies — teaches the system the pairing so it stops
-  // flagging it for every future log too). Updates `analysis` in place so
-  // the row flips from flagged to allowed without a full re-fetch. Requires
-  // an explicit confirmation first — for a learnable field this is a
-  // standing rule applied to every future log, not just this one, so it's
-  // worth a real "are you sure" rather than a single accidental click.
+  // one log. Every Allow is one-time by default. For a field that could
+  // generalize into a reusable rule (`_learn` metadata + the two values
+  // share some wording), the confirm dialog also offers an opt-in checkbox
+  // to remember the pairing so it stops flagging on every future log too —
+  // unchecked by default, because two values that look alike aren't always
+  // the same thing (e.g. "Direct Child Service" vs "Make up Direct Child
+  // Service"). Updates `analysis` in place so the row flips from flagged to
+  // allowed without a full re-fetch.
   const handleAllowField = async (sessionId, field) => {
-    const isLearnable = !!field._learn && hasWordOverlap(field.ours, field.state);
-    const confirmMessage = isLearnable
-      ? `Allow "${field.label}"? Our value "${field.ours || '-'}" will be remembered as matching EIMS's "${field.state || '-'}" — every future log with this same mismatch will auto-match too, until removed from Compliance Matching.`
-      : `You are only allowing "${field.label}" as a one-time allow for this log, based on your review — this will not be used to teach the system for future logs.`;
-    if (!(await showConfirm(confirmMessage))) return;
+    const canRemember = !!field._learn && hasWordOverlap(field.ours, field.state);
+    const baseMessage = `Allow "${field.label}" for this log? This is a one-time allow based on your review and does not change how future logs are checked.`;
+
+    let remember = false;
+    if (canRemember) {
+      const result = await showConfirm(baseMessage, {
+        checkbox: {
+          label: `Also remember this match — treat our "${field.ours || '-'}" as matching EIMS's "${field.state || '-'}" on all future logs, until removed from Compliance Matching.`,
+          defaultChecked: false,
+        },
+      });
+      if (!result.confirmed) return;
+      remember = result.checked;
+    } else {
+      if (!(await showConfirm(baseMessage))) return;
+    }
 
     const fieldKey = field.key;
     const requestKey = `${sessionId}:${fieldKey}`;
     setAllowingKey(requestKey);
     try {
-      const res = await api.post('/api/billing/compliance-analysis/allow-field', { assessmentId: sessionId, fieldKey });
+      const res = await api.post('/api/billing/compliance-analysis/allow-field', { assessmentId: sessionId, fieldKey, remember });
       setAnalysis((prev) => {
         if (!prev) return prev;
         const prevResult = prev.results[sessionId];

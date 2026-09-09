@@ -22,9 +22,18 @@ export function showAlert(message, opts = {}) {
   });
 }
 
+// showConfirm(message) resolves to a bare boolean, as before.
+// showConfirm(message, { checkbox: { label, defaultChecked } }) instead
+// resolves to { confirmed, checked } — the extra opt-in used by the
+// compliance "Allow" flow to let the reviewer also teach a reusable match.
 export function showConfirm(message, opts = {}) {
+  const hasCheckbox = !!opts.checkbox;
   return new Promise((resolve) => {
-    if (!listener) { resolve(window.confirm(message)); return; }
+    if (!listener) {
+      const confirmed = window.confirm(message);
+      resolve(hasCheckbox ? { confirmed, checked: false } : confirmed);
+      return;
+    }
     listener({
       type: 'confirm',
       message,
@@ -32,6 +41,7 @@ export function showConfirm(message, opts = {}) {
       danger: opts.danger,
       confirmLabel: opts.confirmLabel,
       cancelLabel: opts.cancelLabel,
+      checkbox: opts.checkbox || null,
       onResolve: (result) => resolve(result),
     });
   });
