@@ -27,38 +27,17 @@ const STATUS_BY_EVENT = {
   'email.suppressed': 'bounced',
 };
 
-// Turn a Resend failure event into a short, plain-English explanation for
-// the roster tooltip. Leads with what the admin should DO, then appends
-// Resend's own diagnostic verbatim so support has the raw detail.
+// One plain message for any invite delivery failure — the admin's action is
+// the same regardless of cause (check the address, re-send). Resend's own
+// diagnostic is appended for support, but we don't try to interpret it.
 function describeFailure(event) {
   const raw = (
     event?.data?.bounce?.message ||
     event?.data?.suppressed?.message ||
     ''
   ).trim();
-  // Resend follows the SES bounce taxonomy: type is Permanent | Transient |
-  // Undetermined; subType is General | NoEmail | MailboxFull | ... . The
-  // *type* is the signal for "retry vs. fix the address" — a Permanent
-  // bounce (incl. subType "General", the usual value for an unknown address)
-  // is not going to succeed on a retry. Only a Transient bounce, or a
-  // MailboxFull of any type, is worth resending as-is.
-  const bounceType = (event?.data?.bounce?.type || '').toLowerCase();
-  const subType = (event?.data?.bounce?.subType || '').toLowerCase();
-  const isRetryable = bounceType === 'transient' || subType === 'mailboxfull';
-
-  let friendly;
-  if (event.type === 'email.complained') {
-    friendly = 'The recipient marked the invite as spam. It may not have been seen — confirm the address is right, and consider reaching them another way.';
-  } else if (event.type === 'email.suppressed') {
-    friendly = 'This address is blocked because an earlier email to it bounced. Correct the email address (via Edit), then re-send the invite.';
-  } else if (isRetryable) {
-    friendly = "The invite couldn't be delivered right now — the mailbox may be full or the mail server was temporarily unavailable. It's worth trying the resend again shortly.";
-  } else {
-    // Permanent / Undetermined / unknown — the address does not accept mail.
-    friendly = "The email address was rejected — it likely doesn't exist or has a typo. Fix it via Edit, then re-send the invite.";
-  }
-
-  return raw ? `${friendly}\n\nProvider detail: ${raw}` : friendly;
+  const base = "The activation email couldn't be delivered — check the email address for typos (via Edit), then re-send the invite.";
+  return raw ? `${base}\n\nProvider detail: ${raw}` : base;
 }
 
 const resendWebhook = async (req, res) => {
