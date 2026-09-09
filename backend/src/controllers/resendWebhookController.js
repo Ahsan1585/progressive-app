@@ -16,10 +16,15 @@ const { pool } = require('../config/db');
 // tenant this is a handful of cheap queries per event.
 
 // Resend event type -> the invite_delivery_status we record.
+// email.suppressed fires when Resend blocks a send outright because the
+// address is on its suppression list (it hard-bounced or complained on a
+// PRIOR send) — the email never leaves Resend, so no bounce event follows.
+// We surface it the same as a bounce: the invite did not reach anyone.
 const STATUS_BY_EVENT = {
   'email.delivered': 'delivered',
   'email.bounced': 'bounced',
   'email.complained': 'complained',
+  'email.suppressed': 'bounced',
 };
 
 const resendWebhook = async (req, res) => {

@@ -992,7 +992,7 @@ export const RegisterPractitionerForm = () => {
                         className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-red-50 text-red-700 border-red-200 uppercase tracking-wide"
                         title={member.invite_delivery_status === 'complained'
                           ? 'The recipient marked the activation email as spam — it may not have been seen. Consider confirming the address and re-sending.'
-                          : "The activation email couldn't be delivered (bad address or a full/blocked inbox). Fix the email via Edit, then re-send the invite."}
+                          : "The activation email couldn't be delivered. Once an address bounces, further sends to it are blocked automatically — fix the email via Edit, then re-send the invite."}
                       >
                         {member.invite_delivery_status === 'complained' ? 'Invite Flagged Spam' : 'Invite Bounced'}
                       </span>
