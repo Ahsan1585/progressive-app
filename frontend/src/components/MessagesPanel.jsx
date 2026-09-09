@@ -80,22 +80,30 @@ export function MessagesPanel({ open, onOpenChange, onThreadRead, liveMessages =
           ) : messages.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">No messages yet. Say hello to your office.</p>
           ) : (
-            messages.map((m) => (
-              <div key={m.id} className={`flex ${m.sender_role === 'practitioner' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
-                    m.sender_role === 'practitioner'
-                      ? 'bg-slate-900 text-white rounded-br-sm'
-                      : 'bg-slate-100 text-slate-800 rounded-bl-sm'
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                  <p className={`text-[10px] mt-1 ${m.sender_role === 'practitioner' ? 'text-slate-300' : 'text-slate-400'}`}>
-                    {new Date(m.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                  </p>
+            messages.map((m) => {
+              const mine = m.sender_role === 'practitioner';
+              return (
+                <div key={m.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                  {!mine && (
+                    <span className="mb-0.5 px-1 text-[11px] font-semibold text-slate-500">
+                      {m.sender_name || 'Office'}
+                    </span>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
+                      mine
+                        ? 'bg-slate-900 text-white rounded-br-sm'
+                        : 'bg-slate-100 text-slate-800 rounded-bl-sm'
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                    <p className={`text-[10px] mt-1 ${mine ? 'text-slate-300' : 'text-slate-400'}`}>
+                      {new Date(m.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           <div ref={bottomRef} />
         </div>

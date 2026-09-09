@@ -74,8 +74,11 @@ const getThread = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, practitioner_id, sender_id, sender_role, body, created_at
-       FROM messages WHERE practitioner_id = $1 ORDER BY created_at ASC`,
+      `SELECT m.id, m.practitioner_id, m.sender_id, m.sender_role, m.body, m.created_at,
+              (s.first_name || ' ' || s.last_name) AS sender_name
+       FROM messages m
+       LEFT JOIN practitioners s ON s.id = m.sender_id
+       WHERE m.practitioner_id = $1 ORDER BY m.created_at ASC`,
       [practitionerId]
     );
 
@@ -119,6 +122,14 @@ const postMessage = async (req, res) => {
       [practitionerId, req.practitioner.practitionerId, req.practitioner.role, body]
     );
     const row = result.rows[0];
+    // Attach the sender's display name — the JWT doesn't carry it, so the
+    // recipient (practitioner seeing an office reply, or another staffer in
+    // the dock) can show WHO sent it, not just "Office".
+    const nameRes = await pool.query(
+      "SELECT (first_name || ' ' || last_name) AS sender_name FROM practitioners WHERE id = $1",
+      [req.practitioner.practitionerId]
+    );
+    row.sender_name = nameRes.rows[0]?.sender_name || null;
     res.status(201).json(row);
 
     // Real-time fan-out (best-effort; the REST response already succeeded).

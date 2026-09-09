@@ -64,7 +64,7 @@ export function ChatWindow({ practitionerId }) {
 
   return (
     <div
-      className="flex h-[460px] w-[340px] flex-col overflow-hidden rounded-t-2xl border-2 border-b-0 border-slate-800 bg-white shadow-[0_20px_60px_-12px_rgba(0,0,0,0.55)]"
+      className="flex h-[460px] w-[86vw] max-w-[340px] flex-col overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-[0_20px_60px_-12px_rgba(0,0,0,0.55)]"
       onClick={() => focusThread(practitionerId)}
     >
       <div className="flex items-start justify-between border-b border-slate-200 bg-slate-900 px-3.5 py-2.5">
@@ -105,7 +105,7 @@ export function ChatWindow({ practitionerId }) {
             return (
               <div key={m.id} className={`flex flex-col ${isOffice ? 'items-end' : 'items-start'}`}>
                 <span className={`mb-0.5 px-1 text-[11px] font-semibold ${isOffice ? 'text-slate-500' : 'text-blue-600'}`}>
-                  {isOffice ? 'Office' : name}
+                  {isOffice ? (m.sender_name || 'Office') : name}
                 </span>
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
                   isOffice ? 'rounded-br-sm bg-slate-900 text-white' : 'rounded-bl-sm bg-blue-600 text-white'

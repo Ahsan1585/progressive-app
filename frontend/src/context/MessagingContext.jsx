@@ -11,6 +11,9 @@ const OFFICE_ROLES = ['ceo', 'staff'];
 const MAX_EXPANDED = 3;
 const DOCK_SAVE_DEBOUNCE_MS = 500;
 const SOUND_KEY = 'messageSoundEnabled';
+// The app is served under a base path (/eis/ on the web build). Build the
+// asset URL from Vite's BASE_URL so it resolves under that prefix too.
+const SOUND_URL = `${import.meta.env.BASE_URL}message.mp3`.replace(/\/\/message/, '/message');
 
 const isOfficeSession = () => {
   const token = localStorage.getItem('token');
@@ -58,7 +61,7 @@ export function MessagingProvider({ children }) {
     if (!soundEnabledRef.current) return;
     try {
       if (!audioRef.current) {
-        audioRef.current = new Audio('/message.mp3');
+        audioRef.current = new Audio(SOUND_URL);
         audioRef.current.volume = 0.4;
       }
       audioRef.current.currentTime = 0;
@@ -82,6 +85,15 @@ export function MessagingProvider({ children }) {
   const setSoundEnabled = useCallback((v) => {
     setSoundEnabledState(v);
     localStorage.setItem(SOUND_KEY, String(v));
+    // Toggling on is a user gesture — play the chime once so they hear what
+    // it sounds like and the audio element is definitely unlocked.
+    if (v) {
+      try {
+        if (!audioRef.current) { audioRef.current = new Audio(SOUND_URL); audioRef.current.volume = 0.4; }
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      } catch { /* ignore */ }
+    }
   }, []);
 
   // ---- persist dock state (debounced) ----
@@ -184,6 +196,7 @@ export function MessagingProvider({ children }) {
       // to a thread whose window isn't the focused one.
       const isInbound = row.sender_role === 'practitioner';
       const isFocused = focusedThreadRef.current === pid && !document.hidden;
+      console.info('[messaging] message:new pid=', pid, 'inbound=', isInbound, 'focused=', isFocused);
       if (isInbound && !isFocused) {
         setThreadsById((prev) => ({
           ...prev,
@@ -246,23 +259,31 @@ export function MessagingProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  // Unlock audio on the first user gesture (autoplay policy).
+  // Browser autoplay policy blocks Audio.play() until the page has had a
+  // user gesture. Prime the element on the first few interactions (some fail
+  // if the very first fires mid-scroll) and stop once one succeeds.
   useEffect(() => {
     if (!active) return;
+    let unlocked = false;
     const unlock = () => {
+      if (unlocked) return;
       try {
-        if (!audioRef.current) { audioRef.current = new Audio('/message.mp3'); audioRef.current.volume = 0.4; }
-        audioRef.current.play().then(() => { audioRef.current.pause(); audioRef.current.currentTime = 0; }).catch(() => {});
+        if (!audioRef.current) { audioRef.current = new Audio(SOUND_URL); audioRef.current.volume = 0.4; }
+        audioRef.current.play()
+          .then(() => {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            unlocked = true;
+            console.info('[messaging] notification audio unlocked');
+            teardown();
+          })
+          .catch(() => { /* try again on the next gesture */ });
       } catch { /* ignore */ }
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
     };
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
-    return () => {
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
-    };
+    const events = ['pointerdown', 'keydown', 'click', 'touchend'];
+    const teardown = () => events.forEach((e) => window.removeEventListener(e, unlock));
+    events.forEach((e) => window.addEventListener(e, unlock));
+    return teardown;
   }, [active]);
 
   // ---- actions ----
