@@ -27,6 +27,33 @@ const STATUS_BY_EVENT = {
   'email.suppressed': 'bounced',
 };
 
+// Turn a Resend failure event into a short, plain-English explanation for
+// the roster tooltip. Leads with what the admin should DO, then appends
+// Resend's own diagnostic verbatim so support has the raw detail.
+function describeFailure(event) {
+  const raw = (
+    event?.data?.bounce?.message ||
+    event?.data?.suppressed?.message ||
+    ''
+  ).trim();
+  const bounceType = (event?.data?.bounce?.type || '').toLowerCase();
+  const subType = (event?.data?.bounce?.subType || '').toLowerCase();
+
+  let friendly;
+  if (event.type === 'email.complained') {
+    friendly = 'The recipient marked the invite as spam. It may not have been seen — confirm the address is right, and consider reaching them another way.';
+  } else if (event.type === 'email.suppressed') {
+    friendly = 'This address is blocked because an earlier email to it bounced. Correct the email address (via Edit), then re-send the invite.';
+  } else if (bounceType === 'transient' || subType.includes('mailboxfull') || subType.includes('general')) {
+    friendly = "The invite couldn't be delivered right now — the mailbox may be full or the mail server was temporarily unavailable. It's worth trying the resend again shortly.";
+  } else {
+    // Permanent / Undetermined — treat as a bad address, the common case.
+    friendly = "The email address doesn't appear to exist or won't accept mail. Double-check it for typos (via Edit), then re-send the invite.";
+  }
+
+  return raw ? `${friendly}\n\nProvider detail: ${raw}` : friendly;
+}
+
 const resendWebhook = async (req, res) => {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
   if (!secret) {
@@ -64,6 +91,10 @@ const resendWebhook = async (req, res) => {
     return res.json({ received: true });
   }
 
+  // A specific explanation for a failure; null for a plain delivery (which
+  // also clears any stale detail from a previous failed send of this id).
+  const detail = status === 'delivered' ? null : describeFailure(event);
+
   try {
     const { rows: companies } = await platformPool.query(
       "SELECT tenant_db_name FROM companies WHERE status != 'cancelled'"
@@ -77,10 +108,10 @@ const resendWebhook = async (req, res) => {
           // 'complained' one that arrived first, and only touch the row if
           // this id is still the current invite (a newer resend supersedes).
           `UPDATE practitioners
-             SET invite_delivery_status = $1
+             SET invite_delivery_status = $1, invite_delivery_detail = $3
            WHERE invite_email_id = $2
              AND ($1 <> 'delivered' OR invite_delivery_status NOT IN ('bounced', 'complained'))`,
-          [status, emailId]
+          [status, emailId, detail]
         )
       );
       if (updated.rowCount > 0) {

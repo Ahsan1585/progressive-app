@@ -16,4 +16,7 @@
 -- companies and matching invite_email_id, so that column needs an index.
 ALTER TABLE practitioners ADD COLUMN IF NOT EXISTS invite_email_id text;
 ALTER TABLE practitioners ADD COLUMN IF NOT EXISTS invite_delivery_status text;
+-- Human-readable explanation of a delivery failure — a friendly reason plus
+-- Resend's own diagnostic message — shown in the roster's failure tooltip.
+ALTER TABLE practitioners ADD COLUMN IF NOT EXISTS invite_delivery_detail text;
 CREATE INDEX IF NOT EXISTS idx_practitioners_invite_email_id ON practitioners (invite_email_id);

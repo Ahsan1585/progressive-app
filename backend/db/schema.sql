@@ -55,8 +55,11 @@ CREATE TABLE practitioners (
   -- practitioner, plus the delivery outcome the Resend webhook reports back
   -- (null | 'sent' | 'delivered' | 'bounced' | 'complained'). Lets the
   -- staff roster surface a bounced/undeliverable activation email.
+  -- invite_delivery_detail holds a human-readable explanation of a failure
+  -- (friendly reason + Resend's raw diagnostic) for the roster tooltip.
   invite_email_id text,
   invite_delivery_status text,
+  invite_delivery_detail text,
   PRIMARY KEY (id),
   CONSTRAINT practitioners_email_key UNIQUE (email),
   -- Phase 2 collapsed the 3 fine-grained office-staff values into the single
