@@ -83,6 +83,13 @@ export const RegisterPractitionerForm = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [reactivatingId, setReactivatingId] = useState(null);
   const [resendingId, setResendingId] = useState(null);
+  // --- Roster bulk-invite: send activation emails to several not-yet-invited
+  // people at once, straight from the Staff Roster / Practitioners tabs
+  // (same per-practitioner resend-invite endpoint the single-row Mail button
+  // uses — a not-yet-invited account is invite-pending and already supports it).
+  const [rosterSelectedForInvite, setRosterSelectedForInvite] = useState(new Set());
+  const [rosterIsSendingInvites, setRosterIsSendingInvites] = useState(false);
+  const [rosterInviteError, setRosterInviteError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
   const [viewingPhoto, setViewingPhoto] = useState(null); // { url, name } or null
   const [reviewingContact, setReviewingContact] = useState(null); // member object with a pending contact change
@@ -116,6 +123,14 @@ export const RegisterPractitionerForm = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me]);
+
+  // Drop any roster bulk-invite selection when leaving the roster/practitioner
+  // tabs or when the status/search filters change what's on screen — a
+  // selection you can no longer see is just a footgun.
+  useEffect(() => {
+    setRosterSelectedForInvite(new Set());
+    setRosterInviteError('');
+  }, [activeTab, statusFilter, roleFilter, staffSearch]);
 
   // --- Registration Form State ---
   const [regForm, setRegForm] = useState({
@@ -327,6 +342,56 @@ export const RegisterPractitionerForm = () => {
       showAlert(err.response?.data?.error || 'Failed to resend the activation link.');
     } finally {
       setResendingId(null);
+    }
+  };
+
+  // A row qualifies for the roster's bulk-invite selection only while it's
+  // still awaiting its first invite (created, never emailed) and active.
+  const isNotYetInvited = (m) => m.is_pending_activation && !m.invite_sent_at && m.is_active !== false;
+
+  const toggleRosterInviteSelection = (id) => {
+    setRosterSelectedForInvite((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleRosterInviteSelectAll = (ids) => {
+    setRosterSelectedForInvite((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id));
+      return allSelected ? new Set() : new Set(ids);
+    });
+  };
+
+  // Sends the activation email to every selected not-yet-invited person,
+  // reusing the same per-practitioner endpoint the single-row Mail button
+  // calls. `eligibleIds` is the not-yet-invited set currently in view — a
+  // selected id that has since been invited or filtered out is skipped.
+  const handleRosterSendInvites = async (eligibleIds) => {
+    const eligible = new Set(eligibleIds);
+    const targets = [...rosterSelectedForInvite].filter((id) => eligible.has(id));
+    if (targets.length === 0) return;
+    setRosterIsSendingInvites(true);
+    setRosterInviteError('');
+    try {
+      const results = await Promise.allSettled(targets.map((id) => api.post(`/api/auth/staff/${id}/resend-invite`)));
+      const succeededIds = targets.filter((_, i) => results[i].status === 'fulfilled');
+      const failedCount = results.length - succeededIds.length;
+      const succeededSet = new Set(succeededIds);
+      setStaffList((prev) => prev.map((s) => (succeededSet.has(s.id) ? { ...s, invite_sent_at: new Date().toISOString() } : s)));
+      setRosterSelectedForInvite((prev) => {
+        const next = new Set(prev);
+        succeededIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      if (failedCount > 0) {
+        setRosterInviteError(`Sent ${succeededIds.length} invite${succeededIds.length === 1 ? '' : 's'}, but ${failedCount} failed — try those again.`);
+      } else {
+        showAlert(`Activation ${succeededIds.length === 1 ? 'invite' : 'invites'} sent to ${succeededIds.length} ${succeededIds.length === 1 ? 'person' : 'people'}.`);
+      }
+    } finally {
+      setRosterIsSendingInvites(false);
     }
   };
 
@@ -788,8 +853,14 @@ export const RegisterPractitionerForm = () => {
   // Shared row/table markup for both the Staff Roster and Practitioners
   // tabs — same columns and per-row logic (role dropdown only for
   // non-practitioners, chat only for practitioners, etc.), just fed a
-  // different, already-filtered `rows` array.
-  const renderStaffTable = (rows, emptyMessage) => (
+  // different, already-filtered `rows` array. `opts.selectable` adds a
+  // leading checkbox column for not-yet-invited rows (bulk-invite).
+  const renderStaffTable = (rows, emptyMessage, opts = {}) => {
+    const canInvite = canManageRoles || hasPermission('register_new_user');
+    const selectable = !!opts.selectable && canInvite;
+    const selectableIds = selectable ? rows.filter(isNotYetInvited).map((m) => m.id) : [];
+    const allSelectableChecked = selectableIds.length > 0 && selectableIds.every((id) => rosterSelectedForInvite.has(id));
+    return (
     loadingStaff ? (
       <div className="p-8 text-center text-sm text-slate-400">Loading staff...</div>
     ) : rows.length === 0 ? (
@@ -799,6 +870,18 @@ export const RegisterPractitionerForm = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
+              {selectable && (
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    className="size-4 cursor-pointer accent-teal-600 align-middle disabled:opacity-40"
+                    checked={allSelectableChecked}
+                    disabled={selectableIds.length === 0}
+                    onChange={() => toggleRosterInviteSelectAll(selectableIds)}
+                    title="Select all not-yet-invited"
+                  />
+                </th>
+              )}
               <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
               <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
               <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
@@ -813,8 +896,21 @@ export const RegisterPractitionerForm = () => {
             {rows.map(member => {
               const isDeactivated = member.is_active === false;
               const canDeactivateThis = member.role === 'practitioner' ? canManagePractitioners : canManageRoles;
+              const rowSelectable = selectable && isNotYetInvited(member);
               return (
               <tr key={member.id} className="hover:bg-slate-50 transition-colors">
+                {selectable && (
+                  <td className="px-4 py-3 w-10">
+                    {rowSelectable && (
+                      <input
+                        type="checkbox"
+                        className="size-4 cursor-pointer accent-teal-600 align-middle"
+                        checked={rosterSelectedForInvite.has(member.id)}
+                        onChange={() => toggleRosterInviteSelection(member.id)}
+                      />
+                    )}
+                  </td>
+                )}
                 <td className={`px-6 py-3 font-medium text-slate-800 ${isDeactivated ? 'opacity-60' : ''}`}>
                   <div className="flex items-center gap-2">
                     {member.profile_picture ? (
@@ -971,7 +1067,46 @@ export const RegisterPractitionerForm = () => {
         </table>
       </div>
     )
-  );
+    );
+  };
+
+  // The bulk-invite action bar shown above a selectable roster table —
+  // only when there's at least one not-yet-invited row in the current view.
+  const renderBulkInviteBar = (rows) => {
+    const canInvite = canManageRoles || hasPermission('register_new_user');
+    if (!canInvite) return null;
+    const eligibleIds = rows.filter(isNotYetInvited).map((m) => m.id);
+    if (eligibleIds.length === 0) return null;
+    const selectedCount = eligibleIds.filter((id) => rosterSelectedForInvite.has(id)).length;
+    return (
+      <div className="flex items-center gap-3 flex-wrap rounded-lg border border-teal-200 bg-teal-50/60 px-4 py-2.5">
+        <Mail className="size-4 text-teal-700 flex-shrink-0" />
+        <span className="text-sm text-teal-900">
+          {eligibleIds.length} {eligibleIds.length === 1 ? 'person has' : 'people have'} not been invited yet
+          {selectedCount > 0 && <span className="font-semibold"> · {selectedCount} selected</span>}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => toggleRosterInviteSelectAll(eligibleIds)}
+            className="text-xs font-semibold text-teal-700 hover:text-teal-900 cursor-pointer"
+          >
+            {selectedCount === eligibleIds.length ? 'Clear selection' : 'Select all'}
+          </button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => handleRosterSendInvites(eligibleIds)}
+            disabled={selectedCount === 0 || rosterIsSendingInvites}
+            className="bg-teal-600 hover:bg-teal-700 text-white cursor-pointer disabled:opacity-40"
+          >
+            {rosterIsSendingInvites ? 'Sending…' : `Send Invite${selectedCount === 1 ? '' : 's'} to ${selectedCount} Selected`}
+          </Button>
+        </div>
+        {rosterInviteError && <p className="w-full text-xs text-red-600">{rosterInviteError}</p>}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -1119,11 +1254,13 @@ export const RegisterPractitionerForm = () => {
           </div>
         </div>
 
+        {(() => { const bar = renderBulkInviteBar(visibleStaff); return bar && <div className="px-6 pt-4">{bar}</div>; })()}
         {renderStaffTable(
           visibleStaff,
           staffSearch.trim() || roleFilter !== 'all'
             ? 'No staff match your search or filters.'
-            : statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.'
+            : statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.',
+          { selectable: true }
         )}
       </div>
       )}
@@ -1176,11 +1313,13 @@ export const RegisterPractitionerForm = () => {
           </div>
         </div>
 
+        {(() => { const bar = renderBulkInviteBar(visiblePractitioners); return bar && <div className="px-6 pt-4">{bar}</div>; })()}
         {renderStaffTable(
           visiblePractitioners,
           staffSearch.trim()
             ? 'No practitioners match your search.'
-            : statusFilter === 'deactivated' ? 'No deactivated practitioners.' : statusFilter === 'active' ? 'No active practitioners.' : 'No practitioners registered yet.'
+            : statusFilter === 'deactivated' ? 'No deactivated practitioners.' : statusFilter === 'active' ? 'No active practitioners.' : 'No practitioners registered yet.',
+          { selectable: true }
         )}
       </div>
       )}
