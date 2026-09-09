@@ -36,19 +36,26 @@ function describeFailure(event) {
     event?.data?.suppressed?.message ||
     ''
   ).trim();
+  // Resend follows the SES bounce taxonomy: type is Permanent | Transient |
+  // Undetermined; subType is General | NoEmail | MailboxFull | ... . The
+  // *type* is the signal for "retry vs. fix the address" — a Permanent
+  // bounce (incl. subType "General", the usual value for an unknown address)
+  // is not going to succeed on a retry. Only a Transient bounce, or a
+  // MailboxFull of any type, is worth resending as-is.
   const bounceType = (event?.data?.bounce?.type || '').toLowerCase();
   const subType = (event?.data?.bounce?.subType || '').toLowerCase();
+  const isRetryable = bounceType === 'transient' || subType === 'mailboxfull';
 
   let friendly;
   if (event.type === 'email.complained') {
     friendly = 'The recipient marked the invite as spam. It may not have been seen — confirm the address is right, and consider reaching them another way.';
   } else if (event.type === 'email.suppressed') {
     friendly = 'This address is blocked because an earlier email to it bounced. Correct the email address (via Edit), then re-send the invite.';
-  } else if (bounceType === 'transient' || subType.includes('mailboxfull') || subType.includes('general')) {
+  } else if (isRetryable) {
     friendly = "The invite couldn't be delivered right now — the mailbox may be full or the mail server was temporarily unavailable. It's worth trying the resend again shortly.";
   } else {
-    // Permanent / Undetermined — treat as a bad address, the common case.
-    friendly = "The email address doesn't appear to exist or won't accept mail. Double-check it for typos (via Edit), then re-send the invite.";
+    // Permanent / Undetermined / unknown — the address does not accept mail.
+    friendly = "The email address was rejected — it likely doesn't exist or has a typo. Fix it via Edit, then re-send the invite.";
   }
 
   return raw ? `${friendly}\n\nProvider detail: ${raw}` : friendly;
@@ -89,6 +96,17 @@ const resendWebhook = async (req, res) => {
   const emailId = event?.data?.email_id;
   if (!status || !emailId) {
     return res.json({ received: true });
+  }
+
+  // Log the classification-relevant fields for any failure, so a
+  // misclassified reason can be diagnosed from the raw Resend payload.
+  if (status !== 'delivered') {
+    console.log('Resend failure event:', JSON.stringify({
+      type: event.type,
+      email_id: emailId,
+      bounce: event?.data?.bounce || null,
+      suppressed: event?.data?.suppressed || null,
+    }));
   }
 
   // A specific explanation for a failure; null for a plain delivery (which
