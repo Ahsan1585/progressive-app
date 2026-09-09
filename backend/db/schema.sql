@@ -51,6 +51,12 @@ CREATE TABLE practitioners (
   service_types text[] DEFAULT '{}'::text[],
   profile_picture text,
   invite_sent_at timestamptz,
+  -- Resend message id of the most recent invite email sent to this
+  -- practitioner, plus the delivery outcome the Resend webhook reports back
+  -- (null | 'sent' | 'delivered' | 'bounced' | 'complained'). Lets the
+  -- staff roster surface a bounced/undeliverable activation email.
+  invite_email_id text,
+  invite_delivery_status text,
   PRIMARY KEY (id),
   CONSTRAINT practitioners_email_key UNIQUE (email),
   -- Phase 2 collapsed the 3 fine-grained office-staff values into the single

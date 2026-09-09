@@ -101,8 +101,11 @@ async function insertInvitedPractitioner({
     const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
 
     try {
-      await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
-      await pool.query('UPDATE practitioners SET invite_sent_at = now() WHERE id = $1', [practitioner.id]);
+      const messageId = await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
+      await pool.query(
+        "UPDATE practitioners SET invite_sent_at = now(), invite_email_id = $2, invite_delivery_status = 'sent' WHERE id = $1",
+        [practitioner.id, messageId]
+      );
     } catch (emailError) {
       console.error('Failed to send account invite email:', emailError);
     }

@@ -126,18 +126,21 @@ const resendInvite = async (req, res) => {
     const tokenHash = hashToken(rawToken);
     const tokenExpiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
 
-    await pool.query(
-      'UPDATE practitioners SET reset_token_hash = $1, reset_token_expires = $2, invite_sent_at = now() WHERE id = $3',
-      [tokenHash, tokenExpiresAt, id]
-    );
-
     const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
     const companyName = companyRows[0]?.display_name || 'Izaya EIS';
     const slug = req.practitioner.slug;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
     const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
 
-    await sendInviteEmail(target.email, { activateUrl, companyName });
+    // Send first, then persist — so invite_email_id / invite_delivery_status
+    // reflect this send (and a fresh send clears any prior 'bounced' state
+    // so the roster badge resets while we wait for the new delivery event).
+    const messageId = await sendInviteEmail(target.email, { activateUrl, companyName });
+
+    await pool.query(
+      "UPDATE practitioners SET reset_token_hash = $1, reset_token_expires = $2, invite_sent_at = now(), invite_email_id = $4, invite_delivery_status = 'sent' WHERE id = $3",
+      [tokenHash, tokenExpiresAt, id, messageId]
+    );
 
     res.json({ success: true, message: 'Activation link resent.' });
   } catch (error) {
@@ -441,7 +444,7 @@ const getAllStaff = async (req, res) => {
       `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.role_id, r.name AS role_name,
               p.position_title, p.service_types,
               p.pay_rate, p.address, p.phone_number, p.created_at, p.is_active, p.profile_picture,
-              (p.password_hash = $1) AS is_pending_activation, p.invite_sent_at,
+              (p.password_hash = $1) AS is_pending_activation, p.invite_sent_at, p.invite_delivery_status,
               pcu.address AS pending_address, pcu.phone_number AS pending_phone_number, pcu.submitted_at AS pending_submitted_at
        FROM practitioners p
        LEFT JOIN roles r ON r.id = p.role_id

@@ -38,6 +38,7 @@ const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
 const telepracticeSignatureRoutes = require('./src/routes/telepracticeSignatureRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
+const { resendWebhook } = require('./src/controllers/resendWebhookController');
 const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
 const { platformPool } = require('./src/config/platformDb');
 const { runWithTenant } = require('./src/config/tenantContext');
@@ -72,6 +73,10 @@ app.use(cors({
 // would only ever see an already-parsed (and therefore re-serialized,
 // signature-mismatching) body.
 app.post('/api/subscription/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
+// Resend delivery webhook — same raw-body-before-express.json() requirement
+// as the Stripe one (Svix signature is over the exact bytes).
+app.post('/api/webhooks/resend', express.raw({ type: 'application/json' }), resendWebhook);
 
 // 20mb to comfortably fit a 10MB compliance-doc Excel upload after base64
 // inflation (~33%) plus the JSON envelope — smaller uploads (logo,

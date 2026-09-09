@@ -28,6 +28,7 @@
     "puppeteer": "^25.1.0",
     "resend": "^6.17.1",
     "stripe": "^22.3.2",
+    "svix": "^2.3.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

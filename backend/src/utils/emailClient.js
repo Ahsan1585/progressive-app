@@ -173,10 +173,13 @@ const sendPasswordResetEmail = async (toEmail, resetUrl) => {
   });
 };
 
+// Returns the Resend message id on success (or null when Resend isn't
+// configured / the send failed) so callers can persist it against the
+// practitioner and match it up later against the Resend delivery webhook.
 const sendInviteEmail = async (toEmail, { activateUrl, companyName }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping account invite email send.');
-    return;
+    return null;
   }
   const bodyHtml = `
     <p style="margin:0;">An administrator at <b style="color:${COLORS.navy};">${companyName}</b> has set up an account for you on Izaya EIS. Choose your password below to activate it.</p>
@@ -190,12 +193,13 @@ const sendInviteEmail = async (toEmail, { activateUrl, companyName }) => {
     bodyHtml,
     footnote: "This link expires in 7 days. If you weren't expecting this, you can safely ignore this email.",
   });
-  await resend.emails.send({
+  const { data } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
     to: toEmail,
     subject: `You've been invited to join ${companyName} on Izaya EIS`,
     html,
   });
+  return data?.id || null;
 };
 
 const sendSignupConfirmationEmail = async (toEmail, { confirmUrl, companyName }) => {

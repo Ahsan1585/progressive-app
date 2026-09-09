@@ -345,9 +345,14 @@ export const RegisterPractitionerForm = () => {
     }
   };
 
-  // A row qualifies for the roster's bulk-invite selection only while it's
-  // still awaiting its first invite (created, never emailed) and active.
-  const isNotYetInvited = (m) => m.is_pending_activation && !m.invite_sent_at && m.is_active !== false;
+  // A row qualifies for the roster's bulk-invite selection when it's an
+  // active, not-yet-activated account that either was never emailed, or was
+  // emailed but the invite bounced / got flagged as spam (re-send after
+  // fixing the address).
+  const isNotYetInvited = (m) =>
+    m.is_pending_activation &&
+    m.is_active !== false &&
+    (!m.invite_sent_at || m.invite_delivery_status === 'bounced' || m.invite_delivery_status === 'complained');
 
   const toggleRosterInviteSelection = (id) => {
     setRosterSelectedForInvite((prev) => {
@@ -939,11 +944,23 @@ export const RegisterPractitionerForm = () => {
                         Deactivated
                       </span>
                     )}
-                    {/* invite_sent_at is set only when an activation email has
-                        actually gone out (registration used to email
-                        immediately; now it's deferred until the admin
-                        explicitly sends it) — a Pending Activation account
-                        with no invite_sent_at was created but never invited. */}
+                    {/* Invite state for a not-yet-activated account:
+                        - bounced/complained: the last invite email failed to
+                          land (Resend delivery webhook) — fix the address and
+                          re-invite.
+                        - no invite_sent_at: created but never emailed.
+                        - otherwise (sent/delivered): invited, awaiting activation
+                          — no badge, the plain "Pending Activation" state. */}
+                    {member.is_pending_activation && (member.invite_delivery_status === 'bounced' || member.invite_delivery_status === 'complained') && (
+                      <span
+                        className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-red-50 text-red-700 border-red-200 uppercase tracking-wide"
+                        title={member.invite_delivery_status === 'complained'
+                          ? 'The recipient marked the activation email as spam — it may not have been seen. Consider confirming the address and re-sending.'
+                          : "The activation email couldn't be delivered (bad address or a full/blocked inbox). Fix the email via Edit, then re-send the invite."}
+                      >
+                        {member.invite_delivery_status === 'complained' ? 'Invite Flagged Spam' : 'Invite Bounced'}
+                      </span>
+                    )}
                     {member.is_pending_activation && !member.invite_sent_at && (
                       <span
                         className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-orange-50 text-orange-700 border-orange-200 uppercase tracking-wide"
@@ -1075,14 +1092,17 @@ export const RegisterPractitionerForm = () => {
   const renderBulkInviteBar = (rows) => {
     const canInvite = canManageRoles || hasPermission('register_new_user');
     if (!canInvite) return null;
-    const eligibleIds = rows.filter(isNotYetInvited).map((m) => m.id);
+    const eligible = rows.filter(isNotYetInvited);
+    const eligibleIds = eligible.map((m) => m.id);
     if (eligibleIds.length === 0) return null;
+    const failedCount = eligible.filter((m) => m.invite_delivery_status === 'bounced' || m.invite_delivery_status === 'complained').length;
     const selectedCount = eligibleIds.filter((id) => rosterSelectedForInvite.has(id)).length;
     return (
       <div className="flex items-center gap-3 flex-wrap rounded-lg border border-teal-200 bg-teal-50/60 px-4 py-2.5">
         <Mail className="size-4 text-teal-700 flex-shrink-0" />
         <span className="text-sm text-teal-900">
-          {eligibleIds.length} {eligibleIds.length === 1 ? 'person has' : 'people have'} not been invited yet
+          {eligibleIds.length} {eligibleIds.length === 1 ? 'person needs' : 'people need'} an activation invite
+          {failedCount > 0 && <span> ({failedCount} previously bounced)</span>}
           {selectedCount > 0 && <span className="font-semibold"> · {selectedCount} selected</span>}
         </span>
         <div className="ml-auto flex items-center gap-2">

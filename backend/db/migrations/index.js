@@ -22,6 +22,7 @@ const MIGRATIONS = [
   'add_practitioner_manage_permission.sql',
   'add_invite_sent_at.sql',
   'add_bulk_import_batches.sql',
+  'add_invite_delivery_tracking.sql',
 ];
 
 module.exports = { MIGRATIONS };
