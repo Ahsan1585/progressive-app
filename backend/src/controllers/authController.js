@@ -449,6 +449,7 @@ const getAllStaff = async (req, res) => {
        FROM practitioners p
        LEFT JOIN roles r ON r.id = p.role_id
        LEFT JOIN pending_contact_updates pcu ON pcu.practitioner_id = p.id
+       WHERE p.is_platform_support = false
        ORDER BY p.created_at DESC`,
       [INVITE_PENDING]
     );
@@ -725,7 +726,21 @@ async function getMe(req, res) {
     // would be actively misleading.
     roleName = rows[0]?.name || 'Staff';
   }
-  res.json({ isAdmin: req.isAdmin, permissions: Array.from(req.permissions), roleName });
+  // isPlatformSupport and isImpersonating both ride on the decoded JWT
+  // already (set at token-mint time in platformProvisioningController.js's
+  // impersonateCompany) — no extra query needed. Used by the frontend to
+  // show the "Viewing X as Izaya Support" banner and to gate Bulk Register
+  // to the support account only (see RegisterPractitionerForm.jsx).
+  const isPlatformSupport = !!req.practitioner.isPlatformSupport;
+  const isImpersonating = !!req.practitioner.impersonation;
+  res.json({
+    isAdmin: req.isAdmin,
+    permissions: Array.from(req.permissions),
+    roleName,
+    isPlatformSupport,
+    isImpersonating,
+    impersonatedBy: isImpersonating ? req.practitioner.impersonation.platformAdminEmail : null,
+  });
 }
 
 module.exports = {

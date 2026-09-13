@@ -44,6 +44,7 @@ function getValidServiceTypeCodes() {
 async function insertInvitedPractitioner({
   firstName, lastName, email, address, phoneNumber, payRate, positionTitle,
   ssn, serviceTypes, legacyRole, resolvedRoleId, slug, frontendUrl, sendEmail = true,
+  isPlatformSupport = false,
 }) {
   const normalizedEmail = String(email).trim().toLowerCase();
 
@@ -79,6 +80,12 @@ async function insertInvitedPractitioner({
   if (ssn) addColumn('ssn', ssn);
   if (serviceTypes && serviceTypes.length > 0) addColumn('service_types', serviceTypes);
   if (resolvedRoleId) addColumn('role_id', resolvedRoleId);
+  // Hidden Izaya Support account for a tenant (see platformProvisioningController.js)
+  // — never logged into via a password (INVITE_PENDING can never match a real
+  // bcrypt compare); only ever reached by a platform-admin-minted impersonation
+  // JWT. Flagged so every roster-listing query can exclude it from the
+  // customer's own Staff Directory.
+  if (isPlatformSupport) addColumn('is_platform_support', true);
 
   const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
   const { rows: insertedRows } = await pool.query(

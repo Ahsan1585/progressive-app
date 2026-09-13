@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-const { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission } = require('../middleware/authMiddleware');
+const { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requirePlatformSupportOnly } = require('../middleware/authMiddleware');
 const { resolveTenantBySlug } = require('../middleware/tenantMiddleware');
 
 // Throttle login attempts to slow brute-force / credential-stuffing (HIPAA §164.308(a)(5))
@@ -73,21 +73,25 @@ router.post('/register-practitioner', protect, loadPermissions, requirePermissio
 // (e.g. the original 7-day link expired) — same permission as inviting.
 router.post('/staff/:id/resend-invite', protect, loadPermissions, requirePermission('register_new_user'), resendInvite);
 
-// Staff Directory's bulk (Excel upload) practitioner registration —
-// practitioner-only, same permission as the single-registration form.
-// Preview parses the file and returns the auto-detected column mapping;
-// Confirm re-parses with the reviewed mapping and creates every valid row.
-router.post('/staff/bulk-import/preview', protect, loadPermissions, requirePermission('register_new_user'), previewPractitionerImport);
-router.post('/staff/bulk-import/confirm', protect, loadPermissions, requirePermission('register_new_user'), confirmPractitionerImport);
-// The results screen's fix-up table for skipped rows — same permission,
+// Staff Directory's bulk (Excel upload) practitioner registration — now
+// Izaya-Support-only (removed from every tenant's own Staff Directory UI,
+// see RegisterPractitionerForm.jsx's isPlatformSupport gate). Every route
+// keeps register_new_user too so a real admin without that permission at
+// all still gets a plain 403 rather than one that leaks the existence of a
+// support-only feature. Preview parses the file and returns the
+// auto-detected column mapping; Confirm re-parses with the reviewed
+// mapping and creates every valid row.
+router.post('/staff/bulk-import/preview', protect, loadPermissions, requirePermission('register_new_user'), requirePlatformSupportOnly, previewPractitionerImport);
+router.post('/staff/bulk-import/confirm', protect, loadPermissions, requirePermission('register_new_user'), requirePlatformSupportOnly, confirmPractitionerImport);
+// The results screen's fix-up table for skipped rows — same gating,
 // no file re-parse (the admin's corrected values are sent directly).
-router.post('/staff/bulk-import/retry', protect, loadPermissions, requirePermission('register_new_user'), retryPractitionerImportRows);
+router.post('/staff/bulk-import/retry', protect, loadPermissions, requirePermission('register_new_user'), requirePlatformSupportOnly, retryPractitionerImportRows);
 
 // Resumable-batch support — an unresolved import's skipped rows persist
-// past a page refresh/navigation-away. Same permission as the rest of bulk
+// past a page refresh/navigation-away. Same gating as the rest of bulk
 // import throughout.
-router.get('/staff/bulk-import/batches/open', protect, loadPermissions, requirePermission('register_new_user'), getOpenBulkImportBatch);
-router.patch('/staff/bulk-import/batches/:id', protect, loadPermissions, requirePermission('register_new_user'), updateBulkImportBatch);
+router.get('/staff/bulk-import/batches/open', protect, loadPermissions, requirePermission('register_new_user'), requirePlatformSupportOnly, getOpenBulkImportBatch);
+router.patch('/staff/bulk-import/batches/:id', protect, loadPermissions, requirePermission('register_new_user'), requirePlatformSupportOnly, updateBulkImportBatch);
 
 // View all staff (staff_directory_view, or practitioner_manage alone — a
 // role scoped to just managing practitioners still needs to see the list)

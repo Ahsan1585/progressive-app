@@ -184,4 +184,4 @@ const setCompanyPricing = async (req, res) => {
   }
 };
 
-module.exports = { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate, getCompanyPricing, setCompanyPricing };
+module.exports = { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate, getCompanyPricing, setCompanyPricing, tenantPoolForSlug };

@@ -60,6 +60,10 @@ CREATE TABLE practitioners (
   invite_email_id text,
   invite_delivery_status text,
   invite_delivery_detail text,
+  -- Flags the tenant's hidden Izaya Support account (see
+  -- migrations/add_platform_support_flag.sql). Every roster-listing query
+  -- must exclude these rows from the customer's own Staff Directory.
+  is_platform_support boolean NOT NULL DEFAULT false,
   PRIMARY KEY (id),
   CONSTRAINT practitioners_email_key UNIQUE (email),
   -- Phase 2 collapsed the 3 fine-grained office-staff values into the single

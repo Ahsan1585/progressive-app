@@ -1,24 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate, getCompanyPricing, setCompanyPricing } = require('../controllers/platformAdminController');
+const { createCompany, impersonateCompany, ensureSupportAccount } = require('../controllers/platformProvisioningController');
+const { requirePlatformAdminAuth } = require('../middleware/platformAdminAuthMiddleware');
 
-// Not a real admin auth system for this phase — a bare shared-secret
-// header, intentionally unpolished (superseded by Phase 3's setup
-// dashboard). See the multi-tenant-foundation plan, section F.
-function requirePlatformAdminKey(req, res, next) {
-  const expected = process.env.PLATFORM_ADMIN_KEY;
-  if (!expected || req.headers['x-platform-admin-key'] !== expected) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}
-
-router.get('/companies', requirePlatformAdminKey, listCompanies);
-router.post('/companies/:slug/trial-end', requirePlatformAdminKey, setTrialEndDate);
-router.get('/companies/:slug/pricing', requirePlatformAdminKey, getCompanyPricing);
-router.post('/companies/:slug/pricing', requirePlatformAdminKey, setCompanyPricing);
-router.get('/promo-codes', requirePlatformAdminKey, listPromoCodes);
-router.post('/promo-codes', requirePlatformAdminKey, createPromoCode);
-router.post('/promo-codes/:id/deactivate', requirePlatformAdminKey, deactivatePromoCode);
+router.get('/companies', requirePlatformAdminAuth, listCompanies);
+router.post('/companies', requirePlatformAdminAuth, createCompany);
+router.post('/companies/:slug/trial-end', requirePlatformAdminAuth, setTrialEndDate);
+router.get('/companies/:slug/pricing', requirePlatformAdminAuth, getCompanyPricing);
+router.post('/companies/:slug/pricing', requirePlatformAdminAuth, setCompanyPricing);
+router.post('/companies/:slug/impersonate', requirePlatformAdminAuth, impersonateCompany);
+router.post('/companies/:slug/ensure-support-account', requirePlatformAdminAuth, ensureSupportAccount);
+router.get('/promo-codes', requirePlatformAdminAuth, listPromoCodes);
+router.post('/promo-codes', requirePlatformAdminAuth, createPromoCode);
+router.post('/promo-codes/:id/deactivate', requirePlatformAdminAuth, deactivatePromoCode);
 
 module.exports = router;

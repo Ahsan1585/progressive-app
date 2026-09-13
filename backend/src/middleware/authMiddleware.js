@@ -49,8 +49,14 @@ const protect = (req, res, next) => {
       // that survive it) if the very call that reports the block also gets
       // blocked itself.
       const isMeOrStatusRoute = req.originalUrl.startsWith('/api/auth/me') || req.originalUrl.startsWith('/api/auth/company-status');
+      // A platform-admin-minted impersonation session (Izaya Support) always
+      // gets past a lapsed trial/suspension — this is about helping an
+      // already-BAA-signed customer whose billing lapsed, unrelated to the
+      // BAA gate below (which is NOT bypassed — see impersonateCompany in
+      // platformProvisioningController.js for that boundary).
+      const isImpersonating = !!decoded.impersonation;
 
-      if ((trialExpired || isSuspended) && !ceoException && !isMeOrStatusRoute) {
+      if ((trialExpired || isSuspended) && !ceoException && !isMeOrStatusRoute && !isImpersonating) {
         return res.status(402).json({
           error: trialExpired
             ? 'Your free trial has ended — add a payment method to continue.'
@@ -145,6 +151,20 @@ const requireOfficeStaff = (req, res, next) => {
   next();
 };
 
+// Bulk practitioner import (Excel upload) is platform-admin-support-only —
+// removed from every tenant's own Staff Directory UI regardless of
+// permissions (see RegisterPractitionerForm.jsx), and enforced here too as
+// defense-in-depth so a real admin/staff account can't reach it by calling
+// the API directly. `isPlatformSupport` rides on the JWT from the moment an
+// impersonation session is minted (platformProvisioningController.js) — no
+// extra DB round-trip needed.
+const requirePlatformSupportOnly = (req, res, next) => {
+  if (!req.practitioner?.isPlatformSupport) {
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+  }
+  next();
+};
+
 const requireRole = (allowedRoles) => (req, res, next) => {
   const userRole = req.practitioner?.role;
   if (!userRole || !allowedRoles.includes(userRole)) {
@@ -153,4 +173,4 @@ const requireRole = (allowedRoles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireOfficeStaff };
+module.exports = { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireOfficeStaff, requirePlatformSupportOnly };

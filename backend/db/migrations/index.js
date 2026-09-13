@@ -24,6 +24,7 @@ const MIGRATIONS = [
   'add_bulk_import_batches.sql',
   'add_invite_delivery_tracking.sql',
   'add_realtime_messaging.sql',
+  'add_platform_support_flag.sql',
 ];
 
 module.exports = { MIGRATIONS };

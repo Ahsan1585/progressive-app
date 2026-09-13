@@ -1,24 +1,15 @@
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { platformPool } = require('../config/platformDb');
 const { getProvisioningPool } = require('../config/provisioningDb');
-const { getTenantPool, evictTenantPool } = require('../config/tenantPoolRegistry');
-const { applyMigrationsToPool } = require('../config/runMigrations');
-const { PREBUILT_ROLE_NAMES } = require('../constants/permissions');
+const { evictTenantPool } = require('../config/tenantPoolRegistry');
+const { provisionTenantDatabase } = require('../utils/tenantProvisioning');
+const { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { sendSignupConfirmationEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
 
-const SLUG_REGEX = /^[a-z0-9-]{3,40}$/;
-// Must not collide with an existing app route or a future subdomain.
-const RESERVED_SLUGS = new Set([
-  'api', 'www', 'admin', 'platform', 'signup', 'activate', 'login',
-  'logout', 'app', 'assets', 'static', 'mail', 'support', 'help', 'eis',
-]);
 const CONFIRM_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const TRIAL_DAYS = 15;
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 function validateSignupPayload(body) {
@@ -135,16 +126,7 @@ const confirmSignup = async (req, res) => {
   const tenantDbName = `tenant_${pending.slug.replace(/-/g, '_')}`;
 
   try {
-    // CREATE DATABASE cannot run inside a transaction block — a plain,
-    // autocommit query via the elevated, CREATEDB-only provisioning
-    // connection (see provisioningDb.js; deliberately never the same
-    // credential the everyday tenant pools use).
-    await getProvisioningPool().query(`CREATE DATABASE "${tenantDbName}"`);
-
-    const tenantPool = getTenantPool(tenantDbName);
-    const schemaSql = fs.readFileSync(path.join(__dirname, '../../db/schema.sql'), 'utf8');
-    await tenantPool.query(schemaSql);
-    await applyMigrationsToPool(tenantPool, pending.slug);
+    const { tenantPool, adminRoleId } = await provisionTenantDatabase({ slug: pending.slug, tenantDbName });
 
     await tenantPool.query(
       `INSERT INTO company_settings (id, display_name, legal_entity_name, address, phone, billing_email)
@@ -153,27 +135,6 @@ const confirmSignup = async (req, res) => {
          address = EXCLUDED.address, phone = EXCLUDED.phone, billing_email = EXCLUDED.billing_email`,
       [pending.display_name, pending.legal_entity_name, pending.address, pending.phone, pending.email]
     );
-
-    // Seed the Admin role + 4 prebuilt roles for this new tenant. The
-    // migrations applied above (applyMigrationsToPool, including
-    // add_roles_permissions.sql) already seed these same rows via
-    // `WHERE NOT EXISTS` guards, so this must reuse those same guards
-    // rather than bare INSERTs — otherwise this would throw a duplicate-key
-    // error on every single new signup.
-    const { rows: adminRoleRows } = await tenantPool.query(
-      `INSERT INTO roles (name, is_system) SELECT 'Admin', true WHERE NOT EXISTS (SELECT 1 FROM roles WHERE is_system = true) RETURNING id`
-    );
-    let adminRoleId = adminRoleRows[0]?.id;
-    if (!adminRoleId) {
-      const { rows } = await tenantPool.query('SELECT id FROM roles WHERE is_system = true');
-      adminRoleId = rows[0].id;
-    }
-    for (const roleName of PREBUILT_ROLE_NAMES) {
-      const { rows: existing } = await tenantPool.query('SELECT id FROM roles WHERE name = $1', [roleName]);
-      if (existing[0]) continue;
-      const { rows } = await tenantPool.query('INSERT INTO roles (name) VALUES ($1) RETURNING id', [roleName]);
-      await tenantPool.query('INSERT INTO role_permissions (role_id, permission_key) VALUES ($1, $2)', [rows[0].id, 'staff_directory_view']);
-    }
 
     await tenantPool.query(
       `INSERT INTO practitioners (first_name, last_name, email, password_hash, requires_password_change, role, role_id)

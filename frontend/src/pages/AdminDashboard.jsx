@@ -87,6 +87,18 @@ const AdminDashboard = () => {
     navigate('/login');
   };
 
+  // Ends an Izaya Support impersonation session and returns to the
+  // platform-admin dashboard — deliberately does NOT touch
+  // localStorage['platformAdminToken'], which lives in its own key, so that
+  // session (started before "Enter" was clicked) is still there waiting.
+  const handleExitImpersonation = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('companySlug');
+    window.dispatchEvent(new Event('auth-changed'));
+    navigate('/platform-admin');
+  };
+
   const toggleSidebar = () => setSidebarOpen(o => !o);
 
   useEffect(() => {
@@ -384,6 +396,22 @@ const AdminDashboard = () => {
             </button>
           </div>
         </header>
+
+        {me?.isImpersonating && (
+          <div className="print:hidden shrink-0 flex items-center justify-between gap-3 bg-amber-500 text-amber-950 px-4 md:px-8 py-2 text-sm font-semibold">
+            <span>
+              Viewing {companySettings?.display_name || 'this company'} as Izaya Support
+              {me.impersonatedBy ? ` (${me.impersonatedBy})` : ''}
+            </span>
+            <button
+              type="button"
+              onClick={handleExitImpersonation}
+              className="flex-shrink-0 rounded-md border border-amber-950/30 bg-white/60 px-3 py-1 text-xs font-bold uppercase tracking-wide hover:bg-white cursor-pointer"
+            >
+              Exit to Platform Admin
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 print:h-auto print:overflow-visible print:p-0">
           <TrialStatusBanner />

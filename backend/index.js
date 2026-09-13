@@ -34,6 +34,7 @@ const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
 const signupRoutes = require('./src/routes/signupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
+const platformAuthRoutes = require('./src/routes/platformAuthRoutes');
 const roleRoutes = require('./src/routes/roleRoutes');
 const testDataRoutes = require('./src/routes/testDataRoutes');
 const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
@@ -102,6 +103,11 @@ app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/dropdown-options', dropdownOptionsRoutes);
 app.use('/api/signup', signupRoutes);
+// /auth must be mounted before the plain /api/platform prefix — both
+// routers listen on overlapping paths, and Express dispatches to whichever
+// matches first. platformAuthRoutes (login/bootstrap) must stay public;
+// platformAdminRoutes gates everything else behind requirePlatformAdminAuth.
+app.use('/api/platform/auth', platformAuthRoutes);
 app.use('/api/platform', platformAdminRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/contact', contactRoutes);

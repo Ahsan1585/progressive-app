@@ -1,0 +1,16 @@
+-- Flags a practitioner row as the tenant's hidden "Izaya Support" account —
+-- created during provisioning (signupController's confirmSignup no longer
+-- creates one; only the platform-admin-triggered flow in
+-- platformProvisioningController.js does) or backfilled via
+-- POST /api/platform/companies/:slug/ensure-support-account for tenants
+-- that predate this feature. Used only by a platform-admin-minted
+-- impersonation JWT, never by a normal login.
+--
+-- Every roster-listing query (getAllStaff, etc.) must exclude
+-- is_platform_support = true rows so this account never appears in the
+-- customer's own Staff Directory.
+--
+-- Pure metadata-only ADD COLUMN ... DEFAULT — no rewrite, no backfill;
+-- every existing row (including any tenant's real ceo/staff/practitioner
+-- rows) gets `false` automatically.
+ALTER TABLE practitioners ADD COLUMN IF NOT EXISTS is_platform_support boolean NOT NULL DEFAULT false;

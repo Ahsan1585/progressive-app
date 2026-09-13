@@ -1,6 +1,7 @@
 import { useEffect, useState, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Loader2, Plus, Ban, KeyRound, LogOut, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, Ban, LogOut, ChevronDown, ChevronRight, LogIn, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,39 +19,44 @@ function BrandHeader() {
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const PLATFORM_ADMIN_TOKEN_KEY = 'platformAdminToken';
 
-// Deliberately uses a bare axios instance, not the shared api client from
-// axiosInstance.js — that client's response interceptor redirects to the
-// tenant /login page on any 401, which would fire on every wrong-key
-// attempt here and is the wrong failure mode for a page with no tenant
-// session at all. Auth is a single shared secret (see requirePlatformAdminKey
-// in platformAdminRoutes.js), not a JWT — not a real admin-user system yet,
-// same "unpolished Phase-1" scope as the rest of that surface.
-function platformApi(key) {
-  return axios.create({
-    baseURL: API_BASE,
-    headers: { 'x-platform-admin-key': key },
+// Deliberately a bare axios instance, not the shared `api` client from
+// axiosInstance.js — that client's response interceptor clears the TENANT
+// session (localStorage 'token'/'role') and redirects to /login on any 401,
+// which is the wrong failure mode here and would also nuke a concurrent
+// tenant session (e.g. right after exiting an impersonation session) in the
+// same browser. This instance's own 401 handling only ever touches
+// `platformAdminToken` — the two auth domains stay fully decoupled.
+function platformApi() {
+  const instance = axios.create({ baseURL: API_BASE });
+  instance.interceptors.request.use((config) => {
+    const token = localStorage.getItem(PLATFORM_ADMIN_TOKEN_KEY);
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
   });
+  return instance;
 }
 
-function KeyPrompt({ onUnlocked }) {
-  const [key, setKey] = useState('');
+function LoginScreen({ onLoggedIn }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [checking, setChecking] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!key.trim()) return;
-    setChecking(true);
+    if (!email.trim() || !password) return;
+    setIsSubmitting(true);
     setError('');
     try {
-      await platformApi(key.trim()).get('/api/platform/promo-codes');
-      sessionStorage.setItem('platformAdminKey', key.trim());
-      onUnlocked(key.trim());
-    } catch {
-      setError('Incorrect key.');
+      const { data } = await platformApi().post('/api/platform/auth/login', { email: email.trim(), password });
+      localStorage.setItem(PLATFORM_ADMIN_TOKEN_KEY, data.token);
+      onLoggedIn();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to log in.');
     } finally {
-      setChecking(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -58,23 +64,27 @@ function KeyPrompt({ onUnlocked }) {
     <div className="flex h-screen flex-col bg-slate-50">
       <BrandHeader />
       <div className="flex flex-1 items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-lg p-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
-            <KeyRound className="w-5 h-5 text-slate-600" />
+        <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-lg p-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
+              <ShieldAlert className="w-5 h-5 text-slate-600" />
+            </div>
+            <h1 className="text-lg font-bold text-slate-900">Platform Admin</h1>
           </div>
-          <h1 className="text-lg font-bold text-slate-900">Platform Admin</h1>
-        </div>
-        <div className="space-y-2 mb-4">
-          <Label htmlFor="platform-key">Admin key</Label>
-          <Input id="platform-key" type="password" value={key} onChange={(e) => setKey(e.target.value)} autoFocus />
-        </div>
-        {error && <p className="text-sm text-red-600 font-medium mb-3">{error}</p>}
-        <Button type="submit" disabled={checking || !key.trim()} className="w-full h-11">
-          {checking ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : null}
-          Unlock
-        </Button>
-      </form>
+          <div className="space-y-2 mb-3">
+            <Label htmlFor="pa-email">Email</Label>
+            <Input id="pa-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus autoComplete="username" />
+          </div>
+          <div className="space-y-2 mb-4">
+            <Label htmlFor="pa-password">Password</Label>
+            <Input id="pa-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          </div>
+          {error && <p className="text-sm text-red-600 font-medium mb-3">{error}</p>}
+          <Button type="submit" disabled={isSubmitting || !email.trim() || !password} className="w-full h-11">
+            {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : null}
+            Log In
+          </Button>
+        </form>
       </div>
     </div>
   );
@@ -214,11 +224,106 @@ function PricingEditor({ slug, client }) {
   );
 }
 
-function CompaniesTable({ apiKey }) {
-  const client = platformApi(apiKey);
+// New-company creation. Deliberately does NOT pre-accept the BAA — the
+// customer's own admin must accept it themselves on first login. Until
+// they do, "Enter" (below) refuses with BAA_NOT_ACCEPTED.
+function NewCompanyForm({ client, onCreated }) {
+  const empty = { displayName: '', legalEntityName: '', address: '', phone: '', email: '', slug: '', adminFirstName: '', adminLastName: '', adminEmail: '' };
+  const [form, setForm] = useState(empty);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+    setSuccess('');
+    try {
+      const { data } = await client.post('/api/platform/companies', {
+        ...form,
+        slug: form.slug.trim().toLowerCase(),
+      });
+      setSuccess(data.message || `Company "${data.slug}" created.`);
+      setForm(empty);
+      onCreated();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to create company.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-5">
+      <div>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400 mb-3">Company</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="nc-display">Display name</Label>
+            <Input id="nc-display" required value={form.displayName} onChange={set('displayName')} placeholder="Progressive Steps" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nc-slug">Company code (slug)</Label>
+            <Input id="nc-slug" required value={form.slug} onChange={set('slug')} placeholder="progressive-steps" className="font-mono" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nc-legal">Legal entity name</Label>
+            <Input id="nc-legal" value={form.legalEntityName} onChange={set('legalEntityName')} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nc-email">Company contact email</Label>
+            <Input id="nc-email" type="email" required value={form.email} onChange={set('email')} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nc-address">Address</Label>
+            <Input id="nc-address" value={form.address} onChange={set('address')} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nc-phone">Phone</Label>
+            <Input id="nc-phone" value={form.phone} onChange={set('phone')} />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400 mb-3">Customer's admin</h2>
+        <p className="text-xs text-slate-500 mb-3">
+          They'll receive an activation email to set their own password, and must accept the BAA themselves on first login — Izaya Support cannot enter this company until they do.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="nc-afn">First name</Label>
+            <Input id="nc-afn" required value={form.adminFirstName} onChange={set('adminFirstName')} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nc-aln">Last name</Label>
+            <Input id="nc-aln" required value={form.adminLastName} onChange={set('adminLastName')} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nc-aem">Email</Label>
+            <Input id="nc-aem" type="email" required value={form.adminEmail} onChange={set('adminEmail')} />
+          </div>
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
+      {success && <p className="text-sm text-teal-700 font-medium">{success}</p>}
+      <Button type="submit" disabled={isSubmitting} className="h-11">
+        {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+        Create company
+      </Button>
+    </form>
+  );
+}
+
+function CompaniesTable({ client }) {
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState(null);
   const [error, setError] = useState('');
   const [expandedSlug, setExpandedSlug] = useState(null);
+  const [rowState, setRowState] = useState({}); // { [slug]: { entering, backfilling, error, notice } }
 
   const fetchCompanies = () => {
     client.get('/api/platform/companies')
@@ -228,9 +333,49 @@ function CompaniesTable({ apiKey }) {
 
   useEffect(() => { fetchCompanies(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const setRow = (slug, patch) => setRowState((prev) => ({ ...prev, [slug]: { ...prev[slug], ...patch } }));
+
   const daysLeft = (trialEndsAt) => {
     if (!trialEndsAt) return null;
     return Math.ceil((new Date(trialEndsAt) - new Date()) / (24 * 60 * 60 * 1000));
+  };
+
+  const handleEnter = async (slug) => {
+    setRow(slug, { entering: true, error: '', notice: '' });
+    try {
+      const { data } = await client.post(`/api/platform/companies/${slug}/impersonate`);
+      // Tenant session keys — deliberately the SAME keys Login.jsx sets, so
+      // every existing tenant-session mechanism (ProtectedRoute, the
+      // MessagingProvider socket, etc.) treats this exactly like a normal
+      // login. platformAdminToken is untouched — that session stays alive.
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('role', 'ceo');
+      localStorage.setItem('companySlug', data.slug);
+      window.dispatchEvent(new Event('auth-changed'));
+      navigate('/admin-dashboard');
+    } catch (err) {
+      const code = err.response?.data?.code;
+      const message = code === 'BAA_NOT_ACCEPTED'
+        ? "Awaiting BAA acceptance from the customer's admin — cannot enter yet."
+        : code === 'NO_SUPPORT_ACCOUNT'
+          ? 'No Izaya Support account for this company yet — use Backfill first.'
+          : (err.response?.data?.error || 'Failed to enter company.');
+      setRow(slug, { error: message });
+    } finally {
+      setRow(slug, { entering: false });
+    }
+  };
+
+  const handleBackfill = async (slug) => {
+    setRow(slug, { backfilling: true, error: '', notice: '' });
+    try {
+      const { data } = await client.post(`/api/platform/companies/${slug}/ensure-support-account`);
+      setRow(slug, { notice: data.created ? 'Support account created.' : 'Already had a support account.' });
+    } catch (err) {
+      setRow(slug, { error: err.response?.data?.error || 'Failed to backfill support account.' });
+    } finally {
+      setRow(slug, { backfilling: false });
+    }
   };
 
   return (
@@ -253,12 +398,14 @@ function CompaniesTable({ apiKey }) {
               <th className="text-left px-4 py-3">Trial ends</th>
               <th className="text-left px-4 py-3">Created</th>
               <th className="text-left px-4 py-3">Set trial end date</th>
+              <th className="text-left px-4 py-3">Remote support</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {companies.map((c) => {
               const left = c.status === 'trial' ? daysLeft(c.trial_ends_at) : null;
               const expanded = expandedSlug === c.slug;
+              const rs = rowState[c.slug] || {};
               return (
                 <Fragment key={c.slug}>
                 <tr className={expanded ? 'bg-slate-50/60' : ''}>
@@ -289,11 +436,26 @@ function CompaniesTable({ apiKey }) {
                   <td className="px-4 py-3">
                     <TrialEndEditor company={c} client={client} onSaved={fetchCompanies} />
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Button type="button" size="sm" variant="outline" disabled={rs.entering} onClick={() => handleEnter(c.slug)} className="h-8">
+                          {rs.entering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5 mr-1" />}
+                          Enter
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" disabled={rs.backfilling} onClick={() => handleBackfill(c.slug)} className="h-8 text-xs">
+                          {rs.backfilling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Backfill support acct'}
+                        </Button>
+                      </div>
+                      {rs.error && <p className="text-xs font-medium text-red-600 max-w-[220px]">{rs.error}</p>}
+                      {rs.notice && <p className="text-xs font-medium text-teal-700">{rs.notice}</p>}
+                    </div>
+                  </td>
                 </tr>
                 {expanded && (
                   <tr className="bg-slate-50/60">
                     <td />
-                    <td colSpan={6} className="px-4 pb-4 pt-1">
+                    <td colSpan={7} className="px-4 pb-4 pt-1">
                       <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Subscription pricing</div>
                       <PricingEditor slug={c.slug} client={client} />
                     </td>
@@ -309,8 +471,7 @@ function CompaniesTable({ apiKey }) {
   );
 }
 
-function PromoCodeManager({ apiKey }) {
-  const client = platformApi(apiKey);
+function PromoCodeManager({ client }) {
   const [codes, setCodes] = useState(null);
   const [error, setError] = useState('');
 
@@ -435,19 +596,36 @@ function PromoCodeManager({ apiKey }) {
   );
 }
 
-const TABS = { companies: 'Companies', promoCodes: 'Promo Codes' };
+const TABS = { companies: 'Companies', newCompany: 'New Company', promoCodes: 'Promo Codes' };
 
 export default function PlatformAdmin() {
-  const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('platformAdminKey') || '');
+  const [loggedIn, setLoggedIn] = useState(() => !!localStorage.getItem(PLATFORM_ADMIN_TOKEN_KEY));
   const [tab, setTab] = useState('companies');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  if (!apiKey) {
-    return <KeyPrompt onUnlocked={setApiKey} />;
+  if (!loggedIn) {
+    return <LoginScreen onLoggedIn={() => setLoggedIn(true)} />;
   }
 
+  const client = platformApi();
+  // A wrong/expired token surfaces as a normal per-request error message
+  // rather than a global redirect (see platformApi's comment) — but a 401
+  // here specifically means the session is dead, so drop back to the login
+  // screen instead of leaving a broken dashboard up.
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        localStorage.removeItem(PLATFORM_ADMIN_TOKEN_KEY);
+        setLoggedIn(false);
+      }
+      return Promise.reject(error);
+    }
+  );
+
   const handleLogout = () => {
-    sessionStorage.removeItem('platformAdminKey');
-    setApiKey('');
+    localStorage.removeItem(PLATFORM_ADMIN_TOKEN_KEY);
+    setLoggedIn(false);
   };
 
   return (
@@ -464,7 +642,7 @@ export default function PlatformAdmin() {
                   key={key}
                   type="button"
                   onClick={() => setTab(key)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors cursor-pointer ${tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   {label}
                 </button>
@@ -476,7 +654,11 @@ export default function PlatformAdmin() {
           </div>
         </div>
 
-        {tab === 'companies' ? <CompaniesTable apiKey={apiKey} /> : <PromoCodeManager apiKey={apiKey} />}
+        {tab === 'companies' && <CompaniesTable key={refreshKey} client={client} />}
+        {tab === 'newCompany' && (
+          <NewCompanyForm client={client} onCreated={() => { setTab('companies'); setRefreshKey((k) => k + 1); }} />
+        )}
+        {tab === 'promoCodes' && <PromoCodeManager client={client} />}
       </div>
       </div>
     </div>

@@ -1159,6 +1159,12 @@ export const RegisterPractitionerForm = () => {
           </svg>
           Register New User
         </button>
+        {/* Bulk Register is Izaya-Support-only — removed from every tenant's
+            own Staff Directory regardless of permissions (see the design
+            note on platformProvisioningController.js). Only the hidden
+            support account, entered via an impersonation session, sees this
+            tab at all. */}
+        {me?.isPlatformSupport && (
         <button
           onClick={() => { resetBulkImport(); setActiveTab('bulkRegister'); }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
@@ -1170,6 +1176,7 @@ export const RegisterPractitionerForm = () => {
           <Upload className={`w-4 h-4 ${activeTab === 'bulkRegister' ? 'text-violet-600' : ''}`} />
           Bulk Register
         </button>
+        )}
         <button
           onClick={() => setActiveTab('children')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
@@ -1540,7 +1547,7 @@ export const RegisterPractitionerForm = () => {
       )}
 
       {/* ── SECTION 2b: BULK REGISTER (Excel upload) ── */}
-      {activeTab === 'bulkRegister' && (
+      {activeTab === 'bulkRegister' && me?.isPlatformSupport && (
       <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
           <Upload className="w-5 h-5 text-slate-400" />
