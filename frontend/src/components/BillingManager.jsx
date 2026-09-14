@@ -15,7 +15,7 @@ import { BillingBatchReview } from '@/components/BillingBatchReview';
 import { showAlert } from '@/utils/dialogStore';
 import {
   Search, ChevronRight, ChevronDown, Download, X, Undo2,
-  Lock, CheckCircle2, CircleAlert,
+  Lock, CheckCircle2, CircleAlert, FileText, Printer, Clock, DollarSign,
 } from 'lucide-react';
 
 // --- Copy for the Reject/Return note modal, keyed by action type. Hold is a
@@ -36,6 +36,21 @@ const ACTION_MODAL_COPY = {
     ringClass: 'focus-visible:ring-red-500/30 focus-visible:border-red-400',
   },
 };
+
+// Small colored initials circle for a practitioner name — same shape as the
+// header's own avatar (AdminDashboard.jsx), but cycling through a palette
+// (keyed off the name so it's stable across renders/refetches) instead of a
+// single fixed color, so rows in a list stay visually distinguishable.
+const AVATAR_COLORS = ['bg-blue-600', 'bg-teal-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600', 'bg-cyan-600'];
+function PractitionerAvatar({ name }) {
+  const initials = name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
+  const colorIndex = name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % AVATAR_COLORS.length;
+  return (
+    <div className={`size-7 rounded-full ${AVATAR_COLORS[colorIndex]} flex items-center justify-center flex-shrink-0`}>
+      <span className="text-white text-[11px] font-bold">{initials}</span>
+    </div>
+  );
+}
 
 function getVaultReviewBadge(session, isDeclined, isReturned, isOverride) {
   const review = session.billing_review || (isDeclined ? 'reject' : isReturned ? 'return' : null);
@@ -676,6 +691,16 @@ export const BillingManager = () => {
   // recent / Z-A first, matching what an invoice-status reviewer usually wants).
   const handleSortClick = (key) => {
     setStatusSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
+  };
+
+  // Summary counts for the stat chips above the table. Deliberately counts,
+  // not dollar totals — billing_batches (NJEIS reimbursement paperwork) has
+  // no dollar-amount column in this system; the actual $ figures live in the
+  // state EIC system, not here.
+  const statusStats = {
+    total: filteredBatches.length,
+    unpaid: filteredBatches.filter(b => !b.paid_at).length,
+    notPrinted: filteredBatches.filter(b => !b.printed_at).length,
   };
 
   const isAllFilteredSelected = filteredBatches.length > 0 && filteredBatches.every(b => selectedBatchIds.has(b.id));
@@ -1422,8 +1447,42 @@ export const BillingManager = () => {
 
       {/* TAB 3: INVOICE STATUS */}
       {activeTab === 'status' && canSeeInvoiceStatus && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
+        <div className="space-y-4">
+          {/* Summary stat chips — counts, not dollar totals: billing_batches
+              (NJEIS reimbursement paperwork) has no $ amount column here;
+              the real dollar figures live in the state EIC system. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+                <FileText className="size-5" />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-800 leading-tight">{statusStats.total}</div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Invoices</div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="size-5" />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-800 leading-tight">{statusStats.unpaid}</div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Unpaid</div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+                <Printer className="size-5" />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-800 leading-tight">{statusStats.notPrinted}</div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Not Printed</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Search Practitioner</Label>
               <div className="relative">
@@ -1565,7 +1624,12 @@ export const BillingManager = () => {
                           </button>
                         </td>
                         <td className="py-4 px-6 text-sm font-medium text-slate-800">{dateRange}</td>
-                        <td className="py-4 px-6 font-bold text-slate-800 capitalize">{practName}</td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2.5">
+                            <PractitionerAvatar name={practName} />
+                            <span className="font-bold text-slate-800 capitalize">{practName}</span>
+                          </div>
+                        </td>
                         <td className="py-4 px-6 text-center">
                           <Button
                             size="sm"
@@ -1582,7 +1646,9 @@ export const BillingManager = () => {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button type="button" onClick={() => handleUndoPrinted(batch)} className="cursor-pointer">
-                                  <Badge variant="success">Printed</Badge>
+                                  <Badge variant="success" className="bg-emerald-600 border-emerald-600 text-white">
+                                    <Printer className="size-3" /> Printed
+                                  </Badge>
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -1590,7 +1656,9 @@ export const BillingManager = () => {
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <Badge variant="neutral">Not Printed</Badge>
+                            <Badge variant="neutral">
+                              <Clock className="size-3" /> Not Printed
+                            </Badge>
                           )}
                         </td>
                         <td className="py-4 px-6 text-center">
@@ -1600,8 +1668,15 @@ export const BillingManager = () => {
                             disabled={isUpdatingPaid}
                             className="cursor-pointer disabled:opacity-50"
                           >
-                            <Badge variant={batch.paid_at ? 'success' : 'warning'}>
-                              {isUpdatingPaid ? 'Updating…' : batch.paid_at ? 'Paid' : 'Unpaid'}
+                            <Badge
+                              variant={batch.paid_at ? 'success' : 'warning'}
+                              className={batch.paid_at ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-amber-500 border-amber-500 text-white'}
+                            >
+                              {isUpdatingPaid
+                                ? 'Updating…'
+                                : batch.paid_at
+                                  ? (<><CheckCircle2 className="size-3" /> Paid</>)
+                                  : (<><Clock className="size-3" /> Unpaid</>)}
                             </Badge>
                           </button>
                         </td>
@@ -1611,6 +1686,7 @@ export const BillingManager = () => {
                 )}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       )}
