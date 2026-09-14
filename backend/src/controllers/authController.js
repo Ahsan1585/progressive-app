@@ -172,11 +172,35 @@ const getCompanyStatus = async (req, res) => {
     );
     const company = rows[0];
     if (!company) return res.status(404).json({ error: 'Company not found' });
+
+    // A suspended company's blocking screen (TrialGate.jsx) shows WHY, not
+    // just that it's suspended — the reason a platform admin typed when
+    // suspending (platformBillingController.js's suspendCompany) is the
+    // most recent 'company_suspended' audit row for this slug. Best-effort:
+    // if the lookup fails or no reason was ever recorded (e.g. a company
+    // suspended by hand before this endpoint existed), the screen still
+    // renders with its original generic copy — never blocks on this.
+    let suspensionReason = null;
+    if (company.status === 'suspended') {
+      try {
+        const { rows: auditRows } = await platformPool.query(
+          `SELECT details FROM platform_audit_logs
+           WHERE target_company_slug = $1 AND action = 'company_suspended'
+           ORDER BY created_at DESC LIMIT 1`,
+          [req.practitioner.slug]
+        );
+        suspensionReason = auditRows[0]?.details?.reason || null;
+      } catch (auditError) {
+        console.error('Error fetching suspension reason:', auditError.message);
+      }
+    }
+
     res.json({
       displayName: company.display_name,
       status: company.status,
       trialEndsAt: company.trial_ends_at,
       baaAccepted: !!company.baa_accepted_at,
+      suspensionReason,
     });
   } catch (error) {
     console.error('Error fetching company status:', error);

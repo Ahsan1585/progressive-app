@@ -124,12 +124,14 @@ function PromoCodeForm({ onRedeemed }) {
 export function TrialGate({ children }) {
   const [status, setStatus] = useState('loading'); // 'loading' | 'trial_expired' | 'suspended' | 'ok'
   const [companyName, setCompanyName] = useState('');
+  const [suspensionReason, setSuspensionReason] = useState('');
   const userRole = localStorage.getItem('role');
 
   const fetchStatus = () => {
     api.get('/api/auth/company-status')
       .then(({ data }) => {
         setCompanyName(data.displayName || '');
+        setSuspensionReason(data.suspensionReason || '');
         const trialExpired = data.status === 'trial' && data.trialEndsAt && new Date(data.trialEndsAt) < new Date();
         if (data.status === 'suspended') setStatus('suspended');
         else if (trialExpired) setStatus('trial_expired');
@@ -170,7 +172,16 @@ export function TrialGate({ children }) {
             <h1 className="text-lg font-bold text-slate-900">Account suspended</h1>
           </div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            {companyName || 'This account'} has been suspended. Please contact{' '}
+            {companyName || 'This account'} has been suspended.
+          </p>
+          {suspensionReason && (
+            <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-red-700 mb-1">Reason</p>
+              <p className="text-sm text-red-800 leading-relaxed">{suspensionReason}</p>
+            </div>
+          )}
+          <p className="text-sm text-slate-600 leading-relaxed mt-3">
+            Please contact{' '}
             <a href="mailto:support@izayaedge.com" className="text-teal-700 font-medium underline">support@izayaedge.com</a> to resolve this.
           </p>
         </div>
