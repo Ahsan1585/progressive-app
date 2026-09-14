@@ -22,12 +22,16 @@ const Login = () => {
   const [companySlug, setCompanySlug] = useState(() => {
     try { return localStorage.getItem('companySlug') || ''; } catch { return ''; }
   });
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  // Pre-filled when arriving here right after ActivateAccount/ResetPassword
+  // succeeded (see their handleGoToLogin/navigate calls) — the whole point
+  // of landing here instead of a route the user has to re-navigate from
+  // scratch is that company + email are already filled in for them.
+  const [email, setEmail] = useState(location.state?.email || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const resetSuccess = location.state?.resetSuccess;
 
   const handleLogin = async (e) => {

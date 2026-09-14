@@ -255,7 +255,7 @@ const activateAccount = async (req, res) => {
   try {
     const tokenHash = hashToken(token);
     const { rows } = await pool.query(
-      'SELECT id, reset_token_expires FROM practitioners WHERE reset_token_hash = $1 AND password_hash = $2',
+      'SELECT id, email, reset_token_expires FROM practitioners WHERE reset_token_hash = $1 AND password_hash = $2',
       [tokenHash, INVITE_PENDING]
     );
     const user = rows[0];
@@ -274,7 +274,10 @@ const activateAccount = async (req, res) => {
       [newPasswordHash, user.id]
     );
 
-    res.json({ success: true, message: 'Account activated. You can now log in.' });
+    // email returned so the frontend can land the user on a confirmation
+    // screen with their login form already filled in (company + email),
+    // rather than sending them off to re-enter details they just supplied.
+    res.json({ success: true, message: 'Account activated. You can now log in.', email: user.email });
   } catch (error) {
     console.error('Activate account error:', error);
     res.status(500).json({ error: 'Server error' });

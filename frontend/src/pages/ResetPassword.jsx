@@ -37,8 +37,12 @@ const ResetPassword = () => {
 
     setIsSubmitting(true);
     try {
+      // Same bug class as ActivateAccount.jsx previously had: this used to
+      // navigate to '/' (the marketing homepage), which never reads
+      // resetSuccess — the confirmation banner had no route that could ever
+      // show it. Login.jsx is the one that actually reads this state.
       await api.post('/api/auth/reset-password', { slug: companySlug.trim().toLowerCase(), token, newPassword });
-      navigate('/', { state: { resetSuccess: true } });
+      navigate('/login', { state: { resetSuccess: true } });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to reset password. Please request a new link.');
     } finally {

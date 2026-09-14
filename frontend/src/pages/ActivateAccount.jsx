@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { AuthLayout } from '@/components/AuthLayout';
+import { CircleCheck } from 'lucide-react';
 
 const isPasswordStrong = (pw) =>
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pw);
@@ -22,6 +23,11 @@ const ActivateAccount = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set once activation succeeds — holding here (instead of navigating
+  // straight to /login) is what gives the user an actual confirmation
+  // screen before moving on, rather than being silently dropped somewhere
+  // else with no acknowledgment that anything happened.
+  const [activatedEmail, setActivatedEmail] = useState(null);
 
   useEffect(() => {
     if (!companySlug) return;
@@ -45,14 +51,22 @@ const ActivateAccount = () => {
 
     setIsSubmitting(true);
     try {
-      await api.post(`/api/auth/${companySlug}/activate/${token}`, { newPassword });
+      const { data } = await api.post(`/api/auth/${companySlug}/activate/${token}`, { newPassword });
       try { localStorage.setItem('companySlug', companySlug); } catch { /* ignore */ }
-      navigate('/', { state: { resetSuccess: true } });
+      setActivatedEmail(data.email || '');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to activate your account. Please request a new invite.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGoToLogin = () => {
+    // Company code is already in localStorage (set just above) and Login.jsx
+    // reads it from there on its own, same as any returning user — only the
+    // email needs to ride along via router state so the whole form (company
+    // + email) is filled in and only the password remains to be typed.
+    navigate('/login', { state: { resetSuccess: true, email: activatedEmail } });
   };
 
   return (
@@ -65,6 +79,27 @@ const ActivateAccount = () => {
           <Link to="/" className="inline-block font-semibold text-cyan-700 hover:underline">
             Back to Sign In
           </Link>
+        </div>
+      ) : activatedEmail !== null ? (
+        <div className="text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+              <CircleCheck className="w-7 h-7 text-emerald-600" />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-800 mb-1">Your password has been set</h2>
+            <p className="text-sm text-slate-500">
+              Your account{companyName ? ` for ${companyName}` : ''} is ready to go — you can sign in now.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={handleGoToLogin}
+            className="w-full h-11 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white text-base font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(8,74,90,0.4)] transition-colors"
+          >
+            Continue to Sign In
+          </Button>
         </div>
       ) : (
         <>
