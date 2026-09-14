@@ -169,8 +169,18 @@ export const BillingManager = () => {
   const [statusSort, setStatusSort] = useState({ key: 'end_date', dir: 'desc' }); // key: 'end_date' | 'practitioner'
   const [selectedBatchIds, setSelectedBatchIds] = useState(new Set());
   const [printingBatchId, setPrintingBatchId] = useState(null);
-  const [isBulkPrinting, setIsBulkPrinting] = useState(false);
   const [updatingPaidId, setUpdatingPaidId] = useState(null);
+
+  // --- BULK PRINT PREVIEW MODAL STATE ---
+  // isLoadingPreview: rendering PDFs into canvases before the modal can show anything.
+  // previewItems: [{ batch, pages: [canvas, ...] }] — one entry per invoice fetched.
+  // checkedBatchIds: which of previewItems the user still wants to print (defaults to all selected).
+  const [isBulkPreviewOpen, setIsBulkPreviewOpen] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewItems, setPreviewItems] = useState([]);
+  const [checkedBatchIds, setCheckedBatchIds] = useState(new Set());
+  const [isPrintingPreview, setIsPrintingPreview] = useState(false);
+  const bulkPrintOverlayRef = useRef(null);
 
   // --- TOAST STATE (replaces alert()) ---
   const [toasts, setToasts] = useState([]); // [{ id, type: 'success'|'error', message }]
@@ -798,18 +808,82 @@ export const BillingManager = () => {
     }
   };
 
-  // Same overlay/canvas approach as handlePrintInvoice above, but renders every
-  // selected batch's invoice into one overlay (one page-break group per invoice,
-  // via a wrapper div, so each invoice still starts on its own printed page) and
-  // opens a single print dialog for all of them. On close, marks every selected
-  // batch printed in one shot rather than one PATCH per invoice per print click.
-  const handleBulkPrintInvoices = async () => {
+  // Step 1: fetch + render every selected invoice's PDF pages into canvases,
+  // then open an in-app preview modal — no window.print() here. Calling
+  // window.print() only after a chain of awaits is exactly the pattern that
+  // broke the invoice viewer on iOS Safari/PWA (see commit 5840a20): some
+  // browsers no longer treat it as a direct result of the user's click once
+  // async work happened in between, and can silently misbehave (e.g. leaving
+  // the page in whatever state comes after a blocked/ignored print call).
+  // Rendering here, then requiring a second explicit "Print" click inside the
+  // modal, keeps that click perfectly synchronous — see handleConfirmBulkPrint.
+  const openBulkPrintPreview = async () => {
     const selected = filteredBatches.filter(b => selectedBatchIds.has(b.id) && (b.stamped_invoice_path || b.invoice_path));
     if (selected.length === 0) return;
-    setIsBulkPrinting(true);
+    setIsLoadingPreview(true);
+    setIsBulkPreviewOpen(true);
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+
+      const items = [];
+      for (const batch of selected) {
+        const path = batch.stamped_invoice_path || batch.invoice_path;
+        const signedRes = await api.get('/api/billing/download', { params: { fileName: path } });
+        if (!signedRes.data.success) throw new Error(`Could not get download link for ${path}`);
+        const pdfRes = await fetch(signedRes.data.signedUrl);
+        if (!pdfRes.ok) throw new Error(`Could not fetch PDF for ${path}`);
+        const arrayBuffer = await pdfRes.arrayBuffer();
+
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const pages = [];
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          pages.push(canvas);
+        }
+        items.push({ batch, pages });
+      }
+
+      setPreviewItems(items);
+      setCheckedBatchIds(new Set(items.map(i => i.batch.id)));
+    } catch (error) {
+      pushToast('error', 'Failed to load invoices for preview: ' + (error.response?.data?.error || error.message));
+      setIsBulkPreviewOpen(false);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const closeBulkPrintPreview = () => {
+    setIsBulkPreviewOpen(false);
+    setPreviewItems([]);
+    setCheckedBatchIds(new Set());
+  };
+
+  const togglePreviewChecked = (batchId) => {
+    setCheckedBatchIds(prev => {
+      const next = new Set(prev);
+      if (next.has(batchId)) next.delete(batchId); else next.add(batchId);
+      return next;
+    });
+  };
+
+  // Step 2: the actual print. Fires window.print() synchronously, directly
+  // inside this click handler (the canvases are already rendered from step 1
+  // — no awaits before print() this time), then marks only the invoices that
+  // were still checked in the preview as printed once the dialog closes.
+  const handleConfirmBulkPrint = () => {
+    const toPrint = previewItems.filter(i => checkedBatchIds.has(i.batch.id));
+    if (toPrint.length === 0) return;
+    setIsPrintingPreview(true);
 
     const overlay = document.createElement('div');
     overlay.id = 'invoice-print-overlay';
+    bulkPrintOverlayRef.current = overlay;
     const style = document.createElement('style');
     style.textContent = `
       @media print {
@@ -820,62 +894,43 @@ export const BillingManager = () => {
       }
     `;
 
+    // Move (not clone) each already-rendered canvas into the print overlay —
+    // cloneNode() on a <canvas> does not copy its drawn pixels, so the actual
+    // elements from the preview must be reused directly.
+    toPrint.forEach(({ pages }) => {
+      const group = document.createElement('div');
+      group.className = 'invoice-print-group';
+      pages.forEach(canvas => group.appendChild(canvas));
+      overlay.appendChild(group);
+    });
+
     const cleanup = () => {
       window.removeEventListener('afterprint', onAfterPrint);
       overlay.remove();
       style.remove();
-      setIsBulkPrinting(false);
+      setIsPrintingPreview(false);
     };
 
     const onAfterPrint = async () => {
       try {
-        await Promise.all(selected.map(b => api.patch(`/api/billing/batch/${b.id}/printed`, { printed: true })));
-        const printedIds = new Set(selected.map(b => b.id));
+        await Promise.all(toPrint.map(({ batch }) => api.patch(`/api/billing/batch/${batch.id}/printed`, { printed: true })));
+        const printedIds = new Set(toPrint.map(({ batch }) => batch.id));
         const now = new Date().toISOString();
         setBatches(prev => prev.map(b => printedIds.has(b.id) ? { ...b, printed_at: now } : b));
         setSelectedBatchIds(new Set());
-        pushToast('success', `${selected.length} invoice${selected.length === 1 ? '' : 's'} marked as printed.`);
+        pushToast('success', `${toPrint.length} invoice${toPrint.length === 1 ? '' : 's'} marked as printed.`);
       } catch (error) {
         pushToast('error', 'Print dialog closed, but failed to record printed status for some invoices.');
       } finally {
         cleanup();
+        closeBulkPrintPreview();
       }
     };
 
-    try {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
-
-      for (const batch of selected) {
-        const path = batch.stamped_invoice_path || batch.invoice_path;
-        const signedRes = await api.get('/api/billing/download', { params: { fileName: path } });
-        if (!signedRes.data.success) throw new Error(`Could not get download link for ${path}`);
-        const pdfRes = await fetch(signedRes.data.signedUrl);
-        if (!pdfRes.ok) throw new Error(`Could not fetch PDF for ${path}`);
-        const arrayBuffer = await pdfRes.arrayBuffer();
-
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const group = document.createElement('div');
-        group.className = 'invoice-print-group';
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2 });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-          group.appendChild(canvas);
-        }
-        overlay.appendChild(group);
-      }
-
-      document.head.appendChild(style);
-      document.body.appendChild(overlay);
-      window.addEventListener('afterprint', onAfterPrint, { once: true });
-      window.print();
-    } catch (error) {
-      pushToast('error', 'Failed to open invoices for printing: ' + (error.response?.data?.error || error.message));
-      cleanup();
-    }
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+    window.addEventListener('afterprint', onAfterPrint, { once: true });
+    window.print();
   };
 
   // Parse each file into structured metadata
@@ -1478,11 +1533,10 @@ export const BillingManager = () => {
                 </Button>
                 <Button
                   size="sm"
-                  onClick={handleBulkPrintInvoices}
-                  disabled={isBulkPrinting}
+                  onClick={openBulkPrintPreview}
                   className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isBulkPrinting ? 'Opening…' : `Print Selected (${selectedBatchIds.size})`}
+                  {`Print Selected (${selectedBatchIds.size})`}
                 </Button>
               </div>
             </div>
@@ -1599,6 +1653,86 @@ export const BillingManager = () => {
           </div>
         </div>
       )}
+
+      {/* BULK PRINT PREVIEW MODAL */}
+      <Dialog open={isBulkPreviewOpen} onOpenChange={(open) => { if (!open && !isPrintingPreview) closeBulkPrintPreview(); }}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Print Preview</DialogTitle>
+            <DialogDescription>
+              Review the invoices below and uncheck any you don't want to include, then print. Only the invoices left checked will be printed and marked as printed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-4">
+            {isLoadingPreview ? (
+              <div className="py-16 text-center text-slate-500">Loading invoices for preview…</div>
+            ) : previewItems.length === 0 ? (
+              <div className="py-16 text-center text-slate-500">No invoices to preview.</div>
+            ) : (
+              previewItems.map(({ batch, pages }) => {
+                const practName = `${batch.practitioners?.first_name || ''} ${batch.practitioners?.last_name || ''}`.trim() || 'Unknown';
+                const dateRange = batch.start_date && batch.end_date
+                  ? `${new Date(batch.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })} – ${new Date(batch.end_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })}`
+                  : '-';
+                const isChecked = checkedBatchIds.has(batch.id);
+                return (
+                  <div key={batch.id} className={`rounded-lg border p-4 flex gap-4 ${isChecked ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
+                    <button
+                      type="button"
+                      onClick={() => togglePreviewChecked(batch.id)}
+                      aria-label={isChecked ? 'Exclude this invoice' : 'Include this invoice'}
+                      className={`cursor-pointer shrink-0 size-5 mt-0.5 rounded border-2 flex items-center justify-center transition-colors ${
+                        isChecked ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-400 hover:border-blue-500 hover:bg-blue-50'
+                      }`}
+                    >
+                      {isChecked && <CheckCircle2 className="size-3.5 text-white" strokeWidth={3} />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2 mb-2">
+                        <span className="font-bold text-slate-800 capitalize">{practName}</span>
+                        <span className="text-sm text-slate-500">{dateRange}</span>
+                      </div>
+                      <div
+                        className="rounded border border-slate-200 overflow-hidden bg-slate-100 max-h-64 overflow-y-auto"
+                        ref={(el) => {
+                          if (!el || el.childElementCount > 0) return;
+                          pages.forEach((canvas) => {
+                            const thumb = canvas.cloneNode(true);
+                            thumb.getContext('2d').drawImage(canvas, 0, 0);
+                            thumb.className = 'w-full block border-b border-slate-200 last:border-b-0';
+                            el.appendChild(thumb);
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeBulkPrintPreview}
+              disabled={isPrintingPreview}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmBulkPrint}
+              disabled={isLoadingPreview || isPrintingPreview || checkedBatchIds.size === 0}
+              className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {`Print (${checkedBatchIds.size})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* TOASTS (replaces alert()) */}
       <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
