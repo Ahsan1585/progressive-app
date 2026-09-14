@@ -388,6 +388,7 @@ function CompaniesTable({ client }) {
         <p className="p-6 text-sm text-slate-500">No companies yet.</p>
       )}
       {companies && companies.length > 0 && (
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
@@ -398,7 +399,7 @@ function CompaniesTable({ client }) {
               <th className="text-left px-4 py-3">Trial ends</th>
               <th className="text-left px-4 py-3">Created</th>
               <th className="text-left px-4 py-3">Set trial end date</th>
-              <th className="text-left px-4 py-3">Remote support</th>
+              <th className="text-left px-4 py-3 whitespace-nowrap">Remote support</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -466,6 +467,7 @@ function CompaniesTable({ client }) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
