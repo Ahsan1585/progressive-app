@@ -61,11 +61,35 @@ function getVaultReviewBadge(session, isDeclined, isReturned, isOverride) {
   return { variant: 'neutral', label: '-' };
 }
 
-// --- Shared document-download control (used by both tabs so SEVF/Invoice links look identical everywhere) ---
-function DownloadLink({ href, onClick, label, tone = 'blue', fixedWidth = false }) {
+// --- Shared document-download control (used by the Completed Bills vault
+// table so SEVF/Invoice links look identical everywhere) ---
+// compact: icon-only button with a tooltip carrying the label, instead of
+// the full pill — used in Completed Bills so these two buttons don't visually
+// compete with the Actions column for attention on a long list.
+function DownloadLink({ href, onClick, label, tone = 'blue', fixedWidth = false, compact = false }) {
   const toneClasses = tone === 'emerald'
     ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
     : 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100';
+
+  if (compact) {
+    const compactClassName = `inline-flex items-center justify-center size-8 rounded-md border transition-colors cursor-pointer ${toneClasses}`;
+    const content = href ? (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={compactClassName} aria-label={label}>
+        <Download className="size-4" />
+      </a>
+    ) : (
+      <button type="button" onClick={onClick} className={compactClassName} aria-label={label}>
+        <Download className="size-4" />
+      </button>
+    );
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent>Download {label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
   const className = `inline-flex items-center justify-center gap-1.5 ${fixedWidth ? 'w-28' : ''} px-3 py-1.5 text-sm font-semibold rounded-md border transition-colors cursor-pointer ${toneClasses}`;
 
   if (href) {
@@ -1013,6 +1037,19 @@ export const BillingManager = () => {
     return vaultSort.dir === 'desc' ? b.sortTs.localeCompare(a.sortTs) : a.sortTs.localeCompare(b.sortTs);
   });
 
+  // Summary counts for the stat chips above the Completed Bills table —
+  // same pattern as Invoice Status's statusStats, computed from the same
+  // batches/groupedHistory data the rows below already use.
+  const historyStats = groupedHistory.reduce((acc, group) => {
+    const matchedBatch = batches.find(b => b.id === group.batchId);
+    if (group.batchId && group.invoiceFile) {
+      if (matchedBatch?.paid_at) acc.paid += 1;
+      else acc.awaitingPayment += 1;
+    }
+    return acc;
+  }, { paid: 0, awaitingPayment: 0 });
+  historyStats.total = groupedHistory.length;
+
   const handleDownloadHistory = async (fileName) => {
     try {
       const response = await api.get(`/api/billing/download?fileName=${fileName}`);
@@ -1227,8 +1264,40 @@ export const BillingManager = () => {
 
       {/* TAB 2: COMPLETED BILLS */}
       {activeTab === 'history' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-6 items-end justify-between">
+        <div className="space-y-4">
+          {/* Summary stat chips — same pattern as Invoice Status's stat chips. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+                <FileText className="size-5" />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-800 leading-tight">{historyStats.total}</div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Completed</div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <Clock className="size-5" />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-800 leading-tight">{historyStats.awaitingPayment}</div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Awaiting Payment</div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="size-5" />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-800 leading-tight">{historyStats.paid}</div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Paid</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Search Documents</Label>
               <div className="relative">
@@ -1302,6 +1371,7 @@ export const BillingManager = () => {
                               >
                                 <ChevronRight className={`size-4 transition-transform duration-200 ${isVaultExpanded ? 'rotate-90' : ''}`} />
                               </button>
+                              <PractitionerAvatar name={group.practitionerName} />
                               <span className="font-bold text-slate-800 capitalize">{group.practitionerName}</span>
                             </div>
                           </td>
@@ -1309,7 +1379,7 @@ export const BillingManager = () => {
                           {/* SEVF FORM COLUMN */}
                           <td className="py-4 px-6 text-center">
                             {group.njeisFile ? (
-                              <DownloadLink onClick={() => handleDownloadHistory(group.njeisFile.name)} label="SEVF" tone="blue" fixedWidth />
+                              <DownloadLink onClick={() => handleDownloadHistory(group.njeisFile.name)} label="SEVF" tone="blue" compact />
                             ) : group.isOverride ? (
                               <Badge variant="override">Override</Badge>
                             ) : (
@@ -1320,7 +1390,7 @@ export const BillingManager = () => {
                           {/* INVOICE COLUMN */}
                           <td className="py-4 px-6 text-center">
                             {invoiceFileName ? (
-                              <DownloadLink onClick={() => handleDownloadHistory(invoiceFileName)} label="Invoice" tone="emerald" fixedWidth />
+                              <DownloadLink onClick={() => handleDownloadHistory(invoiceFileName)} label="Invoice" tone="emerald" compact />
                             ) : (
                               <span className="text-slate-300">-</span>
                             )}
@@ -1329,15 +1399,14 @@ export const BillingManager = () => {
                           {/* ACTIONS COLUMN */}
                           <td className="py-4 px-6 text-center">
                             {group.batchId && group.invoiceFile && isPaid ? (
-                              <span className="inline-flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
-                                <Lock className="size-3.5 flex-shrink-0" />
-                                Invoice Paid
-                              </span>
+                              <Badge variant="success" className="bg-emerald-600 border-emerald-600 text-white">
+                                <Lock className="size-3" /> Invoice Paid
+                              </Badge>
                             ) : group.batchId && group.invoiceFile ? (
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                className="cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
+                                className="cursor-pointer text-slate-500 hover:text-amber-700 hover:bg-amber-50"
                                 onClick={() => setRevertModal({ group })}
                               >
                                 <Undo2 className="size-3.5 mr-1.5" />
@@ -1441,6 +1510,7 @@ export const BillingManager = () => {
                 )}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       )}
