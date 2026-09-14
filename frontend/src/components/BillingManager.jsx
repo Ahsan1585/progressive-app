@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { BillingBatchReview } from '@/components/BillingBatchReview';
+import { PractitionerAvatar } from '@/components/PractitionerAvatar';
 import { showAlert } from '@/utils/dialogStore';
 import {
   Search, ChevronRight, ChevronDown, Download, X, Undo2,
@@ -36,21 +37,6 @@ const ACTION_MODAL_COPY = {
     ringClass: 'focus-visible:ring-red-500/30 focus-visible:border-red-400',
   },
 };
-
-// Small colored initials circle for a practitioner name — same shape as the
-// header's own avatar (AdminDashboard.jsx), but cycling through a palette
-// (keyed off the name so it's stable across renders/refetches) instead of a
-// single fixed color, so rows in a list stay visually distinguishable.
-const AVATAR_COLORS = ['bg-blue-600', 'bg-teal-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600', 'bg-cyan-600'];
-function PractitionerAvatar({ name }) {
-  const initials = name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
-  const colorIndex = name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % AVATAR_COLORS.length;
-  return (
-    <div className={`size-7 rounded-full ${AVATAR_COLORS[colorIndex]} flex items-center justify-center flex-shrink-0`}>
-      <span className="text-white text-[11px] font-bold">{initials}</span>
-    </div>
-  );
-}
 
 function getVaultReviewBadge(session, isDeclined, isReturned, isOverride) {
   const review = session.billing_review || (isDeclined ? 'reject' : isReturned ? 'return' : null);

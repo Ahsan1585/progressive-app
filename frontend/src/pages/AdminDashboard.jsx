@@ -13,6 +13,7 @@ import { TrialStatusBanner } from '@/components/TrialStatusBanner';
 import { BaaGate } from '@/components/BaaGate';
 import { TrialGate } from '@/components/TrialGate';
 import { BrandLockup } from '@/components/BrandLockup';
+import { PractitionerAvatar } from '@/components/PractitionerAvatar';
 
 // A tab's value is either a single permission key, or an array of keys with
 // any-of semantics (the tab shows if the user holds at least one of them —
@@ -371,11 +372,11 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-3">
             {adminProfile && (
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-xs font-bold">
-                    {adminProfile.first_name?.[0]}{adminProfile.last_name?.[0]}
-                  </span>
-                </div>
+                <PractitionerAvatar
+                  name={`${adminProfile.first_name || ''} ${adminProfile.last_name || ''}`}
+                  profilePicture={adminProfile.profile_picture}
+                  size="size-6"
+                />
                 <span className="text-sm font-semibold text-slate-700">
                   {adminProfile.first_name} {adminProfile.last_name}
                 </span>

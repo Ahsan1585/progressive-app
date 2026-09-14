@@ -7,6 +7,8 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge, badgeVariants } from '@/components/ui/badge';
+import { PractitionerAvatar } from '@/components/PractitionerAvatar';
 import { useMessaging } from '@/context/useMessaging';
 import { ActionRequired } from '@/components/ActionRequired';
 import { StaffDirectoryChildren } from '@/components/StaffDirectoryChildren';
@@ -40,11 +42,20 @@ const ROLE_LABELS = {
   practitioner: 'Practitioner',
 };
 
-const ROLE_BADGE_COLORS = {
-  ceo:          'bg-blue-100 text-blue-700 border-blue-200',
-  staff:        'bg-purple-100 text-purple-700 border-purple-200',
-  practitioner: 'bg-slate-100 text-slate-600 border-slate-200',
-};
+// Decorative hash palette (ui/badge.tsx) for a specific role NAME, so e.g.
+// "Billing Specialist" and "Accounting System Manager" — both 'staff'-tier
+// under the hood — read as visually distinct roles instead of collapsing
+// into one shared color. Admin (ceo) and Practitioner keep fixed,
+// recognizable colors since they're singular roles that exist identically
+// across every tenant, not one of many interchangeable custom roles.
+const ROLE_HASH_VARIANTS = ['role-purple', 'role-teal', 'role-amber', 'role-rose', 'role-cyan', 'role-indigo'];
+function roleBadgeVariant(member) {
+  if (member.role === 'ceo') return 'info';
+  if (member.role === 'practitioner') return 'neutral';
+  const label = member.role_name || ROLE_LABELS[member.role] || member.role || '';
+  const sum = label.split('').reduce((total, ch) => total + ch.charCodeAt(0), 0);
+  return ROLE_HASH_VARIANTS[sum % ROLE_HASH_VARIANTS.length];
+}
 
 // Mirrors backend/src/utils/disciplineCodes.js's DISCIPLINE_CODE_MAP keys —
 // the fixed 8-item discipline list, reused by the bulk-import results
@@ -55,6 +66,82 @@ const DISCIPLINE_OPTIONS = [
   'Developmental Interventionist', 'Speech Language Pathologist', 'Occupational Therapist',
   'Physical Therapist', 'Social Worker', 'Special Educator', 'Family Therapist', 'Foreign Language Interpreter',
 ];
+
+// Active/Deactivated/All filter pill group — was pasted identically into
+// both the Staff Roster and Practitioners tab sections; extracted once
+// here so both use the same markup instead of two copies that could drift.
+const STATUS_FILTER_OPTIONS = [
+  { key: 'active', label: 'Active', dot: 'bg-emerald-500', text: 'text-emerald-700', ring: 'ring-emerald-500/25' },
+  { key: 'deactivated', label: 'Deactivated', dot: 'bg-rose-500', text: 'text-rose-700', ring: 'ring-rose-500/25' },
+  { key: 'all', label: 'All', dot: 'bg-blue-500', text: 'text-blue-700', ring: 'ring-blue-500/25' },
+];
+function StatusFilterPills({ value, onChange }) {
+  return (
+    <div className="ml-auto flex items-center gap-1 bg-slate-200 rounded-lg p-1 shadow-inner">
+      {STATUS_FILTER_OPTIONS.map(opt => (
+        <button
+          key={opt.key}
+          onClick={() => onChange(opt.key)}
+          className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+            value === opt.key
+              ? `bg-white ${opt.text} shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ${opt.ring}`
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${value === opt.key ? opt.dot : 'bg-slate-400'}`} />
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Summary stat chips above the Staff Roster table — same visual pattern
+// as BillingManager.jsx's Invoice Status/Completed Bills stat chips (3-up
+// grid, icon tile + bold count + uppercase label), computed from the same
+// roster data already fetched. Replaces the old bare "N members" text.
+function StaffStatCards({ staff }) {
+  const total = staff.length;
+  const active = staff.filter(m => m.is_active !== false).length;
+  const deactivated = staff.filter(m => m.is_active === false).length;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+        <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <div>
+          <div className="text-xl font-bold text-slate-800 leading-tight">{total}</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Staff</div>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+        <div className="size-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <div className="text-xl font-bold text-slate-800 leading-tight">{active}</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active</div>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+        <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+        </div>
+        <div>
+          <div className="text-xl font-bold text-slate-800 leading-tight">{deactivated}</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Deactivated</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const RegisterPractitionerForm = () => {
   // What this screen offers is decided by the caller's live permission set
@@ -835,6 +922,10 @@ export const RegisterPractitionerForm = () => {
     return matchesCommonFilters(s) && matchesRole;
   });
   const visiblePractitioners = staffList.filter(s => s.role === 'practitioner' && matchesCommonFilters(s));
+  // Unfiltered by statusFilter/search/role — used only by the stat chips,
+  // so "Active"/"Deactivated" counts stay accurate regardless of which
+  // status the table itself is currently filtered to show.
+  const allOfficeStaff = staffList.filter(s => s.role !== 'practitioner');
   // A practitioner's own deactivate/reactivate needs either the broad
   // staff_directory_edit_role or the narrower practitioner_manage; an
   // office-staff/Admin target still needs the broad one only (mirrors
@@ -904,26 +995,11 @@ export const RegisterPractitionerForm = () => {
                 )}
                 <td className={`px-6 py-3 font-medium text-slate-800 ${isDeactivated ? 'opacity-60' : ''}`}>
                   <div className="flex items-center gap-2">
-                    {member.profile_picture ? (
-                      <button
-                        type="button"
-                        onClick={() => setViewingPhoto({ url: member.profile_picture, name: `${member.first_name} ${member.last_name}` })}
-                        className="w-7 h-7 rounded-full flex-shrink-0 cursor-pointer ring-offset-1 hover:ring-2 hover:ring-blue-400 transition-all"
-                        title="View photo"
-                      >
-                        <img
-                          src={member.profile_picture}
-                          alt=""
-                          className="w-7 h-7 rounded-full object-cover"
-                        />
-                      </button>
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-xs font-bold">
-                          {member.first_name?.[0]}{member.last_name?.[0]}
-                        </span>
-                      </div>
-                    )}
+                    <PractitionerAvatar
+                      name={`${member.first_name || ''} ${member.last_name || ''}`}
+                      profilePicture={member.profile_picture}
+                      onPhotoClick={member.profile_picture ? () => setViewingPhoto({ url: member.profile_picture, name: `${member.first_name} ${member.last_name}` }) : undefined}
+                    />
                     {member.first_name} {member.last_name}
                     {isDeactivated && (
                       <span className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
@@ -976,7 +1052,10 @@ export const RegisterPractitionerForm = () => {
                       value={member.role_id || ''}
                       onChange={(e) => handleRoleChange(member.id, e.target.value)}
                       disabled={updatingId === member.id}
-                      className={`text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'} ${updatingId === member.id ? 'opacity-50 cursor-wait' : ''}`}
+                      className={badgeVariants({
+                        variant: roleBadgeVariant(member),
+                        className: `rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${updatingId === member.id ? 'opacity-50 cursor-wait' : ''}`,
+                      })}
                     >
                       <option value="" disabled>Select a role...</option>
                       {roles.map(r => (
@@ -984,9 +1063,9 @@ export const RegisterPractitionerForm = () => {
                       ))}
                     </select>
                   ) : (
-                    <span className={`inline-block text-xs font-semibold border rounded-md px-2 py-1 ${ROLE_BADGE_COLORS[member.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                    <Badge variant={roleBadgeVariant(member)}>
                       {member.role_name || ROLE_LABELS[member.role] || member.role}
-                    </span>
+                    </Badge>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -1209,34 +1288,16 @@ export const RegisterPractitionerForm = () => {
 
       {/* ── SECTION 1: STAFF ROSTER ── */}
       {activeTab === 'roster' && (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 space-y-3">
+      <div>
+        <StaffStatCards staff={allOfficeStaff} />
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
-
-            <div className="ml-auto flex items-center gap-1 bg-slate-200 rounded-lg p-1 shadow-inner">
-              {[
-                { key: 'active', label: 'Active', dot: 'bg-emerald-500', text: 'text-emerald-700', ring: 'ring-emerald-500/25' },
-                { key: 'deactivated', label: 'Deactivated', dot: 'bg-rose-500', text: 'text-rose-700', ring: 'ring-rose-500/25' },
-                { key: 'all', label: 'All', dot: 'bg-blue-500', text: 'text-blue-700', ring: 'ring-blue-500/25' },
-              ].map(opt => (
-                <button
-                  key={opt.key}
-                  onClick={() => setStatusFilter(opt.key)}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    statusFilter === opt.key
-                      ? `bg-white ${opt.text} shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ${opt.ring}`
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === opt.key ? opt.dot : 'bg-slate-400'}`} />
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <StatusFilterPills value={statusFilter} onChange={setStatusFilter} />
             <span className="text-xs text-slate-400 font-medium">{visibleStaff.length} member{visibleStaff.length !== 1 ? 's' : ''}</span>
           </div>
 
@@ -1271,40 +1332,21 @@ export const RegisterPractitionerForm = () => {
             : statusFilter === 'deactivated' ? 'No deactivated accounts.' : statusFilter === 'active' ? 'No active staff.' : 'No staff registered yet.',
           { selectable: true }
         )}
+        </div>
       </div>
       )}
 
       {/* ── SECTION 1B: PRACTITIONERS ── */}
       {activeTab === 'practitioners' && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 space-y-3">
+        <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8L2 22M17.5 15H9" />
             </svg>
             <h2 className="text-base font-bold text-slate-800">Practitioners</h2>
-
-            <div className="ml-auto flex items-center gap-1 bg-slate-200 rounded-lg p-1 shadow-inner">
-              {[
-                { key: 'active', label: 'Active', dot: 'bg-emerald-500', text: 'text-emerald-700', ring: 'ring-emerald-500/25' },
-                { key: 'deactivated', label: 'Deactivated', dot: 'bg-rose-500', text: 'text-rose-700', ring: 'ring-rose-500/25' },
-                { key: 'all', label: 'All', dot: 'bg-blue-500', text: 'text-blue-700', ring: 'ring-blue-500/25' },
-              ].map(opt => (
-                <button
-                  key={opt.key}
-                  onClick={() => setStatusFilter(opt.key)}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                    statusFilter === opt.key
-                      ? `bg-white ${opt.text} shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ${opt.ring}`
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === opt.key ? opt.dot : 'bg-slate-400'}`} />
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <StatusFilterPills value={statusFilter} onChange={setStatusFilter} />
             <span className="text-xs text-slate-400 font-medium">{visiblePractitioners.length} practitioner{visiblePractitioners.length !== 1 ? 's' : ''}</span>
           </div>
 

@@ -15,6 +15,16 @@ const badgeVariants = cva(
         info: "border-blue-200 bg-blue-100 text-blue-700",
         override: "border-violet-200 bg-violet-100 text-violet-700",
         hold: "border-orange-200 bg-orange-100 text-orange-700",
+        // Decorative, non-semantic palette for hash-based coloring (e.g. a
+        // specific custom role name, not a fixed status) — pick one of
+        // these by hashing a string into the set, not by what the badge
+        // means. See RegisterPractitionerForm.jsx's roleBadgeVariant.
+        "role-purple": "border-purple-200 bg-purple-100 text-purple-700",
+        "role-teal": "border-teal-200 bg-teal-100 text-teal-700",
+        "role-amber": "border-amber-200 bg-amber-100 text-amber-700",
+        "role-rose": "border-rose-200 bg-rose-100 text-rose-700",
+        "role-cyan": "border-cyan-200 bg-cyan-100 text-cyan-700",
+        "role-indigo": "border-indigo-200 bg-indigo-100 text-indigo-700",
       },
     },
     defaultVariants: {
