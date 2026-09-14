@@ -35,6 +35,7 @@ const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
 const signupRoutes = require('./src/routes/signupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
 const platformAuthRoutes = require('./src/routes/platformAuthRoutes');
+const platformBillingRoutes = require('./src/routes/platformBillingRoutes');
 const roleRoutes = require('./src/routes/roleRoutes');
 const testDataRoutes = require('./src/routes/testDataRoutes');
 const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
@@ -108,6 +109,7 @@ app.use('/api/signup', signupRoutes);
 // matches first. platformAuthRoutes (login/bootstrap) must stay public;
 // platformAdminRoutes gates everything else behind requirePlatformAdminAuth.
 app.use('/api/platform/auth', platformAuthRoutes);
+app.use('/api/platform/billing', platformBillingRoutes);
 app.use('/api/platform', platformAdminRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/contact', contactRoutes);

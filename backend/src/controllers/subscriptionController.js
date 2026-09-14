@@ -670,6 +670,7 @@ const redeemPromoCode = async (req, res) => {
 
 module.exports = {
   getOutstandingInvoicesHandler,
+  getOutstandingInvoices,
   payAllOutstanding,
   getConfig,
   getSummary,

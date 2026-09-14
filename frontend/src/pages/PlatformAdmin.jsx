@@ -3,11 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Loader2, Plus, Ban, LogOut, ChevronDown, ChevronRight, LogIn, ShieldAlert,
-  Building2, UserPlus, Tag, CircleCheck, Clock, TriangleAlert,
+  Building2, UserPlus, Tag, CircleCheck, Clock, TriangleAlert, DollarSign,
+  CreditCard, ShieldOff, ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { BrandLockup } from '@/components/BrandLockup';
 
 // The shared logo mark (IzayaMark.jsx) is inline-styled with a navy stroke
@@ -661,9 +665,311 @@ function PromoCodeManager({ client }) {
   );
 }
 
+// Same status→badge-class map used by the Companies tab (STATUS_STYLES),
+// reused here so a company's status reads identically wherever it appears.
+function formatMoney(n) {
+  return `$${Number(n || 0).toFixed(2)}`;
+}
+
+function BillingSuspendDialog({ company, client, onDone }) {
+  const [reason, setReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleConfirm = async () => {
+    if (!reason.trim()) return;
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await client.post(`/api/platform/billing/${company.slug}/suspend`, { reason: reason.trim() });
+      onDone();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to suspend company.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-800 text-slate-100">
+      <DialogHeader>
+        <DialogTitle className="text-slate-100">Suspend {company.displayName}</DialogTitle>
+        <DialogDescription className="text-slate-400">
+          This immediately blocks all sign-ins for this company (support access remains available via Enter).
+          {company.overdueTotal > 0 && (
+            <span className="block mt-2 text-amber-400 font-medium">Currently {formatMoney(company.overdueTotal)} overdue.</span>
+          )}
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-2">
+        <Label htmlFor="suspend-reason" className={DARK_LABEL}>Reason (required)</Label>
+        <Textarea id="suspend-reason" value={reason} onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Overdue balance, unresponsive to billing outreach" className={DARK_INPUT} />
+      </div>
+      {error && <p className="text-sm text-red-400 font-medium">{error}</p>}
+      <DialogFooter>
+        <Button type="button" disabled={isSubmitting || !reason.trim()} onClick={handleConfirm} className="bg-red-500 hover:bg-red-400 text-slate-950 font-semibold">
+          {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ShieldOff className="w-4 h-4 mr-1.5" />}
+          Suspend company
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function BillingDetailRow({ slug, client }) {
+  const [detail, setDetail] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    client.get(`/api/platform/billing/${slug}`)
+      .then(({ data }) => setDetail(data))
+      .catch((err) => setError(err.response?.data?.error || 'Failed to load billing detail.'));
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (error) return <p className="text-sm text-red-400 font-medium">{error}</p>;
+  if (!detail) return <div className="flex py-3"><Loader2 className="w-4 h-4 animate-spin text-slate-500" /></div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="text-xs text-slate-400">
+        Current period estimate (not yet closed): <span className="font-semibold text-slate-200">{formatMoney(detail.summary?.totalAmount)}</span>
+      </div>
+      {detail.invoices.length === 0 ? (
+        <p className="text-sm text-slate-500">No invoices yet.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead className="text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th className="text-left py-2 pr-4">Period</th>
+              <th className="text-left py-2 pr-4">Amount</th>
+              <th className="text-left py-2 pr-4">Status</th>
+              <th className="text-left py-2 pr-4">Paid</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {detail.invoices.map((inv) => (
+              <tr key={inv.id}>
+                <td className="py-2 pr-4 text-slate-300">{inv.period_start} – {inv.period_end}</td>
+                <td className="py-2 pr-4 text-slate-200 font-semibold">{formatMoney(inv.total_amount)}</td>
+                <td className="py-2 pr-4">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                    inv.status === 'paid' ? 'bg-teal-500/10 text-teal-400 border-teal-500/30'
+                    : inv.status === 'overdue' ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                  }`}>
+                    {inv.status}
+                  </span>
+                </td>
+                <td className="py-2 pr-4 text-slate-400">{inv.paid_at ? new Date(inv.paid_at).toLocaleDateString() : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function BillingTable({ client, companies, error, fetchOverview }) {
+  const [expandedSlug, setExpandedSlug] = useState(null);
+  const [suspendTarget, setSuspendTarget] = useState(null); // company object, or null
+  const [rowState, setRowState] = useState({}); // { [slug]: { reactivating, error } }
+  const [statusFilter, setStatusFilter] = useState('all'); // all | overdue | no_payment | suspended
+  const [sort, setSort] = useState({ key: 'overdueTotal', dir: 'desc' });
+
+  const setRow = (slug, patch) => setRowState((prev) => ({ ...prev, [slug]: { ...prev[slug], ...patch } }));
+
+  const handleReactivate = async (slug) => {
+    setRow(slug, { reactivating: true, error: '' });
+    try {
+      await client.post(`/api/platform/billing/${slug}/reactivate`);
+      fetchOverview();
+    } catch (err) {
+      setRow(slug, { error: err.response?.data?.error || 'Failed to reactivate company.' });
+    } finally {
+      setRow(slug, { reactivating: false });
+    }
+  };
+
+  const handleSortClick = (key) => {
+    setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }));
+  };
+
+  const filtered = (companies || []).filter((c) => {
+    if (c.error) return true; // always surface a row that failed to load
+    if (statusFilter === 'overdue') return c.overdueCount > 0;
+    if (statusFilter === 'no_payment') return !c.hasPaymentMethod;
+    if (statusFilter === 'suspended') return c.status === 'suspended';
+    return true;
+  }).sort((a, b) => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return ((a[sort.key] || 0) - (b[sort.key] || 0)) * dir;
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className={`w-44 ${DARK_INPUT}`}><SelectValue /></SelectTrigger>
+          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectItem value="all">All companies</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="no_payment">No payment method</SelectItem>
+            <SelectItem value="suspended">Suspended</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+        {error && <p className="p-6 text-sm text-red-400 font-medium">{error}</p>}
+        {companies === null && !error && (
+          <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-slate-500" /></div>
+        )}
+        {companies && filtered.length === 0 && (
+          <p className="p-6 text-sm text-slate-400">No companies match this filter.</p>
+        )}
+        {companies && filtered.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-800/60 text-slate-400 text-xs uppercase tracking-wide">
+                <tr>
+                  <th className="w-8 px-2 py-3" />
+                  <th className="text-left px-4 py-3">Company</th>
+                  <th className="text-left px-4 py-3">Status</th>
+                  <th className="text-left px-4 py-3">
+                    <button type="button" onClick={() => handleSortClick('outstandingTotal')} className="cursor-pointer flex items-center gap-1 hover:text-slate-200">
+                      Outstanding {sort.key === 'outstandingTotal' && (sort.dir === 'asc' ? '▲' : '▼')}
+                    </button>
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <button type="button" onClick={() => handleSortClick('overdueTotal')} className="cursor-pointer flex items-center gap-1 hover:text-slate-200">
+                      Overdue {sort.key === 'overdueTotal' && (sort.dir === 'asc' ? '▲' : '▼')}
+                    </button>
+                  </th>
+                  <th className="text-left px-4 py-3">Payment method</th>
+                  <th className="text-left px-4 py-3">Oldest overdue</th>
+                  <th className="text-left px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filtered.map((c) => {
+                  const expanded = expandedSlug === c.slug;
+                  const rs = rowState[c.slug] || {};
+                  if (c.error) {
+                    return (
+                      <tr key={c.slug}>
+                        <td />
+                        <td className="px-4 py-3 font-semibold text-slate-100">{c.displayName}</td>
+                        <td colSpan={6} className="px-4 py-3 text-red-400 text-sm">{c.error}</td>
+                      </tr>
+                    );
+                  }
+                  return (
+                    <Fragment key={c.slug}>
+                      <tr className={`transition-colors ${expanded ? 'bg-slate-800/40' : 'hover:bg-slate-800/25'}`}>
+                        <td className="px-2 py-3 text-center">
+                          <button type="button" onClick={() => setExpandedSlug(expanded ? null : c.slug)}
+                            aria-label={expanded ? 'Hide invoice history' : 'View invoice history'} title="Invoice history"
+                            className="text-slate-500 hover:text-slate-200 cursor-pointer">
+                            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-slate-100">{c.displayName}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[c.status] || STATUS_STYLES.cancelled}`}>
+                            {c.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-300">{formatMoney(c.outstandingTotal)}</td>
+                        <td className={`px-4 py-3 font-semibold ${c.overdueTotal > 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                          {c.overdueTotal > 0 ? formatMoney(c.overdueTotal) : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {c.hasPaymentMethod ? (
+                            <span className="inline-flex items-center gap-1 text-teal-400 text-xs font-semibold"><CreditCard className="w-3.5 h-3.5" /> On file</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-slate-500 text-xs font-semibold"><CreditCard className="w-3.5 h-3.5" /> None</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400">{c.oldestOverdueDate ? new Date(c.oldestOverdueDate).toLocaleDateString() : '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5">
+                              {c.status === 'suspended' ? (
+                                <Button type="button" size="sm" variant="outline" disabled={rs.reactivating} onClick={() => handleReactivate(c.slug)}
+                                  className="h-8 border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white">
+                                  {rs.reactivating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 mr-1" />}
+                                  Reactivate
+                                </Button>
+                              ) : (
+                                <Dialog open={suspendTarget?.slug === c.slug} onOpenChange={(open) => setSuspendTarget(open ? c : null)}>
+                                  <Button type="button" size="sm" variant="outline" onClick={() => setSuspendTarget(c)}
+                                    className="h-8 border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 hover:text-red-300">
+                                    <ShieldOff className="w-3.5 h-3.5 mr-1" />
+                                    Suspend
+                                  </Button>
+                                  {suspendTarget?.slug === c.slug && (
+                                    <BillingSuspendDialog company={c} client={client} onDone={() => { setSuspendTarget(null); fetchOverview(); }} />
+                                  )}
+                                </Dialog>
+                              )}
+                            </div>
+                            {rs.error && <p className="text-xs font-medium text-red-400 max-w-[220px]">{rs.error}</p>}
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr className="bg-slate-800/40">
+                          <td />
+                          <td colSpan={7} className="px-4 pb-4 pt-1">
+                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Invoice history</div>
+                            <BillingDetailRow slug={c.slug} client={client} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BillingSection({ client }) {
+  const [companies, setCompanies] = useState(null);
+  const [totals, setTotals] = useState(null);
+  const [error, setError] = useState('');
+
+  const fetchOverview = () => {
+    client.get('/api/platform/billing/overview')
+      .then(({ data }) => { setCompanies(data.companies); setTotals(data.totals); })
+      .catch(() => setError('Failed to load billing overview.'));
+  };
+
+  useEffect(() => { fetchOverview(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={DollarSign} label="Total Outstanding" value={totals ? formatMoney(totals.outstandingTotal) : '—'} accent="bg-slate-800 text-slate-300" />
+        <StatCard icon={TriangleAlert} label="Overdue" value={totals ? formatMoney(totals.overdueTotal) : '—'} accent="bg-red-500/10 text-red-400" />
+        <StatCard icon={Ban} label="Companies Overdue" value={totals ? totals.companiesOverdue : '—'} accent="bg-amber-500/10 text-amber-400" />
+        <StatCard icon={CreditCard} label="No Payment Method" value={totals ? totals.companiesNoPaymentMethod : '—'} accent="bg-slate-800 text-slate-300" />
+      </div>
+      <BillingTable client={client} companies={companies} error={error} fetchOverview={fetchOverview} />
+    </div>
+  );
+}
+
 const TABS = {
   companies: { label: 'Companies', icon: Building2, subtitle: 'Every tenant on the platform — status, trials, pricing, and remote support access.' },
   newCompany: { label: 'New Company', icon: UserPlus, subtitle: "Provision a tenant and invite the customer's admin — they accept the BAA themselves on first login." },
+  billing: { label: 'Billing', icon: DollarSign, subtitle: "What every company owes Izaya, who's overdue, and the ability to suspend or reactivate access." },
   promoCodes: { label: 'Promo Codes', icon: Tag, subtitle: 'Trial-extension codes for outbound sales and partner offers.' },
 };
 
@@ -743,6 +1049,7 @@ export default function PlatformAdmin() {
           {tab === 'newCompany' && (
             <NewCompanyForm client={client} onCreated={() => { setTab('companies'); setRefreshKey((k) => k + 1); }} />
           )}
+          {tab === 'billing' && <BillingSection client={client} />}
           {tab === 'promoCodes' && <PromoCodeManager client={client} />}
         </div>
       </div>
