@@ -10,6 +10,17 @@ const { pool } = require('../config/db');
 // authMiddleware's `protect`) when available. For pre-auth events (e.g. a
 // login attempt, where there's no token yet) pass actorId/actorEmail/actorRole
 // explicitly instead.
+//
+// Izaya Support attribution: when the action is performed during a
+// platform-admin impersonation session (req.practitioner.impersonation,
+// set at token-mint time — see platformProvisioningController.js), the row
+// otherwise records only the hidden support account's own identity
+// (actor_email = support+<slug>@izayaedge.com), with no link back to which
+// platform admin was actually behind it. Every call site already passes
+// `req`, so folding the platform admin's identity into `details` here
+// covers all of them for free — deliberately scoped to only these
+// already-PHI-adjacent audited actions, not a new blanket "log everything
+// support does" mechanism.
 async function logAudit({
   req = null,
   actorId = null,
@@ -26,6 +37,11 @@ async function logAudit({
     const finalActorRole = actorRole ?? req?.practitioner?.role ?? null;
     const ip = req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req?.ip || null;
 
+    const impersonation = req?.practitioner?.impersonation;
+    const finalDetails = impersonation
+      ? { ...(details || {}), viaImpersonation: true, platformAdminEmail: impersonation.platformAdminEmail, impersonationStartedAt: impersonation.startedAt }
+      : details;
+
     await pool.query(
       `INSERT INTO audit_logs (actor_id, actor_email, actor_role, action, resource_type, resource_id, details, ip_address)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -36,7 +52,7 @@ async function logAudit({
         action,
         resourceType,
         resourceId != null ? String(resourceId) : null,
-        details ? JSON.stringify(details) : null,
+        finalDetails ? JSON.stringify(finalDetails) : null,
         ip,
       ]
     );
