@@ -165,7 +165,11 @@ export const BillingManager = () => {
   const [statusSearch, setStatusSearch] = useState('');
   const [statusDateRange, setStatusDateRange] = useState({ start: '', end: '' });
   const [paidFilter, setPaidFilter] = useState('all'); // 'all' | 'paid' | 'unpaid'
+  const [printFilter, setPrintFilter] = useState('all'); // 'all' | 'printed' | 'not_printed'
+  const [statusSort, setStatusSort] = useState({ key: 'end_date', dir: 'desc' }); // key: 'end_date' | 'practitioner'
+  const [selectedBatchIds, setSelectedBatchIds] = useState(new Set());
   const [printingBatchId, setPrintingBatchId] = useState(null);
+  const [isBulkPrinting, setIsBulkPrinting] = useState(false);
   const [updatingPaidId, setUpdatingPaidId] = useState(null);
 
   // --- TOAST STATE (replaces alert()) ---
@@ -179,7 +183,7 @@ export const BillingManager = () => {
 
   // Clear the practitioner search + date range filters for each tab.
   const resetHistoryFilters = () => { setHistorySearch(''); setHistoryDate({ start: '', end: '' }); };
-  const resetStatusFilters = () => { setStatusSearch(''); setStatusDateRange({ start: '', end: '' }); };
+  const resetStatusFilters = () => { setStatusSearch(''); setStatusDateRange({ start: '', end: '' }); setPaidFilter('all'); setPrintFilter('all'); };
 
   // ==========================================
   // PENDING QUEUE LOGIC
@@ -651,8 +655,45 @@ export const BillingManager = () => {
     if (statusDateRange.end && (!b.start_date || b.start_date > statusDateRange.end)) return false;
     if (paidFilter === 'paid' && !b.paid_at) return false;
     if (paidFilter === 'unpaid' && b.paid_at) return false;
+    if (printFilter === 'printed' && !b.printed_at) return false;
+    if (printFilter === 'not_printed' && b.printed_at) return false;
     return true;
+  }).sort((a, b) => {
+    const dir = statusSort.dir === 'asc' ? 1 : -1;
+    if (statusSort.key === 'practitioner') {
+      const nameA = `${a.practitioners?.first_name || ''} ${a.practitioners?.last_name || ''}`.trim().toLowerCase();
+      const nameB = `${b.practitioners?.first_name || ''} ${b.practitioners?.last_name || ''}`.trim().toLowerCase();
+      return nameA.localeCompare(nameB) * dir;
+    }
+    // Default: sort by period (end_date, falling back to start_date)
+    const dateA = a.end_date || a.start_date || '';
+    const dateB = b.end_date || b.start_date || '';
+    return dateA.localeCompare(dateB) * dir;
   });
+
+  // Toggling the sort column: clicking the active column flips direction;
+  // clicking a new column switches to it, defaulting to descending (most
+  // recent / Z-A first, matching what an invoice-status reviewer usually wants).
+  const handleSortClick = (key) => {
+    setStatusSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
+  };
+
+  const isAllFilteredSelected = filteredBatches.length > 0 && filteredBatches.every(b => selectedBatchIds.has(b.id));
+  const toggleSelectAll = () => {
+    setSelectedBatchIds(prev => {
+      if (isAllFilteredSelected) return new Set();
+      const next = new Set(prev);
+      filteredBatches.forEach(b => next.add(b.id));
+      return next;
+    });
+  };
+  const toggleSelectBatch = (id) => {
+    setSelectedBatchIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const handleTogglePaid = async (batch) => {
     const nextPaid = !batch.paid_at;
@@ -753,6 +794,86 @@ export const BillingManager = () => {
       window.print();
     } catch (error) {
       pushToast('error', 'Failed to open invoice for printing: ' + (error.response?.data?.error || error.message));
+      cleanup();
+    }
+  };
+
+  // Same overlay/canvas approach as handlePrintInvoice above, but renders every
+  // selected batch's invoice into one overlay (one page-break group per invoice,
+  // via a wrapper div, so each invoice still starts on its own printed page) and
+  // opens a single print dialog for all of them. On close, marks every selected
+  // batch printed in one shot rather than one PATCH per invoice per print click.
+  const handleBulkPrintInvoices = async () => {
+    const selected = filteredBatches.filter(b => selectedBatchIds.has(b.id) && (b.stamped_invoice_path || b.invoice_path));
+    if (selected.length === 0) return;
+    setIsBulkPrinting(true);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'invoice-print-overlay';
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        body > *:not(#invoice-print-overlay) { display: none !important; }
+        #invoice-print-overlay { display: block !important; }
+        #invoice-print-overlay .invoice-print-group { page-break-after: always; }
+        #invoice-print-overlay canvas { width: 100%; display: block; }
+      }
+    `;
+
+    const cleanup = () => {
+      window.removeEventListener('afterprint', onAfterPrint);
+      overlay.remove();
+      style.remove();
+      setIsBulkPrinting(false);
+    };
+
+    const onAfterPrint = async () => {
+      try {
+        await Promise.all(selected.map(b => api.patch(`/api/billing/batch/${b.id}/printed`, { printed: true })));
+        const printedIds = new Set(selected.map(b => b.id));
+        const now = new Date().toISOString();
+        setBatches(prev => prev.map(b => printedIds.has(b.id) ? { ...b, printed_at: now } : b));
+        setSelectedBatchIds(new Set());
+        pushToast('success', `${selected.length} invoice${selected.length === 1 ? '' : 's'} marked as printed.`);
+      } catch (error) {
+        pushToast('error', 'Print dialog closed, but failed to record printed status for some invoices.');
+      } finally {
+        cleanup();
+      }
+    };
+
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+
+      for (const batch of selected) {
+        const path = batch.stamped_invoice_path || batch.invoice_path;
+        const signedRes = await api.get('/api/billing/download', { params: { fileName: path } });
+        if (!signedRes.data.success) throw new Error(`Could not get download link for ${path}`);
+        const pdfRes = await fetch(signedRes.data.signedUrl);
+        if (!pdfRes.ok) throw new Error(`Could not fetch PDF for ${path}`);
+        const arrayBuffer = await pdfRes.arrayBuffer();
+
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const group = document.createElement('div');
+        group.className = 'invoice-print-group';
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          group.appendChild(canvas);
+        }
+        overlay.appendChild(group);
+      }
+
+      document.head.appendChild(style);
+      document.body.appendChild(overlay);
+      window.addEventListener('afterprint', onAfterPrint, { once: true });
+      window.print();
+    } catch (error) {
+      pushToast('error', 'Failed to open invoices for printing: ' + (error.response?.data?.error || error.message));
       cleanup();
     }
   };
@@ -1325,18 +1446,76 @@ export const BillingManager = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700">Print Status</Label>
+                <Select value={printFilter} onValueChange={setPrintFilter}>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="printed">Printed</SelectItem>
+                    <SelectItem value="not_printed">Not Printed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={resetStatusFilters} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Reset</Button>
               <Button onClick={fetchBatches} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Refresh</Button>
             </div>
           </div>
+
+          {selectedBatchIds.size > 0 && (
+            <div className="px-7 py-3 border-b border-blue-100 bg-blue-50 flex items-center justify-between gap-4">
+              <span className="text-sm font-semibold text-blue-900">
+                {selectedBatchIds.size} invoice{selectedBatchIds.size === 1 ? '' : 's'} selected
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="cursor-pointer border-blue-300 bg-white text-blue-700 hover:bg-blue-100"
+                  onClick={() => setSelectedBatchIds(new Set())}
+                >
+                  Clear Selection
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleBulkPrintInvoices}
+                  disabled={isBulkPrinting}
+                  className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isBulkPrinting ? 'Opening…' : `Print Selected (${selectedBatchIds.size})`}
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse tabular-nums">
               <caption className="sr-only">Invoice printed and paid status</caption>
               <thead>
                 <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  <th scope="col" className="py-4 px-6">Period</th>
-                  <th scope="col" className="py-4 px-6">Practitioner</th>
+                  <th scope="col" className="py-4 px-6 w-10">
+                    <button
+                      type="button"
+                      onClick={toggleSelectAll}
+                      disabled={filteredBatches.length === 0}
+                      aria-label={isAllFilteredSelected ? 'Deselect all' : 'Select all'}
+                      className={`cursor-pointer size-4 rounded border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                        isAllFilteredSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300 hover:border-blue-400'
+                      }`}
+                    >
+                      {isAllFilteredSelected && <CheckCircle2 className="size-3 text-white" strokeWidth={3} />}
+                    </button>
+                  </th>
+                  <th scope="col" className="py-4 px-6">
+                    <button type="button" onClick={() => handleSortClick('end_date')} className="cursor-pointer flex items-center gap-1 hover:text-slate-800">
+                      Period {statusSort.key === 'end_date' && (statusSort.dir === 'asc' ? '▲' : '▼')}
+                    </button>
+                  </th>
+                  <th scope="col" className="py-4 px-6">
+                    <button type="button" onClick={() => handleSortClick('practitioner')} className="cursor-pointer flex items-center gap-1 hover:text-slate-800">
+                      Practitioner {statusSort.key === 'practitioner' && (statusSort.dir === 'asc' ? '▲' : '▼')}
+                    </button>
+                  </th>
                   <th scope="col" className="py-4 px-6 text-center">Invoice</th>
                   <th scope="col" className="py-4 px-6 text-center">Printed</th>
                   <th scope="col" className="py-4 px-6 text-center">Paid</th>
@@ -1344,9 +1523,9 @@ export const BillingManager = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isStatusLoading ? (
-                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">Loading invoices...</td></tr>
+                  <tr><td colSpan="6" className="py-12 text-center text-slate-500">Loading invoices...</td></tr>
                 ) : filteredBatches.length === 0 ? (
-                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">No matching invoices found.</td></tr>
+                  <tr><td colSpan="6" className="py-12 text-center text-slate-500">No matching invoices found.</td></tr>
                 ) : (
                   filteredBatches.map((batch) => {
                     const practName = `${batch.practitioners?.first_name || ''} ${batch.practitioners?.last_name || ''}`.trim() || 'Unknown';
@@ -1355,8 +1534,21 @@ export const BillingManager = () => {
                       : '-';
                     const isPrinting = printingBatchId === batch.id;
                     const isUpdatingPaid = updatingPaidId === batch.id;
+                    const isSelected = selectedBatchIds.has(batch.id);
                     return (
-                      <tr key={batch.id} className="hover:bg-slate-50 transition-colors">
+                      <tr key={batch.id} className={`transition-colors ${isSelected ? 'bg-blue-50/60 hover:bg-blue-50' : 'hover:bg-slate-50'}`}>
+                        <td className="py-4 px-6">
+                          <button
+                            type="button"
+                            onClick={() => toggleSelectBatch(batch.id)}
+                            aria-label={isSelected ? 'Deselect invoice' : 'Select invoice'}
+                            className={`cursor-pointer size-4 rounded border flex items-center justify-center transition-colors ${
+                              isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300 hover:border-blue-400'
+                            }`}
+                          >
+                            {isSelected && <CheckCircle2 className="size-3 text-white" strokeWidth={3} />}
+                          </button>
+                        </td>
                         <td className="py-4 px-6 text-sm font-medium text-slate-800">{dateRange}</td>
                         <td className="py-4 px-6 font-bold text-slate-800 capitalize">{practName}</td>
                         <td className="py-4 px-6 text-center">
