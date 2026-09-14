@@ -1493,17 +1493,17 @@ export const BillingManager = () => {
               <caption className="sr-only">Invoice printed and paid status</caption>
               <thead>
                 <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  <th scope="col" className="py-4 px-6 w-10">
+                  <th scope="col" className="py-4 px-6 w-12">
                     <button
                       type="button"
                       onClick={toggleSelectAll}
                       disabled={filteredBatches.length === 0}
                       aria-label={isAllFilteredSelected ? 'Deselect all' : 'Select all'}
-                      className={`cursor-pointer size-4 rounded border flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                        isAllFilteredSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300 hover:border-blue-400'
+                      className={`cursor-pointer size-5 rounded border-2 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                        isAllFilteredSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-400 hover:border-blue-500 hover:bg-blue-50'
                       }`}
                     >
-                      {isAllFilteredSelected && <CheckCircle2 className="size-3 text-white" strokeWidth={3} />}
+                      {isAllFilteredSelected && <CheckCircle2 className="size-3.5 text-white" strokeWidth={3} />}
                     </button>
                   </th>
                   <th scope="col" className="py-4 px-6">
@@ -1542,11 +1542,11 @@ export const BillingManager = () => {
                             type="button"
                             onClick={() => toggleSelectBatch(batch.id)}
                             aria-label={isSelected ? 'Deselect invoice' : 'Select invoice'}
-                            className={`cursor-pointer size-4 rounded border flex items-center justify-center transition-colors ${
-                              isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300 hover:border-blue-400'
+                            className={`cursor-pointer size-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-400 hover:border-blue-500 hover:bg-blue-50'
                             }`}
                           >
-                            {isSelected && <CheckCircle2 className="size-3 text-white" strokeWidth={3} />}
+                            {isSelected && <CheckCircle2 className="size-3.5 text-white" strokeWidth={3} />}
                           </button>
                         </td>
                         <td className="py-4 px-6 text-sm font-medium text-slate-800">{dateRange}</td>
