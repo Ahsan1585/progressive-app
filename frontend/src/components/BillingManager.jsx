@@ -1517,30 +1517,40 @@ export const BillingManager = () => {
             </div>
           </div>
 
-          {selectedBatchIds.size > 0 && (
-            <div className="px-7 py-3 border-b border-blue-100 bg-blue-50 flex items-center justify-between gap-4">
-              <span className="text-sm font-semibold text-blue-900">
-                {selectedBatchIds.size} invoice{selectedBatchIds.size === 1 ? '' : 's'} selected
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="cursor-pointer border-blue-300 bg-white text-blue-700 hover:bg-blue-100"
-                  onClick={() => setSelectedBatchIds(new Set())}
-                >
-                  Clear Selection
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={openBulkPrintPreview}
-                  className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {`Print Selected (${selectedBatchIds.size})`}
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Fixed-height slot regardless of selection state — this bar used to
+              only mount once something was selected, which inserted a whole
+              new row into the document flow and visibly shoved the table
+              (and the very row someone just clicked) downward. Reserving the
+              space always, and only toggling what's inside it, means
+              selecting/deselecting a row never moves anything else on screen. */}
+          <div className={`h-[52px] px-7 flex items-center justify-between gap-4 border-b transition-colors ${selectedBatchIds.size > 0 ? 'bg-blue-50 border-blue-100' : 'bg-slate-50/50 border-slate-100'}`}>
+            {selectedBatchIds.size > 0 ? (
+              <>
+                <span className="text-sm font-semibold text-blue-900">
+                  {selectedBatchIds.size} invoice{selectedBatchIds.size === 1 ? '' : 's'} selected
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="cursor-pointer border-blue-300 bg-white text-blue-700 hover:bg-blue-100"
+                    onClick={() => setSelectedBatchIds(new Set())}
+                  >
+                    Clear Selection
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={openBulkPrintPreview}
+                    className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {`Print Selected (${selectedBatchIds.size})`}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <span className="text-xs text-slate-400">Select invoices below to print them together.</span>
+            )}
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse tabular-nums">
