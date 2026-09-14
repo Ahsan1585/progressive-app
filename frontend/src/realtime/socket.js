@@ -23,8 +23,18 @@ function getSocket() {
       reconnectionDelayMax: 8000,
     });
 
-    // A rejected handshake (bad/expired token) funnels to the same logout
-    // path as a REST 401.
+    // A rejected handshake because the TOKEN itself is bad/expired funnels
+    // to the same logout path as a REST 401. A rejection because the
+    // COMPANY is suspended/trial-expired ('account_blocked' — see
+    // backend/src/realtime/handshake.js) is deliberately NOT treated the
+    // same way: the token is still valid, so wiping the session here would
+    // race against TrialGate's own /api/auth/company-status check and could
+    // bounce a freshly-logged-in suspended user straight back to /login
+    // with no error shown at all. Leave the session alone and let
+    // TrialGate's REST-based check be the one thing that explains and
+    // renders the block. socket.io will keep quietly retrying the
+    // connection in the background (harmless — it'll just keep getting
+    // 'account_blocked' again until the company is reactivated).
     socket.on('connect_error', (err) => {
       if (err?.message === 'unauthorized') {
         clearSessionAndNotify();

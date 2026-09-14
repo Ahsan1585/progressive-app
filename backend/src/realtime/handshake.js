@@ -41,7 +41,16 @@ async function authHandshake(socket, next) {
     if (!company || company.status === 'cancelled') return next(new Error('unauthorized'));
     const trialExpired =
       company.status === 'trial' && company.trial_ends_at && new Date(company.trial_ends_at) < new Date();
-    if (trialExpired || company.status === 'suspended') return next(new Error('unauthorized'));
+    // Distinct from 'unauthorized': the token itself is fine, the company is
+    // just blocked. The frontend's connect_error handler (realtime/socket.js)
+    // treats 'unauthorized' as "this session is dead, log out" — that's
+    // wrong here, since the very next REST call (e.g. TrialGate's
+    // company-status check) is the one meant to explain and render the
+    // block, not have the socket silently wipe the session out from under
+    // it first. Was previously also 'unauthorized', which raced against
+    // TrialGate's own fetch and could log a freshly-logged-in suspended
+    // user straight back out to /login with no error shown at all.
+    if (trialExpired || company.status === 'suspended') return next(new Error('account_blocked'));
     if (!company.baa_accepted_at) return next(new Error('unauthorized'));
 
     // Resolve the connecting user's display name from THEIR tenant DB, and
