@@ -139,18 +139,12 @@ const submitTelepracticeSession = async (req, res) => {
     await ensureDropdownOptionsCacheLoaded(getCurrentTenantDb());
     const signUrl = buildSignUrl(req.practitioner.slug, rawToken);
     try {
+      // PHI-minimization: no session content (child's name, service, date/
+      // time, location) in the email — the sign page itself already fetches
+      // and displays all of that once the parent opens signUrl. See
+      // sendParentSignatureRequestEmail's comment in emailClient.js.
       await sendParentSignatureRequestEmail(parentEmail, {
-        childFirstName: patient_first_name,
         practitionerFirstName: practitioner_first_name,
-        serviceLabel: serviceCodeLabel(type),
-        sessionDate: formatLongDate(date),
-        startTime: formatTime12h(startTime),
-        endTime: formatTime12h(endTime),
-        durationLabel: formatDurationLabel(finalTotalTime),
-        sessionTypeLabel: groupSizeCodeLabel(groupSizeCategory),
-        locationLabel: locationCodeLabel(location),
-        practitionerName: `${practitioner_first_name} ${practitioner_last_name}`.trim(),
-        practitionerDisciplineLabel: practitioner_discipline,
         signUrl,
       });
     } catch (emailError) {
@@ -222,18 +216,9 @@ const resendTelepracticeSignatureRequest = async (req, res) => {
 
     await ensureDropdownOptionsCacheLoaded(getCurrentTenantDb());
     const signUrl = buildSignUrl(req.practitioner.slug, rawToken);
+    // PHI-minimization — see the comment on the initial send above.
     await sendParentSignatureRequestEmail(request.parent_email, {
-      childFirstName: request.patient_first_name,
       practitionerFirstName: request.practitioner_first_name,
-      serviceLabel: serviceCodeLabel(request.type),
-      sessionDate: formatLongDate(request.service_date),
-      startTime: formatTime12h(request.start_time),
-      endTime: formatTime12h(request.end_time),
-      durationLabel: formatDurationLabel(request.total_time),
-      sessionTypeLabel: groupSizeCodeLabel(request.group_size_category),
-      locationLabel: locationCodeLabel(request.location),
-      practitionerName: `${request.practitioner_first_name} ${request.practitioner_last_name}`.trim(),
-      practitionerDisciplineLabel: request.practitioner_discipline,
       signUrl,
       isResend: true,
     });

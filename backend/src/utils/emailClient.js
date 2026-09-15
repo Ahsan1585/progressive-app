@@ -227,16 +227,29 @@ const sendSignupConfirmationEmail = async (toEmail, { confirmUrl, companyName })
   });
 };
 
+// PHI-minimization note (risk-reduction, not elimination — see the BAA
+// draft's subcontractor review flag): this deliberately uses the child's
+// FIRST name only (never the surname) and drops any free-text session
+// notes entirely, both in the email body and the .ics attachment's
+// DESCRIPTION field — the notes field is unbounded free text a practitioner
+// could type anything into, the single biggest unknown exposure of the two.
+// Date/time/location/first-name are kept because a truly generic calendar
+// invite ("You have an appointment") would defeat the point of attaching
+// one at all. This still very likely counts as PHI under the same
+// reasoning that first-name + a health-service date/time does elsewhere —
+// it reduces exposure, it does not remove the need for a BAA with Resend
+// (or moving this send to a HIPAA-eligible provider) before this is
+// treated as resolved.
 const sendSessionScheduledEmail = async (toEmail, {
-  childName, practitionerName, sessionDate, startTime, endTime, location, icsContent, cancelled,
+  childFirstName, practitionerName, sessionDate, startTime, endTime, location, icsContent, cancelled,
 }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping session schedule email send.');
     return;
   }
   const subject = cancelled
-    ? `Cancelled: ${childName}'s session on ${sessionDate}`
-    : `${childName}'s session scheduled for ${sessionDate}`;
+    ? `Cancelled: ${childFirstName}'s session on ${sessionDate}`
+    : `${childFirstName}'s session scheduled for ${sessionDate}`;
 
   const detailRow = (label, value) => (value ? `
     <tr>
@@ -245,7 +258,7 @@ const sendSessionScheduledEmail = async (toEmail, {
     </tr>` : '');
   const detailsTable = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0; border-top:1px solid ${COLORS.line}; border-bottom:1px solid ${COLORS.line};">
-      ${detailRow('Child', childName)}
+      ${detailRow('Child', childFirstName)}
       ${detailRow('Date', sessionDate)}
       ${detailRow('Time', `${startTime} – ${endTime}`)}
       ${detailRow('Practitioner', practitionerName)}
@@ -327,68 +340,48 @@ const sendContactRequestEmail = async ({
 
 // Sent to a parent (not an app user — no account, no context on this app)
 // after a practitioner logs a telepractice session, asking them to review
-// the session details and sign remotely. Every value here must already be
-// fully humanized by the caller (full labels, spelled-out duration, 12-hour
-// time, long-form date) — this function does no further translation, since
-// a parent must never see an internal code or abbreviation (e.g. a raw
-// service-type code, "SLP", a location code).
+// the session details and sign remotely.
+//
+// Deliberately carries NO session content (no child's name, service, date/
+// time, location, etc.) in the email itself — only the practitioner's first
+// name (not PHI on its own) and the signing link. The signing page
+// (TelepracticeSign.jsx, reached via signUrl) already fetches and displays
+// every session detail itself once the parent opens the token-gated link,
+// which lives on Izaya's own BAA-covered infrastructure. Putting that same
+// content in the email body/subject would mean it also passes through and
+// rests in Resend's systems and the parent's inbox — a transactional email
+// vendor Izaya does not have a BAA with. See the BAA draft's subcontractor
+// review flag for the underlying reasoning; this function is the fix.
 const sendParentSignatureRequestEmail = async (toEmail, {
-  childFirstName, practitionerFirstName, serviceLabel, sessionDate, startTime, endTime,
-  durationLabel, sessionTypeLabel, locationLabel, practitionerName, practitionerDisciplineLabel, signUrl,
-  isResend = false,
+  practitionerFirstName, signUrl, isResend = false,
 }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping telepractice signature request email send.');
     return;
   }
 
-  const detailRow = (label, value) => (value ? `
-    <tr>
-      <td style="padding:9px 0; font-family:${SANS}; font-size:12.5px; color:${COLORS.slate}; width:110px; vertical-align:top;">${label}</td>
-      <td style="padding:9px 0; font-family:${SANS}; font-size:13.5px; font-weight:600; color:${COLORS.navy};">${value}</td>
-    </tr>` : '');
-  const detailsTable = `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px; border-top:1px solid ${COLORS.line}; border-bottom:1px solid ${COLORS.line};">
-      ${detailRow('Child', childFirstName)}
-      ${detailRow('Service', serviceLabel)}
-      ${detailRow('Date', sessionDate)}
-      ${detailRow('Time', startTime && endTime ? `${startTime} &ndash; ${endTime}` : '')}
-      ${detailRow('Duration', durationLabel)}
-      ${detailRow('Session Type', sessionTypeLabel)}
-      ${detailRow('Location', locationLabel)}
-      ${detailRow('Provided By', practitionerDisciplineLabel ? `${practitionerName}, ${practitionerDisciplineLabel}` : practitionerName)}
-    </table>
-  `;
-
   const bodyHtml = `
-    <p style="margin:0 0 4px;">Because this was a telehealth (video) visit, ${practitionerFirstName} wasn't able to collect your signature in person. We just need a quick digital signature to confirm the session details below.</p>
+    <p style="margin:0 0 4px;">Because this was a telehealth (video) visit, ${practitionerFirstName || 'your practitioner'} wasn't able to collect your signature in person. Follow the link below to review the session and add a quick digital signature.</p>
     ${stepGuide([
-      { icon: STEP_ICON_REVIEW_URL, alt: 'Review icon', label: 'Review the details', subtext: 'Session date, time, and service' },
+      { icon: STEP_ICON_REVIEW_URL, alt: 'Review icon', label: 'Review the details', subtext: 'Opens on a private, secure page' },
       { icon: STEP_ICON_SIGN_URL, alt: 'Sign icon', label: 'Add your signature', subtext: 'With your finger or mouse — takes seconds' },
       { icon: STEP_ICON_DONE_URL, alt: 'Done icon', label: "You're all set", subtext: 'No account or app needed' },
     ])}
-    ${detailsTable}
     ${ctaButton(signUrl, 'Review & Sign Now')}
     ${linkFallback(signUrl)}
     <p style="margin:20px 0 0; font-size:12.5px; color:${COLORS.slate};">Questions about this session? Contact ${practitionerFirstName || 'your practitioner'} or your care team directly.</p>
   `;
   const html = emailShell({
-    preheader: `A quick signature is needed for ${childFirstName}'s session on ${sessionDate}.`,
+    preheader: 'A quick signature is needed for a recent telehealth session.',
     eyebrow: isResend ? 'Signature Reminder' : 'Signature Needed',
-    heading: `Please review and sign ${childFirstName}'s session`,
+    heading: 'Please review and sign your recent session',
     bodyHtml,
     footnote: 'This link is private to you and expires in 7 days. It takes less than a minute — no login, password, or app download required.',
   });
 
-  // A resend's subject is deliberately distinct from the original send's
-  // (not just re-sent verbatim) — Gmail auto-threads new mail by matching
-  // subject + participants even without In-Reply-To headers, and once
-  // threaded it collapses near-identical content between messages behind a
-  // "•••" toggle. An identical subject on every resend made the parent's
-  // actual session details disappear behind that toggle.
   const subject = isResend
-    ? `Reminder: Please review and sign ${childFirstName}'s recent session`
-    : `Please review and sign ${childFirstName}'s recent session`;
+    ? 'Reminder: Please review and sign your recent session'
+    : 'Please review and sign your recent session';
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',

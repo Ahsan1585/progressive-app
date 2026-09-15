@@ -5,22 +5,27 @@ const { sendSessionScheduledEmail } = require('../utils/emailClient');
 const notifyParent = async (session, patient, practitioner, { cancelled = false } = {}) => {
   if (!patient.parent_email) return;
 
-  const childName = `${patient.first_name} ${patient.last_name}`;
+  // PHI-minimization: first name only (never the surname), and no
+  // session.notes in the calendar description — see the comment on
+  // sendSessionScheduledEmail in emailClient.js for the full reasoning.
+  // Notes are free text a practitioner could put anything in and are the
+  // single biggest unbounded-content risk of the two, so they're dropped
+  // entirely rather than reduced.
+  const childFirstName = patient.first_name;
   const practitionerName = `${practitioner.first_name} ${practitioner.last_name}`;
   const icsContent = buildSessionICS({
     sessionId: session.id,
     sessionDate: session.session_date,
     startTime: session.start_time,
     endTime: session.end_time,
-    summary: `${childName}'s session with ${practitionerName}`,
+    summary: `${childFirstName}'s session with ${practitionerName}`,
     location: session.location,
-    description: session.notes,
     cancelled,
   });
 
   try {
     await sendSessionScheduledEmail(patient.parent_email, {
-      childName,
+      childFirstName,
       practitionerName,
       sessionDate: session.session_date,
       startTime: session.start_time,
