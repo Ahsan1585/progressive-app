@@ -60,34 +60,19 @@
     0%, 100% { box-shadow: 0 0 0 0 rgba(13,167,107,0.30); }
     50%      { box-shadow: 0 0 0 7px rgba(13,167,107,0); }
   }
-  @keyframes sproutSway {
-    0%, 100% { transform: rotate(-4deg); }
-    50%      { transform: rotate(4deg); }
-  }
   @keyframes pulseGreenFrame {
     0%, 100% { box-shadow: 0 10px 24px rgba(15,23,42,0.22), 0 0 0 0 rgba(13,167,107,0.35); }
     50%      { box-shadow: 0 10px 24px rgba(15,23,42,0.22), 0 0 0 8px rgba(13,167,107,0); }
   }
   a.btn-primary   { animation: pulseWhite 2.6s ease-in-out infinite; -webkit-animation: pulseWhite 2.6s ease-in-out infinite; }
   a.btn-secondary { animation: pulseGreen 2.6s ease-in-out infinite; -webkit-animation: pulseGreen 2.6s ease-in-out infinite; }
-  .sprout-anim    { animation: sproutSway 3.4s ease-in-out infinite; -webkit-animation: sproutSway 3.4s ease-in-out infinite; transform-origin: bottom center; display: inline-table; }
   .sig-pulse      { animation: pulseGreenFrame 2.6s ease-in-out infinite; -webkit-animation: pulseGreenFrame 2.6s ease-in-out infinite; }
 
   @media (prefers-reduced-motion: reduce) {
-    a.btn-primary, a.btn-secondary, .sprout-anim, .sig-pulse { animation: none !important; -webkit-animation: none !important; box-shadow: 0 10px 24px rgba(15,23,42,0.22) !important; }
+    a.btn-primary, a.btn-secondary, .sig-pulse { animation: none !important; -webkit-animation: none !important; box-shadow: 0 10px 24px rgba(15,23,42,0.22) !important; }
   }
 
-  /* Logo has navy letterforms baked into the PNG itself (not styleable) —
-     it disappears against the dark-mode card background, so we ship two
-     versions of the image and toggle which one is visible via display,
-     rather than swapping src (more broadly supported in email clients). */
-  .logo-light { display: inline-block; }
-  .logo-dark  { display: none; }
-
   @media (prefers-color-scheme: dark) {
-    .logo-light { display: none !important; }
-    .logo-dark  { display: inline-block !important; }
-
     body, #bg-canvas { background-color: #05070D !important; }
     .card       { background-color: #111827 !important; }
     .panel      { background-color: #0B1120 !important; }
@@ -142,103 +127,113 @@
         <tr>
           <td class="card" style="border-radius: 16px; overflow: hidden;">
 
-            <!-- Header -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <!-- Header/hero band: navy background carrying the logo + hero
+                 photo together (matches Izaya_EIS_Introduction.pdf's banner,
+                 not the plain white logo strip the newsletter had before).
+                 Logo uses the light/teal wordmark variant since navy text
+                 doesn't work on a navy background — same asset the dark-mode
+                 swap already introduced, reused here for the same reason. -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#14204A;">
               <tr>
-                <td class="px-mobile" style="padding: 26px 40px 22px 40px; border-bottom: 1px solid #E2E8F0;">
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-                    <td align="left" valign="middle" style="padding:0;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                    <td style="padding:0; line-height:0; vertical-align:middle;">
-                      <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-01.png?v=4" width="153" height="26" alt="Izaya EIS" class="logo-light" style="height:26px; width:auto; border:0;">
-                      <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-01-dark.png?v=1" width="153" height="26" alt="Izaya EIS" class="logo-dark" style="height:26px; width:auto; border:0;">
-                    </td>
-                    <td style="padding:0 0 0 12px; vertical-align:middle; border-left:1px solid #E2E8F0; padding-left:12px;">
-                      <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.03em;" class="ink-muted">EARLY INTERVENTION<br>SIMPLIFIED</p>
-                    </td>
-                  </tr></table>
-                    </td>
-                    <td align="right" valign="middle" style="padding:0;"><span class="sprout-anim" style="display:inline-block; line-height:0;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-02.png?v=2" width="15" height="34" alt="" style="display:block; width:15px; height:34px; border:0;"></span></td>
-                  </tr></table>
+                <td style="padding:0;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td width="52%" valign="top" class="stack-mobile px-mobile" style="padding: 26px 20px 24px 40px;">
+                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-01-dark.png?v=1" width="172" height="29" alt="Izaya EIS" style="display:block; height:29px; width:auto; border:0; margin-bottom:6px;">
+                        <p style="margin:0 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color:#94A3B8;">
+                          EARLY INTERVENTION SIMPLIFIED
+                        </p>
+                        <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 21px; font-style: italic; font-weight: 600; color:#FFFFFF;">
+                          More Time for Children.<br>Less Time on Billing.
+                        </p>
+                      </td>
+                      <td width="48%" valign="top" align="right" class="stack-mobile" style="position:relative;">
+                        <!-- "Stronger Families / Brighter Futures" tag, top-right
+                             corner of the band, matching the PDF's handwritten-
+                             style callout (kept in a plain italic web font,
+                             not a custom script font, for email-client safety). -->
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 14px 16px 6px 0;"><tr><td align="right">
+                          <p style="margin:0; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; line-height:17px; font-style: italic; font-weight: 700; color:#FFFFFF; text-align:right;">
+                            Stronger Families<br>Brighter Futures
+                          </p>
+                        </td></tr></table>
+                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-03.jpg?v=2" width="300" alt="Practitioner reviewing a session on a tablet while a family plays with their child in the background" style="display:block; width:100%; max-width:300px; height:auto; border:0; margin-left:auto;">
+                      </td>
+                    </tr>
+                  </table>
                 </td>
+              </tr>
+              <tr>
+                <td class="green-band" style="height:6px; font-size:1px; line-height:1px;">&nbsp;</td>
               </tr>
             </table>
 
-            <!-- Hero headline: full width, one line -->
+            <!-- Hero headline: full width, on the white body below the band -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td class="px-mobile" style="padding: 30px 40px 4px 40px;">
+                <td class="px-mobile" style="padding: 26px 40px 4px 40px;">
                   <p style="margin:0 0 8px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700;" class="navy">
                     For Early Intervention Agencies
                   </p>
                   <p class="h1-mobile" style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 27px; line-height: 31px; font-weight: 800; letter-spacing: -0.01em;" class="navy">
                     WEEKS OF BILLING REVIEW.<br><span class="green">DONE IN MINUTES.</span>
                   </p>
-                  <p style="margin:10px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; font-style: italic; font-weight: 600;" class="ink-body">
-                    More time for children. Less time on billing.
+                  <p style="margin:12px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 20px; font-weight: 600;" class="navy">
+                    Practitioners log the session. <span class="green" style="font-weight:700;">Izaya EIS&trade;</span> handles the rest.
                   </p>
                 </td>
               </tr>
             </table>
 
-            <!-- Hero: subhead/CTA left, real photo right -->
+            <!-- CTA + trust badges -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td style="padding:0;">
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td width="52%" valign="top" class="stack-mobile px-mobile" style="padding: 14px 24px 30px 40px;">
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 14px 0;"><tr>
-                          <td class="green-band" style="width:40px; height:3px; font-size:1px; line-height:1px;">&nbsp;</td>
-                        </tr></table>
-                        <p style="margin:0 0 18px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 19px; font-weight: 600;" class="navy">
-                          Practitioners log the session. <span class="green" style="font-weight:700;">Izaya EIS&trade;</span> handles the rest.
-                        </p>
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                          <td class="btn-secondary" style="border-radius: 8px;">
-                            <a href="https://izayaedge.com/eis/contact" class="btn-secondary" style="display:inline-block; padding: 13px 26px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px;">
-                              Schedule a Demo &rarr;
-                            </a>
-                          </td>
-                        </tr></table>
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:12px 0 0 0;">
-                          <tr>
-                            <td valign="middle" style="padding:0 6px 7px 0;">
-                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%;"><tr>
-                                <td align="center" valign="middle" style="width:18px; height:18px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-08.png?v=2" width="10" height="10" alt="" style="display:block; width:10px; height:10px; border:0;"></td>
-                              </tr></table>
-                            </td>
-                            <td valign="middle" style="padding:0 0 7px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">30-Minute Walkthrough</td>
-                          </tr>
-                          <tr>
-                            <td valign="middle" style="padding:0 6px 7px 0;">
-                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%;"><tr>
-                                <td align="center" valign="middle" style="width:18px; height:18px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-04.png?v=2" width="10" height="10" alt="" style="display:block; width:10px; height:10px; border:0;"></td>
-                              </tr></table>
-                            </td>
-                            <td valign="middle" style="padding:0 0 7px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">No Obligation</td>
-                          </tr>
-                          <tr>
-                            <td valign="middle" style="padding:0 6px 0 0;">
-                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-outline-green" style="border-radius:50%;"><tr>
-                                <td align="center" valign="middle" style="width:18px; height:18px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-24.png?v=2" width="10" height="10" alt="" style="display:block; width:10px; height:10px; border:0;"></td>
-                              </tr></table>
-                            </td>
-                            <td valign="middle" style="padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">HIPAA Compliant</td>
-                          </tr>
-                        </table>
-                      </td>
-                      <td width="48%" valign="middle" class="stack-mobile">
-                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-03.jpg?v=2" width="480" alt="Practitioner reviewing a session on a tablet while a family plays with their child in the background" style="display:block; width:100%; height:auto; border:0;">
-                      </td>
-                    </tr>
-                  </table>
+                <td class="px-mobile" style="padding: 16px 40px 30px 40px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                    <td class="btn-secondary" style="border-radius: 8px;">
+                      <a href="https://izayaedge.com/eis/contact" class="btn-secondary" style="display:inline-block; padding: 13px 26px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px;">
+                        Schedule a Demo &rarr;
+                      </a>
+                    </td>
+                  </tr></table>
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 0;"><tr>
+                    <td valign="middle" style="padding:0 18px 0 0;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                        <td valign="middle" style="padding-right:6px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%;"><tr>
+                            <td align="center" valign="middle" style="width:18px; height:18px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-08.png?v=2" width="10" height="10" alt="" style="display:block; width:10px; height:10px; border:0;"></td>
+                          </tr></table>
+                        </td>
+                        <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">30-Minute Walkthrough</td>
+                      </tr></table>
+                    </td>
+                    <td valign="middle" style="padding:0 18px 0 0;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                        <td valign="middle" style="padding-right:6px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%;"><tr>
+                            <td align="center" valign="middle" style="width:18px; height:18px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-04.png?v=2" width="10" height="10" alt="" style="display:block; width:10px; height:10px; border:0;"></td>
+                          </tr></table>
+                        </td>
+                        <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">No Obligation</td>
+                      </tr></table>
+                    </td>
+                    <td valign="middle">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                        <td valign="middle" style="padding-right:6px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-outline-green" style="border-radius:50%;"><tr>
+                            <td align="center" valign="middle" style="width:18px; height:18px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-24.png?v=2" width="10" height="10" alt="" style="display:block; width:10px; height:10px; border:0;"></td>
+                          </tr></table>
+                        </td>
+                        <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">HIPAA Compliant</td>
+                      </tr></table>
+                    </td>
+                  </tr></table>
                 </td>
               </tr>
             </table>
 
             <!-- Green banner -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="green-band" style="margin-top: 8px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="green-band" style="margin-top: 0;">
               <tr>
                 <td class="px-mobile" style="padding: 20px 40px;">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
