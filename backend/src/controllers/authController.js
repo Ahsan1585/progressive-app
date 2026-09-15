@@ -15,7 +15,7 @@ const { platformPool } = require('../config/platformDb');
 // invite-pending row shape via insertInvitedPractitioner.
 const {
   insertInvitedPractitioner, getValidServiceTypeCodes,
-  INVITE_PENDING, INVITE_TOKEN_TTL_MS, hashToken,
+  INVITE_PENDING, INVITE_TOKEN_TTL_MS, hashToken, buildActivateUrl,
 } = require('../utils/practitionerRegistration');
 
 // --- Function 1: Admin Provisions a Practitioner (invite-link based — the
@@ -113,7 +113,7 @@ const resendInvite = async (req, res) => {
   const { id } = req.params;
   try {
     const { rows } = await pool.query(
-      'SELECT id, first_name, last_name, email, password_hash FROM practitioners WHERE id = $1',
+      'SELECT id, first_name, last_name, email, password_hash, role FROM practitioners WHERE id = $1',
       [id]
     );
     const target = rows[0];
@@ -129,8 +129,7 @@ const resendInvite = async (req, res) => {
     const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
     const companyName = companyRows[0]?.display_name || 'Izaya EIS';
     const slug = req.practitioner.slug;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
-    const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
+    const activateUrl = buildActivateUrl(target.role, slug, rawToken);
 
     // Send first, then persist — so invite_email_id / invite_delivery_status
     // reflect this send (and a fresh send clears any prior 'bounced' state
@@ -386,7 +385,7 @@ const forgotPassword = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, email FROM practitioners WHERE email = $1',
+      'SELECT id, email, role FROM practitioners WHERE email = $1',
       [String(email).trim().toLowerCase()]
     );
     const user = rows[0];
@@ -402,11 +401,16 @@ const forgotPassword = async (req, res) => {
           [tokenHash, expiresAt, user.id]
         );
 
-        // The app is served under the /eis base path (see frontend/vite.config.js's
-        // `base: "/eis/"`), so FRONTEND_URL must include it — e.g.
-        // https://izayaedge.com/eis, not just https://izayaedge.com.
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
-        const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+        // A practitioner's day-to-day app is the mobile PWA
+        // (app.izayaedge.com/EIS), not the office web dashboard
+        // (izayaedge.com/eis) ceo/staff accounts use — send them to their
+        // own app's reset screen instead. Both apps are served under the
+        // /eis or /EIS base path (see frontend/vite.config.js and
+        // mobile/vite.config.ts), so *_URL must include it.
+        const baseUrl = user.role === 'practitioner'
+          ? (process.env.MOBILE_APP_URL || 'http://localhost:5174/EIS')
+          : (process.env.FRONTEND_URL || 'http://localhost:5173/eis');
+        const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
 
         try {
           await sendPasswordResetEmail(user.email, resetUrl);

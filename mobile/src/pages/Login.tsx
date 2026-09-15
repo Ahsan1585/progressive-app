@@ -26,12 +26,16 @@ export default function Login() {
   const [companySlug, setCompanySlug] = React.useState(() => {
     try { return localStorage.getItem("companySlug") || ""; } catch { return ""; }
   });
-  const [email, setEmail] = React.useState("");
+  // Pre-filled when arriving here right after ActivateAccount/ResetPassword
+  // succeeded — the point of landing here instead of a bare route is that
+  // company + email are already filled in, only the password remains.
+  const locationState = location.state as { resetSuccess?: boolean; email?: string } | null;
+  const [email, setEmail] = React.useState(locationState?.email || "");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
-  const resetSuccess = (location.state as { resetSuccess?: boolean } | null)?.resetSuccess;
+  const resetSuccess = locationState?.resetSuccess;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

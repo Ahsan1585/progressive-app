@@ -15,6 +15,7 @@ import UnsupportedRole from "@/pages/UnsupportedRole";
 import ForcedPasswordChange from "@/pages/ForcedPasswordChange";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import ActivateAccount from "@/pages/ActivateAccount";
 
 import Home from "@/pages/shell/Home";
 import Roster from "@/pages/shell/Roster";
@@ -107,6 +108,14 @@ function App() {
               element={
                 <RequireGuest>
                   <ResetPassword />
+                </RequireGuest>
+              }
+            />
+            <Route
+              path="/activate/:companySlug/:token"
+              element={
+                <RequireGuest>
+                  <ActivateAccount />
                 </RequireGuest>
               }
             />

@@ -12,6 +12,22 @@ const INVITE_PENDING = 'INVITE_PENDING';
 const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
+// A practitioner's day-to-day app is the mobile PWA (app.izayaedge.com,
+// served under /EIS — see mobile/vite.config.ts's base), not the office web
+// dashboard (izayaedge.com/eis) that ceo/staff accounts use. Their
+// activation link needs to open the mobile app's own ActivateAccount screen
+// (mobile/src/pages/ActivateAccount.tsx), not the web app's — otherwise a
+// practitioner clicking their invite email lands in the wrong app entirely.
+// ceo/staff accounts are unaffected and keep the existing web-app link.
+function buildActivateUrl(legacyRole, slug, rawToken) {
+  if (legacyRole === 'practitioner') {
+    const mobileAppUrl = process.env.MOBILE_APP_URL || 'http://localhost:5174/EIS';
+    return `${mobileAppUrl}/activate/${slug}/${rawToken}`;
+  }
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
+  return `${frontendUrl}/${slug}/activate/${rawToken}`;
+}
+
 // Legacy fallback only — the real, current list is the tenant's own
 // configurable service_type dropdown options (see getValidServiceTypeCodes
 // below). Kept here so an empty/unloaded cache never blocks registration
@@ -43,6 +59,11 @@ function getValidServiceTypeCodes() {
 // and bulk practitioner import (practitioner-only).
 async function insertInvitedPractitioner({
   firstName, lastName, email, address, phoneNumber, payRate, positionTitle,
+  // frontendUrl is accepted for backward compatibility with existing callers
+  // (bulk import, signup, platform-admin company creation) but no longer
+  // used here — buildActivateUrl below reads FRONTEND_URL/MOBILE_APP_URL
+  // directly so it can pick the right one per-role instead of the caller
+  // having to guess which app a given invite is for.
   ssn, serviceTypes, legacyRole, resolvedRoleId, slug, frontendUrl, sendEmail = true,
   isPlatformSupport = false,
 }) {
@@ -105,7 +126,7 @@ async function insertInvitedPractitioner({
   if (sendEmail) {
     const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
     const companyName = companyRows[0]?.display_name || 'Izaya EIS';
-    const activateUrl = `${frontendUrl}/${slug}/activate/${rawToken}`;
+    const activateUrl = buildActivateUrl(legacyRole, slug, rawToken);
 
     try {
       const messageId = await sendInviteEmail(normalizedEmail, { activateUrl, companyName });
@@ -121,4 +142,4 @@ async function insertInvitedPractitioner({
   return { ok: true, practitioner };
 }
 
-module.exports = { insertInvitedPractitioner, getValidServiceTypeCodes, INVITE_PENDING, INVITE_TOKEN_TTL_MS, hashToken };
+module.exports = { insertInvitedPractitioner, getValidServiceTypeCodes, INVITE_PENDING, INVITE_TOKEN_TTL_MS, hashToken, buildActivateUrl };
