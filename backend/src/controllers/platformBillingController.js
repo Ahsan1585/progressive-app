@@ -177,4 +177,38 @@ const reactivateCompany = async (req, res) => {
   }
 };
 
-module.exports = { listBillingOverview, getCompanyBillingDetail, suspendCompany, reactivateCompany };
+// A harder, more deliberate step than Suspend — cancellation is the
+// prerequisite for the manual "Delete Company Data" action
+// (platformProvisioningController.js's deleteCompanyData), which
+// permanently destroys the tenant's database and files. Cancelling by
+// itself does NOT delete anything; it only blocks access (same as suspend,
+// via the existing status checks in authMiddleware.js/handshake.js/
+// tenantMiddleware.js) and marks the company as eligible for deletion.
+// Requires a reason for the same audit-trail reason suspendCompany does.
+const cancelCompany = async (req, res) => {
+  const { slug } = req.params;
+  const reason = String(req.body?.reason || '').trim();
+  if (!reason) return res.status(400).json({ error: 'A reason is required to cancel a company.' });
+
+  try {
+    const { rows } = await platformPool.query('SELECT status FROM companies WHERE slug = $1', [slug]);
+    const company = rows[0];
+    if (!company) return res.status(404).json({ error: 'Company not found.' });
+    if (company.status === 'cancelled') return res.status(400).json({ error: 'This company is already cancelled.' });
+
+    await platformPool.query("UPDATE companies SET status = 'cancelled', updated_at = now() WHERE slug = $1", [slug]);
+    await logPlatformAudit({
+      platformAdminId: req.platformAdmin.platformAdminId,
+      action: 'company_cancelled',
+      targetCompanySlug: slug,
+      details: { reason },
+      ipAddress: clientIp(req),
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('cancelCompany error:', error);
+    res.status(500).json({ error: 'Failed to cancel company.' });
+  }
+};
+
+module.exports = { listBillingOverview, getCompanyBillingDetail, suspendCompany, reactivateCompany, cancelCompany };

@@ -9,6 +9,7 @@ const { insertInvitedPractitioner } = require('../utils/practitionerRegistration
 const { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup');
 const { logPlatformAudit } = require('../utils/platformAuditLog');
 const { tenantPoolForSlug } = require('./platformAdminController');
+const { BILLING_INVOICES_BUCKET, NJEIS_FORMS_BUCKET, deleteAllTenantFiles } = require('../config/storage');
 
 const clientIp = (req) => (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip;
 
@@ -243,4 +244,73 @@ const ensureSupportAccount = async (req, res) => {
   }
 };
 
-module.exports = { createCompany, impersonateCompany, ensureSupportAccount };
+// Permanently and irreversibly deletes a company's PHI: drops its entire
+// tenant database and every file it has in Google Cloud Storage (both
+// buckets). This is Business Associate's actual mechanism for the
+// return-or-destruction obligation in the BAA (Article 10) — deliberately
+// MANUAL, not an automatic timer of any kind. A platform admin must
+// explicitly trigger this, and must retype the company's own slug exactly
+// as a confirmation (req.body.confirmSlug) — a generic "yes"/"DELETE"
+// string is easy to click through without reading; retyping the specific
+// company's own identifier forces the admin to actually look at what
+// they're about to destroy.
+//
+// Only usable on a company already in 'cancelled' status — this can't be
+// used against a live, paying customer by mistake; cancelling first (a
+// separate, presumably less destructive action) is a required prior step.
+//
+// No backup is taken by this function. If a "soft delete with a recovery
+// window" is ever wanted instead of immediate permanent deletion, that's a
+// deliberately different, larger feature than what was asked for here —
+// this implements exactly the manual, confirmation-gated hard delete that
+// was requested, nothing more.
+const deleteCompanyData = async (req, res) => {
+  const { slug } = req.params;
+  const { confirmSlug } = req.body || {};
+
+  try {
+    const { rows } = await platformPool.query(
+      'SELECT status, tenant_db_name, display_name FROM companies WHERE slug = $1',
+      [slug]
+    );
+    const company = rows[0];
+    if (!company) return res.status(404).json({ error: 'Company not found.' });
+    if (company.status !== 'cancelled') {
+      return res.status(400).json({ error: 'This company must be cancelled before its data can be deleted.' });
+    }
+    if (confirmSlug !== slug) {
+      return res.status(400).json({ error: `Type the company code exactly ("${slug}") to confirm this permanent deletion.` });
+    }
+
+    // Files first, then the database — if file deletion fails partway,
+    // the database (and its record of what belonged to whom) still exists
+    // to retry against; deleting the database first would leave orphaned
+    // files with no record of which tenant they belonged to.
+    await runWithTenant(company.tenant_db_name, async () => {
+      await deleteAllTenantFiles(BILLING_INVOICES_BUCKET);
+      await deleteAllTenantFiles(NJEIS_FORMS_BUCKET);
+    });
+
+    await evictTenantPool(company.tenant_db_name);
+    await getProvisioningPool().query(`DROP DATABASE IF EXISTS "${company.tenant_db_name}"`);
+
+    // Logged to the platform audit trail (not the tenant's own audit_logs —
+    // that table lives in the database just dropped) with enough detail to
+    // answer "what was deleted, when, by whom" after the fact, since the
+    // tenant's own records no longer exist to ask.
+    await logPlatformAudit({
+      platformAdminId: req.platformAdmin.platformAdminId,
+      action: 'company_data_deleted',
+      targetCompanySlug: slug,
+      details: { displayName: company.display_name, tenantDbName: company.tenant_db_name },
+      ipAddress: clientIp(req),
+    });
+
+    res.json({ success: true, message: `${company.display_name}'s data has been permanently deleted.` });
+  } catch (error) {
+    console.error('deleteCompanyData error:', error);
+    res.status(500).json({ error: 'Failed to delete company data. The company\'s data may be partially deleted — check logs before retrying.' });
+  }
+};
+
+module.exports = { createCompany, impersonateCompany, ensureSupportAccount, deleteCompanyData };

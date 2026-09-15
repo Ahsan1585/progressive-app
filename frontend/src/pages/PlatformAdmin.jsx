@@ -399,6 +399,8 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
   const navigate = useNavigate();
   const [expandedSlug, setExpandedSlug] = useState(null);
   const [rowState, setRowState] = useState({}); // { [slug]: { entering, backfilling, error, notice } }
+  const [cancelTarget, setCancelTarget] = useState(null); // company object, or null
+  const [deleteTarget, setDeleteTarget] = useState(null); // company object, or null
 
   const setRow = (slug, patch) => setRowState((prev) => ({ ...prev, [slug]: { ...prev[slug], ...patch } }));
 
@@ -467,6 +469,7 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
               <th className="text-left px-4 py-3">Created</th>
               <th className="text-left px-4 py-3">Set trial end date</th>
               <th className="text-left px-4 py-3 whitespace-nowrap">Remote support</th>
+              <th className="text-left px-4 py-3 whitespace-nowrap">Lifecycle</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -519,11 +522,40 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
                       {rs.notice && <p className="text-xs font-medium text-teal-400">{rs.notice}</p>}
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        {c.status !== 'cancelled' ? (
+                          <Dialog open={cancelTarget?.slug === c.slug} onOpenChange={(open) => setCancelTarget(open ? c : null)}>
+                            <Button type="button" size="sm" variant="outline" onClick={() => setCancelTarget(c)}
+                              className="h-8 border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 hover:text-red-300">
+                              <Ban className="w-3.5 h-3.5 mr-1" />
+                              Cancel
+                            </Button>
+                            {cancelTarget?.slug === c.slug && (
+                              <CancelCompanyDialog company={c} client={client} onDone={() => { setCancelTarget(null); fetchCompanies(); }} />
+                            )}
+                          </Dialog>
+                        ) : (
+                          <Dialog open={deleteTarget?.slug === c.slug} onOpenChange={(open) => setDeleteTarget(open ? c : null)}>
+                            <Button type="button" size="sm" variant="outline" onClick={() => setDeleteTarget(c)}
+                              className="h-8 border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 hover:text-red-300">
+                              <ShieldAlert className="w-3.5 h-3.5 mr-1" />
+                              Delete data
+                            </Button>
+                            {deleteTarget?.slug === c.slug && (
+                              <DeleteCompanyDataDialog company={c} client={client} onDone={() => { setDeleteTarget(null); fetchCompanies(); }} />
+                            )}
+                          </Dialog>
+                        )}
+                      </div>
+                    </div>
+                  </td>
                 </tr>
                 {expanded && (
                   <tr className="bg-slate-800/40">
                     <td />
-                    <td colSpan={7} className="px-4 pb-4 pt-1">
+                    <td colSpan={8} className="px-4 pb-4 pt-1">
                       <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Subscription pricing</div>
                       <PricingEditor slug={c.slug} client={client} />
                     </td>
@@ -537,6 +569,106 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Mirrors BillingSuspendDialog's shape exactly (required-reason Textarea,
+// same audit-trail rationale) — cancellation is the less-destructive
+// prerequisite step for Delete Company Data below, so it gets the lighter
+// confirmation of the two: a reason, not a retyped identifier.
+function CancelCompanyDialog({ company, client, onDone }) {
+  const [reason, setReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleConfirm = async () => {
+    if (!reason.trim()) return;
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await client.post(`/api/platform/billing/${company.slug}/cancel`, { reason: reason.trim() });
+      onDone();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to cancel company.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-800 text-slate-100">
+      <DialogHeader>
+        <DialogTitle className="text-slate-100">Cancel {company.display_name}</DialogTitle>
+        <DialogDescription className="text-slate-400">
+          This blocks all sign-ins for this company, the same as Suspend — but unlike Suspend, cancellation
+          is not meant to be undone, and it's the required first step before this company's data can ever
+          be permanently deleted.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-2">
+        <Label htmlFor="cancel-reason" className={DARK_LABEL}>Reason (required)</Label>
+        <Textarea id="cancel-reason" value={reason} onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Customer requested account closure" className={DARK_INPUT} />
+      </div>
+      {error && <p className="text-sm text-red-400 font-medium">{error}</p>}
+      <DialogFooter>
+        <Button type="button" disabled={isSubmitting || !reason.trim()} onClick={handleConfirm} className="bg-red-500 hover:bg-red-400 text-slate-950 font-semibold">
+          {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Ban className="w-4 h-4 mr-1.5" />}
+          Cancel company
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+// Deliberately a heavier confirmation than Cancel: retyping the company's
+// own slug (not a generic "yes"/"DELETE" string) forces whoever's clicking
+// through to actually look at which company they're about to permanently
+// destroy — see platformProvisioningController.js's deleteCompanyData for
+// why this is a manual, confirmation-gated action with no automatic timer.
+function DeleteCompanyDataDialog({ company, client, onDone }) {
+  const [confirmSlug, setConfirmSlug] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleConfirm = async () => {
+    if (confirmSlug !== company.slug) return;
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await client.post(`/api/platform/companies/${company.slug}/delete-data`, { confirmSlug });
+      onDone();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete company data.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-800 text-slate-100">
+      <DialogHeader>
+        <DialogTitle className="text-slate-100">Permanently delete {company.display_name}'s data</DialogTitle>
+        <DialogDescription className="text-slate-400">
+          This immediately and permanently destroys this company's entire database and every file it has
+          stored (invoices, forms) — there is no backup and no recovery window. This cannot be undone.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-2">
+        <Label htmlFor="delete-confirm-slug" className={DARK_LABEL}>
+          Type the company code (<span className="font-mono text-slate-200">{company.slug}</span>) to confirm
+        </Label>
+        <Input id="delete-confirm-slug" value={confirmSlug} onChange={(e) => setConfirmSlug(e.target.value)}
+          placeholder={company.slug} className={DARK_INPUT} autoComplete="off" />
+      </div>
+      {error && <p className="text-sm text-red-400 font-medium">{error}</p>}
+      <DialogFooter>
+        <Button type="button" disabled={isSubmitting || confirmSlug !== company.slug} onClick={handleConfirm} className="bg-red-500 hover:bg-red-400 text-slate-950 font-semibold">
+          {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ShieldAlert className="w-4 h-4 mr-1.5" />}
+          Permanently delete data
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 

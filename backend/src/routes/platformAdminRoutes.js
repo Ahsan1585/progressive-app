@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate, getCompanyPricing, setCompanyPricing } = require('../controllers/platformAdminController');
-const { createCompany, impersonateCompany, ensureSupportAccount } = require('../controllers/platformProvisioningController');
+const { createCompany, impersonateCompany, ensureSupportAccount, deleteCompanyData } = require('../controllers/platformProvisioningController');
 const { requirePlatformAdminAuth } = require('../middleware/platformAdminAuthMiddleware');
 
 router.get('/companies', requirePlatformAdminAuth, listCompanies);
@@ -11,6 +11,7 @@ router.get('/companies/:slug/pricing', requirePlatformAdminAuth, getCompanyPrici
 router.post('/companies/:slug/pricing', requirePlatformAdminAuth, setCompanyPricing);
 router.post('/companies/:slug/impersonate', requirePlatformAdminAuth, impersonateCompany);
 router.post('/companies/:slug/ensure-support-account', requirePlatformAdminAuth, ensureSupportAccount);
+router.post('/companies/:slug/delete-data', requirePlatformAdminAuth, deleteCompanyData);
 router.get('/promo-codes', requirePlatformAdminAuth, listPromoCodes);
 router.post('/promo-codes', requirePlatformAdminAuth, createPromoCode);
 router.post('/promo-codes/:id/deactivate', requirePlatformAdminAuth, deactivatePromoCode);

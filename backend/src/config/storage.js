@@ -78,6 +78,19 @@ async function fileExists(bucketName, path) {
   return exists;
 }
 
+// Deletes EVERY object under a tenant's prefix in one bucket — used only by
+// the platform-admin manual "Delete Company Data" action (see
+// platformProvisioningController.js's deleteCompanyData), which permanently
+// removes a company's PHI on request. Deliberately separate from
+// removeFiles (which takes an explicit, bounded list of paths for ordinary
+// per-file cleanup) so an accidental empty/wrong prefix can't silently wipe
+// more than intended — the caller must be explicit that this is a full-tenant
+// wipe by calling this function specifically, not by passing a wildcard to
+// the everyday delete helper.
+async function deleteAllTenantFiles(bucketName) {
+  await bucket(bucketName).deleteFiles({ prefix: `${getCurrentTenantDb()}/`, force: true });
+}
+
 module.exports = {
   BILLING_INVOICES_BUCKET,
   NJEIS_FORMS_BUCKET,
@@ -88,4 +101,5 @@ module.exports = {
   listFiles,
   listFilesDetailed,
   fileExists,
+  deleteAllTenantFiles,
 };
