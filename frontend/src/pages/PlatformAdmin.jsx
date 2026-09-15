@@ -155,7 +155,7 @@ function TrialEndEditor({ company, client, onSaved }) {
 
   return (
     <div className="flex items-center gap-1.5">
-      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`h-8 w-[150px] text-xs ${DARK_INPUT}`} />
+      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`h-8 w-[136px] text-xs ${DARK_INPUT}`} />
       <Button type="button" size="sm" variant="outline" disabled={isSaving || !date} onClick={handleSave} className="h-8 border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white">
         {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Set'}
       </Button>
@@ -467,9 +467,8 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
               <th className="text-left px-4 py-3">Status</th>
               <th className="text-left px-4 py-3">Trial ends</th>
               <th className="text-left px-4 py-3">Created</th>
-              <th className="text-left px-4 py-3">Set trial end date</th>
-              <th className="text-left px-4 py-3 whitespace-nowrap">Remote support</th>
-              <th className="text-left px-4 py-3 whitespace-nowrap">Lifecycle</th>
+              <th className="text-left px-3 py-3 whitespace-nowrap">Trial end date</th>
+              <th className="text-left px-3 py-3 whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -491,40 +490,32 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
                       {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-100">{c.display_name}</td>
-                  <td className="px-4 py-3 font-mono text-slate-400">{c.slug}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 font-semibold text-slate-100">{c.display_name}</td>
+                  <td className="px-3 py-3 font-mono text-slate-400">{c.slug}</td>
+                  <td className="px-3 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[c.status] || STATUS_STYLES.cancelled}`}>
                       {c.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-300">
+                  <td className="px-3 py-3 text-slate-300 whitespace-nowrap">
                     {c.trial_ends_at
-                      ? `${new Date(c.trial_ends_at).toLocaleDateString()}${left !== null ? (left >= 0 ? ` (${left}d left)` : ` (expired ${Math.abs(left)}d ago)`) : ''}`
+                      ? `${new Date(c.trial_ends_at).toLocaleDateString()}${left !== null ? (left >= 0 ? ` (${left}d)` : ` (expired)`) : ''}`
                       : '—'}
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{new Date(c.created_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 text-slate-400 whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td className="px-3 py-3">
                     <TrialEndEditor company={c} client={client} onSaved={fetchCompanies} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <Button type="button" size="sm" variant="outline" disabled={rs.entering} onClick={() => handleEnter(c.slug)} className="h-8 border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white">
                           {rs.entering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5 mr-1" />}
                           Enter
                         </Button>
-                        <Button type="button" size="sm" variant="ghost" disabled={rs.backfilling} onClick={() => handleBackfill(c.slug)} className="h-8 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200">
-                          {rs.backfilling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Backfill support acct'}
+                        <Button type="button" size="sm" variant="ghost" disabled={rs.backfilling} onClick={() => handleBackfill(c.slug)} title="Backfill support account" className="h-8 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                          {rs.backfilling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Backfill acct'}
                         </Button>
-                      </div>
-                      {rs.error && <p className="text-xs font-medium text-red-400 max-w-[220px]">{rs.error}</p>}
-                      {rs.notice && <p className="text-xs font-medium text-teal-400">{rs.notice}</p>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
                         {c.status !== 'cancelled' ? (
                           <Dialog open={cancelTarget?.slug === c.slug} onOpenChange={(open) => setCancelTarget(open ? c : null)}>
                             <Button type="button" size="sm" variant="outline" onClick={() => setCancelTarget(c)}
@@ -549,13 +540,15 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
                           </Dialog>
                         )}
                       </div>
+                      {rs.error && <p className="text-xs font-medium text-red-400 max-w-[280px]">{rs.error}</p>}
+                      {rs.notice && <p className="text-xs font-medium text-teal-400">{rs.notice}</p>}
                     </div>
                   </td>
                 </tr>
                 {expanded && (
                   <tr className="bg-slate-800/40">
                     <td />
-                    <td colSpan={8} className="px-4 pb-4 pt-1">
+                    <td colSpan={7} className="px-4 pb-4 pt-1">
                       <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Subscription pricing</div>
                       <PricingEditor slug={c.slug} client={client} />
                     </td>
