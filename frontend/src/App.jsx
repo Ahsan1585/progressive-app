@@ -13,6 +13,7 @@ import ResetPassword from './pages/ResetPassword';
 import SignupWizard from './pages/SignupWizard';
 import SignupConfirm from './pages/SignupConfirm';
 import ActivateAccount from './pages/ActivateAccount';
+import PractitionerAppRequired from './pages/PractitionerAppRequired';
 import TelepracticeSign from './pages/TelepracticeSign';
 import AdminDashboard from './pages/AdminDashboard';
 import PlatformAdmin from './pages/PlatformAdmin';
@@ -127,6 +128,12 @@ const WEB_ROUTES = (
     <Route path="/:companySlug/activate/:token" element={<ActivateAccount />} />
     {/* Public, unauthenticated — a parent reaches this from the telepractice signature-request email, never from within the app. */}
     <Route path="/:companySlug/sign/:token" element={<TelepracticeSign />} />
+    {/* Practitioners now use the mobile app exclusively — Login.jsx and
+        ChangePassword.jsx route a practitioner here instead of /dashboard
+        after a successful auth. Not gated by ProtectedRoute since it's
+        reached deliberately (with the session already cleared) rather than
+        guarding a page that needs one. */}
+    <Route path="/practitioner-app-required" element={<PractitionerAppRequired />} />
     <Route
       path="/dashboard"
       element={<ProtectedRoute element={<Dashboard />} allowedRoles={['practitioner']} />}

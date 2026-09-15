@@ -52,11 +52,16 @@ const Login = () => {
         const role = response.data.practitioner.role;
 
         if (response.data.requirePasswordChange) {
+          // ChangePassword.jsx does its own role check afterward (same
+          // ADMIN_ROLES/practitioner branch as here) once the new password
+          // is actually set.
           navigate('/change-password');
         } else if (ADMIN_ROLES.includes(role)) {
           navigate('/admin-dashboard');
         } else {
-          navigate('/dashboard');
+          // Practitioners now use the mobile app exclusively — the legacy
+          // web /dashboard is no longer reachable via login.
+          navigate('/practitioner-app-required');
         }
       }
     } catch (err) {

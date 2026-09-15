@@ -38,7 +38,16 @@ const ChangePassword = () => {
 
       if (response.data.success) {
         await showAlert("Password updated.");
-        navigate('/dashboard');
+        // Same role branch Login.jsx uses — practitioners now use the
+        // mobile app exclusively, so the legacy web /dashboard is never
+        // the destination here either, regardless of which login path
+        // (normal sign-in vs. a forced password change) got them here.
+        const role = localStorage.getItem('role');
+        if (role === 'ceo' || role === 'staff') {
+          navigate('/admin-dashboard');
+        } else {
+          navigate('/practitioner-app-required');
+        }
       }
     } catch {
       showAlert("Failed to update password. Please try again.");
