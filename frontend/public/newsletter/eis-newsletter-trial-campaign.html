@@ -108,9 +108,7 @@
     .icon5-cell { display: inline-block !important; width: 30% !important; vertical-align: top !important; margin-bottom: 18px !important; border-right: none !important; }
     .icon6-cell { display: inline-block !important; width: 46% !important; vertical-align: top !important; margin-bottom: 12px !important; }
     .grid2-cell { display: block !important; width: 100% !important; padding: 0 0 18px 0 !important; }
-    .green-seg { display: block !important; width: 100% !important; padding: 10px 0 !important; border: none !important; }
-    .chevron-cell { display: block !important; width: 100% !important; margin-bottom: 6px !important; }
-    .chevron-arrow { display: none !important; }
+    .cta-row-cell { display: block !important; width: 100% !important; padding: 0 0 10px 0 !important; }
   }
 </style>
 
@@ -148,19 +146,19 @@
               </tr>
             </table>
 
-            <!-- CTA + trust badges -->
+            <!-- CTA + trust badges: button and badges share one row instead
+                 of stacking (which left an awkward empty gap to the right
+                 of the button at this column width). -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td class="px-mobile" style="padding: 16px 40px 30px 40px;">
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                    <td class="btn-secondary" style="border-radius: 8px;">
+                    <td class="btn-secondary cta-row-cell" valign="middle" style="border-radius: 8px; padding-right:22px;">
                       <a href="https://izayaedge.com/eis/contact" class="btn-secondary" style="display:inline-block; padding: 13px 26px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px;">
                         Schedule a Demo &rarr;
                       </a>
                     </td>
-                  </tr></table>
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 0;"><tr>
-                    <td valign="middle" style="padding:0 18px 0 0;">
+                    <td class="cta-row-cell" valign="middle" style="padding:0 18px 0 0;">
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
                         <td valign="middle" style="padding-right:6px;">
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%;"><tr>
@@ -170,7 +168,7 @@
                         <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">30-Minute Walkthrough</td>
                       </tr></table>
                     </td>
-                    <td valign="middle" style="padding:0 18px 0 0;">
+                    <td class="cta-row-cell" valign="middle" style="padding:0 18px 0 0;">
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
                         <td valign="middle" style="padding-right:6px;">
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%;"><tr>
@@ -180,7 +178,7 @@
                         <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">No Obligation</td>
                       </tr></table>
                     </td>
-                    <td valign="middle">
+                    <td class="cta-row-cell" valign="middle">
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
                         <td valign="middle" style="padding-right:6px;">
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-outline-green" style="border-radius:50%;"><tr>
@@ -190,45 +188,6 @@
                         <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600;" class="ink-muted">HIPAA Compliant</td>
                       </tr></table>
                     </td>
-                  </tr></table>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Green banner -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="green-band" style="margin-top: 0;">
-              <tr>
-                <td class="px-mobile" style="padding: 20px 40px;">
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-
-                    <td class="green-seg" align="center" style="padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.35);">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 6px auto;"><tr><td>
-                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-09.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                      </td></tr></table>
-                      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800; color:#FFFFFF; letter-spacing:0.02em;">LESS WORK.</span>
-                    </td>
-
-                    <td class="green-seg" align="center" style="padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.35);">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 6px auto;"><tr><td>
-                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-10.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                      </td></tr></table>
-                      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800; color:#FFFFFF; letter-spacing:0.02em;">FEWER ERRORS.</span>
-                    </td>
-
-                    <td class="green-seg" align="center" style="padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.35);">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 6px auto;"><tr><td>
-                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-11.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                      </td></tr></table>
-                      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800; color:#FFFFFF; letter-spacing:0.02em;">FASTER BILLING.</span>
-                    </td>
-
-                    <td class="green-seg" align="center" style="padding: 0 8px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 6px auto;"><tr><td>
-                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-12.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                      </td></tr></table>
-                      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800; color:#FFFFFF; letter-spacing:0.02em;">MORE TIME FOR FAMILIES.</span>
-                    </td>
-
                   </tr></table>
                 </td>
               </tr>
