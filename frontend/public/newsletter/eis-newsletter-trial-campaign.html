@@ -127,38 +127,23 @@
         <tr>
           <td class="card" style="border-radius: 16px; overflow: hidden;">
 
-            <!-- Header/hero banner: the actual composed graphic from
-                 Izaya_EIS_Introduction.pdf (logo, tagline, "Stronger
-                 Families / Brighter Futures" script tag, hero photo, and
-                 the green swoosh transition are all one pre-flattened
-                 image in the source PDF, not separable layers) — used
-                 directly rather than re-assembled from live HTML text,
-                 since that recreation didn't actually match. Cropped to
-                 end right where the swoosh fades to white, before the
-                 PDF's own baked-in "WEEKS OF BILLING REVIEW" headline
-                 (which this template renders as live text/HTML below
-                 instead, so the two don't duplicate). -->
+            <!-- Header/hero/pipeline banner: the actual composed graphic
+                 from Izaya_EIS_Introduction.pdf, rendered fresh from the
+                 PDF page at 300dpi (not stitched from separately-embedded
+                 tile images, which would show a seam) and cropped to cover
+                 everything through the "LOGS · MATCH · CORRECT..." caption
+                 line — logo, tagline, hero photo, "Stronger Families /
+                 Brighter Futures" tag, headline, subhead, and the full
+                 chevron pipeline are all one pre-flattened image in the
+                 source PDF, not separable layers, so this is used directly
+                 rather than re-assembled from live HTML text/CSS (an
+                 earlier recreation attempt didn't actually match). Cropped
+                 to end just before the feature-card row so those stay live
+                 HTML below. -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="padding:0; line-height:0; font-size:0;">
-                  <img src="https://progressive-app-vert.vercel.app/newsletter/assets/header-banner.jpg?v=1" width="640" alt="Izaya EIS — Early Intervention Simplified. More time for children, less time on billing. Stronger families, brighter futures." style="display:block; width:100%; height:auto; border:0;">
-                </td>
-              </tr>
-            </table>
-
-            <!-- Hero headline: full width, on the white body below the band -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td class="px-mobile" style="padding: 26px 40px 4px 40px;">
-                  <p style="margin:0 0 8px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700;" class="navy">
-                    For Early Intervention Agencies
-                  </p>
-                  <p class="h1-mobile" style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 27px; line-height: 31px; font-weight: 800; letter-spacing: -0.01em;" class="navy">
-                    WEEKS OF BILLING REVIEW.<br><span class="green">DONE IN MINUTES.</span>
-                  </p>
-                  <p style="margin:12px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 20px; font-weight: 600;" class="navy">
-                    Practitioners log the session. <span class="green" style="font-weight:700;">Izaya EIS&trade;</span> handles the rest.
-                  </p>
+                  <img src="https://progressive-app-vert.vercel.app/newsletter/assets/header-full-with-pipeline.jpg?v=1" width="640" alt="Izaya EIS — Early Intervention Simplified. Weeks of billing review, done in minutes. Practitioners log the session, Izaya EIS handles the rest: Log Session, Validate, EIMS Match, Correct Exceptions, Generate SEVFs, Create Invoices, Audit &amp; Search." style="display:block; width:100%; height:auto; border:0;">
                 </td>
               </tr>
             </table>
@@ -245,52 +230,6 @@
                     </td>
 
                   </tr></table>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Section header for pipeline -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td class="px-mobile" align="center" style="padding: 28px 40px 4px 40px;">
-                  <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; text-align:center;" class="navy">
-                    From Session to Invoice, <span class="green">Automatically</span>
-                  </p>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Chevron pipeline ribbon: email-safe arrow shapes built from a
-                 colored rectangle + a CSS triangle (border-trick, no
-                 clip-path/skew — renders in Outlook's Word engine same as
-                 any other bordered table cell). Collapses to a plain stacked
-                 list on narrow/mobile widths via .chevron-arrow display:none. -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td class="px-mobile" align="center" style="padding: 14px 20px 6px 20px;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-
-                    <td class="chevron-cell" style="background-color:#2563EB; padding:9px 4px 9px 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">LOG SESSION</td>
-                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #2563EB; font-size:1px; line-height:1px;">&nbsp;</td>
-
-                    <td class="chevron-cell" style="background-color:#0DA76B; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">VALIDATE</td>
-                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #0DA76B; font-size:1px; line-height:1px;">&nbsp;</td>
-
-                    <td class="chevron-cell" style="background-color:#7C3AED; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">EIMS MATCH</td>
-                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #7C3AED; font-size:1px; line-height:1px;">&nbsp;</td>
-
-                    <td class="chevron-cell" style="background-color:#EA580C; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">CORRECT</td>
-                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #EA580C; font-size:1px; line-height:1px;">&nbsp;</td>
-
-                    <td class="chevron-cell" style="background-color:#0DA76B; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">GENERATE &amp; BILL</td>
-                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #0DA76B; font-size:1px; line-height:1px;">&nbsp;</td>
-
-                    <td class="chevron-cell" style="background-color:#14204A; padding:9px 12px 9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">AUDIT &amp; SEARCH</td>
-
-                  </tr></table>
-                  <p style="margin:10px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700; letter-spacing:0.08em; text-align:center;" class="ink-muted">
-                    LOGS &nbsp;&middot;&nbsp; MATCH &nbsp;&middot;&nbsp; CORRECT &nbsp;&middot;&nbsp; SEVFS &nbsp;&middot;&nbsp; INVOICE &nbsp;&middot;&nbsp; AUDIT
-                  </p>
                 </td>
               </tr>
             </table>
