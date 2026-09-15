@@ -7,6 +7,7 @@ const { ensureDropdownOptionsCacheLoaded } = require('../constants/dropdownOptio
 const { getCurrentTenantDb } = require('../config/tenantContext');
 const { serviceCodeLabel, locationCodeLabel, statusCodeLabel, groupSizeCodeLabel } = require('../constants/njeis');
 const { formatTime12h, formatLongDate, formatDurationLabel } = require('../utils/formatting');
+const { logAudit } = require('../utils/auditLog');
 
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — matches the invite-link TTL
 const RESEND_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between resends of the same request
@@ -151,6 +152,8 @@ const submitTelepracticeSession = async (req, res) => {
       console.error('Failed to send telepractice signature request email:', emailError);
     }
 
+    logAudit({ req, action: 'telepractice_signature_requested', resourceType: 'telepractice_signature_request', resourceId: insertedRows[0].id, details: { patientId } });
+
     res.status(201).json({ success: true, id: insertedRows[0].id, parentEmail });
   } catch (error) {
     console.error('Failed to submit telepractice session:', error);
@@ -222,6 +225,8 @@ const resendTelepracticeSignatureRequest = async (req, res) => {
       signUrl,
       isResend: true,
     });
+
+    logAudit({ req, action: 'telepractice_signature_resent', resourceType: 'telepractice_signature_request', resourceId: id });
 
     res.json({ success: true });
   } catch (error) {
@@ -389,6 +394,20 @@ const signTelepracticeSession = async (req, res) => {
        WHERE id = $2 AND status = 'awaiting_signature'`,
       [signatureBase64, request.id]
     );
+
+    // No req.practitioner here — this is a public, unauthenticated endpoint
+    // reached by a parent via a token link, not an app login. Still pass
+    // req (for IP capture) alongside explicit actor overrides — logAudit
+    // prefers the explicit actorEmail/actorRole over req.practitioner,
+    // which doesn't exist here anyway (see its own header comment).
+    logAudit({
+      req,
+      actorEmail: request.parent_email,
+      actorRole: 'parent',
+      action: 'telepractice_signature_signed',
+      resourceType: 'telepractice_signature_request',
+      resourceId: request.id,
+    });
 
     res.json({ success: true });
   } catch (error) {
