@@ -114,6 +114,11 @@ const STATUS_STYLES = {
   cancelled: 'bg-slate-700/40 text-slate-400 border-slate-600',
 };
 
+// Display-only relabel — the underlying status value/API stay 'cancelled'
+// everywhere (DB, routes, controllers); only the badge text shown to a
+// platform admin reads "deactivated" instead, per the Deactivate rename.
+const STATUS_LABELS = { cancelled: 'deactivated' };
+
 // Local YYYY-MM-DD for an <input type="date">, defaulting to the company's
 // current trial_ends_at (so opening the editor shows what's already set,
 // not today) or otherwise today.
@@ -494,7 +499,7 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
                   <td className="px-3 py-3 font-mono text-slate-400">{c.slug}</td>
                   <td className="px-3 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[c.status] || STATUS_STYLES.cancelled}`}>
-                      {c.status}
+                      {STATUS_LABELS[c.status] || c.status}
                     </span>
                   </td>
                   <td className="px-3 py-3 text-slate-300 whitespace-nowrap">
@@ -521,7 +526,7 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
                             <Button type="button" size="sm" variant="outline" onClick={() => setCancelTarget(c)}
                               className="h-8 border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 hover:text-red-300">
                               <Ban className="w-3.5 h-3.5 mr-1" />
-                              Cancel
+                              Deactivate
                             </Button>
                             {cancelTarget?.slug === c.slug && (
                               <CancelCompanyDialog company={c} client={client} onDone={() => { setCancelTarget(null); fetchCompanies(); }} />
@@ -566,9 +571,13 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
 }
 
 // Mirrors BillingSuspendDialog's shape exactly (required-reason Textarea,
-// same audit-trail rationale) — cancellation is the less-destructive
+// same audit-trail rationale) — deactivation is the less-destructive
 // prerequisite step for Delete Company Data below, so it gets the lighter
 // confirmation of the two: a reason, not a retyped identifier.
+//
+// User-facing label is "Deactivate" (status value/API route stay
+// 'cancelled'/'cancel' — this is a display-only rename, not a behavior
+// change: still a one-way status, still no reactivation path back out of it).
 function CancelCompanyDialog({ company, client, onDone }) {
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -582,7 +591,7 @@ function CancelCompanyDialog({ company, client, onDone }) {
       await client.post(`/api/platform/billing/${company.slug}/cancel`, { reason: reason.trim() });
       onDone();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to cancel company.');
+      setError(err.response?.data?.error || 'Failed to deactivate company.');
     } finally {
       setIsSubmitting(false);
     }
@@ -591,11 +600,11 @@ function CancelCompanyDialog({ company, client, onDone }) {
   return (
     <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-800 text-slate-100">
       <DialogHeader>
-        <DialogTitle className="text-slate-100">Cancel {company.display_name}</DialogTitle>
+        <DialogTitle className="text-slate-100">Deactivate {company.display_name}</DialogTitle>
         <DialogDescription className="text-slate-400">
-          This blocks all sign-ins for this company, the same as Suspend — but unlike Suspend, cancellation
-          is not meant to be undone, and it's the required first step before this company's data can ever
-          be permanently deleted.
+          This blocks all sign-ins for this company, the same as Suspend — but unlike Suspend, this is not
+          meant to be undone, and it's the required first step before this company's data can ever be
+          permanently deleted.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-2">
@@ -607,7 +616,7 @@ function CancelCompanyDialog({ company, client, onDone }) {
       <DialogFooter>
         <Button type="button" disabled={isSubmitting || !reason.trim()} onClick={handleConfirm} className="bg-red-500 hover:bg-red-400 text-slate-950 font-semibold">
           {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Ban className="w-4 h-4 mr-1.5" />}
-          Cancel company
+          Deactivate company
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -1003,7 +1012,7 @@ function BillingTable({ client, companies, error, fetchOverview }) {
                         <td className="px-4 py-3 font-semibold text-slate-100">{c.displayName}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[c.status] || STATUS_STYLES.cancelled}`}>
-                            {c.status}
+                            {STATUS_LABELS[c.status] || c.status}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-300">{formatMoney(c.outstandingTotal)}</td>
