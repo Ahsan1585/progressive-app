@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
   Loader2, Plus, Ban, LogOut, ChevronDown, ChevronRight, LogIn, ShieldAlert,
   Building2, UserPlus, Tag, CircleCheck, Clock, TriangleAlert, DollarSign,
-  CreditCard, ShieldOff, ShieldCheck,
+  CreditCard, ShieldOff, ShieldCheck, MailX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -799,6 +799,57 @@ function PromoCodeManager({ client }) {
   );
 }
 
+// Read-only list of Izaya's own outbound-marketing suppression list (e.g.
+// the trial newsletter's unsubscribe link — see backend's
+// marketingController.js). Entirely separate from any tenant's data: this
+// is izaya_platform's own marketing_unsubscribes table, unrelated to the
+// companies/practitioners this dashboard otherwise manages. No add/remove
+// actions yet — view-only, per the initial scope of this feature.
+function UnsubscribesManager({ client }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    client.get('/api/platform/marketing/unsubscribes')
+      .then(({ data }) => setRows(data.unsubscribes))
+      .catch(() => setError('Failed to load the unsubscribe list.'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+        {error && <p className="p-6 text-sm text-red-400 font-medium">{error}</p>}
+        {rows === null && !error && (
+          <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-slate-500" /></div>
+        )}
+        {rows && rows.length === 0 && (
+          <p className="p-6 text-sm text-slate-400">No unsubscribes yet.</p>
+        )}
+        {rows && rows.length > 0 && (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800/60 text-slate-400 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-3">Email</th>
+                <th className="text-left px-4 py-3">Unsubscribed</th>
+                <th className="text-left px-4 py-3">Source</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {rows.map((r) => (
+                <tr key={r.email} className="hover:bg-slate-800/25 transition-colors">
+                  <td className="px-4 py-3 font-mono text-slate-100">{r.email}</td>
+                  <td className="px-4 py-3 text-slate-300">{new Date(r.unsubscribed_at).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-slate-400">{r.source || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Same status→badge-class map used by the Companies tab (STATUS_STYLES),
 // reused here so a company's status reads identically wherever it appears.
 function formatMoney(n) {
@@ -1105,6 +1156,7 @@ const TABS = {
   newCompany: { label: 'New Company', icon: UserPlus, subtitle: "Provision a tenant and invite the customer's admin — they accept the BAA themselves on first login." },
   billing: { label: 'Billing', icon: DollarSign, subtitle: "What every company owes Izaya, who's overdue, and the ability to suspend or reactivate access." },
   promoCodes: { label: 'Promo Codes', icon: Tag, subtitle: 'Trial-extension codes for outbound sales and partner offers.' },
+  unsubscribes: { label: 'Unsubscribes', icon: MailX, subtitle: 'Everyone who has opted out of Izaya EIS marketing emails.' },
 };
 
 export default function PlatformAdmin() {
@@ -1185,6 +1237,7 @@ export default function PlatformAdmin() {
           )}
           {tab === 'billing' && <BillingSection client={client} />}
           {tab === 'promoCodes' && <PromoCodeManager client={client} />}
+          {tab === 'unsubscribes' && <UnsubscribesManager client={client} />}
         </div>
       </div>
     </div>

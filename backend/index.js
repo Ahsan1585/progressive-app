@@ -40,6 +40,7 @@ const roleRoutes = require('./src/routes/roleRoutes');
 const testDataRoutes = require('./src/routes/testDataRoutes');
 const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
+const marketingRoutes = require('./src/routes/marketingRoutes');
 const telepracticeSignatureRoutes = require('./src/routes/telepracticeSignatureRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
 const { resendWebhook } = require('./src/controllers/resendWebhookController');
@@ -113,6 +114,7 @@ app.use('/api/platform/billing', platformBillingRoutes);
 app.use('/api/platform', platformAdminRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/marketing', marketingRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).

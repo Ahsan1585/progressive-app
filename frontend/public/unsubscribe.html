@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unsubscribe — Izaya EIS</title>
+<style>
+  :root {
+    --navy: #14204A;
+    --ink-body: #334155;
+    --ink-muted: #64748B;
+    --green: #0DA76B;
+    --border: #E2E8F0;
+    --bg: #EEF2F7;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--card);
+    border-radius: 16px;
+    padding: 36px 32px;
+    height: fit-content;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+  }
+  h1 {
+    margin: 0 0 8px 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -0.01em;
+  }
+  p {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--ink-body);
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-muted);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  input[type="email"] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--navy);
+    margin-bottom: 16px;
+  }
+  input[type="email"]:focus {
+    outline: 2px solid var(--green);
+    outline-offset: 1px;
+  }
+  button {
+    width: 100%;
+    padding: 13px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: var(--green);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .message {
+    margin-top: 16px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+  .message.success { color: var(--green); font-weight: 600; }
+  .message.error { color: #DC2626; font-weight: 600; }
+  .footer-link {
+    display: block;
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    text-align: center;
+  }
+  .footer-link a { color: var(--ink-muted); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Unsubscribe</h1>
+    <p>Enter the email address you'd like to remove from Izaya EIS marketing emails. You'll stop receiving newsletters and product updates — this doesn't affect any account you may already have with an early intervention agency using Izaya EIS.</p>
+
+    <form id="unsub-form">
+      <label for="email">Email address</label>
+      <input type="email" id="email" name="email" placeholder="you@example.com" required>
+      <button type="submit" id="submit-btn">Unsubscribe</button>
+    </form>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <span class="footer-link">Changed your mind? Just close this tab — you're still subscribed until you submit.</span>
+  </div>
+
+  <script>
+    (function () {
+      var API_BASE = 'https://njeis-backend-996984273416.us-east1.run.app';
+      var form = document.getElementById('unsub-form');
+      var btn = document.getElementById('submit-btn');
+      var messageEl = document.getElementById('message');
+      var emailInput = document.getElementById('email');
+
+      // If the link was personalized with ?email=..., pre-fill it — still
+      // requires the recipient to hit the button themselves, so a shared/
+      // forwarded link can't silently unsubscribe someone else.
+      var params = new URLSearchParams(window.location.search);
+      var prefill = params.get('email');
+      if (prefill) emailInput.value = prefill;
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var email = emailInput.value.trim();
+        messageEl.textContent = '';
+        messageEl.className = 'message';
+        btn.disabled = true;
+        btn.textContent = 'Submitting…';
+
+        fetch(API_BASE + '/api/marketing/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email }),
+        })
+          .then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+          })
+          .then(function (result) {
+            if (result.ok) {
+              messageEl.textContent = "You've been unsubscribed. You won't receive further marketing emails from Izaya EIS.";
+              messageEl.className = 'message success';
+              form.style.display = 'none';
+            } else {
+              messageEl.textContent = result.data.error || 'Something went wrong. Please try again.';
+              messageEl.className = 'message error';
+              btn.disabled = false;
+              btn.textContent = 'Unsubscribe';
+            }
+          })
+          .catch(function () {
+            messageEl.textContent = 'Something went wrong. Please check your connection and try again.';
+            messageEl.className = 'message error';
+            btn.disabled = false;
+            btn.textContent = 'Unsubscribe';
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
