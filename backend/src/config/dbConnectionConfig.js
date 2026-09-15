@@ -23,7 +23,23 @@ function buildConnectionConfig(databaseName, credentialOverride) {
   if (credentialOverride?.user) url.username = credentialOverride.user;
   if (credentialOverride?.password) url.password = credentialOverride.password;
   url.pathname = `/${databaseName}`;
-  return { connectionString: url.toString(), ssl: { rejectUnauthorized: false } };
+
+  // Production (Cloud Run) never takes this branch at all — it sets
+  // INSTANCE_UNIX_SOCKET instead, which connects through the Cloud SQL Auth
+  // Proxy's local Unix socket rather than a network TCP/TLS connection; the
+  // proxy itself handles a properly certificate-validated tunnel to Cloud
+  // SQL underneath that, outside of anything `pg` sees here. This branch
+  // only exists for local development or a direct TCP connection to a real
+  // (non-Cloud-SQL) Postgres host — `rejectUnauthorized: false` there was a
+  // blanket "accept any certificate" that would silently apply even if this
+  // ever pointed at a real remote host over the open network. Now it's
+  // disabled only for an actual loopback address (local dev); anything else
+  // gets full certificate validation.
+  const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  return {
+    connectionString: url.toString(),
+    ssl: isLocalHost ? { rejectUnauthorized: false } : { rejectUnauthorized: true },
+  };
 }
 
 module.exports = { buildConnectionConfig };

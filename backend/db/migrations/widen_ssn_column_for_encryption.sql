@@ -1,0 +1,11 @@
+-- Widens practitioners.ssn from varchar(11) (fits a plain "123-45-6789")
+-- to text, since an encrypted value (see backend/src/utils/fieldEncryption.js
+-- — AES-256-GCM, base64-encoded iv/authTag/ciphertext) is much longer than
+-- the original plaintext. This migration only changes the column's TYPE —
+-- it does not encrypt any existing data. See
+-- backend/scripts/encryptExistingSsns.js for the one-time backfill that
+-- actually encrypts already-stored plaintext values, run manually per
+-- tenant (same convention as this repo's other one-off data migrations),
+-- since the auto-applied migration framework only runs plain SQL and this
+-- needs the app's own crypto code.
+ALTER TABLE practitioners ALTER COLUMN ssn TYPE text;

@@ -43,7 +43,7 @@ CREATE TABLE practitioners (
   position_title text DEFAULT 'Therapist'::text,
   address text,
   phone_number varchar(20),
-  ssn varchar(11),
+  ssn text, -- application-level AES-256-GCM encrypted (backend/src/utils/fieldEncryption.js); widened from varchar(11) since ciphertext is longer than the plaintext it replaces
   role text NOT NULL DEFAULT 'practitioner'::text,
   reset_token_hash text,
   reset_token_expires timestamp with time zone,

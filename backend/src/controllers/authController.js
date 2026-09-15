@@ -7,6 +7,7 @@ const { logAudit } = require('../utils/auditLog');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { lookupCompanyBySlug } = require('../middleware/tenantMiddleware');
 const { platformPool } = require('../config/platformDb');
+const { encryptField } = require('../utils/fieldEncryption');
 // Placeholder password_hash for an invited-but-not-yet-activated account —
 // never a real bcrypt hash, so it can never match a bcrypt.compare() and
 // doubles as the "still pending" check in activateAccount below. Shared
@@ -570,7 +571,7 @@ const updateStaffProfile = async (req, res) => {
     if (ssn) {
       const trimmedSsn = ssn.trim();
       if (trimmedSsn.length > 11) return res.status(400).json({ error: 'SSN / EIN is too long (max 11 characters).' });
-      addSet('ssn', trimmedSsn);
+      addSet('ssn', encryptField(trimmedSsn));
     }
 
     if (payRate !== undefined && payRate !== '') {

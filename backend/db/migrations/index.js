@@ -25,6 +25,7 @@ const MIGRATIONS = [
   'add_invite_delivery_tracking.sql',
   'add_realtime_messaging.sql',
   'add_platform_support_flag.sql',
+  'widen_ssn_column_for_encryption.sql',
 ];
 
 module.exports = { MIGRATIONS };

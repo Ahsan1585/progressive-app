@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { sendInviteEmail } = require('./emailClient');
 const { activeOptions } = require('../constants/njeis');
+const { encryptField } = require('./fieldEncryption');
 
 // Shared by authController.js's single-registration form and the Staff
 // Directory's bulk (Excel-upload) practitioner import — one place for the
@@ -98,7 +99,10 @@ async function insertInvitedPractitioner({
   if (phoneNumber) addColumn('phone_number', phoneNumber);
   if (payRate) addColumn('pay_rate', parseFloat(payRate));
   if (positionTitle) addColumn('position_title', positionTitle);
-  if (ssn) addColumn('ssn', ssn);
+  // Encrypted at the DB boundary (see fieldEncryption.js) — the length
+  // check above validates the plaintext SSN's shape before this point;
+  // the ciphertext stored here is longer and unrelated to that limit.
+  if (ssn) addColumn('ssn', encryptField(ssn));
   if (serviceTypes && serviceTypes.length > 0) addColumn('service_types', serviceTypes);
   if (resolvedRoleId) addColumn('role_id', resolvedRoleId);
   // Hidden Izaya Support account for a tenant (see platformProvisioningController.js)

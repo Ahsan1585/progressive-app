@@ -1,4 +1,5 @@
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const { decryptField } = require('./fieldEncryption');
 
 // Converts a "YYYY-MM-DD" service_date into "MM-DD-YYYY" for display on the invoice.
 const formatServiceDate = (dateStr) => {
@@ -38,7 +39,7 @@ const generateInvoicePDF = async (practitioner, encounters, processedBy = '', co
   drawInfoRow("Therapist's Name:", `${practitioner.first_name || ''} ${practitioner.last_name || ''}`);
   drawInfoRow('Address:', practitioner.address || '');
   drawInfoRow('Phone:', practitioner.phone_number || '');
-  drawInfoRow('EIN/SSN #:', practitioner.ssn || '');
+  drawInfoRow('EIN/SSN #:', decryptField(practitioner.ssn) || '');
   drawInfoRow('Processed By:', processedBy);
   y -= 8;
 
