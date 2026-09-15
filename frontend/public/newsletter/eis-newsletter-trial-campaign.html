@@ -29,6 +29,25 @@
   .badge-outline-green { border: 1.5px solid #0DA76B; }
   .badge-outline-navy  { border: 1.5px solid #14204A; }
 
+  /* Per-feature accent system, matching Izaya_EIS_Introduction.pdf's
+     multi-color card treatment (one accent per pipeline stage) rather than
+     the flat navy/green two-tone the rest of the brand otherwise uses. Each
+     stage gets a badge color + a matching tint for its card's top rule. */
+  .badge-blue   { background-color: #2563EB; }
+  .badge-purple { background-color: #7C3AED; }
+  .badge-orange { background-color: #EA580C; }
+  .accent-blue    { color: #2563EB; }
+  .accent-purple  { color: #7C3AED; }
+  .accent-orange  { color: #EA580C; }
+  .tint-blue    { background-color: #EFF6FF; }
+  .tint-green   { background-color: #ECFDF5; }
+  .tint-purple  { background-color: #F5F3FF; }
+  .tint-orange  { background-color: #FFF7ED; }
+  .rule-blue    { background-color: #2563EB; }
+  .rule-green   { background-color: #0DA76B; }
+  .rule-purple  { background-color: #7C3AED; }
+  .rule-orange  { background-color: #EA580C; }
+
   a.btn-primary   { background-color: #FFFFFF; color: #14204A !important; }
   a.btn-secondary { background-color: #0DA76B; color: #FFFFFF !important; }
   a.link          { color: #0DA76B !important; }
@@ -77,6 +96,13 @@
     .ink-body   { color: #CBD5E1 !important; }
     .ink-muted  { color: #94A3B8 !important; }
     .green      { color: #34D399 !important; }
+    .accent-blue    { color: #60A5FA !important; }
+    .accent-purple  { color: #A78BFA !important; }
+    .accent-orange  { color: #FB923C !important; }
+    .tint-blue    { background-color: #0F1B2E !important; }
+    .tint-green   { background-color: #0B1E17 !important; }
+    .tint-purple  { background-color: #180F2E !important; }
+    .tint-orange  { background-color: #23140A !important; }
     .hr         { border-top: 1px solid #243044 !important; }
     .div-line   { border-right: 1px solid #243044 !important; }
     .device-screen { background-color: #0B1120 !important; border-color: #334155 !important; }
@@ -95,13 +121,16 @@
     .stack-mobile { display: block !important; width: 100% !important; }
     .stack-pad { padding: 0 0 20px 0 !important; }
     .icon5-cell { display: inline-block !important; width: 30% !important; vertical-align: top !important; margin-bottom: 18px !important; border-right: none !important; }
+    .icon6-cell { display: inline-block !important; width: 46% !important; vertical-align: top !important; margin-bottom: 12px !important; }
     .grid2-cell { display: block !important; width: 100% !important; padding: 0 0 18px 0 !important; }
     .green-seg { display: block !important; width: 100% !important; padding: 10px 0 !important; border: none !important; }
+    .chevron-cell { display: block !important; width: 100% !important; margin-bottom: 6px !important; }
+    .chevron-arrow { display: none !important; }
   }
 </style>
 
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
-  Weeks of billing work, done in minutes. Schedule a demo of Izaya EISimplified.
+  Weeks of billing review, done in minutes. 100+ session logs analyzed in under 5 seconds. Schedule a demo of Izaya EIS.
 </div>
 
 <table role="presentation" id="bg-canvas" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -138,12 +167,15 @@
             <!-- Hero headline: full width, one line -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td class="px-mobile" style="padding: 30px 40px 16px 40px;">
+                <td class="px-mobile" style="padding: 30px 40px 4px 40px;">
                   <p style="margin:0 0 8px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700;" class="navy">
                     For Early Intervention Agencies
                   </p>
                   <p class="h1-mobile" style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 27px; line-height: 31px; font-weight: 800; letter-spacing: -0.01em;" class="navy">
-                    WEEKS OF BILLING WORK,<br><span class="green">DONE IN MINUTES.</span>
+                    WEEKS OF BILLING REVIEW.<br><span class="green">DONE IN MINUTES.</span>
+                  </p>
+                  <p style="margin:10px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; font-style: italic; font-weight: 600;" class="ink-body">
+                    More time for children. Less time on billing.
                   </p>
                 </td>
               </tr>
@@ -160,7 +192,7 @@
                           <td class="green-band" style="width:40px; height:3px; font-size:1px; line-height:1px;">&nbsp;</td>
                         </tr></table>
                         <p style="margin:0 0 18px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 19px; font-weight: 600;" class="navy">
-                          Every session, right the first time. Practitioners log once, <span class="green" style="font-weight:700;">Izaya EISimplified&trade;</span> handles the rest.
+                          Practitioners log the session. <span class="green" style="font-weight:700;">Izaya EIS&trade;</span> handles the rest.
                         </p>
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
                           <td class="btn-secondary" style="border-radius: 8px;">
@@ -205,64 +237,8 @@
               </tr>
             </table>
 
-            <!-- 5-icon feature row -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td class="px-mobile" align="center" style="padding: 28px 26px 6px 26px;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-
-                    <td class="icon5-cell div-line" align="center" valign="top" style="width:20%; padding: 0 6px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%; margin:0 auto;"><tr>
-                        <td align="center" valign="middle" style="width:58px; height:58px;">
-                          <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-04.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                        </td>
-                      </tr></table>
-                      <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; line-height:15px;" class="navy">Automated<br>Validation</p>
-                    </td>
-
-                    <td class="icon5-cell div-line" align="center" valign="top" style="width:20%; padding: 0 6px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%; margin:0 auto;"><tr>
-                        <td align="center" valign="middle" style="width:58px; height:58px;">
-                          <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-05.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                        </td>
-                      </tr></table>
-                      <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; line-height:15px;" class="navy">Automated<br>Billing</p>
-                    </td>
-
-                    <td class="icon5-cell div-line" align="center" valign="top" style="width:20%; padding: 0 6px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%; margin:0 auto;"><tr>
-                        <td align="center" valign="middle" style="width:58px; height:58px;">
-                          <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-06.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                        </td>
-                      </tr></table>
-                      <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; line-height:15px;" class="navy">Audit-Ready<br>Documentation</p>
-                    </td>
-
-                    <td class="icon5-cell div-line" align="center" valign="top" style="width:20%; padding: 0 6px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%; margin:0 auto;"><tr>
-                        <td align="center" valign="middle" style="width:58px; height:58px;">
-                          <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-07.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                        </td>
-                      </tr></table>
-                      <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; line-height:15px;" class="navy">Real-Time<br>Visibility</p>
-                    </td>
-
-                    <td class="icon5-cell" align="center" valign="top" style="width:20%; padding: 0 6px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%; margin:0 auto;"><tr>
-                        <td align="center" valign="middle" style="width:58px; height:58px;">
-                          <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-08.png?v=2" width="30" height="30" alt="" style="display:inline-block; width:30px; height:30px; border:0; vertical-align:middle;">
-                        </td>
-                      </tr></table>
-                      <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; line-height:15px;" class="navy">Faster<br>Reimbursement</p>
-                    </td>
-
-                  </tr></table>
-                </td>
-              </tr>
-            </table>
-
             <!-- Green banner -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="green-band" style="margin-top: 26px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="green-band" style="margin-top: 8px;">
               <tr>
                 <td class="px-mobile" style="padding: 20px 40px;">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
@@ -300,63 +276,247 @@
               </tr>
             </table>
 
-            <!-- Intro + device placeholders -->
+            <!-- Section header for pipeline -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td class="px-mobile" style="padding: 32px 40px 10px 40px;">
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td width="42%" valign="top" class="stack-mobile stack-pad" style="padding-right: 20px;">
-                        <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 21px;" class="ink-body">
-                          <span class="green" style="font-weight:700;">Izaya EISimplified&trade;</span> reviews every session the moment it's submitted — checking signatures, service codes, and time entries for anything that's off. If something needs fixing, the office sends it back to the practitioner right in the platform, no emails or phone calls required. Once everything checks out, it becomes a finished SEVF and invoice automatically, calculated to the cent.
-                        </p>
-                      </td>
-                      <td width="58%" valign="top" class="stack-mobile">
+                <td class="px-mobile" align="center" style="padding: 28px 40px 4px 40px;">
+                  <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; text-align:center;" class="navy">
+                    From Session to Invoice, <span class="green">Automatically</span>
+                  </p>
+                </td>
+              </tr>
+            </table>
 
-                        <!-- Device mockup: laptop + phone side by side, bottom-aligned, no position:absolute (Gmail-paste safe); laptop screen is a placeholder, real screenshot to come -->
-                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-                          <td align="center" style="padding:0;">
-                            <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <!-- Chevron pipeline ribbon: email-safe arrow shapes built from a
+                 colored rectangle + a CSS triangle (border-trick, no
+                 clip-path/skew — renders in Outlook's Word engine same as
+                 any other bordered table cell). Collapses to a plain stacked
+                 list on narrow/mobile widths via .chevron-arrow display:none. -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td class="px-mobile" align="center" style="padding: 14px 20px 6px 20px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 
-                              <td valign="bottom" align="right" style="padding:0 6px 0 0;">
-                                <!-- Laptop: screen recessed above a wider keyboard deck, hinge notch -->
-                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:196px;"><tr><td align="center">
-                                  <table role="presentation" width="86%" cellpadding="0" cellspacing="0" border="0" class="device-bezel" style="border-radius: 10px 10px 3px 3px; margin:0 auto;"><tr><td style="padding: 8px 8px 6px 8px;">
-                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="device-screen" style="border-radius:2px; overflow:hidden;">
-                                      <tr><td align="center" style="padding:0; line-height:0;">
-                                        <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-25.png?v=2" width="168" alt="Izaya EISimplified billing review dashboard" style="display:block; width:100%; max-width:168px; height:auto; border:0;">
-                                      </td></tr>
-                                    </table>
-                                  </td></tr></table>
-                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td class="device-bezel" style="width:24px; height:4px; border-radius:0 0 4px 4px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
-                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="device-base" style="height:8px; border-radius: 2px 2px 8px 8px;"><tr><td style="font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
-                                </td></tr></table>
-                              </td>
+                    <td class="chevron-cell" style="background-color:#2563EB; padding:9px 4px 9px 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">LOG SESSION</td>
+                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #2563EB; font-size:1px; line-height:1px;">&nbsp;</td>
 
-                              <td valign="bottom" align="left" style="padding:0 0 0 6px;">
-                                <!-- Phone -->
-                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:84px;"><tr><td>
-                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="device-bezel" style="border-radius: 13px; box-shadow: 0 6px 14px rgba(15,23,42,0.28);">
-                                    <tr><td style="padding: 7px 5px;">
-                                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="device-screen" style="border-radius:3px; overflow:hidden;">
-                                        <tr><td align="center" style="padding:0; line-height:0;">
-                                      <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-13.png?v=2" width="74" alt="Log Session screen in the Izaya EISimplified mobile app" style="display:block; width:100%; max-width:74px; height:auto; border:0; border-radius:3px;">
-                                        </td></tr>
-                                      </table>
-                                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding-top:5px;">
-                                        <span style="display:inline-block; width:18px; height:3px; border-radius:2px; background-color:#475569;">&nbsp;</span>
-                                      </td></tr></table>
-                                    </td></tr>
-                                  </table>
-                                </td></tr></table>
-                              </td>
+                    <td class="chevron-cell" style="background-color:#0DA76B; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">VALIDATE</td>
+                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #0DA76B; font-size:1px; line-height:1px;">&nbsp;</td>
 
-                            </tr></table>
-                          </td>
+                    <td class="chevron-cell" style="background-color:#7C3AED; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">EIMS MATCH</td>
+                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #7C3AED; font-size:1px; line-height:1px;">&nbsp;</td>
+
+                    <td class="chevron-cell" style="background-color:#EA580C; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">CORRECT</td>
+                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #EA580C; font-size:1px; line-height:1px;">&nbsp;</td>
+
+                    <td class="chevron-cell" style="background-color:#0DA76B; padding:9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">GENERATE &amp; BILL</td>
+                    <td class="chevron-arrow" style="width:0; height:0; border-top:15px solid transparent; border-bottom:15px solid transparent; border-left:9px solid #0DA76B; font-size:1px; line-height:1px;">&nbsp;</td>
+
+                    <td class="chevron-cell" style="background-color:#14204A; padding:9px 12px 9px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; font-weight:800; letter-spacing:0.03em; color:#FFFFFF; text-align:center; white-space:nowrap;">AUDIT &amp; SEARCH</td>
+
+                  </tr></table>
+                  <p style="margin:10px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700; letter-spacing:0.08em; text-align:center;" class="ink-muted">
+                    LOGS &nbsp;&middot;&nbsp; MATCH &nbsp;&middot;&nbsp; CORRECT &nbsp;&middot;&nbsp; SEVFS &nbsp;&middot;&nbsp; INVOICE &nbsp;&middot;&nbsp; AUDIT
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Feature grid: 3x2, PDF's per-stage color system (blue Session
+                 Log, green Validation, purple EIMS Matching, orange Correct,
+                 green Generate & Bill, blue Audit & Search). Tinted card
+                 background + colored top rule + matching badge, rather than
+                 the uniform white card used before this pass. -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td class="px-mobile" align="center" style="padding: 22px 22px 6px 22px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+
+                    <td class="icon6-cell" valign="top" width="33.33%" style="padding: 0 6px 12px 0;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tint-blue" style="border-radius:10px; overflow:hidden;"><tr><td>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="rule-blue" style="height:3px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 14px;"><tr>
+                          <td class="badge-blue" style="border-radius:50%;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td align="center" valign="middle" style="width:40px; height:40px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-14.png?v=2" width="20" height="20" alt="" style="display:inline-block; width:20px; height:20px; border:0; vertical-align:middle;"></td>
+                          </tr></table></td>
                         </tr></table>
-                      </td>
-                    </tr>
-                  </table>
+                        <div style="padding: 10px 14px 16px 14px;">
+                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800;" class="accent-blue">SESSION LOG</p>
+                          <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 18px; font-weight: 500;" class="ink-body">Mobile session logging with parent e-signatures. No need to prep SEVFs by hand.</p>
+                        </div>
+                      </td></tr></table>
+                    </td>
+
+                    <td class="icon6-cell" valign="top" width="33.33%" style="padding: 0 6px 12px 6px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tint-green" style="border-radius:10px; overflow:hidden;"><tr><td>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="rule-green" style="height:3px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 14px;"><tr>
+                          <td class="badge-green" style="border-radius:50%;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td align="center" valign="middle" style="width:40px; height:40px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-04.png?v=2" width="20" height="20" alt="" style="display:inline-block; width:20px; height:20px; border:0; vertical-align:middle;"></td>
+                          </tr></table></td>
+                        </tr></table>
+                        <div style="padding: 10px 14px 16px 14px;">
+                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800;" class="green">SMART VALIDATION</p>
+                          <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 18px; font-weight: 500;" class="ink-body">Checks every session for completeness and required billing data. Catches issues early.</p>
+                        </div>
+                      </td></tr></table>
+                    </td>
+
+                    <td class="icon6-cell" valign="top" width="33.33%" style="padding: 0 0 12px 6px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tint-purple" style="border-radius:10px; overflow:hidden;"><tr><td>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="rule-purple" style="height:3px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 14px;"><tr>
+                          <td class="badge-purple" style="border-radius:50%;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td align="center" valign="middle" style="width:40px; height:40px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-06.png?v=2" width="20" height="20" alt="" style="display:inline-block; width:20px; height:20px; border:0; vertical-align:middle;"></td>
+                          </tr></table></td>
+                        </tr></table>
+                        <div style="padding: 10px 14px 16px 14px;">
+                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800;" class="accent-purple">EIMS MATCHING</p>
+                          <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 18px; font-weight: 500;" class="ink-body">Cross-checks against EIMS to find discrepancies and missing entries. Finds what others miss.</p>
+                        </div>
+                      </td></tr></table>
+                    </td>
+
+                  </tr></table>
+
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:0;"><tr>
+
+                    <td class="icon6-cell" valign="top" width="33.33%" style="padding: 0 6px 6px 0;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tint-orange" style="border-radius:10px; overflow:hidden;"><tr><td>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="rule-orange" style="height:3px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 14px;"><tr>
+                          <td class="badge-orange" style="border-radius:50%;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td align="center" valign="middle" style="width:40px; height:40px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-05.png?v=2" width="20" height="20" alt="" style="display:inline-block; width:20px; height:20px; border:0; vertical-align:middle;"></td>
+                          </tr></table></td>
+                        </tr></table>
+                        <div style="padding: 10px 14px 16px 14px;">
+                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800;" class="accent-orange">CORRECT</p>
+                          <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 18px; font-weight: 500;" class="ink-body">Flagged sessions go straight back to the practitioner in-platform — no chasing emails or calls.</p>
+                        </div>
+                      </td></tr></table>
+                    </td>
+
+                    <td class="icon6-cell" valign="top" width="33.33%" style="padding: 0 6px 6px 6px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tint-green" style="border-radius:10px; overflow:hidden;"><tr><td>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="rule-green" style="height:3px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 14px;"><tr>
+                          <td class="badge-green" style="border-radius:50%;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td align="center" valign="middle" style="width:40px; height:40px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-16.png?v=2" width="20" height="20" alt="" style="display:inline-block; width:20px; height:20px; border:0; vertical-align:middle;"></td>
+                          </tr></table></td>
+                        </tr></table>
+                        <div style="padding: 10px 14px 16px 14px;">
+                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800;" class="green">GENERATE &amp; BILL</p>
+                          <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 18px; font-weight: 500;" class="ink-body">Validated SEVFs and invoices for biweekly or monthly billing. Save time. Reduce errors.</p>
+                        </div>
+                      </td></tr></table>
+                    </td>
+
+                    <td class="icon6-cell" valign="top" width="33.33%" style="padding: 0 0 6px 6px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tint-blue" style="border-radius:10px; overflow:hidden;"><tr><td>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="rule-blue" style="height:3px; font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 0 14px;"><tr>
+                          <td class="badge-blue" style="border-radius:50%;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td align="center" valign="middle" style="width:40px; height:40px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-07.png?v=2" width="20" height="20" alt="" style="display:inline-block; width:20px; height:20px; border:0; vertical-align:middle;"></td>
+                          </tr></table></td>
+                        </tr></table>
+                        <div style="padding: 10px 14px 16px 14px;">
+                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800;" class="accent-blue">AUDIT &amp; SEARCH</p>
+                          <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 18px; font-weight: 500;" class="ink-body">Search SEVFs, invoices, and sessions in seconds. Full audit trail. Be always ready.</p>
+                        </div>
+                      </td></tr></table>
+                    </td>
+
+                  </tr></table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Headline stat banner: navy band, matches the closing banner's
+                 visual weight so this reads as a claim worth stopping for,
+                 not a footnote. Figure + methodology note both come from
+                 internal platform testing (see Izaya_EIS_Introduction.pdf). -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="navy-band" style="margin-top: 18px;">
+              <tr>
+                <td class="px-mobile" align="center" style="padding: 26px 40px 22px 40px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                    <td valign="middle" style="padding-right:14px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%;"><tr>
+                        <td align="center" valign="middle" style="width:52px; height:52px;">
+                          <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-08.png?v=2" width="27" height="27" alt="" style="display:inline-block; width:27px; height:27px; border:0; vertical-align:middle;">
+                        </td>
+                      </tr></table>
+                    </td>
+                    <td valign="middle" align="left">
+                      <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 20px; line-height:24px; font-weight: 800; letter-spacing:-0.01em; color:#FFFFFF; text-align:left;">
+                        100+ session logs analyzed<br>in <span style="color:#5EEAD4;">under 5 seconds.*</span>
+                      </p>
+                    </td>
+                  </tr></table>
+                  <p style="margin:14px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12.5px; line-height:18px; color:#CBD5E1; text-align:center;">
+                    Instead of checking every session by hand, billing staff focus only on the ones that need attention.
+                  </p>
+                  <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; line-height:16px; color:#94A3B8; text-align:center;">
+                    *Based on internal platform testing of 100+ session logs for match, flag, and missing-entry analysis. Processing time may vary.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- 3-item strip: billing cycle flexibility, payment tracking,
+                 audit-ready records — new content from
+                 Izaya_EIS_Introduction.pdf not previously in the newsletter. -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td class="px-mobile" style="padding: 22px 40px 4px 40px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="panel" style="border-radius:12px;"><tr>
+                    <td style="padding: 18px 22px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+
+                        <td class="grid2-cell div-line" width="33.33%" valign="top" style="padding: 0 12px 0 0;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td valign="middle" style="padding-right:8px;">
+                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%;"><tr>
+                                <td align="center" valign="middle" style="width:30px; height:30px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-09.png?v=2" width="15" height="15" alt="" style="display:inline-block; width:15px; height:15px; border:0; vertical-align:middle;"></td>
+                              </tr></table>
+                            </td>
+                            <td valign="middle">
+                              <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 800;" class="navy">BIWEEKLY OR MONTHLY</p>
+                            </td>
+                          </tr></table>
+                          <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12.5px; line-height: 17px; font-weight: 500;" class="ink-muted">Use the billing cycle that fits your agency.</p>
+                        </td>
+
+                        <td class="grid2-cell div-line" width="33.33%" valign="top" style="padding: 0 12px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td valign="middle" style="padding-right:8px;">
+                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%;"><tr>
+                                <td align="center" valign="middle" style="width:30px; height:30px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-11.png?v=2" width="15" height="15" alt="" style="display:inline-block; width:15px; height:15px; border:0; vertical-align:middle;"></td>
+                              </tr></table>
+                            </td>
+                            <td valign="middle">
+                              <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 800;" class="green">PAYMENT TRACKING</p>
+                            </td>
+                          </tr></table>
+                          <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12.5px; line-height: 17px; font-weight: 500;" class="ink-muted">Optional internal paid / unpaid invoice tracking.</p>
+                        </td>
+
+                        <td class="grid2-cell" width="33.33%" valign="top" style="padding: 0 0 0 12px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td valign="middle" style="padding-right:8px;">
+                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%;"><tr>
+                                <td align="center" valign="middle" style="width:30px; height:30px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-07.png?v=2" width="15" height="15" alt="" style="display:inline-block; width:15px; height:15px; border:0; vertical-align:middle;"></td>
+                              </tr></table>
+                            </td>
+                            <td valign="middle">
+                              <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 800;" class="navy">AUDIT-READY RECORDS</p>
+                            </td>
+                          </tr></table>
+                          <p style="margin:8px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12.5px; line-height: 17px; font-weight: 500;" class="ink-muted">Search by practitioner, child, and date range.</p>
+                        </td>
+
+                      </tr></table>
+                    </td>
+                  </tr></table>
                 </td>
               </tr>
             </table>
@@ -364,7 +524,7 @@
             <!-- Mid-page CTA panel -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td class="px-mobile" style="padding: 4px 40px 6px 40px;">
+                <td class="px-mobile" style="padding: 22px 40px 6px 40px;">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="panel" style="border-radius:12px;"><tr>
                     <td align="center" style="padding: 22px 24px;">
                       <p style="margin:0 0 12px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 700; line-height:20px; text-align:center;" class="navy">
@@ -388,108 +548,6 @@
               <tr><td class="px-mobile" style="padding: 24px 40px 6px 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="hr" style="font-size:1px; line-height:1px;">&nbsp;</td></tr></table></td></tr>
             </table>
 
-            <!-- Section header for steps grid -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td class="px-mobile" align="center" style="padding: 26px 40px 0 40px;">
-                  <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; text-align:center;" class="navy">
-                    From Session to Invoice in <span class="green">5 Steps</span>
-                  </p>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Second 5-item grid: one row, card-framed, icon overlapping the top edge -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td class="px-mobile" align="center" style="padding: 16px 22px 34px 22px;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-
-                    <td class="icon5-cell" valign="top" style="width:20%; padding: 0 5px;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card-border" style="border-radius:10px;"><tr>
-                        <td align="center" style="padding: 20px 7px 16px 7px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%; margin:0 auto 10px auto; box-shadow: 0 3px 6px rgba(13,167,107,0.35);"><tr>
-                            <td align="center" valign="middle" style="width:52px; height:52px;">
-                              <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-14.png?v=2" width="25" height="25" alt="" style="display:inline-block; width:25px; height:25px; border:0; vertical-align:middle;">
-                            </td>
-                          </tr></table>
-                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 9px; font-weight: 800; letter-spacing:0.08em;" class="green">STEP 1</p>
-                          <p style="margin:0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700; line-height:14px;" class="navy">Mobile<br>Session Logging</p>
-                            <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500;" class="ink-muted">Client, service, time — captured in the field, signed on the spot.</p>
-                        </td>
-                      </tr></table>
-                    </td>
-
-                    <td class="icon5-cell" valign="top" style="width:20%; padding: 0 5px;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card-border" style="border-radius:10px;"><tr>
-                        <td align="center" style="padding: 20px 7px 16px 7px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%; margin:0 auto 10px auto; box-shadow: 0 3px 6px rgba(20,32,74,0.35);"><tr>
-                            <td align="center" valign="middle" style="width:52px; height:52px;">
-                              <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-15.png?v=2" width="25" height="25" alt="" style="display:inline-block; width:25px; height:25px; border:0; vertical-align:middle;">
-                            </td>
-                          </tr></table>
-                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 9px; font-weight: 800; letter-spacing:0.08em;" class="navy">STEP 2</p>
-                          <p style="margin:0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700; line-height:14px;" class="navy">Intelligent<br>Validation</p>
-                            <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500;" class="ink-muted">Every field checked instantly. Anything off goes back in seconds.</p>
-                        </td>
-                      </tr></table>
-                    </td>
-
-                    <td class="icon5-cell" valign="top" style="width:20%; padding: 0 5px;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card-border" style="border-radius:10px;"><tr>
-                        <td align="center" style="padding: 20px 7px 16px 7px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%; margin:0 auto 10px auto; box-shadow: 0 3px 6px rgba(13,167,107,0.35);"><tr>
-                            <td align="center" valign="middle" style="width:52px; height:52px;">
-                              <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-16.png?v=2" width="25" height="25" alt="" style="display:inline-block; width:25px; height:25px; border:0; vertical-align:middle;">
-                            </td>
-                          </tr></table>
-                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 9px; font-weight: 800; letter-spacing:0.08em;" class="green">STEP 3</p>
-                          <p style="margin:0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700; line-height:14px;" class="navy">Automated<br>Billing</p>
-                            <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500;" class="ink-muted">SEVFs and invoices, generated automatically. To the cent.</p>
-                        </td>
-                      </tr></table>
-                    </td>
-
-                    <td class="icon5-cell" valign="top" style="width:20%; padding: 0 5px;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card-border" style="border-radius:10px;"><tr>
-                        <td align="center" style="padding: 20px 7px 16px 7px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-navy" style="border-radius:50%; margin:0 auto 10px auto; box-shadow: 0 3px 6px rgba(20,32,74,0.35);"><tr>
-                            <td align="center" valign="middle" style="width:52px; height:52px;">
-                              <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-17.png?v=2" width="25" height="25" alt="" style="display:inline-block; width:25px; height:25px; border:0; vertical-align:middle;">
-                            </td>
-                          </tr></table>
-                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 9px; font-weight: 800; letter-spacing:0.08em;" class="navy">STEP 4</p>
-                          <p style="margin:0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700; line-height:14px;" class="navy">Audit Ready</p>
-                            <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500;" class="ink-muted">Every record, organized and ready.</p>
-                        </td>
-                      </tr></table>
-                    </td>
-
-                    <td class="icon5-cell" valign="top" style="width:20%; padding: 0 5px;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card-border" style="border-radius:10px;"><tr>
-                        <td align="center" style="padding: 20px 7px 16px 7px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-green" style="border-radius:50%; margin:0 auto 10px auto; box-shadow: 0 3px 6px rgba(13,167,107,0.35);"><tr>
-                            <td align="center" valign="middle" style="width:52px; height:52px;">
-                              <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-18.png?v=2" width="25" height="25" alt="" style="display:inline-block; width:25px; height:25px; border:0; vertical-align:middle;">
-                            </td>
-                          </tr></table>
-                          <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 9px; font-weight: 800; letter-spacing:0.08em;" class="green">STEP 5</p>
-                          <p style="margin:0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700; line-height:14px;" class="navy">Real-Time<br>Dashboards</p>
-                            <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 10px; line-height: 14px; font-weight: 500;" class="ink-muted">Full visibility, anytime.</p>
-                        </td>
-                      </tr></table>
-                    </td>
-
-                  </tr></table>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Divider -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr><td class="px-mobile" style="padding: 6px 40px 6px 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="hr" style="font-size:1px; line-height:1px;">&nbsp;</td></tr></table></td></tr>
-            </table>
-
             <!-- Real signatures section -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
@@ -504,7 +562,7 @@
                           Real Signatures, <span class="green">Captured in the Field</span>
                         </p>
                         <p style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; line-height: 20px;" class="ink-body">
-                          Parents and practitioners sign right on the phone at the end of every session. Practitioners can save their signature once and reuse it, and both signatures are stored with the session record automatically.
+                          Parents and practitioners sign right on the phone at the end of every session — or remotely for video sessions. Practitioners can save their signature once and reuse it, and both signatures are stored with the session record automatically.
                         </p>
                       </td>
                       <td width="48%" valign="top" align="center" class="stack-mobile">
@@ -536,6 +594,9 @@
                       <img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-19.png?v=2" width="34" height="34" alt="" style="display:inline-block; width:34px; height:34px; border:0; vertical-align:middle;">
                     </td>
                   </tr></table>
+                  <p style="margin:0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700; letter-spacing:0.02em; color:#5EEAD4; text-align:center;">
+                    SEE IZAYA EIS&trade; IN ACTION
+                  </p>
                   <p style="margin:0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 19px; font-weight: 800; letter-spacing: 0.01em; color:#FFFFFF; text-align:center;">
                     SCHEDULE YOUR <span style="color:#5EEAD4;">DEMO.</span>
                   </p>
