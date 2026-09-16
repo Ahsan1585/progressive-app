@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- mobile/ || exit 1",
   "redirects": [
     { "source": "/", "destination": "/EIS/login", "permanent": false }
   ],
