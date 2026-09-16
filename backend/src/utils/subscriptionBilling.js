@@ -111,10 +111,15 @@ async function getPractitionerActivity(periodStart, periodEnd) {
 }
 
 // Every non-practitioner role is an office/admin-portal seat for billing
-// purposes — mirrors AdminDashboard.jsx's TAB_ACCESS role set.
+// purposes — mirrors AdminDashboard.jsx's TAB_ACCESS role set. Excludes the
+// hidden Izaya Support account (see platformProvisioningController.js):
+// it's provisioned with legacyRole 'ceo', so without this filter it silently
+// counted as a real office staff seat toward this company's bill — a
+// company with exactly one real admin/staff account would show 2 seats
+// used, not 1.
 async function getOfficeStaffCount() {
   const { rows } = await pool.query(
-    `SELECT COUNT(*)::int AS count FROM practitioners WHERE role != 'practitioner'`
+    `SELECT COUNT(*)::int AS count FROM practitioners WHERE role != 'practitioner' AND is_platform_support = false`
   );
   return rows[0]?.count || 0;
 }
