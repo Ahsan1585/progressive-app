@@ -44,14 +44,22 @@ async function authHandshake(socket, next) {
     // Distinct from 'unauthorized': the token itself is fine, the company is
     // just blocked. The frontend's connect_error handler (realtime/socket.js)
     // treats 'unauthorized' as "this session is dead, log out" — that's
-    // wrong here, since the very next REST call (e.g. TrialGate's
+    // wrong here, since the very next REST call (e.g. TrialGate's/BaaGate's
     // company-status check) is the one meant to explain and render the
     // block, not have the socket silently wipe the session out from under
     // it first. Was previously also 'unauthorized', which raced against
     // TrialGate's own fetch and could log a freshly-logged-in suspended
     // user straight back out to /login with no error shown at all.
-    if (trialExpired || company.status === 'suspended') return next(new Error('account_blocked'));
-    if (!company.baa_accepted_at) return next(new Error('unauthorized'));
+    //
+    // A brand-new company that hasn't accepted the BAA yet hits this same
+    // race: MessagingProvider connects the socket immediately on login,
+    // before BaaGate's own REST check has a chance to render the
+    // acceptance screen. This case must use 'account_blocked' too, for the
+    // exact same reason — it was the one bucket still wrongly grouped under
+    // 'unauthorized' when that fix was made.
+    if (trialExpired || company.status === 'suspended' || !company.baa_accepted_at) {
+      return next(new Error('account_blocked'));
+    }
 
     // Resolve the connecting user's display name from THEIR tenant DB, and
     // confirm the account is still active. Scoped by runWithTenant so the

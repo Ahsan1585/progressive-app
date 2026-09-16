@@ -43,7 +43,14 @@ export function BaaGate({ children }) {
     setIsSubmitting(true);
     try {
       await api.post('/api/auth/accept-baa', { name, email });
-      setStatus('ok');
+      // Full reload rather than just flipping status to 'ok': AdminDashboard's
+      // own /api/auth/me, /api/practitioner/profile, and /api/company calls
+      // already ran once (and failed, since the BAA gate blocked them) before
+      // this component had a chance to render the acceptance form — so `me`
+      // is stuck at its safe-fallback zero-permissions state with no
+      // re-fetch trigger otherwise, which would show an empty sidebar with
+      // no tabs even though the account is now fully unblocked.
+      window.location.reload();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to accept the agreement.');
     } finally {

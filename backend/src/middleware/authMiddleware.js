@@ -70,8 +70,16 @@ const protect = (req, res, next) => {
       // ceo accepts it. `/api/auth/accept-baa` and `/api/auth/company-status`
       // stay reachable regardless (a ceo needs the first to clear the gate,
       // and every role needs the second so the frontend can render the
-      // right blocking screen instead of a bare error).
-      const isBaaExemptRoute = req.originalUrl.startsWith('/api/auth/accept-baa') || req.originalUrl.startsWith('/api/auth/company-status');
+      // right blocking screen instead of a bare error). `/api/auth/me` is
+      // exempted for the same reason isMeOrStatusRoute exempts it from the
+      // trial/suspension gate above: it carries no PHI, and AdminDashboard's
+      // sidebar/tab visibility depends on it succeeding even while BaaGate
+      // is blocking everything else — without this, a first-time user's `me`
+      // gets stuck at a zero-permissions fallback with no re-fetch trigger,
+      // showing an empty sidebar even after accepting the BAA.
+      const isBaaExemptRoute = req.originalUrl.startsWith('/api/auth/accept-baa')
+        || req.originalUrl.startsWith('/api/auth/company-status')
+        || req.originalUrl.startsWith('/api/auth/me');
       if (!company.baa_accepted_at && !isBaaExemptRoute) {
         return res.status(403).json({
           error: decoded.role === 'ceo'
