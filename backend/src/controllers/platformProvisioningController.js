@@ -294,6 +294,11 @@ const deleteCompanyData = async (req, res) => {
     await evictTenantPool(company.tenant_db_name);
     await getProvisioningPool().query(`DROP DATABASE IF EXISTS "${company.tenant_db_name}"`);
 
+    // Marks that the underlying PHI is actually gone now — this is what
+    // deleteCompanyRecord below checks before letting the companies row
+    // itself be removed. Nothing else reads this column.
+    await platformPool.query('UPDATE companies SET data_deleted_at = now() WHERE slug = $1', [slug]);
+
     // Logged to the platform audit trail (not the tenant's own audit_logs —
     // that table lives in the database just dropped) with enough detail to
     // answer "what was deleted, when, by whom" after the fact, since the
@@ -313,4 +318,58 @@ const deleteCompanyData = async (req, res) => {
   }
 };
 
-module.exports = { createCompany, impersonateCompany, ensureSupportAccount, deleteCompanyData };
+// Final step, one stage past deleteCompanyData: removes the company's own
+// row from the platform registry entirely, so it stops appearing in this
+// list at all. Only reachable once data_deleted_at is already set — a
+// platform admin must not be able to erase the record of a company whose
+// PHI hasn't actually been destroyed yet, since that row (tenant_db_name,
+// created_at, etc.) is the only remaining evidence of what happened if
+// something in deleteCompanyData needs to be revisited.
+//
+// Same manual, retype-the-slug confirmation pattern as deleteCompanyData —
+// this is at least as irreversible (there is no soft-delete/undo here
+// either).
+//
+// promo_code_redemptions.company_id has a real (RESTRICT) foreign key to
+// companies.id, so any redemption this company ever made must be deleted
+// first or the DELETE below fails outright — those rows are meaningless
+// once the company itself is gone, and the fact of the deletion (with the
+// company's display name/slug) is preserved in the platform audit log
+// below regardless.
+const deleteCompanyRecord = async (req, res) => {
+  const { slug } = req.params;
+  const { confirmSlug } = req.body || {};
+
+  try {
+    const { rows } = await platformPool.query(
+      'SELECT id, status, display_name, data_deleted_at FROM companies WHERE slug = $1',
+      [slug]
+    );
+    const company = rows[0];
+    if (!company) return res.status(404).json({ error: 'Company not found.' });
+    if (!company.data_deleted_at) {
+      return res.status(400).json({ error: "This company's data must be deleted before its record can be removed." });
+    }
+    if (confirmSlug !== slug) {
+      return res.status(400).json({ error: `Type the company code exactly ("${slug}") to confirm this permanent deletion.` });
+    }
+
+    await platformPool.query('DELETE FROM promo_code_redemptions WHERE company_id = $1', [company.id]);
+    await platformPool.query('DELETE FROM companies WHERE id = $1', [company.id]);
+
+    await logPlatformAudit({
+      platformAdminId: req.platformAdmin.platformAdminId,
+      action: 'company_record_deleted',
+      targetCompanySlug: slug,
+      details: { displayName: company.display_name },
+      ipAddress: clientIp(req),
+    });
+
+    res.json({ success: true, message: `${company.display_name}'s record has been permanently removed.` });
+  } catch (error) {
+    console.error('deleteCompanyRecord error:', error);
+    res.status(500).json({ error: 'Failed to delete company record.' });
+  }
+};
+
+module.exports = { createCompany, impersonateCompany, ensureSupportAccount, deleteCompanyData, deleteCompanyRecord };

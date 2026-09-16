@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
   Loader2, Plus, Ban, LogOut, ChevronDown, ChevronRight, LogIn, ShieldAlert,
   Building2, UserPlus, Tag, CircleCheck, Clock, TriangleAlert, DollarSign,
-  CreditCard, ShieldOff, ShieldCheck, MailX,
+  CreditCard, ShieldOff, ShieldCheck, MailX, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { BrandLockup } from '@/components/BrandLockup';
 
 // The shared logo mark (IzayaMark.jsx) is inline-styled with a navy stroke
@@ -406,6 +407,7 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
   const [rowState, setRowState] = useState({}); // { [slug]: { entering, backfilling, error, notice } }
   const [cancelTarget, setCancelTarget] = useState(null); // company object, or null
   const [deleteTarget, setDeleteTarget] = useState(null); // company object, or null
+  const [deleteRecordTarget, setDeleteRecordTarget] = useState(null); // company object, or null
 
   const setRow = (slug, patch) => setRowState((prev) => ({ ...prev, [slug]: { ...prev[slug], ...patch } }));
 
@@ -521,29 +523,57 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
                         <Button type="button" size="sm" variant="ghost" disabled={rs.backfilling} onClick={() => handleBackfill(c.slug)} title="Backfill support account" className="h-8 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200">
                           {rs.backfilling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Backfill acct'}
                         </Button>
-                        {c.status !== 'cancelled' ? (
-                          <Dialog open={cancelTarget?.slug === c.slug} onOpenChange={(open) => setCancelTarget(open ? c : null)}>
-                            <Button type="button" size="sm" variant="outline" onClick={() => setCancelTarget(c)}
-                              className="h-8 border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 hover:text-red-300">
-                              <Ban className="w-3.5 h-3.5 mr-1" />
-                              Deactivate
+                        {/* Progressive single-item dropdown — only ever
+                            offers the ONE next lifecycle action for this
+                            company: Deactivate first, then Delete data
+                            (once deactivated), then Delete company (once
+                            data is gone). Never shows more than one option
+                            at a time, so a platform admin can't jump ahead
+                            of the required order. */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button type="button" size="sm" variant="outline"
+                              className="h-8 w-8 p-0 border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 hover:text-red-300">
+                              <ChevronDown className="w-3.5 h-3.5" />
                             </Button>
-                            {cancelTarget?.slug === c.slug && (
-                              <CancelCompanyDialog company={c} client={client} onDone={() => { setCancelTarget(null); fetchCompanies(); }} />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-slate-900 border-slate-700 text-slate-100">
+                            {c.status !== 'cancelled' && (
+                              <DropdownMenuItem onSelect={() => setCancelTarget(c)} className="text-red-400 hover:bg-slate-800 hover:text-red-300 focus:bg-slate-800 focus:text-red-300">
+                                <Ban className="w-3.5 h-3.5" />
+                                Deactivate
+                              </DropdownMenuItem>
                             )}
-                          </Dialog>
-                        ) : (
-                          <Dialog open={deleteTarget?.slug === c.slug} onOpenChange={(open) => setDeleteTarget(open ? c : null)}>
-                            <Button type="button" size="sm" variant="outline" onClick={() => setDeleteTarget(c)}
-                              className="h-8 border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 hover:text-red-300">
-                              <ShieldAlert className="w-3.5 h-3.5 mr-1" />
-                              Delete data
-                            </Button>
-                            {deleteTarget?.slug === c.slug && (
-                              <DeleteCompanyDataDialog company={c} client={client} onDone={() => { setDeleteTarget(null); fetchCompanies(); }} />
+                            {c.status === 'cancelled' && !c.data_deleted_at && (
+                              <DropdownMenuItem onSelect={() => setDeleteTarget(c)} className="text-red-400 hover:bg-slate-800 hover:text-red-300 focus:bg-slate-800 focus:text-red-300">
+                                <ShieldAlert className="w-3.5 h-3.5" />
+                                Delete data
+                              </DropdownMenuItem>
                             )}
-                          </Dialog>
-                        )}
+                            {c.status === 'cancelled' && c.data_deleted_at && (
+                              <DropdownMenuItem onSelect={() => setDeleteRecordTarget(c)} className="text-red-400 hover:bg-slate-800 hover:text-red-300 focus:bg-slate-800 focus:text-red-300">
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete company
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <Dialog open={cancelTarget?.slug === c.slug} onOpenChange={(open) => setCancelTarget(open ? c : null)}>
+                          {cancelTarget?.slug === c.slug && (
+                            <CancelCompanyDialog company={c} client={client} onDone={() => { setCancelTarget(null); fetchCompanies(); }} />
+                          )}
+                        </Dialog>
+                        <Dialog open={deleteTarget?.slug === c.slug} onOpenChange={(open) => setDeleteTarget(open ? c : null)}>
+                          {deleteTarget?.slug === c.slug && (
+                            <DeleteCompanyDataDialog company={c} client={client} onDone={() => { setDeleteTarget(null); fetchCompanies(); }} />
+                          )}
+                        </Dialog>
+                        <Dialog open={deleteRecordTarget?.slug === c.slug} onOpenChange={(open) => setDeleteRecordTarget(open ? c : null)}>
+                          {deleteRecordTarget?.slug === c.slug && (
+                            <DeleteCompanyRecordDialog company={c} client={client} onDone={() => { setDeleteRecordTarget(null); fetchCompanies(); }} />
+                          )}
+                        </Dialog>
                       </div>
                       {rs.error && <p className="text-xs font-medium text-red-400 max-w-[280px]">{rs.error}</p>}
                       {rs.notice && <p className="text-xs font-medium text-teal-400">{rs.notice}</p>}
@@ -668,6 +698,59 @@ function DeleteCompanyDataDialog({ company, client, onDone }) {
         <Button type="button" disabled={isSubmitting || confirmSlug !== company.slug} onClick={handleConfirm} className="bg-red-500 hover:bg-red-400 text-slate-950 font-semibold">
           {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ShieldAlert className="w-4 h-4 mr-1.5" />}
           Permanently delete data
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+// Final stage, one step past Delete Data: removes the company's own row
+// from this list entirely. Only reachable once data_deleted_at is set (the
+// dropdown above never renders this option before then) — the backend
+// enforces the same precondition independently, so this dialog can't be
+// used to jump ahead of the required order even by calling the API
+// directly.
+function DeleteCompanyRecordDialog({ company, client, onDone }) {
+  const [confirmSlug, setConfirmSlug] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleConfirm = async () => {
+    if (confirmSlug !== company.slug) return;
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await client.post(`/api/platform/companies/${company.slug}/delete-record`, { confirmSlug });
+      onDone();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete company record.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-800 text-slate-100">
+      <DialogHeader>
+        <DialogTitle className="text-slate-100">Permanently delete {company.display_name}</DialogTitle>
+        <DialogDescription className="text-slate-400">
+          This removes {company.display_name} from the platform entirely — it will no longer appear
+          anywhere in this dashboard. Its data was already permanently deleted; this is the final step.
+          This cannot be undone.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-2">
+        <Label htmlFor="delete-record-confirm-slug" className={DARK_LABEL}>
+          Type the company code (<span className="font-mono text-slate-200">{company.slug}</span>) to confirm
+        </Label>
+        <Input id="delete-record-confirm-slug" value={confirmSlug} onChange={(e) => setConfirmSlug(e.target.value)}
+          placeholder={company.slug} className={DARK_INPUT} autoComplete="off" />
+      </div>
+      {error && <p className="text-sm text-red-400 font-medium">{error}</p>}
+      <DialogFooter>
+        <Button type="button" disabled={isSubmitting || confirmSlug !== company.slug} onClick={handleConfirm} className="bg-red-500 hover:bg-red-400 text-slate-950 font-semibold">
+          {isSubmitting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+          Permanently delete company
         </Button>
       </DialogFooter>
     </DialogContent>

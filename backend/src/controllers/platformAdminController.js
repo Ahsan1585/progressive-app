@@ -17,7 +17,7 @@ async function tenantPoolForSlug(slug) {
 const listCompanies = async (req, res) => {
   try {
     const { rows } = await platformPool.query(
-      `SELECT slug, display_name, status, trial_ends_at, created_at
+      `SELECT slug, display_name, status, trial_ends_at, created_at, data_deleted_at
        FROM companies ORDER BY created_at DESC`
     );
     res.json({ success: true, companies: rows });

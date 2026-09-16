@@ -1,0 +1,13 @@
+-- Standalone one-off migration for the existing izaya_platform database —
+-- same convention as add_promo_codes.sql / add_marketing_unsubscribes.sql.
+--
+-- Marks WHEN a cancelled company's tenant database/files were permanently
+-- wiped by platformProvisioningController.js's deleteCompanyData. Needed
+-- because that action doesn't touch the companies row at all today — it
+-- only drops the tenant database — so there was previously no way to tell
+-- "data already deleted" from "still cancelled, data intact" without
+-- checking whether the tenant database still exists directly. This column
+-- is what gates the new, further final step (deleteCompanyRecord, which
+-- removes the companies row itself): a platform admin must not be able to
+-- delete the row before the underlying PHI is actually gone.
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS data_deleted_at timestamptz;
