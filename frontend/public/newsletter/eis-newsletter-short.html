@@ -14,10 +14,13 @@
   .ink-muted  { color: #64748B; }
   .green      { color: #0DA76B; }
   .card       { background-color: #FFFFFF; }
+  .panel      { background-color: #F8FAFC; }
   .hr         { border-top: 1px solid #E2E8F0; }
   .badge-green{ background-color: #0DA76B; }
   .badge-navy { background-color: #14204A; }
   .badge-blue { background-color: #2563EB; }
+  .badge-outline-green { border: 1.5px solid #0DA76B; }
+  .badge-outline-navy  { border: 1.5px solid #14204A; }
 
   a.btn-secondary { background-color: #0DA76B; color: #FFFFFF !important; }
 
@@ -34,16 +37,21 @@
   @media (prefers-color-scheme: dark) {
     body, #bg-canvas { background-color: #05070D !important; }
     .card       { background-color: #111827 !important; }
+    .panel      { background-color: #0B1120 !important; }
     .navy       { color: #93A5E0 !important; }
     .ink-body   { color: #CBD5E1 !important; }
     .ink-muted  { color: #94A3B8 !important; }
     .green      { color: #34D399 !important; }
     .hr         { border-top: 1px solid #243044 !important; }
+    .badge-outline-green { border-color: #34D399 !important; }
+    .badge-outline-navy  { border-color: #93A5E0 !important; }
   }
 
   @media screen and (max-width: 640px) {
     .full-width-mobile { width: 100% !important; }
     .px-mobile { padding-left: 22px !important; padding-right: 22px !important; }
+    .trust-cell { display: block !important; width: 100% !important; padding: 6px 0 !important; text-align:center !important; }
+    .trust-cell table { margin: 0 auto !important; }
   }
 </style>
 
@@ -156,10 +164,63 @@
               </tr>
             </table>
 
+            <!-- Trust strip: HIPAA, encryption, NJ-specific credibility —
+                 reuses the same three badge icons/labels the full
+                 newsletter's footer already establishes (img-22/23/24),
+                 plus a fourth NJ-specific credibility line, moved up here
+                 right before the ask instead of buried in the footer where
+                 it's easy to miss in a short email. -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td class="px-mobile" style="padding: 10px 40px 4px 40px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="panel" style="border-radius:10px;"><tr>
+                    <td align="center" style="padding: 16px 20px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+
+                        <td valign="middle" class="trust-cell" style="padding:0 14px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td valign="middle" style="padding-right:6px;">
+                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-outline-green" style="border-radius:50%;"><tr>
+                                <td align="center" valign="middle" style="width:24px; height:24px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-24.png?v=2" width="13" height="13" alt="" style="display:block; width:13px; height:13px; border:0;"></td>
+                              </tr></table>
+                            </td>
+                            <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700;" class="navy">HIPAA Compliant</td>
+                          </tr></table>
+                        </td>
+
+                        <td valign="middle" class="trust-cell" style="padding:0 14px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td valign="middle" style="padding-right:6px;">
+                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-outline-navy" style="border-radius:50%;"><tr>
+                                <td align="center" valign="middle" style="width:24px; height:24px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-22.png?v=2" width="13" height="13" alt="" style="display:block; width:13px; height:13px; border:0;"></td>
+                              </tr></table>
+                            </td>
+                            <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700;" class="navy">PHI Encrypted</td>
+                          </tr></table>
+                        </td>
+
+                        <td valign="middle" class="trust-cell" style="padding:0 14px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td valign="middle" style="padding-right:6px;">
+                              <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="badge-outline-green" style="border-radius:50%;"><tr>
+                                <td align="center" valign="middle" style="width:24px; height:24px;"><img src="https://progressive-app-vert.vercel.app/newsletter/assets/img-21.png?v=2" width="13" height="13" alt="" style="display:block; width:13px; height:13px; border:0;"></td>
+                              </tr></table>
+                            </td>
+                            <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 700;" class="navy">Built for NJ EIS</td>
+                          </tr></table>
+                        </td>
+
+                      </tr></table>
+                    </td>
+                  </tr></table>
+                </td>
+              </tr>
+            </table>
+
             <!-- Single CTA -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td class="px-mobile" align="center" style="padding: 12px 40px 32px 40px;">
+                <td class="px-mobile" align="center" style="padding: 20px 40px 32px 40px;">
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
                     <td class="btn-secondary" style="border-radius: 8px;">
                       <a href="https://izayaedge.com/eis/contact" class="btn-secondary" style="display:inline-block; padding: 13px 30px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; text-decoration: none; border-radius: 8px; white-space:nowrap;">
@@ -168,7 +229,7 @@
                     </td>
                   </tr></table>
                   <p style="margin:12px 0 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px;" class="ink-muted">
-                    No obligation. HIPAA compliant.
+                    No obligation. No credit card required.
                   </p>
                 </td>
               </tr>
