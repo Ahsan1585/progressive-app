@@ -83,11 +83,15 @@ function injectHead(shellHtml, meta) {
     <meta name="twitter:title" content="${escapeHtml(meta.title)}" />
     <meta name="twitter:description" content="${escapeHtml(meta.description)}" />`;
 
-  // The built index.html still has vite's static <title>Izaya EIS</title>
-  // from frontend/index.html — replace it rather than appending a second,
-  // conflicting title tag.
+  // The built index.html already carries frontend/index.html's static
+  // <title> and baseline <meta name="description"> (the fallback used if
+  // this script is ever skipped) — strip both before appending this
+  // route's real versions, or the page ships two conflicting description
+  // tags (caught in production: the fallback and the real one both showed
+  // up on /eis after the first deploy).
   return shellHtml
     .replace(/<title>.*?<\/title>/s, '')
+    .replace(/<meta\s+name="description"[^>]*\/?>/i, '')
     .replace('</head>', `${headExtras}\n  </head>`);
 }
 
