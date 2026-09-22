@@ -16,6 +16,7 @@
     { "source": "/eis/message.mp3", "destination": "/message.mp3" },
     { "source": "/eis/robots.txt", "destination": "/robots.txt" },
     { "source": "/eis/sitemap.xml", "destination": "/sitemap.xml" },
+    { "source": "/eis/newsletter/:path*", "destination": "/newsletter/:path*" },
     { "source": "/eis", "destination": "/index.html" },
     { "source": "/eis/how-it-works", "destination": "/how-it-works/index.html" },
     { "source": "/eis/download", "destination": "/download/index.html" },
