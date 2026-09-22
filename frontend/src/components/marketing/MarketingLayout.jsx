@@ -8,6 +8,7 @@ import '../../styles/marketing.css';
 import { MOBILE_APP_INSTALL_URL } from '../AuthLayout';
 import { MarketingNav } from './MarketingNav';
 import { MarketingFooter } from './MarketingFooter';
+import { PageMeta } from './PageMeta';
 
 const MOBILE_BANNER_SEEN_KEY = 'izaya-mobile-install-banner-seen';
 
@@ -29,6 +30,7 @@ export function MarketingLayout({ children }) {
 
   return (
     <div className="mk-page">
+      <PageMeta />
       <MarketingNav />
       <main>{children}</main>
       <MarketingFooter />

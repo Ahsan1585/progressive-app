@@ -1,0 +1,20 @@
+# Served at izayaedge.com/eis/robots.txt via this project's Vercel deploy.
+# NOTE: the domain root (izayaedge.com/robots.txt) is a separate Next.js
+# app not in this repo — it needs its own robots.txt that explicitly
+# allows /eis and points to /eis/sitemap.xml. See the deploy notes for
+# the exact rule to add there.
+User-agent: *
+Allow: /eis
+Allow: /eis/how-it-works
+Allow: /eis/download
+Allow: /eis/contact
+Disallow: /eis/login
+Disallow: /eis/dashboard
+Disallow: /eis/admin-dashboard
+Disallow: /eis/signup
+Disallow: /eis/platform-admin
+Disallow: /eis/change-password
+Disallow: /eis/forgot-password
+Disallow: /eis/reset-password
+
+Sitemap: https://izayaedge.com/eis/sitemap.xml
