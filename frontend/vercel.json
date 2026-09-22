@@ -37,6 +37,20 @@
         { "key": "Referrer-Policy", "value": "no-referrer" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
       ]
+    },
+    {
+      "//": "Newsletter HTML is a static, unauthenticated email-preview page whose images are hosted on progressive-app-vert.vercel.app, not izayaedge.com. The app-wide CSP above (img-src 'self' data: blob:) silently blocked every one of those images, since it applies to /(.*) with no exclusion. Overriding img-src here for /eis/newsletter/* only — every other directive (script-src, connect-src, etc.) stays as strict as the main app's, since this page has no scripts or forms of its own.",
+      "source": "/eis/newsletter/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self' data:; connect-src 'none'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"
+        },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "no-referrer" }
+      ]
     }
   ]
 }
