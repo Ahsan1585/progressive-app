@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "build:desktop": "vite build --mode desktop --outDir dist-desktop",
     "lint": "eslint .",
     "preview": "vite preview"
