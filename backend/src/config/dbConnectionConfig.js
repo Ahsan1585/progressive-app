@@ -35,10 +35,18 @@ function buildConnectionConfig(databaseName, credentialOverride) {
   // ever pointed at a real remote host over the open network. Now it's
   // disabled only for an actual loopback address (local dev); anything else
   // gets full certificate validation.
+  // A loopback host here is almost always the Cloud SQL Auth Proxy's local
+  // tunnel (or a plain local Postgres) — its socket doesn't speak TLS at
+  // all, so `ssl: { rejectUnauthorized: false }` (which still INITIATES an
+  // SSL handshake, just skips cert validation) fails outright with "The
+  // server does not support SSL connections". `ssl: false` skips the
+  // handshake entirely, which is what a loopback connection actually needs.
+  // Found while standing up a local staging environment against the Cloud
+  // SQL proxy for the independent-practitioner feature.
   const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
   return {
     connectionString: url.toString(),
-    ssl: isLocalHost ? { rejectUnauthorized: false } : { rejectUnauthorized: true },
+    ssl: isLocalHost ? false : { rejectUnauthorized: true },
   };
 }
 
