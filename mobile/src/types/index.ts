@@ -1,7 +1,7 @@
 // Shapes mirror the existing backend's actual responses exactly
 // (backend/src/controllers/*.js, backend/index.js) — no invented fields.
 
-export type Role = "practitioner" | "ceo" | "billing" | "staff_director";
+export type Role = "practitioner" | "ceo" | "billing" | "staff_director" | "independent_practitioner";
 
 export interface AuthPractitioner {
   id: string;
@@ -32,6 +32,10 @@ export interface Patient {
   last_service_date?: string | null;
   parent_name?: string | null;
   parent_email?: string | null;
+  /** Independent-practitioner-only — UX default only, seeds the log-session
+   *  form's company-affiliation field. Never authoritative for SEVF
+   *  grouping (each assessment's own company_affiliation is). */
+  last_company_affiliation?: string | null;
 }
 
 export interface Message {
@@ -94,6 +98,46 @@ export interface Invoice {
   end_date: string;
   paid: boolean;
   paid_at: string | null;
+}
+
+// Independent-practitioner-only SEVF self-certification (see
+// GET/POST /api/billing/independent/* in billingController.js). A single
+// generate request can legitimately produce several separate SEVFs — one
+// per (patient, company affiliation, calendar month) group.
+export interface SelfCertifiedSevfGroup {
+  key: string;
+  patientId: number;
+  patientName: string;
+  companyAffiliation: string | null;
+  month: string; // 'YYYY-MM'
+  sessionCount: number;
+}
+
+export interface GeneratedSevfResult {
+  batchId: string;
+  patientId: number;
+  patientName: string;
+  companyAffiliation: string | null;
+  month: string;
+  downloadUrl: string;
+}
+
+// GET /api/subscription/summary's shape for an independent practitioner's
+// account (computeFlatRatePeriodSummary) — a flat monthly price, not the
+// per-seat breakdown a tenant company's summary carries.
+export interface FlatSubscriptionSummary {
+  periodStart: string;
+  periodEnd: string;
+  nextBillingDate: string;
+  flatPrice: number;
+  totalAmount: number;
+}
+
+export interface SubscriptionPaymentMethod {
+  type: string;
+  brand: string | null;
+  last4: string | null;
+  exp: string | null;
 }
 
 export type BillingStatus =
@@ -243,6 +287,10 @@ export interface PractitionerProfile {
   address?: string | null;
   phone_number?: string | null;
   service_types?: string[] | null;
+  /** Only populated for role='independent_practitioner' (see
+   *  GET /api/practitioner/profile) — a normal tenant practitioner's own
+   *  rate is office-set and deliberately excluded from this response. */
+  pay_rate?: number | null;
   saved_signature?: string | null;
   // Mapped by the backend from saved_signature for convenience.
   signature?: string | null;

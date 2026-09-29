@@ -70,7 +70,7 @@ CREATE TABLE practitioners (
   -- catch-all 'staff'; what a 'staff' account can do now comes from its
   -- role_id -> roles/role_permissions (see migrations/add_roles_permissions.sql,
   -- which re-applies this identical constraint for already-provisioned tenants).
-  CONSTRAINT practitioners_role_check CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text]))
+  CONSTRAINT practitioners_role_check CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text, 'independent_practitioner'::text]))
 );
 ALTER SEQUENCE practitioners_id_seq OWNED BY practitioners.id;
 
@@ -104,6 +104,10 @@ CREATE TABLE patients (
   status text NOT NULL DEFAULT 'active',
   parent_name text,
   parent_email text,
+  -- UX default only (which agency this child was last billed to) — never
+  -- authoritative for billing; see assessments.company_affiliation and
+  -- add_independent_practitioner_support.sql.
+  last_company_affiliation text,
   PRIMARY KEY (id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
   CONSTRAINT patients_child_id_key UNIQUE (child_id),
@@ -151,11 +155,20 @@ CREATE TABLE assessments (
   held_at timestamp with time zone,
   reconciled_at timestamp with time zone,
   group_size_category text,
+  -- Which early intervention agency this specific session is billed to —
+  -- independent-practitioner-only (see add_independent_practitioner_support.sql);
+  -- always NULL for a normal tenant company's practitioner logs.
+  company_affiliation text,
   PRIMARY KEY (id),
   FOREIGN KEY (patient_id) REFERENCES patients(id),
   FOREIGN KEY (practitioner_id) REFERENCES practitioners(id),
   CONSTRAINT assessments_billing_review_check CHECK (billing_review = ANY (ARRAY['accept'::text, 'reject'::text, 'return'::text, 'hold'::text])),
-  CONSTRAINT assessments_group_size_category_check CHECK (group_size_category IS NULL OR group_size_category = ANY (ARRAY['individual'::text, 'consultation'::text]))
+  CONSTRAINT assessments_group_size_category_check CHECK (group_size_category IS NULL OR group_size_category = ANY (ARRAY['individual'::text, 'consultation'::text])),
+  CONSTRAINT assessments_billing_status_check CHECK (billing_status = ANY (ARRAY[
+    'pending'::text, 'njeis_review'::text, 'invoiced'::text,
+    'on_hold'::text, 'rejected'::text, 'declined'::text,
+    'self_certified'::text, 'completed'::text
+  ]))
 );
 ALTER SEQUENCE assessments_id_seq OWNED BY assessments.id;
 

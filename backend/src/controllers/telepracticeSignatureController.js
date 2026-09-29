@@ -45,6 +45,10 @@ const submitTelepracticeSession = async (req, res) => {
       practitionerSignatureBase64,
       custom_fields,
       note,
+      // Independent-practitioner-only — see docs on the independent-practitioner
+      // feature. Carried through this table until confirmTelepracticeSession()
+      // copies it into the real assessments row.
+      companyAffiliation,
     } = req.body;
 
     const finalTotalTime = total_time || totalTime || 0;
@@ -125,8 +129,8 @@ const submitTelepracticeSession = async (req, res) => {
          (practitioner_id, patient_id, patient_first_name, patient_last_name, patient_dob, patient_county,
           practitioner_first_name, practitioner_last_name, practitioner_discipline,
           service_date, start_time, end_time, total_time, session_status, type, location, group_size_category,
-          form_data, note, practitioner_signature, parent_email, token_hash, token_expires)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+          form_data, note, practitioner_signature, parent_email, token_hash, token_expires, company_affiliation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
        RETURNING id`,
       [
         trustedPractitionerId, patientId, patient_first_name, patient_last_name, patient_dob, patient_county,
@@ -134,6 +138,7 @@ const submitTelepracticeSession = async (req, res) => {
         date, startTime, endTime, finalTotalTime, status, type, location, groupSizeCategory || null,
         JSON.stringify({ custom_fields: sanitizedCustomFields }), note || null,
         practitionerSignatureBase64, parentEmail, tokenHash, tokenExpires,
+        req.practitioner.role === 'independent_practitioner' ? (companyAffiliation || null) : null,
       ]
     );
 
@@ -298,6 +303,11 @@ const confirmTelepracticeSession = async (req, res) => {
       parentSignatureBase64: request.parent_signature, practitionerSignatureBase64: request.practitioner_signature,
       sanitizedCustomFields: formData.custom_fields || {},
       note: request.note, authorId: practitionerId, authorRole: req.practitioner.role,
+      // Independent-practitioner-only — self-certify straight through, same
+      // as the normal /api/interventions path (see index.js), and carry the
+      // agency label from the request row into the real assessment.
+      billingStatus: req.practitioner.role === 'independent_practitioner' ? 'self_certified' : undefined,
+      companyAffiliation: request.company_affiliation,
     });
 
     await pool.query(

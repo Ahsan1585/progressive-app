@@ -26,6 +26,7 @@ const MIGRATIONS = [
   'add_realtime_messaging.sql',
   'add_platform_support_flag.sql',
   'widen_ssn_column_for_encryption.sql',
+  'add_independent_practitioner_support.sql',
 ];
 
 module.exports = { MIGRATIONS };

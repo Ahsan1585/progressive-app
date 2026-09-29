@@ -58,6 +58,11 @@ const Login = () => {
           navigate('/change-password');
         } else if (ADMIN_ROLES.includes(role)) {
           navigate('/admin-dashboard');
+        } else if (role === 'independent_practitioner') {
+          // The one legitimate reason this role logs into the web app at
+          // all — everything else (session logging, SEVF generation) is
+          // mobile-only for them too, same as a normal practitioner.
+          navigate('/billing/independent');
         } else {
           // Practitioners now use the mobile app exclusively — the legacy
           // web /dashboard is no longer reachable via login.

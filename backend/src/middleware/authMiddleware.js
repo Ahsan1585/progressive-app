@@ -42,7 +42,12 @@ const protect = (req, res, next) => {
       const trialExpired = company.status === 'trial' && company.trial_ends_at && new Date(company.trial_ends_at) < new Date();
       const isSuspended = company.status === 'suspended';
       const isSubscriptionRoute = req.originalUrl.startsWith('/api/subscription');
-      const ceoException = decoded.role === 'ceo' && isSubscriptionRoute;
+      // An independent practitioner pays their own subscription directly
+      // (no office ceo to do it for them), so they need the same lapsed-
+      // trial escape hatch a ceo gets — otherwise a lapsed independent
+      // practitioner is permanently locked out with no way to add a
+      // payment method and recover the account.
+      const ceoException = ['ceo', 'independent_practitioner'].includes(decoded.role) && isSubscriptionRoute;
       // Every role needs these two reachable regardless of trial/suspension
       // status, same reasoning as the BAA exemption below: the frontend
       // can't render the right blocking screen (or the sidebar/permissions
@@ -81,8 +86,10 @@ const protect = (req, res, next) => {
         || req.originalUrl.startsWith('/api/auth/company-status')
         || req.originalUrl.startsWith('/api/auth/me');
       if (!company.baa_accepted_at && !isBaaExemptRoute) {
+        // An independent practitioner has no administrator to wait on —
+        // they accept their own BAA directly, same as a ceo does.
         return res.status(403).json({
-          error: decoded.role === 'ceo'
+          error: ['ceo', 'independent_practitioner'].includes(decoded.role)
             ? 'A Business Associate Agreement must be accepted before continuing.'
             : "Your administrator needs to accept Izaya's Business Associate Agreement before you can continue.",
           code: 'BAA_REQUIRED',
@@ -106,6 +113,17 @@ const { pool } = require('../config/db');
 
 const loadPermissions = (req, res, next) => {
   if (req.practitioner.role === 'ceo') {
+    req.isAdmin = true;
+    req.permissions = new Set();
+    return next();
+  }
+  // An independent practitioner is CEO of their own single-seat company —
+  // full admin access (self-service dropdown/vocabulary config, own
+  // profile edits, billing) with no office-staff roles ever created to
+  // delegate to, so this mirrors the 'ceo' branch exactly rather than
+  // joining through roles/role_permissions (which assumes a multi-seat
+  // tenant's own roles table has meaningful rows to join against).
+  if (req.practitioner.role === 'independent_practitioner') {
     req.isAdmin = true;
     req.permissions = new Set();
     return next();
@@ -153,7 +171,11 @@ const requireAnyPermission = (...keys) => (req, res, next) => {
 };
 
 const requireOfficeStaff = (req, res, next) => {
-  if (req.practitioner?.role === 'practitioner') {
+  // An independent practitioner has no office staff — their single-seat
+  // company has nobody to be "the office side" of anything office-staff-
+  // gated (e.g. messaging), so they're excluded here exactly like a
+  // regular practitioner is.
+  if (['practitioner', 'independent_practitioner'].includes(req.practitioner?.role)) {
     return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
   }
   next();

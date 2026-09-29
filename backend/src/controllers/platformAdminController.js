@@ -17,7 +17,7 @@ async function tenantPoolForSlug(slug) {
 const listCompanies = async (req, res) => {
   try {
     const { rows } = await platformPool.query(
-      `SELECT slug, display_name, status, trial_ends_at, created_at, data_deleted_at
+      `SELECT slug, display_name, status, trial_ends_at, created_at, data_deleted_at, account_type
        FROM companies ORDER BY created_at DESC`
     );
     res.json({ success: true, companies: rows });
@@ -118,10 +118,30 @@ const setTrialEndDate = async (req, res) => {
 // just the cross-DB read for the platform-admin editor. Closed
 // subscription_invoices snapshot these values at close time, so an edit
 // only affects the current and future periods, never billed history.
+//
+// An independent-practitioner account has no per-seat pricing at all — it
+// pays a single flat monthly price (company_settings.subscription_flat_price,
+// see docs on the independent-practitioner feature) — so both functions
+// branch on account_type and return/accept a differently-shaped payload for
+// that case, discriminated by the `accountType` field in the response.
 const getCompanyPricing = async (req, res) => {
   try {
+    const { rows: companyRows } = await platformPool.query('SELECT account_type FROM companies WHERE slug = $1', [req.params.slug]);
+    if (!companyRows[0]) return res.status(404).json({ error: 'Company not found' });
+    const accountType = companyRows[0].account_type;
+
     const tenantPool = await tenantPoolForSlug(req.params.slug);
     if (!tenantPool) return res.status(404).json({ error: 'Company not found' });
+
+    if (accountType === 'independent') {
+      const { rows } = await tenantPool.query('SELECT subscription_flat_price FROM company_settings WHERE id = 1');
+      const row = rows[0] || {};
+      return res.json({
+        success: true,
+        pricing: { accountType: 'independent', flatPrice: Number(row.subscription_flat_price ?? 30) },
+      });
+    }
+
     const { rows } = await tenantPool.query(
       `SELECT subscription_price_per_practitioner, subscription_included_staff_seats,
               subscription_extra_staff_seat_price
@@ -131,6 +151,7 @@ const getCompanyPricing = async (req, res) => {
     res.json({
       success: true,
       pricing: {
+        accountType: 'tenant',
         pricePerPractitioner: Number(row.subscription_price_per_practitioner ?? 18),
         includedStaffSeats: Number(row.subscription_included_staff_seats ?? 5),
         extraStaffSeatPrice: Number(row.subscription_extra_staff_seat_price ?? 5),
@@ -143,21 +164,44 @@ const getCompanyPricing = async (req, res) => {
 };
 
 const setCompanyPricing = async (req, res) => {
-  const pricePerPractitioner = Number(req.body.pricePerPractitioner);
-  const includedStaffSeats = Number(req.body.includedStaffSeats);
-  const extraStaffSeatPrice = Number(req.body.extraStaffSeatPrice);
-
-  const validMoney = (n) => Number.isFinite(n) && n >= 0 && n <= 100000;
-  if (!validMoney(pricePerPractitioner) || !validMoney(extraStaffSeatPrice)) {
-    return res.status(400).json({ error: 'Prices must be numbers between 0 and 100000.' });
-  }
-  if (!Number.isInteger(includedStaffSeats) || includedStaffSeats < 0 || includedStaffSeats > 1000) {
-    return res.status(400).json({ error: 'Included staff seats must be a whole number between 0 and 1000.' });
-  }
-
   try {
+    const { rows: companyRows } = await platformPool.query('SELECT account_type FROM companies WHERE slug = $1', [req.params.slug]);
+    if (!companyRows[0]) return res.status(404).json({ error: 'Company not found' });
+    const accountType = companyRows[0].account_type;
+
     const tenantPool = await tenantPoolForSlug(req.params.slug);
     if (!tenantPool) return res.status(404).json({ error: 'Company not found' });
+
+    if (accountType === 'independent') {
+      const flatPrice = Number(req.body.flatPrice);
+      const validMoney = (n) => Number.isFinite(n) && n >= 0 && n <= 100000;
+      if (!validMoney(flatPrice)) {
+        return res.status(400).json({ error: 'flatPrice must be a number between 0 and 100000.' });
+      }
+      const { rows } = await tenantPool.query(
+        `UPDATE company_settings SET subscription_flat_price = $1, updated_at = now()
+         WHERE id = 1 RETURNING subscription_flat_price`,
+        [flatPrice.toFixed(2)]
+      );
+      if (!rows[0]) return res.status(404).json({ error: 'This company has no settings row yet.' });
+      return res.json({
+        success: true,
+        pricing: { accountType: 'independent', flatPrice: Number(rows[0].subscription_flat_price) },
+      });
+    }
+
+    const pricePerPractitioner = Number(req.body.pricePerPractitioner);
+    const includedStaffSeats = Number(req.body.includedStaffSeats);
+    const extraStaffSeatPrice = Number(req.body.extraStaffSeatPrice);
+
+    const validMoney = (n) => Number.isFinite(n) && n >= 0 && n <= 100000;
+    if (!validMoney(pricePerPractitioner) || !validMoney(extraStaffSeatPrice)) {
+      return res.status(400).json({ error: 'Prices must be numbers between 0 and 100000.' });
+    }
+    if (!Number.isInteger(includedStaffSeats) || includedStaffSeats < 0 || includedStaffSeats > 1000) {
+      return res.status(400).json({ error: 'Included staff seats must be a whole number between 0 and 1000.' });
+    }
+
     const { rows } = await tenantPool.query(
       `UPDATE company_settings
        SET subscription_price_per_practitioner = $1,
@@ -173,6 +217,7 @@ const setCompanyPricing = async (req, res) => {
     res.json({
       success: true,
       pricing: {
+        accountType: 'tenant',
         pricePerPractitioner: Number(rows[0].subscription_price_per_practitioner),
         includedStaffSeats: Number(rows[0].subscription_included_staff_seats),
         extraStaffSeatPrice: Number(rows[0].subscription_extra_staff_seat_price),

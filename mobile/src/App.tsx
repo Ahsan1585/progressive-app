@@ -4,7 +4,7 @@ import { useSystemColorScheme } from "@/hooks/useSystemColorScheme";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppDataProvider } from "@/contexts/AppDataContext";
 import { ToastProvider } from "@/components/ui/toast";
-import { RequireAuth, RequireForcedChange, RequireGuest } from "@/routes/guards";
+import { RequireAuth, RequireForcedChange, RequireGuest, RequireOffice } from "@/routes/guards";
 import { IdleGate } from "@/components/shell/IdleGate";
 import { BaaGate } from "@/components/shell/BaaGate";
 import { ShellLayout } from "@/components/shell/ShellLayout";
@@ -21,6 +21,7 @@ import Home from "@/pages/shell/Home";
 import Roster from "@/pages/shell/Roster";
 import Inbox from "@/pages/shell/Inbox";
 import Messages from "@/pages/shell/Messages";
+import Billing from "@/pages/shell/Billing";
 import Profile from "@/pages/shell/Profile";
 
 import AddPatient from "@/pages/AddPatient";
@@ -34,6 +35,8 @@ import ChangePasswordVoluntary from "@/pages/ChangePasswordVoluntary";
 import ManageSignature from "@/pages/ManageSignature";
 import EditContactInfo from "@/pages/EditContactInfo";
 import MyInvoices from "@/pages/MyInvoices";
+import GenerateSevf from "@/pages/GenerateSevf";
+import EditWorkDetails from "@/pages/EditWorkDetails";
 
 // Single shared instance of the auth/data/idle providers for every
 // authenticated route (shell tabs and pushed views alike) — mounted once at
@@ -136,7 +139,8 @@ function App() {
                 <Route path="/home" element={<Home />} />
                 <Route path="/roster" element={<Roster />} />
                 <Route path="/inbox" element={<Inbox />} />
-                <Route path="/messages" element={<Messages />} />
+                <Route path="/messages" element={<RequireOffice><Messages /></RequireOffice>} />
+                <Route path="/billing" element={<Billing />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
 
@@ -152,6 +156,8 @@ function App() {
               <Route path="/profile/signature" element={<ManageSignature />} />
               <Route path="/profile/contact-info" element={<EditContactInfo />} />
               <Route path="/profile/invoices" element={<MyInvoices />} />
+              <Route path="/generate-sevf" element={<GenerateSevf />} />
+              <Route path="/profile/work-details" element={<EditWorkDetails />} />
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />

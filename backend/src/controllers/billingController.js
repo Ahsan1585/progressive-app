@@ -8,6 +8,7 @@ const {
   listFilesDetailed,
 } = require('../config/storage');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
+const { buildNjeisPdfForGroup } = require('../utils/njeisFormFiller');
 const { getCompanyName } = require('../utils/companyName');
 const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { getDisciplineCode, mapDisciplineToCode } = require('../utils/disciplineCodes');
@@ -21,6 +22,7 @@ const {
 } = require('../constants/njeis');
 const { logAudit } = require('../utils/auditLog');
 const { normalizeForMatch, scoredNamesMatch } = require('../utils/textMatch');
+const { sendSevfToAgencyEmail } = require('../utils/emailClient');
 const path = require('path');
 
 // --- 1. NEW Standardized Path Helper ---
@@ -224,148 +226,16 @@ const generateNJEISForms = async (req, res) => {
     const templateBytes = fs.readFileSync(templatePath);
     const finalNjeisPdf = await PDFDocument.create();
 
+    // Fill/signature/county-overlay logic lives in njeisFormFiller.js,
+    // shared with generateSelfCertifiedSEVF below — see that file's header
+    // comment. This loop's behavior is unchanged from before the extraction:
+    // one combined, multi-patient PDF, groups merged in patient order.
     for (const patientId of Object.keys(groupedByPatient)) {
       const patientRecords = groupedByPatient[patientId];
-      for (let i = 0; i < patientRecords.length; i += 10) {
-        const chunk = patientRecords.slice(i, i + 10);
-        const pData = chunk[0];
-
-        const tempDoc = await PDFDocument.load(templateBytes);
-        const form = tempDoc.getForm();
-        const setUniformText = (fieldName, text) => {
-          try {
-            const field = form.getTextField(fieldName);
-            field.setText(text || '');
-            field.setFontSize(10);
-          } catch (e) { }
-        };
-
-        setUniformText('Service Provider Agency Name', companyName);
-        setUniformText('Practitioner Last Name', pData.practitioner_last_name);
-        setUniformText('Practitioner First Name', pData.practitioner_first_name);
-        setUniformText('Childs Last Name', pData.patient_last_name);
-        setUniformText('Childs First Name', pData.patient_first_name);
-        if (pData.patient_dob) {
-          const [by, bm, bd] = pData.patient_dob.split('-');
-          setUniformText('DOB', `${parseInt(bm)}/${parseInt(bd)}/${by}`);
-        } else {
-          setUniformText('DOB', '');
-        }
-        // County is a dropdown in the template — capture its rect now, draw plain text after flatten
-        const countyValue = pData.patients?.county || pData.patient_county || '';
-        let countyRect = null;
-        try {
-          countyRect = form.getField('County').acroField.getWidgets()[0].getRectangle();
-        } catch (e) {
-          setUniformText('County', countyValue); // fallback if it is a plain text field
-        }
-        setUniformText('Child ID', pData.patients?.child_id || pData.patient_id?.toString());
-        setUniformText('DisciplinePosition Title', getDisciplineCode(practitioner.position_title));
-        if (pData.service_date) {
-          const [my, mm] = pData.service_date.split('-');
-          setUniformText('MonthYear', `${mm}/${my}`);
-        }
-
-        chunk.forEach((session, index) => {
-          const rowNum = index + 1;
-          const [sy, sm, sd] = (session.service_date || '').split('-');
-          setUniformText(`Service date${rowNum}`, session.service_date ? `${parseInt(sm)}/${parseInt(sd)}/${sy.slice(-2)}` : '');
-          setUniformText(`Service StatusRow${rowNum}`, session.status?.toString());
-          setUniformText(`Service TypeRow${rowNum}`, session.type);
-          setUniformText(`Service LocationRow${rowNum}`, session.location?.toString());
-          setUniformText(`Start TimeRow${rowNum}`, formatTime12h(session.start_time));
-          setUniformText(`End TimeRow${rowNum}`, formatTime12h(session.end_time));
-          setUniformText(`Total TimeRow${rowNum}`, session.total_time?.toString());
-        });
-
-        // The date next to the practitioner's certification signature is the
-        // most recent service_date among this chunk's own rows (the actual
-        // sessions listed on this specific form) — not today's date, which
-        // is just whenever this PDF happened to be generated/regenerated.
-        const chunkDates = chunk.map((s) => s.service_date).filter(Boolean).sort();
-        const lastChunkDate = chunkDates[chunkDates.length - 1];
-        setUniformText('Date', lastChunkDate
-          ? new Date(`${lastChunkDate}T00:00:00`).toLocaleDateString()
-          : new Date().toLocaleDateString());
-        const pages = tempDoc.getPages();
-        const firstPage = pages[0];
-
-        if (pData.practitioner_signature) {
-          try {
-            // Scaled relative to the "Practitioner Signature" field's own box
-            // (same approach as the parent-signature loop below) rather than a
-            // fixed fraction of the source image's raw pixel size — the mobile
-            // app's signature pad captures at devicePixelRatio resolution
-            // (2-3x on most phones), so a fixed scale made mobile-drawn
-            // signatures come out several times too large and spill into the
-            // surrounding form text.
-            const pracSigField = form.getTextField('Practitioner Signature');
-            const rect = pracSigField.acroField.getWidgets()[0].getRectangle();
-            const practSigImage = await tempDoc.embedPng(pData.practitioner_signature);
-            const padding = 2;
-            const maxW = rect.width - padding * 2;
-            const maxH = rect.height - padding * 2;
-            const scale = Math.min(maxW / practSigImage.width, maxH / practSigImage.height) * 1.5;
-            const imgW = practSigImage.width * scale;
-            const imgH = practSigImage.height * scale;
-            const drawX = rect.x + (rect.width - imgW) / 2;
-            const drawY = rect.y + (rect.height - imgH) / 2;
-            firstPage.drawImage(practSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
-            firstPage.drawImage(practSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
-          } catch (e) { /* field not found */ }
-        }
-        for (let index = 0; index < chunk.length; index++) {
-          const rowNum = index + 1;
-          if (chunk[index].billing_status === 'rejected') {
-            setUniformText(`ParentCaregiver Signature Verifying Services ReceivedRow${rowNum}`, 'REJECTED');
-          } else if (chunk[index].parent_signature) {
-            try {
-              const sigField = form.getTextField(`ParentCaregiver Signature Verifying Services ReceivedRow${rowNum}`);
-              const rect = sigField.acroField.getWidgets()[0].getRectangle();
-              const parentSigImage = await tempDoc.embedPng(chunk[index].parent_signature);
-              const padding = 2;
-              const maxW = rect.width - padding * 2;
-              const maxH = rect.height - padding * 2;
-              // Signature source images are mostly blank canvas around a small
-              // stroke, so a tight fit-to-box scale still reads as tiny — enlarge
-              // beyond that and let it bleed slightly into the row's padding
-              // (still centered on the same cell), same as real ink overflowing a line.
-              const scale = Math.min(maxW / parentSigImage.width, maxH / parentSigImage.height) * 1.5;
-              const imgW = parentSigImage.width * scale;
-              const imgH = parentSigImage.height * scale;
-              const drawX = rect.x + (rect.width - imgW) / 2;
-              const drawY = rect.y + (rect.height - imgH) / 2;
-              // Draw twice — second pass darkens semi-transparent stroke pixels
-              firstPage.drawImage(parentSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
-              firstPage.drawImage(parentSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
-            } catch (e) { /* field not found for this row */ }
-          }
-        }
-        form.flatten();
-
-        // Draw county over the flattened dropdown (white cover + text on top)
-        if (countyRect && countyValue) {
-          const helvetica = await tempDoc.embedFont(StandardFonts.Helvetica);
-          firstPage.drawRectangle({
-            x: countyRect.x + 1,
-            y: countyRect.y + 1,
-            width: countyRect.width - 2,
-            height: countyRect.height - 2,
-            color: rgb(1, 1, 1),
-            borderWidth: 0,
-          });
-          firstPage.drawText(countyValue, {
-            x: countyRect.x + 3,
-            y: countyRect.y + (countyRect.height - 10) / 2,
-            size: 10,
-            font: helvetica,
-            color: rgb(0, 0, 0),
-          });
-        }
-
-        const [copiedPage] = await finalNjeisPdf.copyPages(tempDoc, [0]);
-        finalNjeisPdf.addPage(copiedPage);
-      }
+      const groupDoc = await buildNjeisPdfForGroup(templateBytes, patientRecords, companyName, practitioner);
+      const groupPageIndices = groupDoc.getPageIndices();
+      const copiedPages = await finalNjeisPdf.copyPages(groupDoc, groupPageIndices);
+      copiedPages.forEach((p) => finalNjeisPdf.addPage(p));
     }
 
     const njeisPdfBuffer = await finalNjeisPdf.save();
@@ -420,6 +290,237 @@ const generateNJEISForms = async (req, res) => {
   } catch (error) {
     console.error('Error generating NJEIS forms:', error);
     res.status(500).json({ success: false, error: 'Failed to generate NJEIS forms' });
+  }
+};
+
+// =========================================================================
+// --- INDEPENDENT PRACTITIONER SEVF SELF-CERTIFICATION ---
+// Reachable only by role='independent_practitioner' (see requireRole on the
+// route). No office review exists for this role — a logged session already
+// carries billing_status='self_certified' (see createAssessment.js), and
+// generating the SEVF is itself the finalizing action: no separate
+// complete-billing step. See docs on the independent-practitioner feature.
+// =========================================================================
+
+// Builds the composite grouping key used by both endpoints below — one SEVF
+// per (patient, company_affiliation, calendar month), since a SEVF sheet
+// can't mix agencies or months on one form. company_affiliation is treated
+// as '' when null/unset so ungrouped sessions still get a consistent key
+// (rather than colliding under JS's own undefined-vs-null-vs-'' quirks).
+function selfCertifiedGroupKey(record) {
+  const affiliation = record.company_affiliation || '';
+  const month = (record.service_date || '').slice(0, 7); // 'YYYY-MM'
+  return `${record.patient_id}::${affiliation}::${month}`;
+}
+
+function groupSelfCertifiedRecords(records) {
+  const groups = new Map();
+  for (const record of records) {
+    const key = selfCertifiedGroupKey(record);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  }
+  return groups;
+}
+
+// Shared SELECT for both getSelfCertifiedPending and generateSelfCertifiedSEVF —
+// the practitioner's own eligible logs, optionally narrowed by the same
+// three filters the mobile Generate SEVF screen exposes (date range,
+// specific patient(s), a single company affiliation).
+async function selectSelfCertifiedAssessments(practitionerId, { startDate, endDate, patientIds, companyAffiliation }) {
+  const params = [practitionerId];
+  let sql = `
+    SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
+    FROM assessments a
+    JOIN practitioners p ON p.id = a.practitioner_id
+    LEFT JOIN patients pt ON pt.id = a.patient_id
+    WHERE a.practitioner_id = $1 AND a.billing_status = 'self_certified' AND a.billing_batch_id IS NULL
+  `;
+  if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+  if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
+  if (Array.isArray(patientIds) && patientIds.length > 0) {
+    params.push(patientIds);
+    sql += ` AND a.patient_id = ANY($${params.length}::int[])`;
+  }
+  if (companyAffiliation) {
+    params.push(companyAffiliation);
+    sql += ` AND a.company_affiliation = $${params.length}`;
+  }
+  sql += ' ORDER BY a.service_date ASC';
+
+  const { rows } = await pool.query(sql, params);
+  return rows;
+}
+
+// GET /api/billing/independent/pending — preview of what Generate SEVF
+// would produce for the given filters, grouped the same way generation
+// groups, so the mobile screen can show "N SEVFs will be generated" with
+// per-group patient/agency/month/session-count before the practitioner
+// commits.
+const getSelfCertifiedPending = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { startDate, endDate, patientIds, companyAffiliation } = req.query;
+
+  try {
+    const parsedPatientIds = patientIds
+      ? String(patientIds).split(',').map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n))
+      : undefined;
+
+    const records = await selectSelfCertifiedAssessments(practitionerId, {
+      startDate, endDate, patientIds: parsedPatientIds, companyAffiliation,
+    });
+
+    const groups = groupSelfCertifiedRecords(records);
+    const preview = Array.from(groups.entries()).map(([key, groupRecords]) => {
+      const first = groupRecords[0];
+      return {
+        key,
+        patientId: first.patient_id,
+        patientName: `${first.patient_first_name || ''} ${first.patient_last_name || ''}`.trim(),
+        companyAffiliation: first.company_affiliation || null,
+        month: (first.service_date || '').slice(0, 7),
+        sessionCount: groupRecords.length,
+      };
+    });
+
+    res.json({ success: true, groups: preview });
+  } catch (error) {
+    console.error('Error fetching self-certified pending logs:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch pending logs' });
+  }
+};
+
+// POST /api/billing/independent/generate-sevf — generates one SEVF PDF per
+// (patient, company_affiliation, month) group, each its own billing_batches
+// row, and flips those logs straight to billing_status='completed'.
+const generateSelfCertifiedSEVF = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { startDate, endDate, patientIds, companyAffiliation } = req.body;
+
+  try {
+    const records = await selectSelfCertifiedAssessments(practitionerId, {
+      startDate, endDate, patientIds, companyAffiliation,
+    });
+    if (records.length === 0) {
+      return res.status(400).json({ success: false, error: 'No self-certified sessions match these filters.' });
+    }
+
+    const practitioner = records[0].practitioners;
+    const templatePath = path.join(__dirname, '..', '..', 'templates', 'NJEIS-020.pdf');
+    const templateBytes = fs.readFileSync(templatePath);
+
+    const groups = groupSelfCertifiedRecords(records);
+    const results = [];
+
+    for (const groupRecords of groups.values()) {
+      const first = groupRecords[0];
+      // Not getCompanyName() (that reads company_settings.display_name,
+      // which for an independent practitioner is their own name, not the
+      // agency this particular group of sessions is billed to — see docs
+      // on the independent-practitioner feature). Falls back to the
+      // practitioner's own name only if a session somehow has no
+      // affiliation set, so the form is never left with a blank agency field.
+      const companyNameForGroup = first.company_affiliation
+        || `${practitioner.first_name} ${practitioner.last_name}`.trim();
+
+      const groupDoc = await buildNjeisPdfForGroup(templateBytes, groupRecords, companyNameForGroup, practitioner);
+      const pdfBuffer = await groupDoc.save();
+
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const practName = `${practitioner.first_name}_${practitioner.last_name}`.replace(/\s+/g, '_');
+      const affiliationSlug = (first.company_affiliation || 'unaffiliated').replace(/[^a-zA-Z0-9]+/g, '_');
+      const timestamp = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${String(now.getMilliseconds()).padStart(3, '0')}`;
+      // Millisecond precision in the timestamp (unlike generateNJEISForms'
+      // second precision) since multiple groups from one request can
+      // otherwise generate within the same second and collide on filename.
+      const serviceDates = groupRecords.map((r) => r.service_date).filter(Boolean).sort();
+      const minDate = (serviceDates[0] || '').replace(/-/g, '');
+      const maxDate = (serviceDates[serviceDates.length - 1] || '').replace(/-/g, '');
+      const filePath = `${yearMonth}/${practName}/NJEIS_${affiliationSlug}_${minDate}_${maxDate}_${timestamp}.pdf`;
+
+      await uploadFile(BILLING_INVOICES_BUCKET, filePath, pdfBuffer, 'application/pdf');
+      const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, filePath, 3600);
+
+      const { rows: batchRows } = await pool.query(
+        `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [practitionerId, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath]
+      );
+      const batchRow = batchRows[0];
+
+      const groupIds = groupRecords.map((r) => r.id);
+      await pool.query(
+        "UPDATE assessments SET billing_status = 'completed', billing_batch_id = $1 WHERE id = ANY($2::int[])",
+        [batchRow.id, groupIds]
+      );
+
+      results.push({
+        batchId: batchRow.id,
+        patientId: first.patient_id,
+        patientName: `${first.patient_first_name || ''} ${first.patient_last_name || ''}`.trim(),
+        companyAffiliation: first.company_affiliation || null,
+        month: (first.service_date || '').slice(0, 7),
+        downloadUrl: signedUrl,
+      });
+    }
+
+    logAudit({
+      req, action: 'independent_sevf_generate', resourceType: 'billing_batch', resourceId: null,
+      details: { practitionerId, groupCount: results.length, assessmentCount: records.length },
+    });
+
+    res.json({ success: true, results, message: `${results.length} SEVF${results.length === 1 ? '' : 's'} generated successfully!` });
+  } catch (error) {
+    console.error('Error generating self-certified SEVF:', error);
+    res.status(500).json({ success: false, error: 'Failed to generate SEVF' });
+  }
+};
+
+// POST /api/billing/independent/email-sevf — emails an already-generated
+// SEVF PDF directly to the early intervention agency it was billed to, so a
+// practitioner whose agency hasn't enrolled with Izaya never has to print
+// and mail it. See emailClient.js's sendSevfToAgencyEmail for the required
+// practitioner-initiated disclosure wording.
+const emailSevfToAgency = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { batchId, agencyEmail } = req.body;
+
+  if (!batchId || !agencyEmail || !String(agencyEmail).trim()) {
+    return res.status(400).json({ success: false, error: 'batchId and agencyEmail are required.' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT b.id, b.njeis_path, p.first_name, p.last_name
+       FROM billing_batches b
+       JOIN practitioners p ON p.id = b.practitioner_id
+       WHERE b.id = $1 AND b.practitioner_id = $2`,
+      [batchId, practitionerId]
+    );
+    const batch = rows[0];
+    if (!batch) return res.status(404).json({ success: false, error: 'SEVF batch not found.' });
+    if (!batch.njeis_path) return res.status(400).json({ success: false, error: 'This batch has no SEVF on file.' });
+
+    const pdfBuffer = await downloadFile(BILLING_INVOICES_BUCKET, batch.njeis_path);
+    const practitionerName = `${batch.first_name} ${batch.last_name}`.trim();
+
+    await sendSevfToAgencyEmail(String(agencyEmail).trim(), {
+      practitionerName,
+      pdfBuffer,
+      pdfFilename: path.basename(batch.njeis_path),
+    });
+
+    logAudit({
+      req, action: 'sevf_emailed_to_agency', resourceType: 'billing_batch', resourceId: batchId,
+      details: { agencyEmail: String(agencyEmail).trim() },
+    });
+
+    res.json({ success: true, message: 'SEVF emailed to the agency.' });
+  } catch (error) {
+    console.error('Error emailing SEVF to agency:', error);
+    res.status(500).json({ success: false, error: 'Failed to email SEVF.' });
   }
 };
 
@@ -2225,6 +2326,9 @@ const decideMissingInEims = async (req, res) => {
 module.exports = {
   getPendingLogs,
   generateNJEISForms,
+  getSelfCertifiedPending,
+  generateSelfCertifiedSEVF,
+  emailSevfToAgency,
   generateFinancialInvoice,
   completeBilling,
   getInvoiceHistory,

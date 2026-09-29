@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Picker } from "@/components/Picker";
+import { CompanyAffiliationField } from "@/components/CompanyAffiliationField";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TelepracticeSentDialog } from "@/components/TelepracticeSentDialog";
@@ -33,6 +34,10 @@ interface FormState {
   groupSizeCategory: string;
   customFields: Record<string, string>;
   note: string;
+  /** Independent-practitioner-only — which agency this session is billed
+   *  to (see CompanyAffiliationField). Ignored/unused for a tenant
+   *  practitioner, whose form never renders this field. */
+  companyAffiliation: string;
 }
 
 const todayIso = localTodayIso;
@@ -54,10 +59,23 @@ export default function LogIntervention() {
   const draftId = searchParams.get("draftId");
   const navigate = useNavigate();
   const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories } = useAppData();
-  const { practitioner } = useAuth();
+  const { practitioner, isIndependentPractitioner } = useAuth();
   const { showToast } = useToast();
 
   const patient = patients.find((p) => p.id === patientId);
+
+  // Client-side "recently used" agency list — every distinct
+  // last_company_affiliation value across the practitioner's own patients,
+  // no dedicated backend endpoint (see CompanyAffiliationField's header
+  // comment / the independent-practitioner plan's "lightweight suggestion
+  // list" decision).
+  const knownAffiliations = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const p of patients) {
+      if (p.last_company_affiliation) set.add(p.last_company_affiliation);
+    }
+    return Array.from(set).sort();
+  }, [patients]);
 
   const customCategories = React.useMemo(
     () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
@@ -80,6 +98,7 @@ export default function LogIntervention() {
     groupSizeCategory: "individual",
     customFields: {},
     note: "",
+    companyAffiliation: patient?.last_company_affiliation || "",
   });
   const [zeroTime, setZeroTime] = React.useState(false);
   const [isTelepractice, setIsTelepractice] = React.useState(false);
@@ -124,6 +143,7 @@ export default function LogIntervention() {
           groupSizeCategory: saved.groupSizeCategory ?? f.groupSizeCategory,
           customFields: saved.customFields ?? f.customFields,
           note: saved.note ?? f.note,
+          companyAffiliation: saved.companyAffiliation ?? f.companyAffiliation,
         }));
         if (saved.zeroTime) setZeroTime(true);
         if (draft.parentSignatureBase64) setParentSig(draft.parentSignatureBase64);
@@ -164,6 +184,7 @@ export default function LogIntervention() {
   if (!form.type) missing.push("service type");
   if (!form.status) missing.push("status");
   if (!form.location) missing.push("location");
+  if (isIndependentPractitioner && !form.companyAffiliation) missing.push("agency");
   if (isTelepractice) {
     if (!patient?.parent_email) missing.push("parent email on file");
   } else if (!parentSig) {
@@ -204,7 +225,7 @@ export default function LogIntervention() {
     setAttemptedSubmit(true);
     setServerError(null);
     if (missing.length > 0) {
-      scrollToSection(!form.date || !form.startTime || !form.endTime ? "details" : !form.type || !form.status || !form.location ? "codes" : "signatures");
+      scrollToSection(!form.date || !form.startTime || !form.endTime ? "details" : !form.type || !form.status || !form.location || (isIndependentPractitioner && !form.companyAffiliation) ? "codes" : "signatures");
       return;
     }
 
@@ -237,6 +258,7 @@ export default function LogIntervention() {
         practitionerSignatureBase64: practitionerSig,
         custom_fields: form.customFields,
         note: form.note,
+        companyAffiliation: isIndependentPractitioner ? form.companyAffiliation : undefined,
       };
 
       if (isTelepractice) {
@@ -438,6 +460,14 @@ export default function LogIntervention() {
             options={groupSizeOptions}
             onChange={(v) => setField("groupSizeCategory", v)}
           />
+          {isIndependentPractitioner && (
+            <CompanyAffiliationField
+              value={form.companyAffiliation}
+              onChange={(v) => setField("companyAffiliation", v)}
+              knownAffiliations={knownAffiliations}
+              error={attemptedSubmit && !form.companyAffiliation ? "An agency is required." : null}
+            />
+          )}
           {customCategories.map((cat) => {
             const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
             return (

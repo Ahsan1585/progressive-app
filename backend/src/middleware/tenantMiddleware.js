@@ -3,7 +3,7 @@ const { runWithTenant } = require('../config/tenantContext');
 
 async function lookupCompanyBySlug(slug) {
   const { rows } = await platformPool.query(
-    `SELECT id, slug, display_name, tenant_db_name, status, trial_ends_at
+    `SELECT id, slug, display_name, tenant_db_name, status, trial_ends_at, account_type
      FROM companies WHERE slug = $1`,
     [slug]
   );

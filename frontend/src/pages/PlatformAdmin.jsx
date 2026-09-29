@@ -174,9 +174,14 @@ function TrialEndEditor({ company, client, onSaved }) {
 // from / writes to the tenant's own company_settings via the platform-admin
 // cross-DB endpoints. A change only affects the current and future billing
 // periods — closed invoices keep the rate they were generated with.
+// Response is a discriminated union on pricing.accountType — an
+// independent-practitioner account pays a single flat monthly price
+// (no per-seat concept at all), a normal tenant company pays the
+// per-practitioner/office-staff-seat breakdown. See
+// platformAdminController.js's getCompanyPricing/setCompanyPricing.
 function PricingEditor({ slug, client }) {
   const [pricing, setPricing] = useState(null);
-  const [form, setForm] = useState({ pricePerPractitioner: '', includedStaffSeats: '', extraStaffSeatPrice: '' });
+  const [form, setForm] = useState({ pricePerPractitioner: '', includedStaffSeats: '', extraStaffSeatPrice: '', flatPrice: '' });
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -186,11 +191,14 @@ function PricingEditor({ slug, client }) {
     client.get(`/api/platform/companies/${slug}/pricing`)
       .then(({ data }) => {
         setPricing(data.pricing);
-        setForm({
-          pricePerPractitioner: String(data.pricing.pricePerPractitioner),
-          includedStaffSeats: String(data.pricing.includedStaffSeats),
-          extraStaffSeatPrice: String(data.pricing.extraStaffSeatPrice),
-        });
+        setForm(data.pricing.accountType === 'independent'
+          ? { pricePerPractitioner: '', includedStaffSeats: '', extraStaffSeatPrice: '', flatPrice: String(data.pricing.flatPrice) }
+          : {
+              pricePerPractitioner: String(data.pricing.pricePerPractitioner),
+              includedStaffSeats: String(data.pricing.includedStaffSeats),
+              extraStaffSeatPrice: String(data.pricing.extraStaffSeatPrice),
+              flatPrice: '',
+            });
       })
       .catch((err) => setLoadError(err.response?.data?.error || 'Failed to load pricing.'));
   }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -199,11 +207,14 @@ function PricingEditor({ slug, client }) {
     setIsSaving(true);
     setSaveError('');
     try {
-      const { data } = await client.post(`/api/platform/companies/${slug}/pricing`, {
-        pricePerPractitioner: Number(form.pricePerPractitioner),
-        includedStaffSeats: Number(form.includedStaffSeats),
-        extraStaffSeatPrice: Number(form.extraStaffSeatPrice),
-      });
+      const payload = pricing.accountType === 'independent'
+        ? { flatPrice: Number(form.flatPrice) }
+        : {
+            pricePerPractitioner: Number(form.pricePerPractitioner),
+            includedStaffSeats: Number(form.includedStaffSeats),
+            extraStaffSeatPrice: Number(form.extraStaffSeatPrice),
+          };
+      const { data } = await client.post(`/api/platform/companies/${slug}/pricing`, payload);
       setPricing(data.pricing);
       setSavedAt(Date.now());
     } catch (err) {
@@ -218,23 +229,33 @@ function PricingEditor({ slug, client }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="space-y-1">
-          <Label htmlFor={`pp-${slug}`} className={DARK_LABEL}>$ / active practitioner / mo</Label>
-          <Input id={`pp-${slug}`} type="number" min="0" step="0.01" value={form.pricePerPractitioner}
-            onChange={(e) => setForm({ ...form, pricePerPractitioner: e.target.value })} className={`h-9 ${DARK_INPUT}`} />
+      {pricing.accountType === 'independent' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <Label htmlFor={`fp-${slug}`} className={DARK_LABEL}>$ / month (flat)</Label>
+            <Input id={`fp-${slug}`} type="number" min="0" step="0.01" value={form.flatPrice}
+              onChange={(e) => setForm({ ...form, flatPrice: e.target.value })} className={`h-9 ${DARK_INPUT}`} />
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor={`is-${slug}`} className={DARK_LABEL}>Included office-staff seats</Label>
-          <Input id={`is-${slug}`} type="number" min="0" step="1" value={form.includedStaffSeats}
-            onChange={(e) => setForm({ ...form, includedStaffSeats: e.target.value })} className={`h-9 ${DARK_INPUT}`} />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <Label htmlFor={`pp-${slug}`} className={DARK_LABEL}>$ / active practitioner / mo</Label>
+            <Input id={`pp-${slug}`} type="number" min="0" step="0.01" value={form.pricePerPractitioner}
+              onChange={(e) => setForm({ ...form, pricePerPractitioner: e.target.value })} className={`h-9 ${DARK_INPUT}`} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`is-${slug}`} className={DARK_LABEL}>Included office-staff seats</Label>
+            <Input id={`is-${slug}`} type="number" min="0" step="1" value={form.includedStaffSeats}
+              onChange={(e) => setForm({ ...form, includedStaffSeats: e.target.value })} className={`h-9 ${DARK_INPUT}`} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`es-${slug}`} className={DARK_LABEL}>$ / extra office-staff seat / mo</Label>
+            <Input id={`es-${slug}`} type="number" min="0" step="0.01" value={form.extraStaffSeatPrice}
+              onChange={(e) => setForm({ ...form, extraStaffSeatPrice: e.target.value })} className={`h-9 ${DARK_INPUT}`} />
+          </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor={`es-${slug}`} className={DARK_LABEL}>$ / extra office-staff seat / mo</Label>
-          <Input id={`es-${slug}`} type="number" min="0" step="0.01" value={form.extraStaffSeatPrice}
-            onChange={(e) => setForm({ ...form, extraStaffSeatPrice: e.target.value })} className={`h-9 ${DARK_INPUT}`} />
-        </div>
-      </div>
+      )}
       <div className="flex items-center gap-3">
         <Button type="button" size="sm" disabled={isSaving} onClick={handleSave} className="h-8 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold">
           {isSaving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
@@ -497,7 +518,14 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
                       {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
                   </td>
-                  <td className="px-3 py-3 font-semibold text-slate-100">{c.display_name}</td>
+                  <td className="px-3 py-3 font-semibold text-slate-100">
+                    {c.display_name}
+                    {c.account_type === 'independent' && (
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-cyan-700 text-cyan-400 bg-cyan-950/40">
+                        Independent
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 font-mono text-slate-400">{c.slug}</td>
                   <td className="px-3 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[c.status] || STATUS_STYLES.cancelled}`}>

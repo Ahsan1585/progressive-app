@@ -95,6 +95,12 @@ async function createAssessmentFromPayload({
   parentSignatureBase64, practitionerSignatureBase64,
   sanitizedCustomFields,
   note, authorId, authorRole,
+  // Independent-practitioner-only (see docs on the independent-practitioner
+  // feature) — callers pass 'self_certified' explicitly for that role;
+  // every other caller omits it and gets the table's real DEFAULT
+  // ('pending'), matched here in JS since Postgres's bare DEFAULT keyword
+  // can't be used inside an expression like COALESCE(...).
+  billingStatus, companyAffiliation,
 }) {
   await assertNoConflictingSession({ practitionerId, patientId, date, type, startTime, endTime });
 
@@ -103,8 +109,8 @@ async function createAssessmentFromPayload({
        (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
         practitioner_first_name, practitioner_last_name, practitioner_discipline,
         service_date, start_time, end_time, total_time, status, type, location, group_size_category,
-        parent_signature, practitioner_signature, form_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        parent_signature, practitioner_signature, form_data, billing_status, company_affiliation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
      RETURNING *`,
     [
       patientId, practitionerId, patient_first_name, patient_last_name, patient_dob, patient_county,
@@ -112,10 +118,19 @@ async function createAssessmentFromPayload({
       date, startTime, endTime, totalTime, status, type, location, groupSizeCategory || null,
       parentSignatureBase64, practitionerSignatureBase64,
       JSON.stringify({ custom_fields: sanitizedCustomFields || {} }),
+      billingStatus || 'pending', companyAffiliation || null,
     ]
   );
 
   const assessment = insertedRows[0];
+
+  // company_affiliation is independent-practitioner-only — update the
+  // patient's own "last used" default (a pure UX convenience for
+  // pre-filling the next log's field; never read for billing/SEVF grouping,
+  // which always uses this assessment row's own company_affiliation).
+  if (companyAffiliation) {
+    await pool.query('UPDATE patients SET last_company_affiliation = $1 WHERE id = $2', [companyAffiliation, patientId]);
+  }
 
   // Optional — surfaces in the same comment thread billing/admins already
   // see in Session Detail (getLogNotes), rather than a new separate field.

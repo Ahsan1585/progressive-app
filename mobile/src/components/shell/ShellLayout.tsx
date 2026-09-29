@@ -1,11 +1,14 @@
 import { Outlet } from "react-router-dom";
 import { TabBar } from "@/components/shell/TabBar";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useAuth } from "@/contexts/AuthContext";
 
-// The four tab-root screens (Home / Roster / Inbox / Profile) render inside
-// this shell. Pushed full-screen views mount outside it (own AppBar, no tab bar).
+// The five tab-root screens (Home / Roster / Inbox / Messages-or-Billing /
+// Profile) render inside this shell. Pushed full-screen views mount outside
+// it (own AppBar, no tab bar).
 export function ShellLayout() {
   const { rejectedLogs, telepracticeRequests, unreadMessageCount } = useAppData();
+  const { isIndependentPractitioner } = useAuth();
   // Only 'signed' telepractice requests count toward the "needs your
   // attention now" badge — an 'awaiting_signature' one is visible (on
   // Patient Detail) but not yet actionable by the practitioner.
@@ -15,7 +18,11 @@ export function ShellLayout() {
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <Outlet />
       </main>
-      <TabBar inboxCount={rejectedLogs.length + signedTelepracticeCount} messagesCount={unreadMessageCount} />
+      <TabBar
+        inboxCount={rejectedLogs.length + signedTelepracticeCount}
+        messagesCount={unreadMessageCount}
+        isIndependentPractitioner={isIndependentPractitioner}
+      />
     </div>
   );
 }

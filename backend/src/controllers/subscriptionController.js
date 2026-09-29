@@ -2,7 +2,10 @@ const { pool } = require('../config/db');
 const { platformPool } = require('../config/platformDb');
 const { runWithTenant, getCurrentTenantDb } = require('../config/tenantContext');
 const { getStripeClient, isStripeConfigured, isGooglePayConfigured } = require('../config/stripe');
-const { computeCurrentPeriodSummary, getSubscriptionSettings, getPreviousPeriodBounds, markOverdueInvoices } = require('../utils/subscriptionBilling');
+const {
+  computeCurrentPeriodSummary, getSubscriptionSettings, getPreviousPeriodBounds, markOverdueInvoices,
+  computeFlatRatePeriodSummary, getFlatSubscriptionSettings,
+} = require('../utils/subscriptionBilling');
 const { generateSubscriptionInvoicePdf } = require('../utils/subscriptionInvoicePdf');
 const { logAudit } = require('../utils/auditLog');
 
@@ -19,7 +22,12 @@ const getConfig = async (req, res) => {
 
 const getSummary = async (req, res) => {
   try {
-    const summary = await computeCurrentPeriodSummary();
+    // accountType rides on the JWT (see authController.js's loginPractitioner)
+    // — an independent practitioner's own single-seat tenant is billed a
+    // flat rate, never the per-seat calculation a real tenant company uses.
+    const summary = req.practitioner?.accountType === 'independent'
+      ? await computeFlatRatePeriodSummary()
+      : await computeCurrentPeriodSummary();
     res.json({ success: true, summary });
   } catch (error) {
     console.error('Error computing subscription summary:', error);
@@ -72,7 +80,9 @@ const getInvoicePdf = async (req, res) => {
 
 const getPaymentMethod = async (req, res) => {
   try {
-    const settings = await getSubscriptionSettings();
+    const settings = req.practitioner?.accountType === 'independent'
+      ? await getFlatSubscriptionSettings()
+      : await getSubscriptionSettings();
     res.json({
       success: true,
       paymentMethod: settings.defaultPaymentMethodId
@@ -207,12 +217,16 @@ const confirmPaymentMethod = async (req, res) => {
 // numbers (what gets computed) must come from the exact same date or they
 // silently drift apart (e.g. a June period getting July's activity counted
 // into it because `at` defaulted to "now").
-async function closePeriodInvoice(periodStart, periodEnd) {
+async function closePeriodInvoice(periodStart, periodEnd, accountType) {
+  const isIndependent = accountType === 'independent';
   // Noon UTC, not midnight — computeCurrentPeriodSummary resolves the
   // period from this instant's Eastern-time calendar date (see
   // subscriptionBilling.js's easternParts), and midnight UTC is already the
   // previous day on the US East Coast under any DST offset.
-  const summary = await computeCurrentPeriodSummary(new Date(`${periodStart}T12:00:00Z`));
+  const at = new Date(`${periodStart}T12:00:00Z`);
+  const summary = isIndependent
+    ? await computeFlatRatePeriodSummary(at)
+    : await computeCurrentPeriodSummary(at);
 
   const { rows: existing } = await pool.query(
     'SELECT id, status FROM subscription_invoices WHERE period_start = $1 AND period_end = $2',
@@ -224,12 +238,19 @@ async function closePeriodInvoice(periodStart, periodEnd) {
     throw err;
   }
 
+  // An independent practitioner's flat-rate row zeroes every per-seat
+  // column (they're all NOT NULL, no way to leave them empty) rather than
+  // populating them with numbers that would be misleading
+  // (active_practitioner_count=1, price_per_practitioner=30) for a concept
+  // ('practitioner seats billed by a company') that doesn't apply to them —
+  // account_type on the row is what actually distinguishes it; total_amount
+  // is the only monetary column both account types populate meaningfully.
   const { rows } = await pool.query(
     `INSERT INTO subscription_invoices
        (period_start, period_end, active_practitioner_count, price_per_practitioner, practitioner_charge,
         office_staff_count, included_staff_seats, extra_staff_seats, extra_staff_seat_price, extra_staff_charge,
-        total_amount, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending')
+        total_amount, status, account_type)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12)
      ON CONFLICT (period_start, period_end) DO UPDATE SET
        active_practitioner_count = EXCLUDED.active_practitioner_count,
        price_per_practitioner = EXCLUDED.price_per_practitioner,
@@ -239,18 +260,21 @@ async function closePeriodInvoice(periodStart, periodEnd) {
        extra_staff_seats = EXCLUDED.extra_staff_seats,
        extra_staff_seat_price = EXCLUDED.extra_staff_seat_price,
        extra_staff_charge = EXCLUDED.extra_staff_charge,
-       total_amount = EXCLUDED.total_amount
+       total_amount = EXCLUDED.total_amount,
+       account_type = EXCLUDED.account_type
      RETURNING *`,
-    [
-      periodStart, periodEnd, summary.activePractitionerCount, summary.pricePerPractitioner, summary.practitionerCharge,
-      summary.officeStaffCount, summary.includedStaffSeats, summary.extraStaffSeats, summary.extraStaffSeatPrice, summary.extraStaffCharge,
-      summary.totalAmount,
-    ]
+    isIndependent
+      ? [periodStart, periodEnd, 0, summary.flatPrice, 0, 0, 0, 0, 0, 0, summary.totalAmount, 'independent']
+      : [
+          periodStart, periodEnd, summary.activePractitionerCount, summary.pricePerPractitioner, summary.practitionerCharge,
+          summary.officeStaffCount, summary.includedStaffSeats, summary.extraStaffSeats, summary.extraStaffSeatPrice, summary.extraStaffCharge,
+          summary.totalAmount, 'tenant',
+        ]
   );
   let invoice = rows[0];
 
   const stripe = getStripeClient();
-  const settings = await getSubscriptionSettings();
+  const settings = isIndependent ? await getFlatSubscriptionSettings() : await getSubscriptionSettings();
   if (stripe && settings.stripeCustomerId && settings.defaultPaymentMethodId && Number(invoice.total_amount) > 0) {
     try {
       const paymentIntent = await stripe.paymentIntents.create({
@@ -289,7 +313,7 @@ const generateInvoice = async (req, res) => {
     const { periodStart: reqStart, periodEnd: reqEnd } = req.body || {};
     const { periodStart, periodEnd } = reqStart && reqEnd ? { periodStart: reqStart, periodEnd: reqEnd } : getPreviousPeriodBounds();
 
-    const invoice = await closePeriodInvoice(periodStart, periodEnd);
+    const invoice = await closePeriodInvoice(periodStart, periodEnd, req.practitioner?.accountType);
     logAudit({ req, action: 'subscription_invoice_generated', resourceType: 'subscription_invoice', resourceId: invoice.id, details: { periodStart, periodEnd, totalAmount: invoice.total_amount, status: invoice.status, trigger: 'manual' } });
     res.json({ success: true, invoice });
   } catch (error) {
@@ -466,13 +490,13 @@ const runScheduledBilling = async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
-    const { rows: companies } = await platformPool.query("SELECT slug, tenant_db_name FROM companies WHERE status IN ('trial', 'active')");
+    const { rows: companies } = await platformPool.query("SELECT slug, tenant_db_name, account_type FROM companies WHERE status IN ('trial', 'active')");
     const results = [];
-    for (const { slug, tenant_db_name } of companies) {
+    for (const { slug, tenant_db_name, account_type } of companies) {
       try {
         const invoice = await runWithTenant(tenant_db_name, async () => {
           const { periodStart, periodEnd } = getPreviousPeriodBounds();
-          const inv = await closePeriodInvoice(periodStart, periodEnd);
+          const inv = await closePeriodInvoice(periodStart, periodEnd, account_type);
           logAudit({ actorEmail: 'scheduler@izayaedge.com', actorRole: 'system', action: 'subscription_invoice_generated', resourceType: 'subscription_invoice', resourceId: inv.id, details: { periodStart, periodEnd, totalAmount: inv.total_amount, status: inv.status, trigger: 'scheduled' } });
           return inv;
         });

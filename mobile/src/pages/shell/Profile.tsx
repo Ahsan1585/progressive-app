@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, PenLine, LogOut, ChevronRight, Download, Camera, Phone, Receipt } from "lucide-react";
+import { KeyRound, PenLine, LogOut, ChevronRight, Download, Camera, Phone, Receipt, Briefcase } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -13,7 +13,7 @@ import { ImageCropSheet } from "@/components/ImageCropSheet";
 import { BrandLockup } from "@/components/shell/BrandLockup";
 
 export default function Profile() {
-  const { practitioner, logout } = useAuth();
+  const { practitioner, logout, isIndependentPractitioner } = useAuth();
   const { profile, profileLoading, profileError, fetchProfile, companyName } = useAppData();
   const navigate = useNavigate();
   const [confirmLogout, setConfirmLogout] = React.useState(false);
@@ -138,6 +138,18 @@ export default function Profile() {
           )}
           <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
         </button>
+
+        {isIndependentPractitioner && (
+          <button
+            type="button"
+            onClick={() => navigate("/profile/work-details")}
+            className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
+          >
+            <Briefcase className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+            <span className="flex-1 text-[15px] font-medium text-ink">Work details</span>
+            <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+          </button>
+        )}
 
         <button
           type="button"

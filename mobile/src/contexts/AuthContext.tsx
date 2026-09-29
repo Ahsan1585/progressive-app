@@ -12,6 +12,7 @@ interface AuthContextValue {
   practitioner: AuthPractitioner | null;
   requirePasswordChange: boolean;
   isPractitioner: boolean;
+  isIndependentPractitioner: boolean;
   /** Set once, non-null, after a logout so Login can show a one-time disclosure banner. */
   logoutBanner: LogoutReason | null;
   clearLogoutBanner: () => void;
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       practitioner,
       requirePasswordChange,
       isPractitioner: practitioner?.role === "practitioner",
+      isIndependentPractitioner: practitioner?.role === "independent_practitioner",
       logoutBanner,
       clearLogoutBanner,
       login,

@@ -33,6 +33,7 @@ const auditLogRoutes = require('./src/routes/auditLogRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
 const signupRoutes = require('./src/routes/signupRoutes');
+const independentSignupRoutes = require('./src/routes/independentSignupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
 const platformAuthRoutes = require('./src/routes/platformAuthRoutes');
 const platformBillingRoutes = require('./src/routes/platformBillingRoutes');
@@ -42,6 +43,7 @@ const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
 const marketingRoutes = require('./src/routes/marketingRoutes');
 const telepracticeSignatureRoutes = require('./src/routes/telepracticeSignatureRoutes');
+const instagramRoutes = require('./src/routes/instagramRoutes');
 const { stripeWebhook } = require('./src/controllers/subscriptionController');
 const { resendWebhook } = require('./src/controllers/resendWebhookController');
 const { markOverdueInvoices } = require('./src/utils/subscriptionBilling');
@@ -105,6 +107,7 @@ app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/dropdown-options', dropdownOptionsRoutes);
 app.use('/api/signup', signupRoutes);
+app.use('/api/independent-signup', independentSignupRoutes);
 // /auth must be mounted before the plain /api/platform prefix — both
 // routers listen on overlapping paths, and Express dispatches to whichever
 // matches first. platformAuthRoutes (login/bootstrap) must stay public;
@@ -115,6 +118,7 @@ app.use('/api/platform', platformAdminRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/marketing', marketingRoutes);
+app.use('/api/instagram', instagramRoutes);
 
 // NOTE: Practitioner registration is handled solely by the authenticated,
 // role-guarded route in src/routes/authRoutes.js (protect + requireRole).
@@ -162,6 +166,13 @@ app.post('/api/interventions', protect, async (req, res) => {
 
       // Optional free-text note the practitioner can attach at logging time
       note,
+
+      // Independent-practitioner-only: which early intervention agency this
+      // session is billed to (see docs on the independent-practitioner
+      // feature). Ignored/harmless if a tenant practitioner's client ever
+      // sent it, since createAssessmentFromPayload only uses it to set the
+      // company_affiliation column, meaningless outside SEVF generation.
+      companyAffiliation,
     } = req.body;
 
     const finalTotalTime = total_time || totalTime || 0;
@@ -189,6 +200,14 @@ app.post('/api/interventions', protect, async (req, res) => {
 
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
 
+    // An independent practitioner self-certifies — there is no office to
+    // review their logs, so these go straight to 'self_certified' instead
+    // of the normal 'pending' review-queue status (see docs on the
+    // independent-practitioner feature; billingController.js's
+    // generateSelfCertifiedSEVF is the only thing that ever reads this
+    // status for this role).
+    const isIndependentPractitioner = req.practitioner.role === 'independent_practitioner';
+
     const assessment = await createAssessmentFromPayload({
       patientId, practitionerId: trustedPractitionerId,
       patient_first_name, patient_last_name, patient_dob, patient_county,
@@ -198,6 +217,8 @@ app.post('/api/interventions', protect, async (req, res) => {
       parentSignatureBase64, practitionerSignatureBase64,
       sanitizedCustomFields,
       note, authorId: trustedPractitionerId, authorRole: req.practitioner.role,
+      billingStatus: isIndependentPractitioner ? 'self_certified' : undefined,
+      companyAffiliation: isIndependentPractitioner ? companyAffiliation : undefined,
     });
 
     res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: [assessment] });
@@ -218,10 +239,16 @@ app.post('/api/interventions', protect, async (req, res) => {
 app.get('/api/practitioner/profile', protect, async (req, res) => {
   try {
     const practitionerId = req.practitioner.practitionerId;
-    // Explicit allow-list — never return password_hash, ssn, or pay_rate to the client
+    // Explicit allow-list — never return password_hash, ssn, or pay_rate to
+    // the client. pay_rate is the one exception: a normal tenant
+    // practitioner's rate is office-set and genuinely not theirs to see
+    // here, but an independent practitioner sets their OWN rate at
+    // registration/in Work Details, so hiding it from their own profile
+    // view would make it impossible to display or re-edit.
+    const isIndependentPractitioner = req.practitioner.role === 'independent_practitioner';
     const { rows } = await pool.query(
       `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.position_title, p.address, p.phone_number,
-              p.saved_signature, p.service_types, p.profile_picture,
+              p.saved_signature, p.service_types, p.profile_picture${isIndependentPractitioner ? ', p.pay_rate' : ''},
               pcu.address AS pending_address, pcu.phone_number AS pending_phone_number, pcu.submitted_at AS pending_submitted_at
        FROM practitioners p
        LEFT JOIN pending_contact_updates pcu ON pcu.practitioner_id = p.id
@@ -297,6 +324,24 @@ app.patch('/api/practitioner/contact-info', protect, async (req, res) => {
     }
     if (phone_number !== undefined && typeof phone_number !== 'string') {
       return res.status(400).json({ error: 'phone_number must be a string' });
+    }
+
+    // An independent practitioner has no office/admin to approve this —
+    // they ARE the admin of their own single-seat company (see docs on the
+    // independent-practitioner feature), so their own change applies
+    // immediately instead of sitting in pending_contact_updates forever
+    // unresolved. Every other role keeps the existing approval-queue flow.
+    if (req.practitioner.role === 'independent_practitioner') {
+      const setClauses = [];
+      const params = [];
+      const addSet = (column, value) => { params.push(value); setClauses.push(`${column} = $${params.length}`); };
+      if (address !== undefined) addSet('address', address.trim());
+      if (phone_number !== undefined) addSet('phone_number', phone_number.trim());
+      if (setClauses.length > 0) {
+        params.push(practitionerId);
+        await pool.query(`UPDATE practitioners SET ${setClauses.join(', ')} WHERE id = $${params.length}`, params);
+      }
+      return res.json({ success: true, message: 'Contact information updated.' });
     }
 
     await pool.query(

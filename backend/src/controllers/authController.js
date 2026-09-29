@@ -23,6 +23,16 @@ const {
 // admin fills in every field except a password; the invitee gets a
 // one-time link and picks their own) ---
 const provisionPractitioner = async (req, res) => {
+  // An independent practitioner's tenant database is single-seat by design
+  // (see docs on the independent-practitioner feature) — the entire
+  // self-certified/no-office-review billing model assumes exactly one
+  // practitioner row ever exists there. Defense-in-depth: the mobile app
+  // never surfaces a "register staff" UI for this role, but block it here
+  // too in case the endpoint is ever called directly.
+  if (req.practitioner?.role === 'independent_practitioner') {
+    return res.status(403).json({ error: 'Independent practitioner accounts are single-seat and cannot register additional staff.' });
+  }
+
   const {
     firstName,
     lastName,
@@ -316,8 +326,12 @@ const loginPractitioner = async (req, res) => {
     // mounted ahead of this handler) — signed into the JWT so every later
     // authenticated request already knows which tenant database to use
     // without a platform-DB lookup on every request (see authMiddleware.js).
+    // accountType ('tenant' | 'independent') lets subscriptionController.js
+    // pick the flat-rate vs. per-seat billing path without an extra
+    // platform-DB round trip on every request — same reasoning as slug/
+    // tenantDb already being carried here instead of looked up per-call.
     const token = jwt.sign(
-      { practitionerId: user.id, email: user.email, role: user.role, slug: req.company.slug, tenantDb: req.company.tenant_db_name },
+      { practitionerId: user.id, email: user.email, role: user.role, slug: req.company.slug, tenantDb: req.company.tenant_db_name, accountType: req.company.account_type },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -408,7 +422,10 @@ const forgotPassword = async (req, res) => {
         // own app's reset screen instead. Both apps are served under the
         // /eis or /EIS base path (see frontend/vite.config.js and
         // mobile/vite.config.ts), so *_URL must include it.
-        const baseUrl = user.role === 'practitioner'
+        // An independent practitioner's only UI is also the mobile app —
+        // they never see the office web dashboard (no company/staff to
+        // administer there beyond their own single-seat account).
+        const baseUrl = ['practitioner', 'independent_practitioner'].includes(user.role)
           ? (process.env.MOBILE_APP_URL || 'http://localhost:5174/EIS')
           : (process.env.FRONTEND_URL || 'http://localhost:5173/eis');
         const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
@@ -585,7 +602,7 @@ const updateStaffProfile = async (req, res) => {
         ? service_types.filter(code => getValidServiceTypeCodes().includes(code))
         : [];
       const isOfficeStaff = position_title === 'Office Staff';
-      if (target.role === 'practitioner' && !isOfficeStaff && serviceTypes.length === 0) {
+      if (['practitioner', 'independent_practitioner'].includes(target.role) && !isOfficeStaff && serviceTypes.length === 0) {
         return res.status(400).json({ error: 'At least one service type is required.' });
       }
       addSet('service_types', serviceTypes);
@@ -746,6 +763,8 @@ async function getMe(req, res) {
   let roleName;
   if (req.practitioner.role === 'ceo') {
     roleName = 'Admin';
+  } else if (req.practitioner.role === 'independent_practitioner') {
+    roleName = 'Independent Practitioner';
   } else if (req.practitioner.role === 'practitioner') {
     roleName = 'Practitioner';
   } else {
