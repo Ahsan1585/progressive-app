@@ -11,6 +11,12 @@ import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import type { LoginResponse, ApiErrorBody } from "@/types";
 
+// No company registered with Izaya yet? Independent practitioners sign up
+// on the web (the marketing site + signup wizard live in frontend/, not
+// this app) — same cross-app link pattern as Billing.tsx's "Manage payment
+// method" link.
+const WEB_URL = (import.meta.env.VITE_FRONTEND_URL as string | undefined) || "https://izayaedge.com/eis";
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,7 +54,7 @@ export default function Login() {
         try { localStorage.setItem("companySlug", slug); } catch { /* ignore */ }
         clearLogoutBanner();
         login(res.data);
-        if (res.data.practitioner.role !== "practitioner") {
+        if (!["practitioner", "independent_practitioner"].includes(res.data.practitioner.role)) {
           navigate("/unsupported-role", { replace: true });
         } else if (res.data.requirePasswordChange) {
           navigate("/change-password", { replace: true });
@@ -198,6 +204,13 @@ export default function Login() {
         <Button type="submit" size="lg" className="w-full" loading={submitting}>
           Sign in
         </Button>
+
+        <p className="text-center text-sm text-ink-muted">
+          No company code?{" "}
+          <a href={`${WEB_URL}/practitioners`} className="font-medium text-primary">
+            Sign up as an independent practitioner
+          </a>
+        </p>
       </form>
 
       {installCard && <div className="mt-6">{installCard}</div>}

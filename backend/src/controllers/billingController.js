@@ -524,6 +524,117 @@ const emailSevfToAgency = async (req, res) => {
   }
 };
 
+// GET /api/billing/independent/history — every SEVF this practitioner has
+// ever generated, so a mistake (wrong agency/month, or logs that should
+// have been combined with others) can be found and reverted rather than
+// only being visible for the few seconds right after generating (see
+// generateSelfCertifiedSEVF's results array, which is lost on navigation).
+// One billing_batches row = one SEVF for this role (unlike the tenant
+// office flow's combined multi-patient PDF), so patient/affiliation/month
+// are read straight off that batch's own linked assessments.
+const getSelfCertifiedHistory = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    const { rows } = await pool.query(
+      `SELECT b.id AS batch_id, b.njeis_path, b.start_date, b.end_date, b.created_at,
+              a.patient_id, a.patient_first_name, a.patient_last_name, a.company_affiliation
+       FROM billing_batches b
+       JOIN assessments a ON a.billing_batch_id = b.id
+       WHERE b.practitioner_id = $1
+       ORDER BY b.created_at DESC, a.id ASC`,
+      [practitionerId]
+    );
+
+    // Collapse to one row per batch (the JOIN above returns one row per
+    // linked assessment — every row for a given batch already shares the
+    // same patient/affiliation, since that's the grouping key generation
+    // used, so the first row's values represent the whole batch).
+    const byBatch = new Map();
+    for (const row of rows) {
+      if (byBatch.has(row.batch_id)) continue;
+      byBatch.set(row.batch_id, {
+        batchId: row.batch_id,
+        patientId: row.patient_id,
+        patientName: `${row.patient_first_name || ''} ${row.patient_last_name || ''}`.trim(),
+        companyAffiliation: row.company_affiliation || null,
+        month: row.start_date ? String(row.start_date).slice(0, 7) : null,
+        generatedAt: row.created_at,
+      });
+    }
+
+    const batches = await Promise.all(
+      Array.from(byBatch.values()).map(async (b) => {
+        const batchRow = rows.find((r) => r.batch_id === b.batchId);
+        const downloadUrl = batchRow?.njeis_path
+          ? await getSignedUrl(BILLING_INVOICES_BUCKET, batchRow.njeis_path, 3600)
+          : null;
+        return { ...b, downloadUrl };
+      })
+    );
+
+    res.json({ success: true, batches });
+  } catch (error) {
+    console.error('Error fetching self-certified SEVF history:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch SEVF history.' });
+  }
+};
+
+// POST /api/billing/independent/revert-sevf — undoes a mistaken SEVF: the
+// linked sessions go back to billing_status='self_certified' (reappearing
+// in Generate SEVF's filter/preview, free to be regrouped with other
+// sessions), the batch row is deleted, and its PDF is removed from storage.
+// Mirrors the existing tenant-flow revertBillingBatch, adapted for this
+// role: reverts to 'self_certified' (not 'pending' — there is no office
+// review queue for this role to land back in), no paid_at guard (this
+// role's batches are never marked paid — that's a per-practitioner-pay
+// concept from the tenant invoice flow, meaningless here), and no
+// compliance_field_acknowledgments cleanup (that's the tenant office-
+// review compliance-matching feature, never touched by a self-certified
+// log). No time limit — the user confirmed this explicitly.
+const revertSelfCertifiedSEVF = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { batchId } = req.body;
+  if (!batchId) return res.status(400).json({ success: false, error: 'batchId is required.' });
+
+  try {
+    const { rows: batchRows } = await pool.query(
+      'SELECT id, njeis_path FROM billing_batches WHERE id = $1 AND practitioner_id = $2',
+      [batchId, practitionerId]
+    );
+    const batch = batchRows[0];
+    if (!batch) return res.status(404).json({ success: false, error: 'SEVF batch not found.' });
+
+    const { rows: revertedAssessments } = await pool.query(
+      "UPDATE assessments SET billing_status = 'self_certified', billing_batch_id = NULL WHERE billing_batch_id = $1 AND practitioner_id = $2 RETURNING id",
+      [batchId, practitionerId]
+    );
+
+    if (batch.njeis_path) {
+      try {
+        await removeFiles(BILLING_INVOICES_BUCKET, [batch.njeis_path]);
+      } catch (storageError) {
+        console.error('revertSelfCertifiedSEVF: storage delete error (continuing):', storageError);
+      }
+    }
+
+    await pool.query('DELETE FROM billing_batches WHERE id = $1', [batchId]);
+
+    logAudit({
+      req, action: 'independent_sevf_reverted', resourceType: 'billing_batch', resourceId: batchId,
+      details: { assessmentsReverted: revertedAssessments?.length || 0 },
+    });
+
+    res.json({
+      success: true,
+      message: 'SEVF reverted — sessions are ready to generate again.',
+      assessmentsReverted: revertedAssessments?.length || 0,
+    });
+  } catch (error) {
+    console.error('Error reverting self-certified SEVF:', error);
+    res.status(500).json({ success: false, error: 'Failed to revert SEVF.' });
+  }
+};
+
 // --- 4. STEP 2: Issue Financial Invoice ---
 const generateFinancialInvoice = async (req, res) => {
   const { practitionerId, startDate, endDate } = req.body;
@@ -2329,6 +2440,8 @@ module.exports = {
   getSelfCertifiedPending,
   generateSelfCertifiedSEVF,
   emailSevfToAgency,
+  getSelfCertifiedHistory,
+  revertSelfCertifiedSEVF,
   generateFinancialInvoice,
   completeBilling,
   getInvoiceHistory,

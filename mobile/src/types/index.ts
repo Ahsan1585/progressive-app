@@ -119,7 +119,10 @@ export interface GeneratedSevfResult {
   patientName: string;
   companyAffiliation: string | null;
   month: string;
-  downloadUrl: string;
+  downloadUrl: string | null;
+  /** Only present on GET /api/billing/independent/history rows, not on a
+   *  just-generated result from POST .../generate-sevf. */
+  generatedAt?: string;
 }
 
 // GET /api/subscription/summary's shape for an independent practitioner's

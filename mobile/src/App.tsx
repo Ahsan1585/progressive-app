@@ -36,6 +36,7 @@ import ManageSignature from "@/pages/ManageSignature";
 import EditContactInfo from "@/pages/EditContactInfo";
 import MyInvoices from "@/pages/MyInvoices";
 import GenerateSevf from "@/pages/GenerateSevf";
+import SevfHistory from "@/pages/SevfHistory";
 import EditWorkDetails from "@/pages/EditWorkDetails";
 
 // Single shared instance of the auth/data/idle providers for every
@@ -157,6 +158,7 @@ function App() {
               <Route path="/profile/contact-info" element={<EditContactInfo />} />
               <Route path="/profile/invoices" element={<MyInvoices />} />
               <Route path="/generate-sevf" element={<GenerateSevf />} />
+              <Route path="/sevf-history" element={<SevfHistory />} />
               <Route path="/profile/work-details" element={<EditWorkDetails />} />
             </Route>
 

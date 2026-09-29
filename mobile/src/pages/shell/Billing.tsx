@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FileText, ChevronRight, CreditCard, ExternalLink } from "lucide-react";
+import { FileText, ChevronRight, Clock, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -102,10 +102,15 @@ export default function Billing() {
         <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
       </button>
 
-      <div className="mt-4 flex items-center gap-3 rounded-card border border-border bg-surface-sunken p-4 opacity-60">
-        <CreditCard className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
-        <span className="flex-1 text-[15px] font-medium text-ink-muted">Invoice history — coming soon</span>
-      </div>
+      <button
+        type="button"
+        onClick={() => navigate("/sevf-history")}
+        className="press-scale mt-4 flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
+      >
+        <Clock className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+        <span className="flex-1 text-[15px] font-medium text-ink">SEVF History</span>
+        <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+      </button>
     </div>
   );
 }

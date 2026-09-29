@@ -15,7 +15,7 @@ const { platformPool } = require('../config/platformDb');
 const { getProvisioningPool } = require('../config/provisioningDb');
 const { evictTenantPool } = require('../config/tenantPoolRegistry');
 const { provisionTenantDatabase } = require('../utils/tenantProvisioning');
-const { RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup');
+const { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { sendIndependentSignupConfirmationEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
@@ -24,11 +24,15 @@ const { DISCIPLINE_CODE_MAP, getDisciplineCode } = require('../utils/disciplineC
 const CONFIRM_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
-// An independent practitioner never types/picks their own slug (unlike a
-// tenant company's user-chosen company code) — it's an internal identifier
-// only, so any collision is retried silently rather than surfaced as a
-// user-facing conflict. Same character set the platform DB's
-// companies_slug_format_check enforces: [a-z0-9-]{3,40}.
+// The independent practitioner picks their own login code (same field
+// tenant companies call "Company Code"), so they actually know what to type
+// at login instead of it being an opaque generated string only discoverable
+// by querying the database — the exact gap this replaces. Same format rule
+// as tenant signup (SLUG_REGEX/RESERVED_SLUGS, enforced in
+// validateIndependentSignupPayload below) so both flows share one mental
+// model. A name-derived suggestion is still offered client-side (see
+// IndependentSignupWizard.jsx) purely as a starting point to edit, not
+// silently substituted server-side.
 function slugify(name) {
   return String(name || '')
     .toLowerCase()
@@ -37,19 +41,14 @@ function slugify(name) {
     .slice(0, 20) || 'practitioner';
 }
 
-async function generateUniqueSlug(fullName) {
-  const base = `ip-${slugify(fullName)}`;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const suffix = crypto.randomBytes(3).toString('hex'); // 6 hex chars
-    const candidate = `${base}-${suffix}`.slice(0, 40);
-    if (RESERVED_SLUGS.has(candidate)) continue;
-    const { rows } = await platformPool.query('SELECT 1 FROM companies WHERE slug = $1', [candidate]);
-    if (!rows[0]) return candidate;
-  }
-  throw new Error('Could not generate a unique slug after 10 attempts.');
-}
-
 function validateIndependentSignupPayload(body) {
+  const slug = String(body.slug || '').toLowerCase().trim();
+  if (!SLUG_REGEX.test(slug)) {
+    return 'Login code must be 3-40 characters, lowercase letters/numbers/hyphens only.';
+  }
+  if (RESERVED_SLUGS.has(slug)) {
+    return 'This login code is reserved — please choose another.';
+  }
   if (!body.firstName || !String(body.firstName).trim()) return 'First name is required.';
   if (!body.lastName || !String(body.lastName).trim()) return 'Last name is required.';
   if (!body.email || !String(body.email).trim()) return 'Email is required.';
@@ -80,6 +79,10 @@ const requestIndependentSignup = async (req, res) => {
     const validationError = validateIndependentSignupPayload(req.body);
     if (validationError) return res.status(400).json({ error: validationError });
 
+    const slug = String(req.body.slug).toLowerCase().trim();
+    const { rows: existingSlug } = await platformPool.query('SELECT 1 FROM companies WHERE slug = $1', [slug]);
+    if (existingSlug[0]) return res.status(409).json({ error: 'This login code is already taken.' });
+
     const email = String(req.body.email).trim().toLowerCase();
     const { rows: existingByEmail } = await platformPool.query(
       'SELECT 1 FROM pending_signups WHERE ceo_email = $1 UNION SELECT 1 FROM companies WHERE email = $1',
@@ -88,7 +91,6 @@ const requestIndependentSignup = async (req, res) => {
     if (existingByEmail[0]) return res.status(409).json({ error: 'An account with this email already exists or is pending confirmation.' });
 
     const fullName = `${req.body.firstName.trim()} ${req.body.lastName.trim()}`;
-    const slug = await generateUniqueSlug(fullName);
     const passwordHash = await bcrypt.hash(req.body.password, await bcrypt.genSalt(10));
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -105,7 +107,14 @@ const requestIndependentSignup = async (req, res) => {
          (slug, display_name, email, ceo_first_name, ceo_last_name, ceo_email, ceo_password_hash,
           baa_accepted_at, baa_accepted_by_name, baa_accepted_by_email,
           confirm_token_hash, confirm_token_expires, account_type, discipline, pay_rate, address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14)
+       ON CONFLICT (slug) DO UPDATE SET
+         display_name = EXCLUDED.display_name, email = EXCLUDED.email,
+         ceo_first_name = EXCLUDED.ceo_first_name, ceo_last_name = EXCLUDED.ceo_last_name,
+         ceo_email = EXCLUDED.ceo_email, ceo_password_hash = EXCLUDED.ceo_password_hash,
+         baa_accepted_at = now(), baa_accepted_by_name = EXCLUDED.baa_accepted_by_name, baa_accepted_by_email = EXCLUDED.baa_accepted_by_email,
+         confirm_token_hash = EXCLUDED.confirm_token_hash, confirm_token_expires = EXCLUDED.confirm_token_expires,
+         account_type = EXCLUDED.account_type, discipline = EXCLUDED.discipline, pay_rate = EXCLUDED.pay_rate, address = EXCLUDED.address`,
       [
         slug, fullName, email, req.body.firstName.trim(), req.body.lastName.trim(), email, passwordHash,
         req.body.baaAcceptedByName.trim(), req.body.baaAcceptedByEmail.trim(),

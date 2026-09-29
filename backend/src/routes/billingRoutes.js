@@ -9,6 +9,8 @@ const {
   getSelfCertifiedPending,
   generateSelfCertifiedSEVF,
   emailSevfToAgency,
+  getSelfCertifiedHistory,
+  revertSelfCertifiedSEVF,
   generateFinancialInvoice,
   completeBilling,
   getInvoiceHistory,
@@ -66,6 +68,8 @@ const independentGuard = [protect, loadPermissions, requireRole(['independent_pr
 router.get('/independent/pending',        ...independentGuard, getSelfCertifiedPending);
 router.post('/independent/generate-sevf', ...independentGuard, generateSelfCertifiedSEVF);
 router.post('/independent/email-sevf',    ...independentGuard, emailSevfToAgency);
+router.get('/independent/history',        ...independentGuard, getSelfCertifiedHistory);
+router.post('/independent/revert-sevf',   ...independentGuard, revertSelfCertifiedSEVF);
 
 router.get('/pending-logs',      ...pendingGuard, getPendingLogs);
 router.get('/practitioner-logs', ...pendingGuard, getPractitionerLogs);

@@ -15,6 +15,18 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 const isPasswordStrong = (pw) =>
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(pw);
 
+// Mirrors backend/src/constants/signup.js's SLUG_REGEX.
+const SLUG_REGEX = /^[a-z0-9-]{3,40}$/;
+
+// Suggests a starting point for the login code from the practitioner's own
+// name (e.g. "Jamie Rivera" -> "jamie-rivera") — auto-filled once both name
+// fields are set, but always editable; never silently substituted like the
+// old auto-generated-slug approach was.
+const slugSuggestion = (firstName, lastName) => {
+  const raw = `${firstName} ${lastName}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return raw.slice(0, 30);
+};
+
 // Mirrors backend/src/utils/disciplineCodes.js's DISCIPLINE_CODE_MAP keys —
 // an independent practitioner has no tenant dropdown vocabulary yet at
 // signup time, so this is the same small fixed starter list the backend
@@ -63,17 +75,34 @@ const IndependentSignupWizard = () => {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', discipline: '', payRate: '', address: '',
     baaAcceptedByName: '', baaAcceptedByEmail: '', baaAccepted: false,
+    slug: '', slugTouched: false,
     password: '', confirmPassword: '',
   });
   const set = (field) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm((f) => ({ ...f, [field]: value }));
+    setForm((f) => {
+      const next = { ...f, [field]: value };
+      // Keep the login-code suggestion in sync with name changes until the
+      // practitioner has actually edited it themselves — after that, their
+      // own choice always wins, name changes never overwrite it again.
+      if ((field === 'firstName' || field === 'lastName') && !f.slugTouched) {
+        next.slug = slugSuggestion(field === 'firstName' ? value : f.firstName, field === 'lastName' ? value : f.lastName);
+      }
+      return next;
+    });
+  };
+  const setSlug = (e) => {
+    const value = e.target.value.toLowerCase();
+    setForm((f) => ({ ...f, slug: value, slugTouched: true }));
   };
 
   const validateStep = (s) => {
     if (s === 0) {
       if (!form.firstName.trim() || !form.lastName.trim()) return 'Your first and last name are required.';
       if (!form.email.trim()) return 'Email is required.';
+      if (!SLUG_REGEX.test(form.slug.trim())) {
+        return 'Login code must be 3-40 characters, lowercase letters/numbers/hyphens only.';
+      }
       if (!form.discipline) return 'Please select your discipline.';
       const rate = Number(form.payRate);
       if (!form.payRate || Number.isNaN(rate) || rate < 0) return 'A valid hourly rate is required.';
@@ -120,7 +149,8 @@ const IndependentSignupWizard = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      await api.post('/api/independent-signup', form);
+      const { slugTouched, ...payload } = form;
+      await api.post('/api/independent-signup', { ...payload, slug: payload.slug.trim().toLowerCase() });
       setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to sign up. Please try again.');
@@ -135,6 +165,9 @@ const IndependentSignupWizard = () => {
         <div className="text-center space-y-6">
           <div className="bg-teal-50 border-l-4 border-teal-600 p-4 rounded-lg text-sm text-teal-800 font-medium text-left">
             Check your email to confirm your signup and finish setting up your account. Your 15-day free trial starts once you confirm.
+          </div>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700 text-left">
+            Your login code is <span className="font-mono font-bold text-slate-900">{form.slug}</span> — you'll need this along with your email and password to sign in.
           </div>
           <Link to="/" className="inline-block font-semibold text-cyan-700 hover:underline">
             Back to Sign In
@@ -171,6 +204,21 @@ const IndependentSignupWizard = () => {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={form.email} onChange={set('email')} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="slug">Login Code</Label>
+              <Input
+                id="slug"
+                placeholder="your-name"
+                value={form.slug}
+                onChange={setSlug}
+                autoCapitalize="none"
+                autoCorrect="off"
+                required
+              />
+              <p className="text-xs text-slate-500">
+                Lowercase letters, numbers, and hyphens only — this is what you'll type to sign in, so pick something you'll remember.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Discipline</Label>

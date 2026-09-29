@@ -1,6 +1,7 @@
 import * as React from "react";
 import { FileText, Send, Printer, FolderOpen } from "lucide-react";
 import api from "@/api/axiosInstance";
+import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { CompanyAffiliationFilter } from "@/components/CompanyAffiliationFilter";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -22,9 +24,21 @@ import type { SelfCertifiedSevfGroup, GeneratedSevfResult, ApiErrorBody } from "
 // preview below) and "generated" (the results list with print/email actions).
 export default function GenerateSevf() {
   const { showToast } = useToast();
+  const { patients } = useAppData();
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [companyAffiliation, setCompanyAffiliation] = React.useState("");
+
+  // Same "recently used" source as LogIntervention.tsx's CompanyAffiliationField
+  // — every distinct agency name across the practitioner's own patients, no
+  // dedicated backend endpoint.
+  const knownAffiliations = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const p of patients) {
+      if (p.last_company_affiliation) set.add(p.last_company_affiliation);
+    }
+    return Array.from(set).sort();
+  }, [patients]);
 
   const [groups, setGroups] = React.useState<SelfCertifiedSevfGroup[]>([]);
   const [isLoadingPreview, setIsLoadingPreview] = React.useState(true);
@@ -84,6 +98,10 @@ export default function GenerateSevf() {
   };
 
   const handlePrint = (result: GeneratedSevfResult) => {
+    if (!result.downloadUrl) {
+      showToast("This SEVF's file couldn't be found.", "error");
+      return;
+    }
     // Same synchronous-window.open-before-await pattern as MyInvoices.tsx's
     // handleView — iOS Safari (including installed PWA mode) blocks
     // window.open() once anything async happens first.
@@ -132,15 +150,11 @@ export default function GenerateSevf() {
                 <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="companyAffiliation" className="text-xs">Agency (optional)</Label>
-              <Input
-                id="companyAffiliation"
-                placeholder="All agencies"
-                value={companyAffiliation}
-                onChange={(e) => setCompanyAffiliation(e.target.value)}
-              />
-            </div>
+            <CompanyAffiliationFilter
+              value={companyAffiliation}
+              onChange={setCompanyAffiliation}
+              knownAffiliations={knownAffiliations}
+            />
           </div>
         )}
 
