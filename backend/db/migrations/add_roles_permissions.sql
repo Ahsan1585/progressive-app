@@ -103,7 +103,15 @@ ALTER TABLE practitioners DROP CONSTRAINT IF EXISTS practitioners_role_check;
 UPDATE practitioners SET role = 'staff' WHERE role IN ('staff_director', 'billing', 'account_specialist');
 
 -- Re-add the tightened legacy role check now that every row is already one
--- of 'practitioner'/'ceo'/'staff' — this is where 'staff' actually becomes a
--- permitted value for the first time.
+-- of 'practitioner'/'ceo'/'staff'/'independent_practitioner' — this is
+-- where 'staff' actually becomes a permitted value for the first time.
+-- 'independent_practitioner' is included here too (not just in
+-- add_independent_practitioner_support.sql's own ADD CONSTRAINT) because
+-- runMigrations.js re-applies every migration file on every boot, to
+-- every tenant — without it here, this DROP+ADD would narrow the
+-- constraint back down and reject any independent-practitioner tenant's
+-- own row the moment this file re-runs, even though that migration
+-- widened the constraint correctly the first time. See docs on the
+-- independent-practitioner feature.
 ALTER TABLE practitioners ADD CONSTRAINT practitioners_role_check
-  CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text]));
+  CHECK (role = ANY (ARRAY['practitioner'::text, 'ceo'::text, 'staff'::text, 'independent_practitioner'::text]));
