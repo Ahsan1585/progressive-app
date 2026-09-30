@@ -258,39 +258,52 @@ const sendIndependentSignupConfirmationEmail = async (toEmail, { confirmUrl, pra
 };
 
 // Independent-practitioner-only (see docs on the independent-practitioner
-// feature): emails an already-generated SEVF PDF directly to the early
-// intervention agency it was billed to — the "skip the mail" flow for a
-// practitioner whose agency hasn't enrolled with Izaya. Sent from Izaya's
-// own infrastructure, but the copy must read as clearly practitioner-
-// initiated, not an Izaya solicitation — no upsell CTA, minimal branding.
-const sendSevfToAgencyEmail = async (agencyEmail, { practitionerName, pdfBuffer, pdfFilename }) => {
+// feature): emails an already-generated SEVF (and, since each SEVF now has
+// an invoice generated alongside it — see generateSelfCertifiedSEVF — its
+// matching invoice too) directly to the early intervention agency it was
+// billed to — the "skip the mail" flow for a practitioner whose agency
+// hasn't enrolled with Izaya. Sent from Izaya's own infrastructure, but the
+// copy must read as clearly practitioner-initiated, not an Izaya
+// solicitation — no upsell CTA, minimal branding. invoiceBuffer/
+// invoiceFilename are optional so older batches generated before invoices
+// existed on this flow still send their SEVF alone rather than erroring.
+const sendSevfToAgencyEmail = async (agencyEmail, { practitionerName, pdfBuffer, pdfFilename, invoiceBuffer, invoiceFilename }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping SEVF-to-agency email send.');
     return;
   }
+  const hasInvoice = !!invoiceBuffer;
   const bodyHtml = `
-    <p style="margin:0;">This SEVF is being shared on behalf of <b style="color:${COLORS.navy};">${practitionerName}</b> for services they provided to your agency.</p>
-    <p style="margin:16px 0 0;">The completed Service Verification Form is attached as a PDF.</p>
+    <p style="margin:0;">This SEVF${hasInvoice ? ' and invoice are' : ' is'} being shared on behalf of <b style="color:${COLORS.navy};">${practitionerName}</b> for services they provided to your agency.</p>
+    <p style="margin:16px 0 0;">The completed Service Verification Form${hasInvoice ? ' and invoice are' : ' is'} attached as ${hasInvoice ? 'PDFs' : 'a PDF'}.</p>
   `;
   const html = emailShell({
-    preheader: `${practitionerName} shared a SEVF with your agency.`,
-    eyebrow: 'SEVF shared',
-    heading: 'A practitioner has shared their SEVF with you',
+    preheader: `${practitionerName} shared a SEVF${hasInvoice ? ' and invoice' : ''} with your agency.`,
+    eyebrow: hasInvoice ? 'SEVF & invoice shared' : 'SEVF shared',
+    heading: `A practitioner has shared their SEVF${hasInvoice ? ' and invoice' : ''} with you`,
     bodyHtml,
     footnote: `This email was sent at ${practitionerName}'s request via Izaya EIS, the billing platform they use to log sessions.`,
   });
+  const attachments = [
+    {
+      filename: pdfFilename || 'SEVF.pdf',
+      content: pdfBuffer.toString('base64'),
+      contentType: 'application/pdf',
+    },
+  ];
+  if (hasInvoice) {
+    attachments.push({
+      filename: invoiceFilename || 'Invoice.pdf',
+      content: invoiceBuffer.toString('base64'),
+      contentType: 'application/pdf',
+    });
+  }
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
     to: agencyEmail,
-    subject: `SEVF from ${practitionerName}`,
+    subject: `SEVF${hasInvoice ? ' & invoice' : ''} from ${practitionerName}`,
     html,
-    attachments: [
-      {
-        filename: pdfFilename || 'SEVF.pdf',
-        content: pdfBuffer.toString('base64'),
-        contentType: 'application/pdf',
-      },
-    ],
+    attachments,
   });
 };
 

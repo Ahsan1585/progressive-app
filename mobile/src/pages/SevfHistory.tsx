@@ -55,6 +55,14 @@ export default function SevfHistory() {
     window.open(result.downloadUrl, "_blank");
   };
 
+  const handlePrintInvoice = (result: GeneratedSevfResult) => {
+    if (!result.invoiceDownloadUrl) {
+      showToast("This invoice's file couldn't be found.", "error");
+      return;
+    }
+    window.open(result.invoiceDownloadUrl, "_blank");
+  };
+
   const handleRevert = async () => {
     if (!revertTarget) return;
     setIsReverting(true);
@@ -111,12 +119,15 @@ export default function SevfHistory() {
                 </div>
                 <div className="mt-3 flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => handlePrint(b)}>
-                    <Printer className="size-4" aria-hidden="true" /> Print
+                    <Printer className="size-4" aria-hidden="true" /> SEVF
                   </Button>
-                  <Button variant="outline" className="flex-1" onClick={() => setRevertTarget(b)}>
-                    <RotateCcw className="size-4" aria-hidden="true" /> Revert
+                  <Button variant="outline" className="flex-1" onClick={() => handlePrintInvoice(b)}>
+                    <FileText className="size-4" aria-hidden="true" /> Invoice
                   </Button>
                 </div>
+                <Button variant="outline" className="mt-2 w-full" onClick={() => setRevertTarget(b)}>
+                  <RotateCcw className="size-4" aria-hidden="true" /> Revert
+                </Button>
               </li>
             ))}
           </ul>

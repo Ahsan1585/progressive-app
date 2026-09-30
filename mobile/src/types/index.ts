@@ -120,6 +120,8 @@ export interface GeneratedSevfResult {
   companyAffiliation: string | null;
   month: string;
   downloadUrl: string | null;
+  /** Absent on a batch generated before invoices existed on this flow. */
+  invoiceDownloadUrl?: string | null;
   /** Only present on GET /api/billing/independent/history rows, not on a
    *  just-generated result from POST .../generate-sevf. */
   generatedAt?: string;

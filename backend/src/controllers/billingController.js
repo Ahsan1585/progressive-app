@@ -442,11 +442,41 @@ const generateSelfCertifiedSEVF = async (req, res) => {
       await uploadFile(BILLING_INVOICES_BUCKET, filePath, pdfBuffer, 'application/pdf');
       const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, filePath, 3600);
 
+      // Invoice — same generateInvoicePDF the tenant office-review flow uses
+      // (generateFinancialInvoice above), same hours × practitioner.pay_rate
+      // math, billed to the agency this group's sessions were affiliated
+      // with (companyNameForGroup — never getCompanyName(), for the same
+      // reason the SEVF's own agency-name field isn't that either). One
+      // invoice per group, same as the SEVF, so Print/email-to-agency/My
+      // Invoices all operate on the same single batch per (patient,
+      // affiliation, month) — there's no separate combine-into-one-invoice
+      // step like the tenant flow's Generate & Issue has.
+      let totalHours = 0;
+      const rawPayRate = (practitioner.pay_rate && parseFloat(practitioner.pay_rate) > 0) ? parseFloat(practitioner.pay_rate) : 0;
+      const invoiceLineItems = groupRecords.map((line) => {
+        const hours = line.total_time ? (line.total_time / 60) : 0;
+        totalHours += hours;
+        return {
+          ...line,
+          date: line.service_date || '',
+          total_hours: hours > 0 ? hours.toFixed(2) : '',
+          child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim() || '',
+          child_id: line.patients?.child_id || '',
+          county: line.patient_county || '',
+          rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : '0.00',
+          line_total: (rawPayRate && hours > 0) ? (hours * rawPayRate).toFixed(2) : '0.00',
+        };
+      });
+      const invoicePdfBuffer = await generateInvoicePDF(practitioner, invoiceLineItems, `${practitioner.first_name} ${practitioner.last_name}`.trim(), companyNameForGroup);
+      const invoiceFilePath = `${yearMonth}/${practName}/Invoice_${affiliationSlug}_${minDate}_${maxDate}_${timestamp}.pdf`;
+      await uploadFile(BILLING_INVOICES_BUCKET, invoiceFilePath, invoicePdfBuffer, 'application/pdf');
+      const invoiceSignedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, invoiceFilePath, 3600);
+
       const { rows: batchRows } = await pool.query(
-        `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path, invoice_path)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
-        [practitionerId, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath]
+        [practitionerId, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath, invoiceFilePath]
       );
       const batchRow = batchRows[0];
 
@@ -463,6 +493,7 @@ const generateSelfCertifiedSEVF = async (req, res) => {
         companyAffiliation: first.company_affiliation || null,
         month: (first.service_date || '').slice(0, 7),
         downloadUrl: signedUrl,
+        invoiceDownloadUrl: invoiceSignedUrl,
       });
     }
 
@@ -471,7 +502,7 @@ const generateSelfCertifiedSEVF = async (req, res) => {
       details: { practitionerId, groupCount: results.length, assessmentCount: records.length },
     });
 
-    res.json({ success: true, results, message: `${results.length} SEVF${results.length === 1 ? '' : 's'} generated successfully!` });
+    res.json({ success: true, results, message: `${results.length} SEVF${results.length === 1 ? '' : 's'} and invoice${results.length === 1 ? '' : 's'} generated successfully!` });
   } catch (error) {
     console.error('Error generating self-certified SEVF:', error);
     res.status(500).json({ success: false, error: 'Failed to generate SEVF' });
@@ -493,7 +524,7 @@ const emailSevfToAgency = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT b.id, b.njeis_path, p.first_name, p.last_name
+      `SELECT b.id, b.njeis_path, b.invoice_path, p.first_name, p.last_name
        FROM billing_batches b
        JOIN practitioners p ON p.id = b.practitioner_id
        WHERE b.id = $1 AND b.practitioner_id = $2`,
@@ -506,18 +537,27 @@ const emailSevfToAgency = async (req, res) => {
     const pdfBuffer = await downloadFile(BILLING_INVOICES_BUCKET, batch.njeis_path);
     const practitionerName = `${batch.first_name} ${batch.last_name}`.trim();
 
+    // invoice_path may be missing on a batch generated before invoices
+    // existed on this flow — sendSevfToAgencyEmail handles that gracefully,
+    // sending just the SEVF rather than erroring.
+    const invoiceBuffer = batch.invoice_path
+      ? await downloadFile(BILLING_INVOICES_BUCKET, batch.invoice_path)
+      : null;
+
     await sendSevfToAgencyEmail(String(agencyEmail).trim(), {
       practitionerName,
       pdfBuffer,
       pdfFilename: path.basename(batch.njeis_path),
+      invoiceBuffer,
+      invoiceFilename: batch.invoice_path ? path.basename(batch.invoice_path) : undefined,
     });
 
     logAudit({
       req, action: 'sevf_emailed_to_agency', resourceType: 'billing_batch', resourceId: batchId,
-      details: { agencyEmail: String(agencyEmail).trim() },
+      details: { agencyEmail: String(agencyEmail).trim(), includedInvoice: !!invoiceBuffer },
     });
 
-    res.json({ success: true, message: 'SEVF emailed to the agency.' });
+    res.json({ success: true, message: invoiceBuffer ? 'SEVF and invoice emailed to the agency.' : 'SEVF emailed to the agency.' });
   } catch (error) {
     console.error('Error emailing SEVF to agency:', error);
     res.status(500).json({ success: false, error: 'Failed to email SEVF.' });
@@ -536,7 +576,7 @@ const getSelfCertifiedHistory = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
     const { rows } = await pool.query(
-      `SELECT b.id AS batch_id, b.njeis_path, b.start_date, b.end_date, b.created_at,
+      `SELECT b.id AS batch_id, b.njeis_path, b.invoice_path, b.start_date, b.end_date, b.created_at,
               a.patient_id, a.patient_first_name, a.patient_last_name, a.company_affiliation
        FROM billing_batches b
        JOIN assessments a ON a.billing_batch_id = b.id
@@ -568,7 +608,11 @@ const getSelfCertifiedHistory = async (req, res) => {
         const downloadUrl = batchRow?.njeis_path
           ? await getSignedUrl(BILLING_INVOICES_BUCKET, batchRow.njeis_path, 3600)
           : null;
-        return { ...b, downloadUrl };
+        // Absent on a batch generated before invoices existed on this flow.
+        const invoiceDownloadUrl = batchRow?.invoice_path
+          ? await getSignedUrl(BILLING_INVOICES_BUCKET, batchRow.invoice_path, 3600)
+          : null;
+        return { ...b, downloadUrl, invoiceDownloadUrl };
       })
     );
 
@@ -598,7 +642,7 @@ const revertSelfCertifiedSEVF = async (req, res) => {
 
   try {
     const { rows: batchRows } = await pool.query(
-      'SELECT id, njeis_path FROM billing_batches WHERE id = $1 AND practitioner_id = $2',
+      'SELECT id, njeis_path, invoice_path FROM billing_batches WHERE id = $1 AND practitioner_id = $2',
       [batchId, practitionerId]
     );
     const batch = batchRows[0];
@@ -609,9 +653,10 @@ const revertSelfCertifiedSEVF = async (req, res) => {
       [batchId, practitionerId]
     );
 
-    if (batch.njeis_path) {
+    const filePaths = [batch.njeis_path, batch.invoice_path].filter(Boolean);
+    if (filePaths.length > 0) {
       try {
-        await removeFiles(BILLING_INVOICES_BUCKET, [batch.njeis_path]);
+        await removeFiles(BILLING_INVOICES_BUCKET, filePaths);
       } catch (storageError) {
         console.error('revertSelfCertifiedSEVF: storage delete error (continuing):', storageError);
       }
@@ -793,6 +838,13 @@ const getInvoiceDownloadUrl = async (req, res) => {
 // up here as if it were a real invoice.
 const getMyInvoices = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
+  // Independent-practitioner logs go straight to billing_status='completed'
+  // (there's no office review step to also flip them to 'invoiced' — see
+  // generateSelfCertifiedSEVF), so the tenant flow's "approved" EXISTS
+  // check below would hide every one of their invoices. A batch belonging
+  // to this role is inherently already final the moment it's generated —
+  // there's no separate admin-approval gate to wait for.
+  const isIndependentPractitioner = req.practitioner.role === 'independent_practitioner';
   try {
     const { rows } = await pool.query(
       `SELECT b.id, b.start_date, b.end_date, b.paid_at,
@@ -806,7 +858,7 @@ const getMyInvoices = async (req, res) => {
     );
 
     const invoices = rows
-      .filter((b) => b.approved)
+      .filter((b) => isIndependentPractitioner || b.approved)
       .map((b) => ({
         id: b.id,
         start_date: b.start_date,

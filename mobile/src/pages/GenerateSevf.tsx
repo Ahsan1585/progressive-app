@@ -108,6 +108,14 @@ export default function GenerateSevf() {
     window.open(result.downloadUrl, "_blank");
   };
 
+  const handlePrintInvoice = (result: GeneratedSevfResult) => {
+    if (!result.invoiceDownloadUrl) {
+      showToast("This invoice's file couldn't be found.", "error");
+      return;
+    }
+    window.open(result.invoiceDownloadUrl, "_blank");
+  };
+
   const openEmailDialog = (result: GeneratedSevfResult) => {
     setEmailTarget(result);
     setAgencyEmail("");
@@ -121,7 +129,10 @@ export default function GenerateSevf() {
         batchId: emailTarget.batchId,
         agencyEmail: agencyEmail.trim(),
       });
-      showToast("SEVF emailed to the agency.", "success");
+      showToast(
+        emailTarget.invoiceDownloadUrl ? "SEVF and invoice emailed to the agency." : "SEVF emailed to the agency.",
+        "success"
+      );
       setEmailTarget(null);
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
@@ -161,7 +172,7 @@ export default function GenerateSevf() {
         {results.length > 0 ? (
           <>
             <p className="mb-3 text-[13px] font-semibold text-ink-muted">
-              {results.length} SEVF{results.length === 1 ? "" : "s"} generated
+              {results.length} SEVF{results.length === 1 ? "" : "s"} and invoice{results.length === 1 ? "" : "s"} generated
             </p>
             <ul role="list" className="space-y-2">
               {results.map((r) => (
@@ -179,7 +190,10 @@ export default function GenerateSevf() {
                   </div>
                   <div className="mt-3 flex gap-2">
                     <Button variant="outline" className="flex-1" onClick={() => handlePrint(r)}>
-                      <Printer className="size-4" aria-hidden="true" /> Print
+                      <Printer className="size-4" aria-hidden="true" /> SEVF
+                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={() => handlePrintInvoice(r)}>
+                      <FileText className="size-4" aria-hidden="true" /> Invoice
                     </Button>
                     <Button variant="outline" className="flex-1" onClick={() => openEmailDialog(r)}>
                       <Send className="size-4" aria-hidden="true" /> Email to Agency
@@ -237,7 +251,7 @@ export default function GenerateSevf() {
           <DialogHeader>
             <DialogTitle id="email-sevf-dialog-title">Email SEVF to agency</DialogTitle>
             <DialogDescription>
-              Send {emailTarget?.patientName}'s SEVF ({emailTarget?.month}) directly to the agency's email.
+              Send {emailTarget?.patientName}'s SEVF{emailTarget?.invoiceDownloadUrl ? " and invoice" : ""} ({emailTarget?.month}) directly to the agency's email.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5 py-2">
