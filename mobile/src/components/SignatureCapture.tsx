@@ -112,10 +112,60 @@ export function SignatureCapture({
     drawingRef.current = false;
   };
 
+  // Raw canvas.toDataURL() captures the WHOLE drawing surface (full width x
+  // 200px tall), regardless of how small the actual stroke is inside it — a
+  // typical signature is maybe 150x40px of ink on a much larger transparent
+  // canvas. Every downstream consumer (this component's own preview, the
+  // NJEIS-020 PDF's signature field — see njeisFormFiller.js — and the
+  // invoice/session-log signature blocks) fits that image into a small box
+  // by its own bounding dimensions, so all that surrounding transparent
+  // padding makes the signature look tiny wherever it's placed. Cropping to
+  // the stroke's actual bounding box (plus a small margin) before encoding
+  // means "fit this image to the box" actually fits the ink, not mostly
+  // empty space.
+  const cropToStrokeBounds = (canvas: HTMLCanvasElement): string => {
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas.toDataURL("image/png");
+    const { width, height } = canvas;
+    const imageData = ctx.getImageData(0, 0, width, height).data;
+    let minX = width, minY = height, maxX = 0, maxY = 0;
+    let found = false;
+    // Alpha channel only — the stroke is drawn opaque, background is fully
+    // transparent, so any non-zero alpha pixel is part of the signature.
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const alpha = imageData[(y * width + x) * 4 + 3];
+        if (alpha > 10) {
+          found = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (!found) return canvas.toDataURL("image/png");
+    const margin = 6 * dpr;
+    minX = Math.max(0, minX - margin);
+    minY = Math.max(0, minY - margin);
+    maxX = Math.min(width, maxX + margin);
+    maxY = Math.min(height, maxY + margin);
+    const cropW = maxX - minX;
+    const cropH = maxY - minY;
+    const cropped = document.createElement("canvas");
+    cropped.width = cropW;
+    cropped.height = cropH;
+    const croppedCtx = cropped.getContext("2d");
+    if (!croppedCtx) return canvas.toDataURL("image/png");
+    croppedCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+    return cropped.toDataURL("image/png");
+  };
+
   const handleDone = () => {
     const canvas = canvasRef.current;
     if (!canvas || !hasStrokeRef.current) return;
-    onChange(canvas.toDataURL("image/png"));
+    onChange(cropToStrokeBounds(canvas));
     setJustCaptured(true);
     window.setTimeout(() => setJustCaptured(false), 260);
   };

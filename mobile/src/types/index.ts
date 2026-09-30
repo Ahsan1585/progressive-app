@@ -113,6 +113,21 @@ export interface SelfCertifiedSevfGroup {
   sessionCount: number;
 }
 
+// One individual eligible session, as returned alongside SelfCertifiedSevfGroup
+// by GET /api/billing/independent/pending — lets the mobile Generate SEVF
+// screen show a checkbox per session (plus "Select all") instead of only
+// ever generating every session matching the current filters.
+export interface SelfCertifiedSession {
+  id: number;
+  /** Same 3-part key SelfCertifiedSevfGroup.key uses — (patientId, companyAffiliation, month) — for grouping selected sessions client-side. */
+  groupKey: string;
+  patientId: number;
+  patientName: string;
+  companyAffiliation: string | null;
+  serviceDate: string;
+  totalTime: number | null;
+}
+
 export interface GeneratedSevfResult {
   batchId: string;
   patientId: number;

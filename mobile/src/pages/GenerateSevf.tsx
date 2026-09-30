@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FileText, Send, Printer, FolderOpen } from "lucide-react";
+import { FileText, Send, Printer, FolderOpen, Check } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -11,10 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { CompanyAffiliationFilter } from "@/components/CompanyAffiliationFilter";
+import { PatientNameFilter } from "@/components/PatientNameFilter";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
+import { formatSafeDate } from "@/utils/time";
 import { cn } from "@/lib/utils";
-import type { SelfCertifiedSevfGroup, GeneratedSevfResult, ApiErrorBody } from "@/types";
+import type { SelfCertifiedSession, GeneratedSevfResult, ApiErrorBody } from "@/types";
 
 // Independent-practitioner-only SEVF self-certification screen. Unlike the
 // office Batch Review flow, there is no "pending review" state to show —
@@ -28,6 +30,7 @@ export default function GenerateSevf() {
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [companyAffiliation, setCompanyAffiliation] = React.useState("");
+  const [patientId, setPatientId] = React.useState<number | null>(null);
 
   // Same "recently used" source as LogIntervention.tsx's CompanyAffiliationField
   // — every distinct agency name across the practitioner's own patients, no
@@ -40,7 +43,16 @@ export default function GenerateSevf() {
     return Array.from(set).sort();
   }, [patients]);
 
-  const [groups, setGroups] = React.useState<SelfCertifiedSevfGroup[]>([]);
+  // Every patient this practitioner has, for the "Child" filter dropdown —
+  // narrower than knownAffiliations' free-text source since patient id/name
+  // is already structured data, no dedup step needed.
+  const patientOptions = React.useMemo(
+    () => patients.map((p) => ({ id: Number(p.id), name: `${p.first_name} ${p.last_name}`.trim() })).sort((a, b) => a.name.localeCompare(b.name)),
+    [patients]
+  );
+
+  const [sessions, setSessions] = React.useState<SelfCertifiedSession[]>([]);
+  const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
   const [isLoadingPreview, setIsLoadingPreview] = React.useState(true);
   const [previewError, setPreviewError] = React.useState<string | null>(null);
 
@@ -59,35 +71,64 @@ export default function GenerateSevf() {
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (companyAffiliation.trim()) params.companyAffiliation = companyAffiliation.trim();
-      const res = await api.get<{ success: boolean; groups: SelfCertifiedSevfGroup[] }>(
+      if (patientId != null) params.patientIds = String(patientId);
+      const res = await api.get<{ success: boolean; sessions: SelfCertifiedSession[] }>(
         "/api/billing/independent/pending",
         { params }
       );
-      setGroups(res.data.groups || []);
+      const fetched = res.data.sessions || [];
+      setSessions(fetched);
+      // Default to everything selected — "Select all" is the common case,
+      // and unchecking a few is less friction than checking every one.
+      setSelectedIds(new Set(fetched.map((s) => s.id)));
     } catch {
       setPreviewError("Couldn't load your sessions.");
     } finally {
       setIsLoadingPreview(false);
     }
-  }, [startDate, endDate, companyAffiliation]);
+  }, [startDate, endDate, companyAffiliation, patientId]);
 
   React.useEffect(() => {
     fetchPreview();
   }, [fetchPreview]);
 
+  const allSelected = sessions.length > 0 && selectedIds.size === sessions.length;
+
+  const toggleSession = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(sessions.map((s) => s.id)));
+  };
+
+  // Groups selected sessions by the same 3-part key the backend groups by,
+  // purely for the "N SEVFs will be generated" preview count — the backend
+  // re-derives the real groups itself from whichever assessmentIds are sent.
+  const selectedGroupKeys = React.useMemo(() => {
+    const keys = new Set<string>();
+    for (const s of sessions) {
+      if (selectedIds.has(s.id)) keys.add(s.groupKey);
+    }
+    return keys;
+  }, [sessions, selectedIds]);
+
   const handleGenerate = async () => {
+    if (selectedIds.size === 0) return;
     setIsGenerating(true);
     try {
-      const body: Record<string, string> = {};
-      if (startDate) body.startDate = startDate;
-      if (endDate) body.endDate = endDate;
-      if (companyAffiliation.trim()) body.companyAffiliation = companyAffiliation.trim();
       const res = await api.post<{ success: boolean; results: GeneratedSevfResult[]; message: string }>(
         "/api/billing/independent/generate-sevf",
-        body
+        { assessmentIds: Array.from(selectedIds) }
       );
       setResults(res.data.results || []);
-      setGroups([]);
+      setSessions([]);
+      setSelectedIds(new Set());
       showToast(res.data.message, "success");
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
@@ -142,8 +183,6 @@ export default function GenerateSevf() {
     }
   };
 
-  const totalSessions = groups.reduce((sum, g) => sum + g.sessionCount, 0);
-
   return (
     <PushScreen>
       <AppBar title="Generate SEVF" />
@@ -161,6 +200,7 @@ export default function GenerateSevf() {
                 <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
             </div>
+            <PatientNameFilter value={patientId} onChange={setPatientId} options={patientOptions} />
             <CompanyAffiliationFilter
               value={companyAffiliation}
               onChange={setCompanyAffiliation}
@@ -213,7 +253,7 @@ export default function GenerateSevf() {
               </li>
             ))}
           </ul>
-        ) : groups.length === 0 ? (
+        ) : sessions.length === 0 ? (
           <EmptyState
             icon={FolderOpen}
             heading="Nothing to generate"
@@ -221,26 +261,56 @@ export default function GenerateSevf() {
           />
         ) : (
           <>
-            <p className="mb-3 text-[13px] font-semibold text-ink-muted">
-              {groups.length} SEVF{groups.length === 1 ? "" : "s"} will be generated ({totalSessions} session{totalSessions === 1 ? "" : "s"})
-            </p>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[13px] font-semibold text-ink-muted">
+                {selectedGroupKeys.size} SEVF{selectedGroupKeys.size === 1 ? "" : "s"} will be generated ({selectedIds.size} session{selectedIds.size === 1 ? "" : "s"} selected)
+              </p>
+              <button type="button" onClick={toggleSelectAll} className="press-scale text-sm font-semibold text-primary">
+                {allSelected ? "Deselect all" : "Select all"}
+              </button>
+            </div>
             <ul role="list" className="space-y-2">
-              {groups.map((g) => (
-                <li key={g.key} className={cn("flex items-center gap-3 rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]")}>
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
-                    <FileText className="size-5" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-semibold text-ink">{g.patientName}</p>
-                    <p className="text-xs text-ink-muted">
-                      {g.companyAffiliation || "No agency"} · {g.month} · {g.sessionCount} session{g.sessionCount === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                </li>
-              ))}
+              {sessions.map((s) => {
+                const isSelected = selectedIds.has(s.id);
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      onClick={() => toggleSession(s.id)}
+                      className={cn(
+                        "press-scale flex w-full items-center gap-3 rounded-card border p-3.5 text-left shadow-[var(--elev-rest)]",
+                        isSelected ? "border-primary bg-primary-tint" : "border-border bg-surface"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-5 shrink-0 items-center justify-center rounded-[6px] border-2",
+                          isSelected ? "border-primary bg-primary" : "border-border bg-transparent"
+                        )}
+                        aria-hidden="true"
+                      >
+                        {isSelected && <Check className="size-3.5 text-primary-fg" />}
+                      </span>
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
+                        <FileText className="size-5" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-semibold text-ink">{s.patientName}</p>
+                        <p className="text-xs text-ink-muted">
+                          {s.companyAffiliation || "No agency"} · {formatSafeDate(s.serviceDate)}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
-            <Button className="mt-5 w-full" onClick={handleGenerate} disabled={isGenerating}>
-              {isGenerating ? "Generating…" : `Generate ${groups.length} SEVF${groups.length === 1 ? "" : "s"}`}
+            <Button className="mt-5 w-full" onClick={handleGenerate} disabled={isGenerating || selectedIds.size === 0}>
+              {isGenerating
+                ? "Generating…"
+                : `Generate ${selectedGroupKeys.size} SEVF${selectedGroupKeys.size === 1 ? "" : "s"}`}
             </Button>
           </>
         )}

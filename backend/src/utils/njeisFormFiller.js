@@ -83,15 +83,19 @@ async function buildNjeisPdfForGroup(templateBytes, patientRecords, companyName,
         const pracSigField = form.getTextField('Practitioner Signature');
         const rect = pracSigField.acroField.getWidgets()[0].getRectangle();
         const practSigImage = await tempDoc.embedPng(pData.practitioner_signature);
-        const padding = 2;
+        // Fill nearly the whole field box (previously scaled to fit-then-x1.5,
+        // which left it visibly small whenever the signature capture's own
+        // canvas had a lot of transparent padding around the actual ink —
+        // scaling against the field box directly, not the source image's
+        // raw pixel dimensions, keeps it legible regardless of capture size).
+        const padding = 1;
         const maxW = rect.width - padding * 2;
         const maxH = rect.height - padding * 2;
-        const scale = Math.min(maxW / practSigImage.width, maxH / practSigImage.height) * 1.5;
+        const scale = Math.min(maxW / practSigImage.width, maxH / practSigImage.height);
         const imgW = practSigImage.width * scale;
         const imgH = practSigImage.height * scale;
         const drawX = rect.x + (rect.width - imgW) / 2;
         const drawY = rect.y + (rect.height - imgH) / 2;
-        firstPage.drawImage(practSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
         firstPage.drawImage(practSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
       } catch (e) { /* field not found */ }
     }
@@ -104,15 +108,17 @@ async function buildNjeisPdfForGroup(templateBytes, patientRecords, companyName,
           const sigField = form.getTextField(`ParentCaregiver Signature Verifying Services ReceivedRow${rowNum}`);
           const rect = sigField.acroField.getWidgets()[0].getRectangle();
           const parentSigImage = await tempDoc.embedPng(chunk[index].parent_signature);
-          const padding = 2;
+          // Same fill-the-box scaling as the practitioner signature above —
+          // see its comment for why *1.5 and the duplicate drawImage call
+          // were removed.
+          const padding = 1;
           const maxW = rect.width - padding * 2;
           const maxH = rect.height - padding * 2;
-          const scale = Math.min(maxW / parentSigImage.width, maxH / parentSigImage.height) * 1.5;
+          const scale = Math.min(maxW / parentSigImage.width, maxH / parentSigImage.height);
           const imgW = parentSigImage.width * scale;
           const imgH = parentSigImage.height * scale;
           const drawX = rect.x + (rect.width - imgW) / 2;
           const drawY = rect.y + (rect.height - imgH) / 2;
-          firstPage.drawImage(parentSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
           firstPage.drawImage(parentSigImage, { x: drawX, y: drawY, width: imgW, height: imgH });
         } catch (e) { /* field not found for this row */ }
       }

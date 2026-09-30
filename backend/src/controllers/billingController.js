@@ -325,9 +325,12 @@ function groupSelfCertifiedRecords(records) {
 
 // Shared SELECT for both getSelfCertifiedPending and generateSelfCertifiedSEVF —
 // the practitioner's own eligible logs, optionally narrowed by the same
-// three filters the mobile Generate SEVF screen exposes (date range,
-// specific patient(s), a single company affiliation).
-async function selectSelfCertifiedAssessments(practitionerId, { startDate, endDate, patientIds, companyAffiliation }) {
+// filters the mobile Generate SEVF screen exposes (date range, specific
+// patient(s), a single company affiliation) or, once the practitioner has
+// hand-picked individual sessions from the preview list, an explicit
+// assessmentIds list — which short-circuits every other filter, since at
+// that point the exact set of rows to use is already decided.
+async function selectSelfCertifiedAssessments(practitionerId, { startDate, endDate, patientIds, companyAffiliation, assessmentIds }) {
   const params = [practitionerId];
   let sql = `
     SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
@@ -336,15 +339,20 @@ async function selectSelfCertifiedAssessments(practitionerId, { startDate, endDa
     LEFT JOIN patients pt ON pt.id = a.patient_id
     WHERE a.practitioner_id = $1 AND a.billing_status = 'self_certified' AND a.billing_batch_id IS NULL
   `;
-  if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
-  if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
-  if (Array.isArray(patientIds) && patientIds.length > 0) {
-    params.push(patientIds);
-    sql += ` AND a.patient_id = ANY($${params.length}::int[])`;
-  }
-  if (companyAffiliation) {
-    params.push(companyAffiliation);
-    sql += ` AND a.company_affiliation = $${params.length}`;
+  if (Array.isArray(assessmentIds) && assessmentIds.length > 0) {
+    params.push(assessmentIds);
+    sql += ` AND a.id = ANY($${params.length}::int[])`;
+  } else {
+    if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
+    if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
+    if (Array.isArray(patientIds) && patientIds.length > 0) {
+      params.push(patientIds);
+      sql += ` AND a.patient_id = ANY($${params.length}::int[])`;
+    }
+    if (companyAffiliation) {
+      params.push(companyAffiliation);
+      sql += ` AND a.company_affiliation = $${params.length}`;
+    }
   }
   sql += ' ORDER BY a.service_date ASC';
 
@@ -353,10 +361,12 @@ async function selectSelfCertifiedAssessments(practitionerId, { startDate, endDa
 }
 
 // GET /api/billing/independent/pending — preview of what Generate SEVF
-// would produce for the given filters, grouped the same way generation
-// groups, so the mobile screen can show "N SEVFs will be generated" with
-// per-group patient/agency/month/session-count before the practitioner
-// commits.
+// would produce for the given filters. Returns both the grouped summary
+// (unchanged shape, still used for the "N SEVFs will be generated" line)
+// and, now, the individual session rows themselves — each tagged with its
+// own group key — so the mobile screen can list them individually with a
+// checkbox per session (plus "Select all") instead of only ever generating
+// every eligible session for the given filters.
 const getSelfCertifiedPending = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { startDate, endDate, patientIds, companyAffiliation } = req.query;
@@ -383,7 +393,17 @@ const getSelfCertifiedPending = async (req, res) => {
       };
     });
 
-    res.json({ success: true, groups: preview });
+    const sessions = records.map((r) => ({
+      id: r.id,
+      groupKey: selfCertifiedGroupKey(r),
+      patientId: r.patient_id,
+      patientName: `${r.patient_first_name || ''} ${r.patient_last_name || ''}`.trim(),
+      companyAffiliation: r.company_affiliation || null,
+      serviceDate: r.service_date,
+      totalTime: r.total_time,
+    }));
+
+    res.json({ success: true, groups: preview, sessions });
   } catch (error) {
     console.error('Error fetching self-certified pending logs:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch pending logs' });
@@ -395,11 +415,17 @@ const getSelfCertifiedPending = async (req, res) => {
 // row, and flips those logs straight to billing_status='completed'.
 const generateSelfCertifiedSEVF = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
-  const { startDate, endDate, patientIds, companyAffiliation } = req.body;
+  // assessmentIds — the practitioner's hand-picked subset from the preview
+  // list (see getSelfCertifiedPending's new sessions array) — takes
+  // priority over the date/patient/affiliation filters when present; those
+  // three still work unmodified for a caller that never switched to
+  // session-level selection (kept for backward compatibility, not used by
+  // the current mobile UI).
+  const { startDate, endDate, patientIds, companyAffiliation, assessmentIds } = req.body;
 
   try {
     const records = await selectSelfCertifiedAssessments(practitionerId, {
-      startDate, endDate, patientIds, companyAffiliation,
+      startDate, endDate, patientIds, companyAffiliation, assessmentIds,
     });
     if (records.length === 0) {
       return res.status(400).json({ success: false, error: 'No self-certified sessions match these filters.' });
