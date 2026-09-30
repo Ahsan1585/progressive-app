@@ -260,6 +260,18 @@ app.get('/api/practitioner/profile', protect, async (req, res) => {
     // Map the signature so the frontend can read it easily
     if (data) data.signature = data.saved_signature;
 
+    // Independent-practitioner-only: whether they operate through a
+    // registered business entity (LLC/PLLC/etc.), reusing the same
+    // company_settings.legal_entity_name column a tenant company's own
+    // legal name lives in (getCompanyName() already prefers it there) —
+    // see PATCH /api/practitioner/business-entity below.
+    if (data && isIndependentPractitioner) {
+      const { rows: settingsRows } = await pool.query(
+        'SELECT legal_entity_name FROM company_settings WHERE id = 1'
+      );
+      data.legal_entity_name = settingsRows[0]?.legal_entity_name || null;
+    }
+
     res.json(data || {});
   } catch (error) {
     console.error('Profile fetch error:', error);
@@ -355,6 +367,39 @@ app.patch('/api/practitioner/contact-info', protect, async (req, res) => {
     res.json({ success: true, message: 'Submitted — an admin will review your change shortly.' });
   } catch (error) {
     console.error('Contact info update error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH: lets an independent practitioner declare whether they operate
+// through a registered business entity (LLC/PLLC/etc.) instead of as an
+// individual. Deliberately narrower than PUT /api/company (companyController.js's
+// updateCompanySettings) — that endpoint is a full-replace of every company_settings
+// field and is ceo-only, wrong for a single-field mobile self-service edit
+// that shouldn't risk clobbering fields it doesn't send. Writes the same
+// company_settings.legal_entity_name column a tenant company's Company
+// Information tab uses, so it's already picked up everywhere that reads
+// getCompanyName() (invoice PDFs) and by ensureStripeCustomer below —
+// zero other code needed to change for this to take effect.
+app.patch('/api/practitioner/business-entity', protect, requireRole(['independent_practitioner']), async (req, res) => {
+  try {
+    const { legalEntityName } = req.body;
+    if (legalEntityName !== undefined && legalEntityName !== null && typeof legalEntityName !== 'string') {
+      return res.status(400).json({ error: 'legalEntityName must be a string or null.' });
+    }
+    // Empty string / null both mean "I operate as an individual" — clears
+    // the column so getCompanyName() falls back to display_name (their own
+    // personal name, set at signup) exactly as it does for a tenant company
+    // that never filled in a legal entity name either.
+    const trimmed = legalEntityName?.trim() || null;
+    await pool.query(
+      `INSERT INTO company_settings (id, legal_entity_name, updated_at) VALUES (1, $1, now())
+       ON CONFLICT (id) DO UPDATE SET legal_entity_name = EXCLUDED.legal_entity_name, updated_at = now()`,
+      [trimmed]
+    );
+    res.json({ success: true, legal_entity_name: trimmed });
+  } catch (error) {
+    console.error('Business entity update error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

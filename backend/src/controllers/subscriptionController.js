@@ -103,12 +103,17 @@ const getPaymentMethod = async (req, res) => {
 // Ensures a Stripe Customer exists for this (singleton) company, creating it
 // on first use. Returns the customer id.
 async function ensureStripeCustomer(stripe) {
-  const { rows } = await pool.query('SELECT stripe_customer_id, display_name, billing_email FROM company_settings WHERE id = 1');
+  const { rows } = await pool.query('SELECT stripe_customer_id, display_name, legal_entity_name, billing_email FROM company_settings WHERE id = 1');
   const row = rows[0] || {};
   if (row.stripe_customer_id) return row.stripe_customer_id;
 
+  // legal_entity_name preferred when set, same as getCompanyName() — lets an
+  // independent practitioner who declared an LLC/PLLC (see
+  // PATCH /api/practitioner/business-entity in index.js) get billed under
+  // their business name in Stripe's own records/receipts instead of their
+  // personal name.
   const customer = await stripe.customers.create({
-    name: row.display_name || undefined,
+    name: row.legal_entity_name || row.display_name || undefined,
     email: row.billing_email || undefined,
     metadata: { app: 'izaya-eis', company_settings_id: '1' },
   });

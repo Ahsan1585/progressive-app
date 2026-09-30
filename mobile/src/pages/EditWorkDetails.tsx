@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
+import { Check } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Picker } from "@/components/Picker";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { cn } from "@/lib/utils";
 import type { ApiErrorBody } from "@/types";
 
 // Independent-practitioner-only self-service editor for fields a normal
@@ -34,6 +36,12 @@ export default function EditWorkDetails() {
   const [discipline, setDiscipline] = React.useState("");
   const [payRate, setPayRate] = React.useState("");
   const [address, setAddress] = React.useState("");
+  const [operatesAsBusiness, setOperatesAsBusiness] = React.useState(false);
+  const [legalEntityName, setLegalEntityName] = React.useState("");
+  // Write-only, like the web admin's Staff Directory edit form — updateStaffProfile
+  // never returns the stored value, so this always starts blank; submitting
+  // blank leaves whatever's already on file untouched (see index.js/authController.js).
+  const [ssn, setSsn] = React.useState("");
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -44,6 +52,8 @@ export default function EditWorkDetails() {
       setDiscipline(profile.service_types?.[0] || "");
       setPayRate(profile.pay_rate != null ? String(profile.pay_rate) : "");
       setAddress(profile.address || "");
+      setOperatesAsBusiness(!!profile.legal_entity_name);
+      setLegalEntityName(profile.legal_entity_name || "");
     }
   }, [profile]);
 
@@ -59,7 +69,15 @@ export default function EditWorkDetails() {
         service_types: discipline ? [discipline] : [],
         payRate,
         address,
+        ssn: ssn.trim() || undefined,
       });
+      // Separate endpoint — legal_entity_name lives on company_settings,
+      // not the practitioners row updateStaffProfile writes (see
+      // PATCH /api/practitioner/business-entity in index.js).
+      await api.patch("/api/practitioner/business-entity", {
+        legalEntityName: operatesAsBusiness ? legalEntityName : "",
+      });
+      setSsn("");
       await fetchProfile();
       showToast("Work details updated.");
       navigate("/profile", { replace: true });
@@ -95,6 +113,51 @@ export default function EditWorkDetails() {
         </Field>
         <Field id="address" label="Address" optional>
           <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, City, State" />
+        </Field>
+
+        <div className="rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={operatesAsBusiness}
+            onClick={() => setOperatesAsBusiness((v) => !v)}
+            className="press-scale flex w-full items-center gap-3 text-left"
+          >
+            <span
+              className={cn(
+                "flex size-5 shrink-0 items-center justify-center rounded-[6px] border-2 transition-colors",
+                operatesAsBusiness ? "border-primary bg-primary" : "border-border bg-transparent"
+              )}
+              aria-hidden="true"
+            >
+              {operatesAsBusiness && <Check className="size-3.5 text-primary-fg" />}
+            </span>
+            <span className="flex-1 text-[15px] font-medium text-ink">
+              I operate through a registered business (LLC, PLLC, etc.)
+            </span>
+          </button>
+          {operatesAsBusiness && (
+            <Field id="legalEntityName" label="Business name" className="mt-3">
+              <Input
+                value={legalEntityName}
+                onChange={(e) => setLegalEntityName(e.target.value)}
+                placeholder="e.g. Jane Doe Therapy LLC"
+                required
+              />
+            </Field>
+          )}
+          <p className="mt-3 text-xs text-ink-muted">
+            When checked, this name is used for your Izaya billing instead of your own name.
+          </p>
+        </div>
+
+        <Field id="ssn" label="SSN / EIN" optional hint="Write-only — always shown blank. Leave blank to keep what's on file.">
+          <Input
+            value={ssn}
+            onChange={(e) => setSsn(e.target.value)}
+            placeholder={operatesAsBusiness ? "Business EIN" : "SSN"}
+            maxLength={11}
+          />
         </Field>
 
         <div className="pt-2">

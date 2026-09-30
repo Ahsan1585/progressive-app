@@ -294,6 +294,10 @@ export interface PractitionerProfile {
    *  GET /api/practitioner/profile) — a normal tenant practitioner's own
    *  rate is office-set and deliberately excluded from this response. */
   pay_rate?: number | null;
+  /** Independent-practitioner-only — company_settings.legal_entity_name
+   *  (see PATCH /api/practitioner/business-entity). null/"" means they
+   *  operate as an individual, not through a registered business entity. */
+  legal_entity_name?: string | null;
   saved_signature?: string | null;
   // Mapped by the backend from saved_signature for convenience.
   signature?: string | null;
