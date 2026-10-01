@@ -71,6 +71,11 @@ export interface DropdownOption {
   label: string;
   sort_order: number;
   is_active: boolean;
+  /** True only for the original seeded/default rows (EV, AS, IFSP, ...) —
+   *  these can be deactivated but never permanently deleted. A
+   *  practitioner-added option has this false and can be hard-deleted via
+   *  DELETE /api/dropdown-options/:id/permanent once unused. */
+  is_seeded: boolean;
 }
 
 export interface DropdownOptionsByCategory {

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Plus, X, Check, Pencil, Trash2, RotateCcw } from "lucide-react";
+import { Plus, X, Check, Pencil, Trash2, RotateCcw, XCircle } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
@@ -43,6 +43,7 @@ function OptionCard({
   const [label, setLabel] = React.useState(option.label);
   const [isSaving, setIsSaving] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [confirmPermanentDelete, setConfirmPermanentDelete] = React.useState(false);
 
   const handleSave = async () => {
     if (!code.trim() || !label.trim()) {
@@ -89,6 +90,28 @@ function OptionCard({
     }
   };
 
+  // Only ever offered for an already-deactivated, non-seeded (practitioner-
+  // added) option — the backend separately refuses this for a seeded
+  // default (is_seeded) or one still used on any existing log, returning a
+  // clear error either way (see deleteDropdownOptionPermanently in
+  // dropdownOptionsController.js).
+  const handlePermanentDelete = async () => {
+    setIsSaving(true);
+    try {
+      await api.delete(`/api/dropdown-options/${option.id}/permanent`);
+      setConfirmPermanentDelete(false);
+      onDeleted();
+    } catch (err) {
+      const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
+      // Dialog stays open on failure (e.g. "used on N logs") — the caller
+      // needs to read the reason and then explicitly Cancel, matching the
+      // pattern every other destructive action in this screen uses.
+      showToast(body?.error || "Couldn't permanently delete this option.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isEditing) {
     return (
       <div className="rounded-card border border-primary/40 bg-surface p-3">
@@ -127,9 +150,19 @@ function OptionCard({
           </button>
         </>
       ) : (
-        <button type="button" onClick={handleReactivate} disabled={isSaving} className="press-scale flex items-center gap-1 text-xs font-semibold text-primary">
-          <RotateCcw className="size-3.5" aria-hidden="true" /> Reactivate
-        </button>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={handleReactivate} disabled={isSaving} className="press-scale flex items-center gap-1 text-xs font-semibold text-primary">
+            <RotateCcw className="size-3.5" aria-hidden="true" /> Reactivate
+          </button>
+          {/* Seeded defaults (EV, AS, IFSP, ...) never get this — only an
+              option the practitioner added themselves can be permanently
+              deleted, and only once it's already deactivated. */}
+          {!option.is_seeded && (
+            <button type="button" onClick={() => setConfirmPermanentDelete(true)} disabled={isSaving} className="press-scale flex items-center gap-1 text-xs font-semibold text-danger">
+              <XCircle className="size-3.5" aria-hidden="true" /> Delete permanently
+            </button>
+          )}
+        </div>
       )}
       <ConfirmDialog
         open={confirmDelete}
@@ -140,6 +173,16 @@ function OptionCard({
         destructive
         loading={isSaving}
         onConfirm={handleDelete}
+      />
+      <ConfirmDialog
+        open={confirmPermanentDelete}
+        onOpenChange={setConfirmPermanentDelete}
+        title="Delete this option permanently?"
+        description={`"${option.label}" will be completely removed — this can't be undone. Only possible if no existing log uses this code; if any do, you'll need to keep it deactivated instead.`}
+        confirmLabel="Delete permanently"
+        destructive
+        loading={isSaving}
+        onConfirm={handlePermanentDelete}
       />
     </div>
   );

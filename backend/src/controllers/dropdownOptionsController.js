@@ -1,6 +1,34 @@
 const { pool } = require('../config/db');
 const { loadDropdownOptionsCache, getDropdownOptionsCache } = require('../constants/dropdownOptionsCache');
 
+// The 4 built-in categories store their code directly on a dedicated
+// assessments column; company_affiliation also has its own dedicated
+// column (see assessments.company_affiliation, added for the independent-
+// practitioner feature) rather than living in form_data like a genuinely
+// custom category's values do. Any other category key falls through to the
+// form_data->custom_fields JSON lookup.
+const DIRECT_COLUMN_BY_CATEGORY = {
+  service_type: 'type',
+  service_status: 'status',
+  location: 'location',
+  group_size: 'group_size_category',
+  company_affiliation: 'company_affiliation',
+};
+
+// Counts how many assessments rows currently use this option's code within
+// its own category — used to gate hard-delete (see deleteDropdownOptionPermanently
+// below). Never throws on an unexpected category; falls back to the
+// custom_fields JSON path for anything not in DIRECT_COLUMN_BY_CATEGORY.
+async function countAssessmentsUsingOption(category, code) {
+  const directColumn = DIRECT_COLUMN_BY_CATEGORY[category];
+  const sql = directColumn
+    ? `SELECT COUNT(*)::int AS count FROM assessments WHERE ${directColumn} = $1`
+    : `SELECT COUNT(*)::int AS count FROM assessments WHERE form_data->'custom_fields'->>$2 = $1`;
+  const params = directColumn ? [code] : [code, category];
+  const { rows } = await pool.query(sql, params);
+  return rows[0]?.count || 0;
+}
+
 // Full set (active + inactive) grouped by category — the admin UI needs
 // inactive rows to offer "Reactivate"; the log-form dropdowns filter to
 // is_active client-side.
@@ -81,6 +109,44 @@ const deactivateDropdownOption = async (req, res) => {
   }
 };
 
+// DELETE /api/dropdown-options/:id/permanent — a real, irreversible DELETE,
+// unlike deactivateDropdownOption above. Only ever allowed for a
+// practitioner/company-added option (is_seeded = false) that no existing
+// assessment currently references — a seeded, state-mandated default code
+// (EV, AS, IFSP, ...) can never be hard-deleted even if unused, and a
+// used-but-custom option is refused with a clear count so the caller can
+// deactivate instead, rather than silently leaving historical logs/
+// generated PDFs with a code that no longer resolves to any label.
+const deleteDropdownOptionPermanently = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows: existingRows } = await pool.query(
+      'SELECT id, category, code, label, is_seeded FROM dropdown_options WHERE id = $1',
+      [id]
+    );
+    const existing = existingRows[0];
+    if (!existing) return res.status(404).json({ error: 'Option not found' });
+
+    if (existing.is_seeded) {
+      return res.status(400).json({ error: 'This is a default option and can only be deactivated, not permanently deleted.' });
+    }
+
+    const usageCount = await countAssessmentsUsingOption(existing.category, existing.code);
+    if (usageCount > 0) {
+      return res.status(409).json({
+        error: `"${existing.label}" is used on ${usageCount} existing log${usageCount === 1 ? '' : 's'} and can't be permanently deleted — deactivate it instead so new logs stop offering it, while old logs keep showing "${existing.label}".`,
+      });
+    }
+
+    await pool.query('DELETE FROM dropdown_options WHERE id = $1', [id]);
+    await loadDropdownOptionsCache();
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error permanently deleting dropdown option:', error);
+    res.status(500).json({ error: 'Failed to delete option' });
+  }
+};
+
 const reactivateDropdownOption = async (req, res) => {
   const { id } = req.params;
   try {
@@ -102,5 +168,6 @@ module.exports = {
   createDropdownOption,
   updateDropdownOption,
   deactivateDropdownOption,
+  deleteDropdownOptionPermanently,
   reactivateDropdownOption,
 };

@@ -27,6 +27,7 @@ const MIGRATIONS = [
   'add_platform_support_flag.sql',
   'widen_ssn_column_for_encryption.sql',
   'add_independent_practitioner_support.sql',
+  'add_dropdown_option_is_seeded.sql',
 ];
 
 module.exports = { MIGRATIONS };
