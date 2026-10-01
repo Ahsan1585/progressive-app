@@ -19,7 +19,7 @@ import type { ApiErrorBody } from "@/types";
 // tenant practitioner can never touch themselves (name, discipline/service
 // types, hourly rate are office-staff-only there). This role IS the
 // office-equivalent of their own single-seat company — writes go straight
-// to PATCH /api/staff/:id (updateStaffProfile, already reachable via the
+// to PATCH /api/auth/staff/:id (updateStaffProfile, already reachable via the
 // req.isAdmin fast-path — see authMiddleware.js), not the approval-gated
 // PATCH /api/practitioner/contact-info a normal practitioner's Edit Contact
 // Info screen uses. Address/phone stay on that existing Contact Info screen
@@ -75,7 +75,7 @@ export default function EditWorkDetails() {
         setSubmitting(false);
         return;
       }
-      await api.patch(`/api/staff/${practitioner.id}`, {
+      await api.patch(`/api/auth/staff/${practitioner.id}`, {
         firstName,
         lastName,
         service_types: serviceTypes,
