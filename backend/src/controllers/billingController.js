@@ -590,6 +590,36 @@ const emailSevfToAgency = async (req, res) => {
   }
 };
 
+// GET /api/billing/independent/affiliations — every distinct agency name
+// this practitioner has ever actually used on a session log, most-recently-
+// used first. The mobile Log Session screen's "known agencies" dropdown
+// (CompanyAffiliationField) previously built this list client-side from
+// patients.last_company_affiliation — a single, non-authoritative column
+// that gets overwritten on every new log for that patient. With few
+// patients, logging patient A under "Agency Y" right after "Agency X"
+// silently dropped "Agency X" from the whole list, even though it was
+// still a real agency the practitioner had used (just not most recently,
+// and not necessarily for that same patient) — this reads the actual,
+// authoritative per-session history (assessments.company_affiliation)
+// instead, so no previously-used agency name is ever lost from the list.
+const getKnownAffiliations = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    const { rows } = await pool.query(
+      `SELECT company_affiliation, MAX(service_date) AS last_used
+       FROM assessments
+       WHERE practitioner_id = $1 AND company_affiliation IS NOT NULL AND company_affiliation != ''
+       GROUP BY company_affiliation
+       ORDER BY last_used DESC`,
+      [practitionerId]
+    );
+    res.json({ success: true, affiliations: rows.map((r) => r.company_affiliation) });
+  } catch (error) {
+    console.error('Error fetching known affiliations:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch known agencies.' });
+  }
+};
+
 // GET /api/billing/independent/history — every SEVF this practitioner has
 // ever generated, so a mistake (wrong agency/month, or logs that should
 // have been combined with others) can be found and reverted rather than
@@ -2518,6 +2548,7 @@ module.exports = {
   getSelfCertifiedPending,
   generateSelfCertifiedSEVF,
   emailSevfToAgency,
+  getKnownAffiliations,
   getSelfCertifiedHistory,
   revertSelfCertifiedSEVF,
   generateFinancialInvoice,

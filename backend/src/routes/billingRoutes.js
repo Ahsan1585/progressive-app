@@ -9,6 +9,7 @@ const {
   getSelfCertifiedPending,
   generateSelfCertifiedSEVF,
   emailSevfToAgency,
+  getKnownAffiliations,
   getSelfCertifiedHistory,
   revertSelfCertifiedSEVF,
   generateFinancialInvoice,
@@ -66,6 +67,7 @@ router.get('/my-invoices/:id/download', protect, getMyInvoiceDownloadUrl);
 // practitioner feature).
 const independentGuard = [protect, loadPermissions, requireRole(['independent_practitioner'])];
 router.get('/independent/pending',        ...independentGuard, getSelfCertifiedPending);
+router.get('/independent/affiliations',   ...independentGuard, getKnownAffiliations);
 router.post('/independent/generate-sevf', ...independentGuard, generateSelfCertifiedSEVF);
 router.post('/independent/email-sevf',    ...independentGuard, emailSevfToAgency);
 router.get('/independent/history',        ...independentGuard, getSelfCertifiedHistory);

@@ -32,16 +32,20 @@ export default function GenerateSevf() {
   const [companyAffiliation, setCompanyAffiliation] = React.useState("");
   const [patientId, setPatientId] = React.useState<number | null>(null);
 
-  // Same "recently used" source as LogIntervention.tsx's CompanyAffiliationField
-  // — every distinct agency name across the practitioner's own patients, no
-  // dedicated backend endpoint.
-  const knownAffiliations = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const p of patients) {
-      if (p.last_company_affiliation) set.add(p.last_company_affiliation);
-    }
-    return Array.from(set).sort();
-  }, [patients]);
+  // Same real, authoritative source as LogIntervention.tsx's
+  // CompanyAffiliationField (GET /api/billing/independent/affiliations) —
+  // see that screen's comment for why the previous patients.last_company_affiliation
+  // derivation silently lost previously-used agency names.
+  const [knownAffiliations, setKnownAffiliations] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    api
+      .get<{ success: boolean; affiliations: string[] }>("/api/billing/independent/affiliations")
+      .then((res) => setKnownAffiliations(res.data.affiliations || []))
+      .catch(() => {
+        // Non-critical — the filter just falls back to "All agencies" only.
+      });
+  }, []);
 
   // Every patient this practitioner has, for the "Child" filter dropdown —
   // narrower than knownAffiliations' free-text source since patient id/name

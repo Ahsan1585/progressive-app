@@ -9,10 +9,9 @@ import { cn } from "@/lib/utils";
 interface CompanyAffiliationFieldProps {
   value: string;
   onChange: (value: string) => void;
-  /** Every agency name the practitioner has used before, most-recent-ish
-   *  first — deduplicated by the caller (LogIntervention.tsx builds this
-   *  from patients' own last_company_affiliation values, a purely
-   *  client-side "recently used" list with no dedicated backend endpoint). */
+  /** Every agency name the practitioner has actually used before,
+   *  most-recently-used first — from GET /api/billing/independent/affiliations
+   *  (see LogIntervention.tsx), the real per-session history. */
   knownAffiliations: string[];
   error?: string | null;
 }

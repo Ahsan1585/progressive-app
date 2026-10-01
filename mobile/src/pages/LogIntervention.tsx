@@ -64,18 +64,26 @@ export default function LogIntervention() {
 
   const patient = patients.find((p) => p.id === patientId);
 
-  // Client-side "recently used" agency list — every distinct
-  // last_company_affiliation value across the practitioner's own patients,
-  // no dedicated backend endpoint (see CompanyAffiliationField's header
-  // comment / the independent-practitioner plan's "lightweight suggestion
-  // list" decision).
-  const knownAffiliations = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const p of patients) {
-      if (p.last_company_affiliation) set.add(p.last_company_affiliation);
-    }
-    return Array.from(set).sort();
-  }, [patients]);
+  // Every agency the practitioner has actually used, most-recently-used
+  // first — from GET /api/billing/independent/affiliations (the real,
+  // authoritative per-session history: assessments.company_affiliation).
+  // Previously derived client-side from patients.last_company_affiliation,
+  // a single non-authoritative column per patient that gets overwritten on
+  // every new log — with few patients, logging one patient under a
+  // different agency silently dropped every other agency from this list
+  // even though they were still real, previously-used agencies.
+  const [knownAffiliations, setKnownAffiliations] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    if (!isIndependentPractitioner) return;
+    api
+      .get<{ success: boolean; affiliations: string[] }>("/api/billing/independent/affiliations")
+      .then((res) => setKnownAffiliations(res.data.affiliations || []))
+      .catch(() => {
+        // Non-critical — the picker just falls back to empty (still usable
+        // via "Add new agency").
+      });
+  }, [isIndependentPractitioner]);
 
   const customCategories = React.useMemo(
     () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
