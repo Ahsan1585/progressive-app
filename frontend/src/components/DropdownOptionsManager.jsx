@@ -40,7 +40,7 @@ const OptionRow = ({ option, onSaved, onDeleted }) => {
   };
 
   const handleDelete = async () => {
-    if (!(await showConfirm(`Remove "${option.label}"? It will no longer appear in the dropdown for new logs, but existing logs that used it will keep showing this name.`))) {
+    if (!(await showConfirm(`Remove "${option.label}"? It won't appear in the dropdown for new logs, but existing logs that used it will keep showing this name. This isn't permanent — you can bring it back anytime with Reactivate.`))) {
       return;
     }
     setIsDeleting(true);

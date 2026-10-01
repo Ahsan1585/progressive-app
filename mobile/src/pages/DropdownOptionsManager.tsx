@@ -112,7 +112,10 @@ function OptionCard({
     <div className={cn("flex items-center gap-3 rounded-card border border-border bg-surface p-3", !option.is_active && "opacity-60")}>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-medium text-ink">{option.label}</p>
-        <p className="truncate text-xs text-ink-faint">Code: {option.code}</p>
+        <p className="truncate text-xs text-ink-faint">
+          Code: {option.code}
+          {!option.is_active && " · Removed"}
+        </p>
       </div>
       {option.is_active ? (
         <>
@@ -132,7 +135,7 @@ function OptionCard({
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Remove this option?"
-        description={`"${option.label}" will no longer appear in the dropdown for new logs, but existing logs that used it will keep showing this name.`}
+        description={`"${option.label}" won't appear in the dropdown for new logs, but existing logs that used it will keep showing this name. This isn't permanent — you can bring it back anytime with Reactivate.`}
         confirmLabel="Remove"
         destructive
         loading={isSaving}
