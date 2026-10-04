@@ -34,7 +34,7 @@ const EMPTY_FORM: FormState = {
 };
 
 // Pushed full screen (not a small modal) — the field count and on-screen
-// keyboard need the space (design: Add Patient).
+// keyboard need the space (design: Add Child).
 export default function AddPatient() {
   const navigate = useNavigate();
   const { fetchPatients } = useAppData();
@@ -76,7 +76,7 @@ export default function AddPatient() {
       // that same shared record rather than failing — worth flagging so it
       // doesn't read like an ordinary "added" confirmation.
       if (res.data.linked) {
-        showToast(res.data.message || "This child was already registered — linked to your patient list.");
+        showToast(res.data.message || "This child was already registered — linked to your child list.");
       }
       navigate(`/patients/${res.data.data.id}`, { replace: true });
     } catch (err) {
@@ -84,7 +84,7 @@ export default function AddPatient() {
         | ApiErrorBody
         | undefined;
       setServerError(
-        (typeof body?.error === "string" && body.error) || "Failed to register patient. Please try again."
+        (typeof body?.error === "string" && body.error) || "Failed to register child. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -93,7 +93,7 @@ export default function AddPatient() {
 
   return (
     <PushScreen>
-      <AppBar title="Add patient" />
+      <AppBar title="Add child" />
       <form onSubmit={handleSubmit} noValidate className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {serverError && <InlineErrorBanner message={serverError} />}
 
@@ -142,7 +142,7 @@ export default function AddPatient() {
 
         <div className="pt-2">
           <Button type="submit" className="w-full" size="lg" loading={submitting}>
-            Register patient
+            Register child
           </Button>
         </div>
       </form>

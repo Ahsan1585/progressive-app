@@ -82,7 +82,7 @@ export function ParentEmailPromptDialog({ open, onOpenChange, patient, onSaved }
           <DialogTitle id="parent-email-prompt-title">Add a parent email to continue</DialogTitle>
           <DialogDescription>
             A telepractice session needs somewhere to send the signing link. Add {patient.first_name}&apos;s
-            parent/caregiver email — it&apos;s saved to their patient record.
+            parent/caregiver email — it&apos;s saved to their child record.
           </DialogDescription>
         </DialogHeader>
         <Field id="parent-email-prompt-input" label="Parent/caregiver email" error={error}>

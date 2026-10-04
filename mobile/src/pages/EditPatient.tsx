@@ -32,7 +32,7 @@ const EMPTY_FORM: FormState = {
   parentEmail: "",
 };
 
-// Pushed full screen, mirrors Add Patient — pre-filled from the roster and
+// Pushed full screen, mirrors Add Child — pre-filled from the roster and
 // PUTs instead of POSTs.
 export default function EditPatient() {
   const { id } = useParams<{ id: string }>();
@@ -94,7 +94,7 @@ export default function EditPatient() {
         | ApiErrorBody
         | undefined;
       setServerError(
-        (typeof body?.error === "string" && body.error) || "Failed to update patient. Please try again."
+        (typeof body?.error === "string" && body.error) || "Failed to update child. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -103,7 +103,7 @@ export default function EditPatient() {
 
   return (
     <PushScreen>
-      <AppBar title="Edit patient" />
+      <AppBar title="Edit child" />
       <form onSubmit={handleSubmit} noValidate className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {serverError && <InlineErrorBanner message={serverError} />}
 

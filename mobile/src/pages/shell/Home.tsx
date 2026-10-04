@@ -122,8 +122,8 @@ export default function Home() {
         <button
           type="button"
           onClick={() => navigate("/roster")}
-          aria-label="Select a patient"
-          title="Select a patient"
+          aria-label="Select a child"
+          title="Select a child"
           className="press-scale flex size-11 shrink-0 items-center justify-center rounded-control text-ink-muted hover:bg-surface-sunken"
         >
           <Users className="size-5" aria-hidden="true" />

@@ -483,14 +483,14 @@ export default function LogIntervention() {
                 <div className="rounded-card border border-danger-border bg-danger-bg p-3.5">
                   <p className="text-sm font-semibold text-danger">No parent email on file</p>
                   <p className="mt-1 text-sm text-danger">
-                    Add a parent email on this patient&apos;s Edit screen before submitting a telepractice session.
+                    Add a parent email on this child&apos;s Edit screen before submitting a telepractice session.
                   </p>
                   <button
                     type="button"
                     onClick={() => navigate(`/patients/${patientId}/edit`)}
                     className="press-scale mt-2 text-sm font-semibold text-danger underline"
                   >
-                    Edit patient
+                    Edit child
                   </button>
                 </div>
               )}

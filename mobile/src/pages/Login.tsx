@@ -140,7 +140,7 @@ export default function Login() {
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
               {logoutBanner === "idle"
-                ? "You were logged out after 15 minutes of inactivity to protect patient information."
+                ? "You were logged out after 15 minutes of inactivity to protect child information."
                 : "You were signed out. Please sign back in."}
             </p>
           </div>

@@ -175,7 +175,7 @@ export default function PatientDetail() {
       setAssessments(res.data);
     } catch {
       // Includes the 403/not-owner edge case — generic message, no ownership detail leaked.
-      setError("Something went wrong loading this patient.");
+      setError("Something went wrong loading this child.");
     } finally {
       setLoading(false);
     }
@@ -201,7 +201,7 @@ export default function PatientDetail() {
     fetchAssessments();
   }, [fetchAssessments]);
 
-  const title = patient ? `${patient.first_name} ${patient.last_name}` : "Patient";
+  const title = patient ? `${patient.first_name} ${patient.last_name}` : "Child";
 
   return (
     <PushScreen>
@@ -212,7 +212,7 @@ export default function PatientDetail() {
             <button
               type="button"
               onClick={() => navigate(`/patients/${id}/edit`)}
-              aria-label="Edit patient"
+              aria-label="Edit child"
               className="press-scale flex size-11 items-center justify-center rounded-control text-ink hover:bg-surface-sunken"
             >
               <Pencil className="size-5" aria-hidden="true" />
@@ -329,7 +329,7 @@ export default function PatientDetail() {
             Log Session
           </Button>
           {patient?.status === "inactive" && (
-            <p className="mt-1.5 text-center text-xs text-ink-muted">Reactivate this patient to log a new session.</p>
+            <p className="mt-1.5 text-center text-xs text-ink-muted">Reactivate this child to log a new session.</p>
           )}
         </div>
 
@@ -388,7 +388,7 @@ export default function PatientDetail() {
         {error ? (
           <EmptyState
             icon={ClipboardList}
-            heading="Something went wrong loading this patient"
+            heading="Something went wrong loading this child"
             action={
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={fetchAssessments}>
@@ -409,7 +409,7 @@ export default function PatientDetail() {
             ))}
           </ul>
         ) : assessments.length === 0 ? (
-          <EmptyState icon={ClipboardList} heading={`No visits logged yet for ${patient?.first_name ?? "this patient"}`} />
+          <EmptyState icon={ClipboardList} heading={`No visits logged yet for ${patient?.first_name ?? "this child"}`} />
         ) : (
           <ul role="list" aria-label="Session history" className="space-y-2">
             {assessments.map((item) => (
