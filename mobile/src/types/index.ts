@@ -259,6 +259,18 @@ export interface RejectedLog {
   acknowledged_at: string | null;
 }
 
+// One entry in a log's comment thread — matches GET /api/patients/logs/:id/notes
+// (patientController.getMyLogNotes, mirroring billingController.getLogNotes's
+// own response shape exactly). first_name/last_name are null when the
+// authoring practitioner account has since been removed.
+export interface LogNote {
+  author_role: string;
+  note: string;
+  created_at: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
 // A telepractice session awaiting (or having just received) the parent's
 // remote signature — matches telepracticeSignatureController.js's
 // listTelepracticeRequests response. 'awaiting_signature' items are

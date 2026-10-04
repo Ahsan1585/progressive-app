@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,10 +13,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DraftCapDialog } from "@/components/DraftCapDialog";
+import { ViewNotesDialog } from "@/components/ViewNotesDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
-import type { Assessment, ScheduledSession, SessionDraftListItem } from "@/types";
+import type { Assessment, ScheduledSession, SessionDraftListItem, LogNote } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -66,6 +67,28 @@ export default function PatientDetail() {
   // documents, only excludes the session from future value/hour totals).
   const [voidTarget, setVoidTarget] = React.useState<Assessment | null>(null);
   const [isVoidingLog, setIsVoidingLog] = React.useState(false);
+
+  // "View comments" on a session card — fetched lazily per-log the moment
+  // the dialog is opened (not prefetched for every card in the list), since
+  // most sessions have zero notes and this avoids N extra requests on a
+  // screen that can already list dozens of sessions.
+  const [notesTarget, setNotesTarget] = React.useState<Assessment | null>(null);
+  const [notes, setNotes] = React.useState<LogNote[]>([]);
+  const [notesLoading, setNotesLoading] = React.useState(false);
+
+  const handleViewNotes = async (item: Assessment) => {
+    setNotesTarget(item);
+    setNotesLoading(true);
+    setNotes([]);
+    try {
+      const res = await api.get<{ success: boolean; notes: LogNote[] }>(`/api/patients/logs/${item.id}/notes`);
+      setNotes(res.data.notes || []);
+    } catch {
+      showToast("Couldn't load comments. Please try again.");
+    } finally {
+      setNotesLoading(false);
+    }
+  };
 
   const [drafts, setDrafts] = React.useState<SessionDraftListItem[]>([]);
   const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
@@ -472,34 +495,34 @@ export default function PatientDetail() {
                     </div>
                   )}
                 </div>
-                {["pending", "self_certified"].includes(item.billing_status) && (
-                  <div className="mt-2 flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/patients/${id}/logs/${item.id}/edit`)}
-                      className="press-scale flex items-center gap-1 text-xs font-semibold text-primary"
-                    >
-                      <PencilLine className="size-3.5" aria-hidden="true" />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(item)}
-                      className="press-scale flex items-center gap-1 text-xs font-semibold text-danger"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden="true" />
-                      Delete
-                    </button>
-                  </div>
-                )}
-                {/* Independent-practitioner-only — a SEVF/invoice has
-                    already been generated for this log, so it can no
-                    longer be edited or deleted; Reject is the only
-                    remaining action (see voidCompletedLog's own comment
-                    for why this doesn't touch the already-generated
-                    documents). */}
-                {isIndependentPractitioner && item.billing_status === "completed" && (
-                  <div className="mt-2">
+                <div className="mt-2 flex items-center gap-4">
+                  {["pending", "self_certified"].includes(item.billing_status) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/patients/${id}/logs/${item.id}/edit`)}
+                        className="press-scale flex items-center gap-1 text-xs font-semibold text-primary"
+                      >
+                        <PencilLine className="size-3.5" aria-hidden="true" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(item)}
+                        className="press-scale flex items-center gap-1 text-xs font-semibold text-danger"
+                      >
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                        Delete
+                      </button>
+                    </>
+                  )}
+                  {/* Independent-practitioner-only — a SEVF/invoice has
+                      already been generated for this log, so it can no
+                      longer be edited or deleted; Reject is the only
+                      remaining action (see voidCompletedLog's own comment
+                      for why this doesn't touch the already-generated
+                      documents). */}
+                  {isIndependentPractitioner && item.billing_status === "completed" && (
                     <button
                       type="button"
                       onClick={() => setVoidTarget(item)}
@@ -508,8 +531,16 @@ export default function PatientDetail() {
                       <XCircle className="size-3.5" aria-hidden="true" />
                       Reject
                     </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleViewNotes(item)}
+                    className="press-scale flex items-center gap-1 text-xs font-semibold text-ink-muted"
+                  >
+                    <MessageSquare className="size-3.5" aria-hidden="true" />
+                    View comments
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -564,6 +595,13 @@ export default function PatientDetail() {
         open={draftCapDialogOpen}
         onOpenChange={setDraftCapDialogOpen}
         patientName={patient ? `${patient.first_name} ${patient.last_name}`.trim() : undefined}
+      />
+
+      <ViewNotesDialog
+        open={!!notesTarget}
+        onOpenChange={(open) => { if (!open) setNotesTarget(null); }}
+        notes={notes}
+        loading={notesLoading}
       />
     </PushScreen>
   );

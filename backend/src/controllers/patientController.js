@@ -505,6 +505,40 @@ const voidCompletedLog = async (req, res) => {
   }
 };
 
+// GET /api/patients/logs/:id/notes — this practitioner's own notes/comment
+// thread on one of their own logs (assessment_notes). Mirrors
+// billingController.getLogNotes exactly (same query, same response shape)
+// but ownership-scoped to the calling practitioner instead of gated behind
+// the office-side 'billing_pending' permission — an independent
+// practitioner has no office billing permission system at all (see
+// billingRoutes.js's independentGuard comment), so that route 403s for
+// this role; this is the equivalent for a practitioner viewing their own
+// log's thread (e.g. a note they left themselves at log time).
+const getMyLogNotes = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows: owned } = await pool.query(
+      'SELECT id FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!owned[0]) return res.status(404).json({ error: 'Log not found' });
+
+    const { rows: notes } = await pool.query(
+      `SELECT n.author_role, n.note, n.created_at, p.first_name, p.last_name
+       FROM assessment_notes n
+       LEFT JOIN practitioners p ON p.id = n.author_id
+       WHERE n.assessment_id = $1
+       ORDER BY n.created_at ASC`,
+      [id]
+    );
+    res.json({ success: true, notes });
+  } catch (error) {
+    console.error('Error fetching log notes:', error);
+    res.status(500).json({ error: 'Failed to fetch log notes' });
+  }
+};
+
 // GET /api/patients/:id/last-session-defaults — the practitioner's own most
 // recent log for THIS specific child (status/type/location/group size/
 // agency), so Log Session can pre-fill fields that almost always repeat for
@@ -579,4 +613,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes };
