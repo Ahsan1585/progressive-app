@@ -42,7 +42,7 @@ export function ViewNotesDialog({ open, onOpenChange, notes, loading }: ViewNote
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-labelledby="view-notes-dialog-title" className="relative max-h-[80vh] overflow-y-auto">
+      <DialogContent aria-labelledby="view-notes-dialog-title" className="max-h-[80vh] overflow-y-auto">
         <DialogClose
           aria-label="Close"
           className="press-scale absolute right-3 top-3 flex size-8 shrink-0 items-center justify-center rounded-control text-ink-muted hover:bg-surface-sunken"
