@@ -398,6 +398,18 @@ export interface AgencyBreakdownEntry {
   invoicedValue: number;
 }
 
+// Independent-practitioner-only — all-time (not month-scoped) pending-SEVF
+// breakdown per agency, from GET /api/practitioner-dashboard/by-agency's
+// `pending` field. Same scope as PractitionerDashboardSummary.pendingValue
+// (every still-self_certified session, any service_date), kept as a
+// separate shape from AgencyBreakdownEntry so a pending dollar figure can
+// never be mistaken for money already invoiced.
+export interface AgencyPendingEntry {
+  name: string;
+  hours: number;
+  pendingValue: number;
+}
+
 export interface ApiErrorBody {
   error?: string;
   message?: string;

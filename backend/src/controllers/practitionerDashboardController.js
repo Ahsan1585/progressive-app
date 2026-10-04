@@ -151,13 +151,24 @@ const getMonthlyTrend = async (req, res) => {
   }
 };
 
-// GET /api/practitioner-dashboard/by-agency — this month's $ invoiced,
-// broken down per agency (by assessments.company_affiliation, matched
-// case-insensitively against the practitioner's saved agencies the same
-// way resolveAgencyEmail does), sorted highest-value first. A session with
-// no agency set (should be rare/non-existent for this role, since it's
-// required at log time) groups under a literal "No agency" label rather
-// than being silently dropped.
+// GET /api/practitioner-dashboard/by-agency — two breakdowns per agency
+// (by assessments.company_affiliation, matched case-insensitively against
+// the practitioner's saved agencies the same way resolveAgencyEmail does),
+// each sorted highest-value first:
+//   - invoiced: this month's 'completed' (already SEVF'd) sessions —
+//     "who did I actually bill this month."
+//   - pending: EVERY still-'self_certified' session regardless of
+//     service_date — "who do I still need to generate a SEVF for," the
+//     same all-time scope getDashboardSummary's pendingValue uses. Kept
+//     separate from `invoiced` rather than merged, so a practitioner can't
+//     misread a pending dollar figure as money already billed — showing
+//     both under one combined number was the earlier version of this
+//     screen, and it made the Billing tab's totals look like they
+//     disagreed with the "$X ready to invoice" banner above them (that
+//     banner is all-time pending; this card was this-month-invoiced-only).
+// A session with no agency set (should be rare/non-existent for this
+// role, since it's required at log time) groups under a literal
+// "No agency" label rather than being silently dropped.
 const getByAgency = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
@@ -165,25 +176,37 @@ const getByAgency = async (req, res) => {
     const now = new Date();
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
-    const { rows } = await pool.query(
-      `SELECT company_affiliation, total_time
-       FROM assessments
-       WHERE practitioner_id = $1 AND billing_status = 'completed' AND service_date >= $2`,
-      [practitionerId, monthStart]
-    );
+    const [{ rows: invoicedRows }, { rows: pendingRows }] = await Promise.all([
+      pool.query(
+        `SELECT company_affiliation, total_time
+         FROM assessments
+         WHERE practitioner_id = $1 AND billing_status = 'completed' AND service_date >= $2`,
+        [practitionerId, monthStart]
+      ),
+      pool.query(
+        `SELECT company_affiliation, total_time
+         FROM assessments
+         WHERE practitioner_id = $1 AND billing_status = 'self_certified'`,
+        [practitionerId]
+      ),
+    ]);
 
-    const byAgency = new Map();
-    for (const r of rows) {
-      const name = r.company_affiliation || 'No agency';
-      const hours = (r.total_time || 0) / 60;
-      byAgency.set(name, (byAgency.get(name) || 0) + hours);
-    }
+    const groupByAgency = (rows) => {
+      const byAgency = new Map();
+      for (const r of rows) {
+        const name = r.company_affiliation || 'No agency';
+        const hours = (r.total_time || 0) / 60;
+        byAgency.set(name, (byAgency.get(name) || 0) + hours);
+      }
+      return Array.from(byAgency.entries())
+        .map(([name, hours]) => ({ name, hours, value: hours * payRate }))
+        .sort((a, b) => b.value - a.value);
+    };
 
-    const agencies = Array.from(byAgency.entries())
-      .map(([name, hours]) => ({ name, hours, invoicedValue: hours * payRate }))
-      .sort((a, b) => b.invoicedValue - a.invoicedValue);
+    const invoiced = groupByAgency(invoicedRows).map(({ name, hours, value }) => ({ name, hours, invoicedValue: value }));
+    const pending = groupByAgency(pendingRows).map(({ name, hours, value }) => ({ name, hours, pendingValue: value }));
 
-    res.json({ success: true, agencies });
+    res.json({ success: true, agencies: invoiced, invoiced, pending });
   } catch (error) {
     console.error('Error fetching practitioner dashboard by-agency breakdown:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch agency breakdown.' });

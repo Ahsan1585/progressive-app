@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
-import type { PractitionerDashboardSummary, AgencyBreakdownEntry } from "@/types";
+import type { PractitionerDashboardSummary, AgencyBreakdownEntry, AgencyPendingEntry } from "@/types";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
@@ -17,7 +17,8 @@ const money = (n: number) => `$${n.toFixed(2)}`;
 export default function Billing() {
   const navigate = useNavigate();
   const [summary, setSummary] = React.useState<PractitionerDashboardSummary | null>(null);
-  const [byAgency, setByAgency] = React.useState<AgencyBreakdownEntry[]>([]);
+  const [invoicedByAgency, setInvoicedByAgency] = React.useState<AgencyBreakdownEntry[]>([]);
+  const [pendingByAgency, setPendingByAgency] = React.useState<AgencyPendingEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -27,10 +28,11 @@ export default function Billing() {
     try {
       const [summaryRes, agencyRes] = await Promise.all([
         api.get<{ success: boolean } & PractitionerDashboardSummary>("/api/practitioner-dashboard/summary"),
-        api.get<{ success: boolean; agencies: AgencyBreakdownEntry[] }>("/api/practitioner-dashboard/by-agency"),
+        api.get<{ success: boolean; invoiced: AgencyBreakdownEntry[]; pending: AgencyPendingEntry[] }>("/api/practitioner-dashboard/by-agency"),
       ]);
       setSummary(summaryRes.data);
-      setByAgency(agencyRes.data.agencies || []);
+      setInvoicedByAgency(agencyRes.data.invoiced || []);
+      setPendingByAgency(agencyRes.data.pending || []);
     } catch {
       setError("Couldn't load your billing activity.");
     } finally {
@@ -114,11 +116,28 @@ export default function Billing() {
         <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
       </button>
 
-      {!isLoading && byAgency.length > 0 && (
+      {!isLoading && pendingByAgency.length > 0 && (
         <div className="mt-5">
-          <h2 className="mb-2 text-[13px] font-semibold text-ink-muted">Billed by agency this month</h2>
+          <h2 className="mb-2 text-[13px] font-semibold text-ink-muted">Pending by agency (all time)</h2>
+          <div className="divide-y divide-border rounded-card border border-primary/30 bg-primary-tint shadow-[var(--elev-rest)]">
+            {pendingByAgency.map((a) => (
+              <div key={a.name} className="flex items-center justify-between px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-medium text-ink">{a.name}</p>
+                  <p className="text-xs text-ink-muted">{a.hours.toFixed(1)} hrs logged, no SEVF yet</p>
+                </div>
+                <p className="tabular text-[15px] font-semibold text-ink">{money(a.pendingValue)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!isLoading && invoicedByAgency.length > 0 && (
+        <div className="mt-5">
+          <h2 className="mb-2 text-[13px] font-semibold text-ink-muted">Invoiced by agency this month</h2>
           <div className="divide-y divide-border rounded-card border border-border bg-surface shadow-[var(--elev-rest)]">
-            {byAgency.map((a) => (
+            {invoicedByAgency.map((a) => (
               <div key={a.name} className="flex items-center justify-between px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-medium text-ink">{a.name}</p>
