@@ -131,27 +131,30 @@ function App() {
 
             {/* Authenticated tree: one shared provider stack for the tab shell and every pushed view. */}
             <Route element={<AuthenticatedTree />}>
-              {/* Bottom tab bar shell */}
+              {/* Bottom tab bar shell — every screen here keeps the tab bar
+                  visible (plus its own AppBar back arrow for pushed views),
+                  so switching tabs mid-task (e.g. mid-session-log) never
+                  requires backing all the way out first. */}
               <Route element={<ShellLayout />}>
                 <Route path="/home" element={<Home />} />
                 <Route path="/roster" element={<Roster />} />
                 <Route path="/inbox" element={<Inbox />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/profile" element={<Profile />} />
-              </Route>
 
-              {/* Pushed full-screen views — no tab bar */}
-              <Route path="/patients/new" element={<AddPatient />} />
-              <Route path="/patients/:id" element={<PatientDetail />} />
-              <Route path="/patients/:id/edit" element={<EditPatient />} />
-              <Route path="/patients/:id/log" element={<LogIntervention />} />
-              <Route path="/patients/:id/logs/:logId/edit" element={<EditLog />} />
-              <Route path="/inbox/:id/resubmit" element={<ResubmitLog />} />
-              <Route path="/inbox/:id/confirm-telepractice" element={<ConfirmTelepracticeLog />} />
-              <Route path="/profile/change-password" element={<ChangePasswordVoluntary />} />
-              <Route path="/profile/signature" element={<ManageSignature />} />
-              <Route path="/profile/contact-info" element={<EditContactInfo />} />
-              <Route path="/profile/invoices" element={<MyInvoices />} />
+                {/* Pushed full-screen views */}
+                <Route path="/patients/new" element={<AddPatient />} />
+                <Route path="/patients/:id" element={<PatientDetail />} />
+                <Route path="/patients/:id/edit" element={<EditPatient />} />
+                <Route path="/patients/:id/log" element={<LogIntervention />} />
+                <Route path="/patients/:id/logs/:logId/edit" element={<EditLog />} />
+                <Route path="/inbox/:id/resubmit" element={<ResubmitLog />} />
+                <Route path="/inbox/:id/confirm-telepractice" element={<ConfirmTelepracticeLog />} />
+                <Route path="/profile/change-password" element={<ChangePasswordVoluntary />} />
+                <Route path="/profile/signature" element={<ManageSignature />} />
+                <Route path="/profile/contact-info" element={<EditContactInfo />} />
+                <Route path="/profile/invoices" element={<MyInvoices />} />
+              </Route>
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />

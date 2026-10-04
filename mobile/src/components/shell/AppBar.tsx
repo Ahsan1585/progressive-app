@@ -14,6 +14,7 @@ interface AppBarProps {
 
 // Top app bar for full-screen pushed views (Add Patient, Patient Detail, Log
 // Intervention, Resubmit) — back chevron >= 44px, centered/leading title.
+// The bottom tab bar (ShellLayout) stays visible beneath these too.
 export function AppBar({ title, onBack, showBack = true, trailing, className }: AppBarProps) {
   const navigate = useNavigate();
   return (
