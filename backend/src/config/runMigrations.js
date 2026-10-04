@@ -10,7 +10,21 @@ const { getTenantPool } = require('./tenantPoolRegistry');
 async function applyMigrationsToPool(pool, label) {
   for (const file of MIGRATIONS) {
     const sql = fs.readFileSync(path.join(__dirname, '../../db/migrations', file), 'utf8');
-    await pool.query(sql);
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      if (err && err.constraint === 'assessments_billing_status_check') {
+        try {
+          const { rows } = await pool.query(
+            "SELECT billing_status, count(*) FROM assessments GROUP BY billing_status ORDER BY billing_status"
+          );
+          console.error(`DIAG billing_status values on ${label} (failing migration ${file}):`, JSON.stringify(rows));
+        } catch (diagErr) {
+          console.error(`DIAG query itself failed on ${label}:`, diagErr.message);
+        }
+      }
+      throw err;
+    }
     console.log(`Migration applied to ${label}: ${file}`);
   }
 }
