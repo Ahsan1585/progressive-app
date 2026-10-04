@@ -441,27 +441,21 @@ export default function PatientDetail() {
             {assessments.map((item) => (
               <li key={item.id} className="rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(item.service_date)}</p>
-                    <p className="mt-0.5 text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
-                    <p className="mt-0.5 text-xs text-ink-muted">{locationCodeMap[item.location] || item.location}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <StatusBadge status={item.billing_status} />
-                    <p className="tabular text-sm font-semibold text-ink">{(item.total_time / 60).toFixed(2)} hrs</p>
-                  </div>
+                  <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(item.service_date)}</p>
+                  <StatusBadge status={item.billing_status} />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-ink-muted">
-                  <span className="tabular">
-                    {formatTime12h(item.start_time)} - {formatTime12h(item.end_time)}
-                  </span>
-                  <span className="font-semibold uppercase tracking-wide">{statusCodeMap[item.status] || item.status}</span>
+                <div className="mt-1 flex items-baseline justify-between gap-2">
+                  <p className="text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
+                  <p className="tabular shrink-0 text-sm font-semibold text-ink">{(item.total_time / 60).toFixed(2)} hrs</p>
                 </div>
-                {item.group_size_category && (
-                  <p className="mt-1 text-xs text-ink-muted">
-                    {groupSizeMap[item.group_size_category] || item.group_size_category}
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-ink-muted">
+                  {[
+                    `${formatTime12h(item.start_time)}–${formatTime12h(item.end_time)}`,
+                    locationCodeMap[item.location] || item.location,
+                    statusCodeMap[item.status] || item.status,
+                    item.group_size_category ? groupSizeMap[item.group_size_category] || item.group_size_category : null,
+                  ].filter(Boolean).join(" · ")}
+                </p>
                 {["pending", "self_certified"].includes(item.billing_status) && (
                   <div className="mt-2 flex items-center gap-4">
                     <button
