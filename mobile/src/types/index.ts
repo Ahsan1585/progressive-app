@@ -192,7 +192,17 @@ export type BillingStatus =
   | "njeis_review"
   | "invoiced"
   | "rejected"
-  | "declined";
+  | "declined"
+  /** Independent-practitioner-only equivalent of "pending" — see docs on
+   *  the independent-practitioner feature. */
+  | "self_certified"
+  /** Independent-practitioner-only — set the moment a SEVF/invoice is
+   *  generated for this log. */
+  | "completed"
+  /** Independent-practitioner-only — a "completed" log the practitioner
+   *  later flagged as a mistake via Reject. Excluded from hour/revenue
+   *  totals going forward; the already-generated SEVF/invoice is untouched. */
+  | "voided";
 
 export interface Assessment {
   id: string;
@@ -222,6 +232,9 @@ export interface Assessment {
   practitioner_signature?: string | null;
   acknowledged_at?: string | null;
   practitioner_response?: string | null;
+  /** Independent-practitioner-only — which agency this session is billed
+   *  to. Always null for a normal tenant practitioner's logs. */
+  company_affiliation?: string | null;
 }
 
 export interface RejectedLog {

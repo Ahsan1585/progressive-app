@@ -29,6 +29,7 @@ const MIGRATIONS = [
   'add_independent_practitioner_support.sql',
   'add_dropdown_option_is_seeded.sql',
   'add_agencies.sql',
+  'add_voided_billing_status.sql',
 ];
 
 module.exports = { MIGRATIONS };

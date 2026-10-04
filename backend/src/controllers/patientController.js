@@ -353,16 +353,22 @@ const resubmitLog = async (req, res) => {
 const editLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
-  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category, custom_fields } = req.body;
+  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category, custom_fields, company_affiliation } = req.body;
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, patient_id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      'SELECT id, patient_id, billing_status, company_affiliation FROM assessments WHERE id = $1 AND practitioner_id = $2',
       [id, practitionerId]
     );
     const log = rows[0];
     if (!log) return res.status(404).json({ error: 'Log not found' });
-    if (log.billing_status !== 'pending') {
+    // 'self_certified' is an independent practitioner's own pre-billing
+    // equivalent of 'pending' — editable for the same reason: no SEVF/
+    // invoice has been generated for it yet (see docs on the independent-
+    // practitioner feature). Once generated (billing_status='completed')
+    // the documents already exist — see voidCompletedLog below for the
+    // only remaining action at that point.
+    if (!['pending', 'self_certified'].includes(log.billing_status)) {
       return res.status(400).json({ error: 'This log can no longer be edited.' });
     }
 
@@ -385,13 +391,20 @@ const editLog = async (req, res) => {
 
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
 
+    // company_affiliation is independent-practitioner-only and always NULL
+    // for a normal tenant log — only overwritten here when the caller
+    // actually sent a value, so this UPDATE is a no-op on that column for
+    // every other role (and preserves it unless the practitioner
+    // deliberately changes it, rather than silently wiping it every edit).
     await pool.query(
       `UPDATE assessments
        SET service_date = $1, type = $2, location = $3, start_time = $4, end_time = $5,
-           total_time = $6, status = $7, group_size_category = $8, form_data = $9
-       WHERE id = $10`,
+           total_time = $6, status = $7, group_size_category = $8, form_data = $9,
+           company_affiliation = $10
+       WHERE id = $11`,
       [service_date, type, location, start_time, end_time, total_time, status, group_size_category || null,
-       JSON.stringify({ custom_fields: sanitizedCustomFields }), id]
+       JSON.stringify({ custom_fields: sanitizedCustomFields }),
+       company_affiliation !== undefined ? company_affiliation : log.company_affiliation, id]
     );
     logAudit({ req, action: 'log_edit', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });
@@ -405,9 +418,13 @@ const editLog = async (req, res) => {
 };
 
 // Practitioner-initiated, permanent — only while a log hasn't entered the
-// billing pipeline (still 'pending') or has been sent back for revision
-// ('rejected'/Returned). Anything past that (njeis_review, invoiced,
-// declined, on_hold) is billing's record to keep, not the practitioner's to delete.
+// billing pipeline (still 'pending'), has been sent back for revision
+// ('rejected'/Returned), or — independent-practitioner-only — is still
+// 'self_certified' (no SEVF/invoice generated for it yet). Anything past
+// that (njeis_review, invoiced, declined, on_hold, or the independent-
+// practitioner's own 'completed') is billing's record to keep, not the
+// practitioner's to delete — see voidCompletedLog below for the only
+// remaining action on a 'completed' log.
 const deleteLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
@@ -418,7 +435,7 @@ const deleteLog = async (req, res) => {
     );
     const log = rows[0];
     if (!log) return res.status(404).json({ error: 'Log not found' });
-    if (!['pending', 'rejected'].includes(log.billing_status)) {
+    if (!['pending', 'rejected', 'self_certified'].includes(log.billing_status)) {
       return res.status(400).json({ error: 'This log can no longer be deleted.' });
     }
 
@@ -449,6 +466,42 @@ const deleteLog = async (req, res) => {
   } catch (error) {
     console.error('Error deleting log:', error);
     res.status(500).json({ error: 'Failed to delete log' });
+  }
+};
+
+// POST /api/patients/logs/:id/void — independent-practitioner-only. Once a
+// SEVF/invoice has already been generated for a log (billing_status=
+// 'completed'), it can no longer be edited or deleted (see editLog/
+// deleteLog above) — the documents already exist and, in the common case,
+// have already been emailed to the agency. This is the only remaining
+// correction available at that point: flips the log to billing_status=
+// 'voided', a terminal state excluded from this practitioner's own hour/
+// revenue totals going forward (treated as a $0 session), WITHOUT touching
+// the already-generated SEVF/invoice files or the billing_batches row they
+// belong to — those stay exactly as generated/sent. This is a forward-
+// looking correction, not a retroactive revert (see revertSelfCertifiedSEVF
+// in billingController.js for the separate, existing "undo the whole
+// batch" flow this does not replace or call).
+const voidCompletedLog = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    const log = rows[0];
+    if (!log) return res.status(404).json({ error: 'Log not found' });
+    if (log.billing_status !== 'completed') {
+      return res.status(400).json({ error: 'Only a session with a generated SEVF can be rejected this way.' });
+    }
+
+    await pool.query("UPDATE assessments SET billing_status = 'voided' WHERE id = $1", [id]);
+    logAudit({ req, action: 'log_void', resourceType: 'assessment', resourceId: id });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error voiding log:', error);
+    res.status(500).json({ error: 'Failed to reject this session.' });
   }
 };
 
@@ -526,4 +579,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats, getLastSessionDefaults };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults };

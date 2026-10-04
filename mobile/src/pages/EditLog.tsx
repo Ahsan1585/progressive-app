@@ -13,11 +13,14 @@ import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes } from "@/utils/time";
 import type { Assessment, ApiErrorBody } from "@/types";
 
-// Only for logs still sitting at billing_status "pending" — a "rejected"
-// log already has its own dedicated edit+resubmit flow (ResubmitLog.tsx),
-// and anything further along the billing pipeline isn't the
-// practitioner's record to change anymore (mirrors the backend's
-// editLog/deleteLog gate in patientController.js).
+// Only for logs still sitting at billing_status "pending" (or, for an
+// independent practitioner, its own equivalent "self_certified" — no
+// SEVF/invoice generated yet) — a "rejected" log already has its own
+// dedicated edit+resubmit flow (ResubmitLog.tsx), and anything further
+// along the billing pipeline isn't the practitioner's record to change
+// anymore (mirrors the backend's editLog/deleteLog gate in
+// patientController.js; a "completed" independent-practitioner log's only
+// remaining action is Reject, from PatientDetail.tsx directly).
 export default function EditLog() {
   const { id: patientId, logId } = useParams<{ id: string; logId: string }>();
   const navigate = useNavigate();
@@ -58,7 +61,7 @@ export default function EditLog() {
       try {
         const res = await api.get<Assessment[]>(`/api/patients/${patientId}/assessments`);
         const found = res.data.find((a) => String(a.id) === logId) || null;
-        if (!found || found.billing_status !== "pending") {
+        if (!found || !["pending", "self_certified"].includes(found.billing_status)) {
           setNotEditable(true);
         } else {
           setForm({

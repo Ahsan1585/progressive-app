@@ -1,8 +1,9 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { EmptyState } from "@/components/EmptyState";
@@ -22,6 +23,7 @@ export default function PatientDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
+  const { isIndependentPractitioner } = useAuth();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
   const [resendingId, setResendingId] = React.useState<string | null>(null);
@@ -56,6 +58,14 @@ export default function PatientDetail() {
 
   const [deleteTarget, setDeleteTarget] = React.useState<Assessment | null>(null);
   const [isDeletingLog, setIsDeletingLog] = React.useState(false);
+
+  // Independent-practitioner-only — a "completed" log (SEVF/invoice already
+  // generated) can no longer be edited or deleted; Reject is the only
+  // remaining action at that point (see voidCompletedLog in
+  // patientController.js — this does NOT touch the already-generated
+  // documents, only excludes the session from future value/hour totals).
+  const [voidTarget, setVoidTarget] = React.useState<Assessment | null>(null);
+  const [isVoidingLog, setIsVoidingLog] = React.useState(false);
 
   const [drafts, setDrafts] = React.useState<SessionDraftListItem[]>([]);
   const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
@@ -194,6 +204,22 @@ export default function PatientDetail() {
       showToast(body?.error || "Couldn't delete this log. Please try again.");
     } finally {
       setIsDeletingLog(false);
+    }
+  };
+
+  const handleVoidLog = async () => {
+    if (!voidTarget) return;
+    setIsVoidingLog(true);
+    try {
+      await api.post(`/api/patients/logs/${voidTarget.id}/void`);
+      setAssessments((prev) => prev.map((a) => (a.id === voidTarget.id ? { ...a, billing_status: "voided" } : a)));
+      showToast("Session rejected — excluded from your totals. The generated SEVF/invoice is unaffected.");
+      setVoidTarget(null);
+    } catch (err) {
+      const body = (err as { response?: { data?: { error?: string } } }).response?.data;
+      showToast(body?.error || "Couldn't reject this session. Please try again.");
+    } finally {
+      setIsVoidingLog(false);
     }
   };
 
@@ -431,7 +457,7 @@ export default function PatientDetail() {
                   </span>
                   <span className="font-semibold uppercase tracking-wide">{statusCodeMap[item.status] || item.status}</span>
                 </div>
-                {item.billing_status === "pending" && (
+                {["pending", "self_certified"].includes(item.billing_status) && (
                   <div className="mt-2 flex items-center gap-4">
                     <button
                       type="button"
@@ -448,6 +474,24 @@ export default function PatientDetail() {
                     >
                       <Trash2 className="size-3.5" aria-hidden="true" />
                       Delete
+                    </button>
+                  </div>
+                )}
+                {/* Independent-practitioner-only — a SEVF/invoice has
+                    already been generated for this log, so it can no
+                    longer be edited or deleted; Reject is the only
+                    remaining action (see voidCompletedLog's own comment
+                    for why this doesn't touch the already-generated
+                    documents). */}
+                {isIndependentPractitioner && item.billing_status === "completed" && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setVoidTarget(item)}
+                      className="press-scale flex items-center gap-1 text-xs font-semibold text-danger"
+                    >
+                      <XCircle className="size-3.5" aria-hidden="true" />
+                      Reject
                     </button>
                   </div>
                 )}
@@ -477,6 +521,17 @@ export default function PatientDetail() {
         destructive
         loading={isDeletingLog}
         onConfirm={handleDeleteLog}
+      />
+
+      <ConfirmDialog
+        open={!!voidTarget}
+        onOpenChange={(open) => !open && setVoidTarget(null)}
+        title="Reject this session?"
+        description="This session's SEVF and invoice have already been generated and sent — those documents stay exactly as they are. Rejecting just excludes this session from your own totals going forward, as a $0 session. This cannot be undone."
+        confirmLabel="Reject"
+        destructive
+        loading={isVoidingLog}
+        onConfirm={handleVoidLog}
       />
 
       <ConfirmDialog

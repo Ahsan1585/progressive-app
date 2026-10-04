@@ -7,7 +7,7 @@ const { pool } = require('../config/db');
 const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
-const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats, getLastSessionDefaults } = require('../controllers/patientController');
+const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults } = require('../controllers/patientController');
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
 const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
@@ -36,6 +36,11 @@ router.post('/resubmit-log', protect, resubmitLog);
 router.post('/acknowledge-log', protect, acknowledgeLog);
 router.put('/logs/:id', protect, editLog);
 router.delete('/logs/:id', protect, deleteLog);
+// Independent-practitioner-only — see voidCompletedLog's own comment for
+// why this is a distinct action from edit/delete, gated purely by role
+// like every other independent-only endpoint (no office/permission system
+// exists for this role).
+router.post('/logs/:id/void', protect, requireRole(['independent_practitioner']), voidCompletedLog);
 
 // Practitioner's own quick stats — placed before /:id wildcard to avoid route conflict
 router.get('/practitioner-stats', protect, getPractitionerStats);

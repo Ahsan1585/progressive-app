@@ -1,4 +1,4 @@
-import { Flag, Ban, Clock, CheckCircle2, Circle } from "lucide-react";
+import { Flag, Ban, Clock, CheckCircle2, Circle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { billingStatusConfig } from "@/constants/njeis";
 import type { BillingStatus } from "@/types";
@@ -9,6 +9,9 @@ const ICONS: Record<string, typeof Flag> = {
   njeis_review: Clock,
   invoiced: CheckCircle2,
   pending: Circle,
+  self_certified: Circle,
+  completed: CheckCircle2,
+  voided: XCircle,
 };
 
 const VARIANT_CLASSES: Record<string, string> = {
