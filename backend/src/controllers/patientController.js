@@ -539,6 +539,39 @@ const getMyLogNotes = async (req, res) => {
   }
 };
 
+// POST /api/patients/logs/:id/notes — add a new comment to one of this
+// practitioner's own logs. Ownership-scoped equivalent of
+// billingController.addLogComment, for the same reason getMyLogNotes
+// exists above (no office permission system for this role to gate
+// through). Appends only — an existing comment is never edited/deleted
+// in place, same as the office-side thread, so the thread stays an
+// honest, append-only record of what was said and when.
+const addMyLogComment = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  const { note } = req.body;
+  if (!note?.trim()) return res.status(400).json({ error: 'A comment is required.' });
+
+  try {
+    const { rows: owned } = await pool.query(
+      'SELECT id FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!owned[0]) return res.status(404).json({ error: 'Log not found' });
+
+    await pool.query(
+      `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+       VALUES ($1, $2, $3, $4)`,
+      [id, practitionerId, req.practitioner.role, note.trim()]
+    );
+    logAudit({ req, action: 'log_comment_add', resourceType: 'assessment', resourceId: id });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding log comment:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+};
+
 // GET /api/patients/:id/last-session-defaults — the practitioner's own most
 // recent log for THIS specific child (status/type/location/group size/
 // agency), so Log Session can pre-fill fields that almost always repeat for
@@ -613,4 +646,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment };

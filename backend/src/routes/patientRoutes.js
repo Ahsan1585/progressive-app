@@ -7,7 +7,7 @@ const { pool } = require('../config/db');
 const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
-const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes } = require('../controllers/patientController');
+const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment } = require('../controllers/patientController');
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
 const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
@@ -41,9 +41,10 @@ router.delete('/logs/:id', protect, deleteLog);
 // like every other independent-only endpoint (no office/permission system
 // exists for this role).
 router.post('/logs/:id/void', protect, requireRole(['independent_practitioner']), voidCompletedLog);
-// Any authenticated role may view notes on their own log — ownership is
-// enforced inside the controller itself (practitioner_id match).
+// Any authenticated role may view/add notes on their own log — ownership
+// is enforced inside each controller itself (practitioner_id match).
 router.get('/logs/:id/notes', protect, getMyLogNotes);
+router.post('/logs/:id/notes', protect, addMyLogComment);
 
 // Practitioner's own quick stats — placed before /:id wildcard to avoid route conflict
 router.get('/practitioner-stats', protect, getPractitionerStats);
