@@ -232,14 +232,14 @@ export default function GenerateSevf() {
                     </div>
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <Button variant="outline" className="flex-1" onClick={() => handlePrint(r)}>
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handlePrint(r)}>
                       <Printer className="size-4" aria-hidden="true" /> SEVF
                     </Button>
-                    <Button variant="outline" className="flex-1" onClick={() => handlePrintInvoice(r)}>
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handlePrintInvoice(r)}>
                       <FileText className="size-4" aria-hidden="true" /> Invoice
                     </Button>
-                    <Button variant="outline" className="flex-1" onClick={() => openEmailDialog(r)}>
-                      <Send className="size-4" aria-hidden="true" /> Email to Agency
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEmailDialog(r)}>
+                      <Send className="size-4" aria-hidden="true" /> Email
                     </Button>
                   </div>
                 </li>

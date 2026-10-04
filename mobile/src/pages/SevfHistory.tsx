@@ -161,20 +161,20 @@ export default function SevfHistory() {
                     )}
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => handlePrint(b)}>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handlePrint(b)}>
                     <Printer className="size-4" aria-hidden="true" /> SEVF
                   </Button>
-                  <Button variant="outline" className="flex-1" onClick={() => handlePrintInvoice(b)}>
+                  <Button variant="outline" size="sm" onClick={() => handlePrintInvoice(b)}>
                     <FileText className="size-4" aria-hidden="true" /> Invoice
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => openEmailDialog(b)}>
+                    <Send className="size-4" aria-hidden="true" /> Email
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setRevertTarget(b)}>
+                    <RotateCcw className="size-4" aria-hidden="true" /> Revert
+                  </Button>
                 </div>
-                <Button variant="outline" className="mt-2 w-full" onClick={() => openEmailDialog(b)}>
-                  <Send className="size-4" aria-hidden="true" /> Email to Agency
-                </Button>
-                <Button variant="outline" className="mt-2 w-full" onClick={() => setRevertTarget(b)}>
-                  <RotateCcw className="size-4" aria-hidden="true" /> Revert
-                </Button>
               </li>
             ))}
           </ul>
