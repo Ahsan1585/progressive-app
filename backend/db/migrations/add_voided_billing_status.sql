@@ -27,6 +27,14 @@
 -- is deliberately redundant with that file rather than editing it in
 -- place — this migration runs strictly after it in MIGRATIONS, so its own
 -- narrower list always wins as the final word on every boot.
+--
+-- Also folds in 'locked_in_report' (reportController.js's own
+-- temporary-lock status while a report is being assembled) — that value
+-- predates any CHECK constraint on this column and was never added when
+-- add_independent_practitioner_support.sql first introduced one, so any
+-- tenant with a row ever written while locked into a report (even
+-- fleetingly) fails this ALTER on deploy. Not a new value being
+-- introduced here, just catching up the constraint to match reality.
 
 DO $$
 BEGIN
@@ -39,6 +47,7 @@ BEGIN
     CHECK (billing_status = ANY (ARRAY[
       'pending'::text, 'njeis_review'::text, 'invoiced'::text,
       'on_hold'::text, 'rejected'::text, 'declined'::text,
-      'self_certified'::text, 'completed'::text, 'voided'::text
+      'self_certified'::text, 'completed'::text, 'voided'::text,
+      'locked_in_report'::text
     ]));
 END $$;
