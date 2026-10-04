@@ -191,15 +191,24 @@ const getByAgency = async (req, res) => {
       ),
     ]);
 
+    // Groups case-insensitively (lower(name) as the map key) — the same
+    // session's agency name is free text on assessments.company_affiliation,
+    // so "Sunny Days LLC" logged once and "Sunny days llc" logged another
+    // time are the same real agency and must not split into two rows (this
+    // matches how agencies.agencies_practitioner_name_unique and
+    // resolveAgencyEmail both already treat the name). Displays whichever
+    // casing was seen first.
     const groupByAgency = (rows) => {
       const byAgency = new Map();
       for (const r of rows) {
-        const name = r.company_affiliation || 'No agency';
+        const rawName = r.company_affiliation || 'No agency';
+        const key = rawName.toLowerCase();
         const hours = (r.total_time || 0) / 60;
-        byAgency.set(name, (byAgency.get(name) || 0) + hours);
+        const existing = byAgency.get(key);
+        byAgency.set(key, { name: existing?.name || rawName, hours: (existing?.hours || 0) + hours });
       }
-      return Array.from(byAgency.entries())
-        .map(([name, hours]) => ({ name, hours, value: hours * payRate }))
+      return Array.from(byAgency.values())
+        .map(({ name, hours }) => ({ name, hours, value: hours * payRate }))
         .sort((a, b) => b.value - a.value);
     };
 
