@@ -557,7 +557,7 @@ const seedMySessionLogs = async (req, res) => {
   const client = await pool.connect();
   try {
     const { rows: pracRows } = await client.query(
-      'SELECT first_name, last_name, practitioner_discipline, pay_rate FROM practitioners WHERE id = $1',
+      'SELECT first_name, last_name, position_title, pay_rate FROM practitioners WHERE id = $1',
       [practitionerId]
     );
     const prac = pracRows[0];
