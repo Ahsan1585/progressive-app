@@ -22,8 +22,17 @@ async function getPayRate(practitionerId) {
 }
 
 // GET /api/practitioner-dashboard/summary — this month's $ invoiced (from
-// 'completed' sessions) and $ pending (from 'self_certified' sessions not
-// yet SEVF'd), plus last month's $ invoiced for a simple trend delta.
+// 'completed' sessions), last month's $ invoiced for a simple trend delta,
+// and $ pending (from EVERY still-'self_certified' session, regardless of
+// its service_date — the same set Generate SEVF's "pending" list shows).
+//
+// pendingValue intentionally has no month boundary: a session logged 4
+// months ago that's never been SEVF'd is exactly as "ready to invoice" as
+// one logged yesterday, so scoping it to "this month" (as an earlier
+// version of this endpoint did) silently hid real pending value and made
+// the Home banner disagree with Generate SEVF's own pending list. Invoiced
+// totals stay correctly month-scoped — "how much did I bill in month X" is
+// a real per-month question in a way "how much is unbilled" isn't.
 const getDashboardSummary = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
@@ -33,16 +42,22 @@ const getDashboardSummary = async (req, res) => {
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-    const { rows } = await pool.query(
-      `SELECT billing_status, total_time, service_date
-       FROM assessments
-       WHERE practitioner_id = $1 AND service_date >= $2 AND billing_status != 'voided'`,
-      [practitionerId, lastMonthStart]
-    );
+    const [{ rows: recentRows }, { rows: pendingRows }] = await Promise.all([
+      pool.query(
+        `SELECT billing_status, total_time, service_date
+         FROM assessments
+         WHERE practitioner_id = $1 AND service_date >= $2 AND billing_status != 'voided'`,
+        [practitionerId, lastMonthStart]
+      ),
+      pool.query(
+        `SELECT total_time FROM assessments WHERE practitioner_id = $1 AND billing_status = 'self_certified'`,
+        [practitionerId]
+      ),
+    ]);
 
-    let invoicedThisMonth = 0, pendingValue = 0, invoicedLastMonth = 0;
+    let invoicedThisMonth = 0, invoicedLastMonth = 0;
     let sessionsSubmittedThisMonth = 0, hoursThisMonth = 0;
-    for (const r of rows) {
+    for (const r of recentRows) {
       const hours = (r.total_time || 0) / 60;
       const isThisMonth = r.service_date >= monthStart;
       if (r.billing_status === 'completed') {
@@ -54,10 +69,14 @@ const getDashboardSummary = async (req, res) => {
           invoicedLastMonth += hours * payRate;
         }
       } else if (r.billing_status === 'self_certified' && isThisMonth) {
-        pendingValue += hours * payRate;
         sessionsSubmittedThisMonth += 1;
         hoursThisMonth += hours;
       }
+    }
+
+    let pendingValue = 0;
+    for (const r of pendingRows) {
+      pendingValue += ((r.total_time || 0) / 60) * payRate;
     }
 
     const percentChangeVsLastMonth = invoicedLastMonth > 0
