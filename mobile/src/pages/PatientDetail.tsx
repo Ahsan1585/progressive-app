@@ -471,47 +471,47 @@ export default function PatientDetail() {
                   <p className="text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
                   <p className="tabular shrink-0 text-sm font-semibold text-ink">{(item.total_time / 60).toFixed(2)} hrs</p>
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border pt-2">
+                <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-border pt-2.5">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Time</p>
-                    <p className="tabular truncate text-xs text-ink-muted">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Time</p>
+                    <p className="tabular text-sm text-ink-body">
                       {formatTime12h(item.start_time)}–{formatTime12h(item.end_time)}
                     </p>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Location</p>
-                    <p className="truncate text-xs text-ink-muted">{locationCodeMap[item.location] || item.location}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Location</p>
+                    <p className="text-sm text-ink-body">{locationCodeMap[item.location] || item.location}</p>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Visit status</p>
-                    <p className="truncate text-xs text-ink-muted">{statusCodeMap[item.status] || item.status}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Visit status</p>
+                    <p className="text-sm text-ink-body">{statusCodeMap[item.status] || item.status}</p>
                   </div>
                   {item.group_size_category && (
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Group size</p>
-                      <p className="truncate text-xs text-ink-muted">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Group size</p>
+                      <p className="text-sm text-ink-body">
                         {groupSizeMap[item.group_size_category] || item.group_size_category}
                       </p>
                     </div>
                   )}
                 </div>
-                <div className="mt-2 flex items-center gap-4">
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
                   {["pending", "self_certified"].includes(item.billing_status) && (
                     <>
                       <button
                         type="button"
                         onClick={() => navigate(`/patients/${id}/logs/${item.id}/edit`)}
-                        className="press-scale flex items-center gap-1 text-xs font-semibold text-primary"
+                        className="press-scale flex items-center gap-1.5 text-sm font-semibold text-primary"
                       >
-                        <PencilLine className="size-3.5" aria-hidden="true" />
+                        <PencilLine className="size-4" aria-hidden="true" />
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(item)}
-                        className="press-scale flex items-center gap-1 text-xs font-semibold text-danger"
+                        className="press-scale flex items-center gap-1.5 text-sm font-semibold text-danger"
                       >
-                        <Trash2 className="size-3.5" aria-hidden="true" />
+                        <Trash2 className="size-4" aria-hidden="true" />
                         Delete
                       </button>
                     </>
@@ -526,18 +526,18 @@ export default function PatientDetail() {
                     <button
                       type="button"
                       onClick={() => setVoidTarget(item)}
-                      className="press-scale flex items-center gap-1 text-xs font-semibold text-danger"
+                      className="press-scale flex items-center gap-1.5 text-sm font-semibold text-danger"
                     >
-                      <XCircle className="size-3.5" aria-hidden="true" />
+                      <XCircle className="size-4" aria-hidden="true" />
                       Reject
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => handleViewNotes(item)}
-                    className="press-scale flex items-center gap-1 text-xs font-semibold text-ink-muted"
+                    className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted"
                   >
-                    <MessageSquare className="size-3.5" aria-hidden="true" />
+                    <MessageSquare className="size-4" aria-hidden="true" />
                     View comments
                   </button>
                 </div>
