@@ -67,6 +67,7 @@ interface AppDataContextValue {
   serviceTypeMap: Record<string, string>;
   statusCodeMap: Record<string, string>;
   locationCodeMap: Record<string, string>;
+  groupSizeMap: Record<string, string>;
   fetchDropdownOptions: () => Promise<void>;
 
   // Independent-practitioner-only (see agencyController.js) — the
@@ -303,6 +304,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const serviceTypeMap = React.useMemo(() => buildCodeLabelMap(dropdownOptions.service_type), [dropdownOptions]);
   const statusCodeMap = React.useMemo(() => buildCodeLabelMap(dropdownOptions.service_status), [dropdownOptions]);
   const locationCodeMap = React.useMemo(() => buildCodeLabelMap(dropdownOptions.location), [dropdownOptions]);
+  const groupSizeMap = React.useMemo(() => buildCodeLabelMap(dropdownOptions.group_size), [dropdownOptions]);
 
   const value = React.useMemo<AppDataContextValue>(
     () => ({
@@ -345,6 +347,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       serviceTypeMap,
       statusCodeMap,
       locationCodeMap,
+      groupSizeMap,
       fetchDropdownOptions,
       agencies,
       agenciesLoading,
@@ -391,6 +394,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       serviceTypeMap,
       statusCodeMap,
       locationCodeMap,
+      groupSizeMap,
       fetchDropdownOptions,
       agencies,
       agenciesLoading,

@@ -22,7 +22,7 @@ export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
+  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, groupSizeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
   const { isIndependentPractitioner } = useAuth();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
@@ -457,6 +457,11 @@ export default function PatientDetail() {
                   </span>
                   <span className="font-semibold uppercase tracking-wide">{statusCodeMap[item.status] || item.status}</span>
                 </div>
+                {item.group_size_category && (
+                  <p className="mt-1 text-xs text-ink-muted">
+                    {groupSizeMap[item.group_size_category] || item.group_size_category}
+                  </p>
+                )}
                 {["pending", "self_certified"].includes(item.billing_status) && (
                   <div className="mt-2 flex items-center gap-4">
                     <button
