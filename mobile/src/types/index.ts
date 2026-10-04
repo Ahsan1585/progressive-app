@@ -374,6 +374,30 @@ export interface PractitionerStats {
   pendingReviewCount: number;
 }
 
+// Independent-practitioner-only (see practitionerDashboardController.js) —
+// business-dashboard data for Home's dollar-value summary/trend.
+export interface PractitionerDashboardSummary {
+  sessionsSubmittedThisMonth: number;
+  hoursThisMonth: number;
+  invoicedThisMonth: number;
+  pendingValue: number;
+  /** null when last month had $0 invoiced — no meaningful baseline to show a % against. */
+  percentChangeVsLastMonth: number | null;
+}
+
+export interface MonthlyTrendPoint {
+  month: string; // 'YYYY-MM'
+  label: string; // e.g. "Jun"
+  hours: number;
+  invoicedValue: number;
+}
+
+export interface AgencyBreakdownEntry {
+  name: string;
+  hours: number;
+  invoicedValue: number;
+}
+
 export interface ApiErrorBody {
   error?: string;
   message?: string;

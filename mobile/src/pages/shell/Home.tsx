@@ -1,17 +1,22 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, MapPin, PencilLine, RefreshCw, Trash2, Users } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, FileText, MapPin, PencilLine, RefreshCw, TrendingDown, TrendingUp, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
 import { StatTile } from "@/components/StatTile";
+import { MonthlyBarChart } from "@/components/MonthlyBarChart";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import api from "@/api/axiosInstance";
 import { formatTime12h, timeAgo } from "@/utils/time";
 import { cn } from "@/lib/utils";
-import type { ScheduledSession } from "@/types";
+import type { ScheduledSession, PractitionerDashboardSummary, MonthlyTrendPoint, AgencyBreakdownEntry } from "@/types";
+
+const formatUsd = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const formatUsdShort = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`);
 
 // Buckets upcoming sessions into calendar-relative groups (Today / Tomorrow /
 // weekday name within the next week / "Mon D" beyond that). Sessions arrive
@@ -41,7 +46,7 @@ function groupSessionsByDay(sessions: ScheduledSession[]) {
 }
 
 export default function Home() {
-  const { practitioner } = useAuth();
+  const { practitioner, isIndependentPractitioner } = useAuth();
   const {
     stats, statsLoading, statsError, fetchStats,
     rejectedLogs, rejectedLoading, fetchRejectedLogs,
@@ -55,6 +60,35 @@ export default function Home() {
   const [refreshing, setRefreshing] = React.useState(false);
   const [discardTarget, setDiscardTarget] = React.useState<{ id: string; name: string } | null>(null);
   const [isDiscarding, setIsDiscarding] = React.useState(false);
+
+  // Independent-practitioner-only business dashboard (see
+  // practitionerDashboardController.js) — "how many sessions have I
+  // submitted, what's their dollar value based on the invoices issued,"
+  // plus a 6-month trend and which agencies are the income source.
+  const [dashboardSummary, setDashboardSummary] = React.useState<PractitionerDashboardSummary | null>(null);
+  const [dashboardLoading, setDashboardLoading] = React.useState(true);
+  const [trend, setTrend] = React.useState<MonthlyTrendPoint[]>([]);
+  const [trendMetric, setTrendMetric] = React.useState<"value" | "hours">("value");
+  const [byAgency, setByAgency] = React.useState<AgencyBreakdownEntry[]>([]);
+
+  const fetchDashboard = React.useCallback(async () => {
+    if (!isIndependentPractitioner) return;
+    setDashboardLoading(true);
+    try {
+      const [summaryRes, trendRes, agencyRes] = await Promise.all([
+        api.get<{ success: boolean } & PractitionerDashboardSummary>("/api/practitioner-dashboard/summary"),
+        api.get<{ success: boolean; months: MonthlyTrendPoint[] }>("/api/practitioner-dashboard/monthly-trend"),
+        api.get<{ success: boolean; agencies: AgencyBreakdownEntry[] }>("/api/practitioner-dashboard/by-agency"),
+      ]);
+      setDashboardSummary(summaryRes.data);
+      setTrend(trendRes.data.months || []);
+      setByAgency(agencyRes.data.agencies || []);
+    } catch {
+      // Non-critical — the dashboard section just stays empty/blank until retried.
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, [isIndependentPractitioner]);
 
   const handleDiscardDraft = async () => {
     if (!discardTarget) return;
@@ -74,7 +108,7 @@ export default function Home() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchDrafts(), fetchPatients(), fetchUpcomingSessions()]);
+      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchDrafts(), fetchPatients(), fetchUpcomingSessions(), fetchDashboard()]);
     } finally {
       setRefreshing(false);
     }
@@ -92,7 +126,8 @@ export default function Home() {
     fetchDrafts();
     fetchPatients();
     fetchUpcomingSessions();
-  }, [fetchStats, fetchRejectedLogs, fetchDrafts, fetchPatients, fetchUpcomingSessions]);
+    fetchDashboard();
+  }, [fetchStats, fetchRejectedLogs, fetchDrafts, fetchPatients, fetchUpcomingSessions, fetchDashboard]);
 
   const scheduleGroups = React.useMemo(() => groupSessionsByDay(upcomingSessions), [upcomingSessions]);
 
@@ -143,6 +178,22 @@ export default function Home() {
 
       {statsError ? (
         <InlineErrorBanner message={statsError} onRetry={fetchStats} className="mb-6" />
+      ) : isIndependentPractitioner ? (
+        <div className="mb-6 grid grid-cols-3 gap-3">
+          <StatTile label="Sessions this month" value={dashboardSummary?.sessionsSubmittedThisMonth ?? null} loading={dashboardLoading} />
+          <StatTile
+            label="Hours this month"
+            value={dashboardSummary?.hoursThisMonth ?? null}
+            loading={dashboardLoading}
+            formatter={(n) => n.toFixed(1)}
+          />
+          <StatTile
+            label="$ invoiced"
+            value={dashboardSummary?.invoicedThisMonth ?? null}
+            loading={dashboardLoading}
+            formatter={(n) => formatUsdShort(n)}
+          />
+        </div>
       ) : (
         <div className="mb-6 grid grid-cols-3 gap-3">
           <StatTile label="Logs this month" value={stats?.logsThisMonth ?? null} loading={statsLoading} />
@@ -153,6 +204,95 @@ export default function Home() {
             formatter={(n) => n.toFixed(1)}
           />
           <StatTile label="In pipeline" value={stats?.pendingReviewCount ?? null} loading={statsLoading} />
+        </div>
+      )}
+
+      {isIndependentPractitioner && (
+        <div className="mb-6 space-y-4">
+          {/* Pending value + quick link into Generate SEVF — the direct
+              bridge between "I logged sessions" and "I've billed for them,"
+              so the dollar amount still sitting ungenerated is never just
+              an abstract number with no obvious next action. */}
+          {!dashboardLoading && dashboardSummary && dashboardSummary.pendingValue > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate("/generate-sevf")}
+              className="press-scale flex w-full items-center gap-3 rounded-card border border-primary/30 bg-primary-tint p-4 text-left"
+            >
+              <FileText className="size-5 shrink-0 text-primary" aria-hidden="true" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-ink">
+                  {formatUsd(dashboardSummary.pendingValue)} ready to invoice
+                </p>
+                <p className="text-xs text-ink-muted">Logged but no SEVF generated yet — tap to generate.</p>
+              </div>
+              <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+            </button>
+          )}
+
+          <div className="rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Monthly trend</p>
+              <div className="flex rounded-control border border-border-strong p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setTrendMetric("value")}
+                  className={cn(
+                    "rounded-[6px] px-2.5 py-1 text-xs font-semibold",
+                    trendMetric === "value" ? "bg-primary text-primary-fg" : "text-ink-muted"
+                  )}
+                >
+                  $ Invoiced
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrendMetric("hours")}
+                  className={cn(
+                    "rounded-[6px] px-2.5 py-1 text-xs font-semibold",
+                    trendMetric === "hours" ? "bg-primary text-primary-fg" : "text-ink-muted"
+                  )}
+                >
+                  Hours
+                </button>
+              </div>
+            </div>
+            {dashboardLoading ? (
+              <Skeleton className="h-[120px] w-full" />
+            ) : (
+              <MonthlyBarChart
+                data={trend.map((t) => ({ label: t.label, value: trendMetric === "value" ? t.invoicedValue : t.hours }))}
+                formatValue={trendMetric === "value" ? formatUsdShort : (n) => n.toFixed(0)}
+              />
+            )}
+            {!dashboardLoading && dashboardSummary?.percentChangeVsLastMonth !== null && dashboardSummary?.percentChangeVsLastMonth !== undefined && (
+              <div className="mt-2 flex items-center gap-1 text-xs font-semibold">
+                {dashboardSummary.percentChangeVsLastMonth >= 0 ? (
+                  <TrendingUp className="size-3.5 text-success" aria-hidden="true" />
+                ) : (
+                  <TrendingDown className="size-3.5 text-danger" aria-hidden="true" />
+                )}
+                <span className={dashboardSummary.percentChangeVsLastMonth >= 0 ? "text-success" : "text-danger"}>
+                  {dashboardSummary.percentChangeVsLastMonth >= 0 ? "+" : ""}
+                  {dashboardSummary.percentChangeVsLastMonth}%
+                </span>
+                <span className="text-ink-muted">vs last month</span>
+              </div>
+            )}
+          </div>
+
+          {!dashboardLoading && byAgency.length > 0 && (
+            <div className="rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">Billed by agency this month</p>
+              <ul role="list" className="space-y-2.5">
+                {byAgency.map((a) => (
+                  <li key={a.name} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm text-ink">{a.name}</span>
+                    <span className="tabular shrink-0 text-sm font-semibold text-ink">{formatUsd(a.invoicedValue)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

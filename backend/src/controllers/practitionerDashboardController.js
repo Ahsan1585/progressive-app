@@ -1,0 +1,164 @@
+// Independent-practitioner-only: business-dashboard data for the mobile
+// Home tab — "how many sessions have I submitted, what's their dollar
+// value based on the invoices issued" (the user's own framing) plus
+// supporting context (which agencies are the income source, how it trends
+// month over month). Distinct from patientController.js's
+// getPractitionerStats, which is a generic logging-activity tile shared by
+// every role and has no dollar/billing concept at all.
+//
+// Dollar value is always hours × practitioners.pay_rate (the exact same
+// math generateSelfCertifiedSEVF/generateInvoicePDF already use) — never
+// stored directly anywhere (billing_batches has no amount column), so it's
+// recomputed here from assessments.total_time each time. A 'voided'
+// session (see patientController.js's voidCompletedLog) is excluded from
+// every total/chart below — by explicit design, a rejected session counts
+// for nothing, not even hours, once flagged.
+const { pool } = require('../config/db');
+
+async function getPayRate(practitionerId) {
+  const { rows } = await pool.query('SELECT pay_rate FROM practitioners WHERE id = $1', [practitionerId]);
+  const rate = parseFloat(rows[0]?.pay_rate);
+  return Number.isFinite(rate) && rate > 0 ? rate : 0;
+}
+
+// GET /api/practitioner-dashboard/summary — this month's $ invoiced (from
+// 'completed' sessions) and $ pending (from 'self_certified' sessions not
+// yet SEVF'd), plus last month's $ invoiced for a simple trend delta.
+const getDashboardSummary = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    const payRate = await getPayRate(practitionerId);
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const { rows } = await pool.query(
+      `SELECT billing_status, total_time, service_date
+       FROM assessments
+       WHERE practitioner_id = $1 AND service_date >= $2 AND billing_status != 'voided'`,
+      [practitionerId, lastMonthStart]
+    );
+
+    let invoicedThisMonth = 0, pendingValue = 0, invoicedLastMonth = 0;
+    let sessionsSubmittedThisMonth = 0, hoursThisMonth = 0;
+    for (const r of rows) {
+      const hours = (r.total_time || 0) / 60;
+      const isThisMonth = r.service_date >= monthStart;
+      if (r.billing_status === 'completed') {
+        if (isThisMonth) {
+          invoicedThisMonth += hours * payRate;
+          sessionsSubmittedThisMonth += 1;
+          hoursThisMonth += hours;
+        } else {
+          invoicedLastMonth += hours * payRate;
+        }
+      } else if (r.billing_status === 'self_certified' && isThisMonth) {
+        pendingValue += hours * payRate;
+        sessionsSubmittedThisMonth += 1;
+        hoursThisMonth += hours;
+      }
+    }
+
+    const percentChangeVsLastMonth = invoicedLastMonth > 0
+      ? Math.round(((invoicedThisMonth - invoicedLastMonth) / invoicedLastMonth) * 100)
+      : null; // No baseline to compare against — the UI shows no delta rather than a misleading 0%/infinite swing.
+
+    res.json({
+      success: true,
+      sessionsSubmittedThisMonth,
+      hoursThisMonth,
+      invoicedThisMonth,
+      pendingValue,
+      percentChangeVsLastMonth,
+    });
+  } catch (error) {
+    console.error('Error fetching practitioner dashboard summary:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch dashboard summary.' });
+  }
+};
+
+// GET /api/practitioner-dashboard/monthly-trend — last 6 calendar months
+// (oldest first), $ invoiced and hours logged per month, both excluding
+// 'voided' sessions. Only 'completed' sessions count toward either figure
+// (a still-'self_certified' session hasn't actually been invoiced yet, so
+// it doesn't belong in a historical trend the same way "pending this
+// month" does on the summary above).
+const getMonthlyTrend = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    const payRate = await getPayRate(practitionerId);
+    const now = new Date();
+    const sixMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const sixMonthsAgoStartIso = `${sixMonthsAgoStart.getFullYear()}-${String(sixMonthsAgoStart.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const { rows } = await pool.query(
+      `SELECT to_char(service_date, 'YYYY-MM') AS month, SUM(total_time) AS total_minutes
+       FROM assessments
+       WHERE practitioner_id = $1 AND billing_status = 'completed' AND service_date >= $2
+       GROUP BY to_char(service_date, 'YYYY-MM')`,
+      [practitionerId, sixMonthsAgoStartIso]
+    );
+    const byMonth = new Map(rows.map((r) => [r.month, parseFloat(r.total_minutes) || 0]));
+
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const minutes = byMonth.get(key) || 0;
+      const hours = minutes / 60;
+      months.push({
+        month: key,
+        label: d.toLocaleDateString(undefined, { month: 'short' }),
+        hours,
+        invoicedValue: hours * payRate,
+      });
+    }
+
+    res.json({ success: true, months });
+  } catch (error) {
+    console.error('Error fetching practitioner monthly trend:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch monthly trend.' });
+  }
+};
+
+// GET /api/practitioner-dashboard/by-agency — this month's $ invoiced,
+// broken down per agency (by assessments.company_affiliation, matched
+// case-insensitively against the practitioner's saved agencies the same
+// way resolveAgencyEmail does), sorted highest-value first. A session with
+// no agency set (should be rare/non-existent for this role, since it's
+// required at log time) groups under a literal "No agency" label rather
+// than being silently dropped.
+const getByAgency = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  try {
+    const payRate = await getPayRate(practitionerId);
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const { rows } = await pool.query(
+      `SELECT company_affiliation, total_time
+       FROM assessments
+       WHERE practitioner_id = $1 AND billing_status = 'completed' AND service_date >= $2`,
+      [practitionerId, monthStart]
+    );
+
+    const byAgency = new Map();
+    for (const r of rows) {
+      const name = r.company_affiliation || 'No agency';
+      const hours = (r.total_time || 0) / 60;
+      byAgency.set(name, (byAgency.get(name) || 0) + hours);
+    }
+
+    const agencies = Array.from(byAgency.entries())
+      .map(([name, hours]) => ({ name, hours, invoicedValue: hours * payRate }))
+      .sort((a, b) => b.invoicedValue - a.invoicedValue);
+
+    res.json({ success: true, agencies });
+  } catch (error) {
+    console.error('Error fetching practitioner dashboard by-agency breakdown:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch agency breakdown.' });
+  }
+};
+
+module.exports = { getDashboardSummary, getMonthlyTrend, getByAgency };
