@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmailSentDialog } from "@/components/EmailSentDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate } from "@/utils/time";
 import type { GeneratedSevfResult, ApiErrorBody } from "@/types";
@@ -33,6 +34,11 @@ export default function SevfHistory() {
   const [agencyEmail, setAgencyEmail] = React.useState("");
   const [saveEmailForAgency, setSaveEmailForAgency] = React.useState(false);
   const [isSendingEmail, setIsSendingEmail] = React.useState(false);
+  const [emailSentConfirmation, setEmailSentConfirmation] = React.useState<{
+    agencyName: string | null;
+    agencyEmail: string;
+    includesInvoice: boolean;
+  } | null>(null);
 
   const fetchHistory = React.useCallback(async () => {
     setIsLoading(true);
@@ -94,10 +100,11 @@ export default function SevfHistory() {
           // Non-critical — the email still sent; just didn't get saved for next time.
         }
       }
-      showToast(
-        emailTarget.invoiceDownloadUrl ? "SEVF and invoice emailed to the agency." : "SEVF emailed to the agency.",
-        "success"
-      );
+      setEmailSentConfirmation({
+        agencyName: emailTarget.companyAffiliation,
+        agencyEmail: agencyEmail.trim(),
+        includesInvoice: !!emailTarget.invoiceDownloadUrl,
+      });
       setEmailTarget(null);
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
@@ -236,6 +243,14 @@ export default function SevfHistory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EmailSentDialog
+        open={!!emailSentConfirmation}
+        onOpenChange={(open) => !open && setEmailSentConfirmation(null)}
+        agencyName={emailSentConfirmation?.agencyName ?? null}
+        agencyEmail={emailSentConfirmation?.agencyEmail ?? ""}
+        includesInvoice={emailSentConfirmation?.includesInvoice ?? false}
+      />
     </PushScreen>
   );
 }
