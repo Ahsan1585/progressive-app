@@ -4,8 +4,10 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 // The five tab-root screens (Home / Roster / Inbox / Messages-or-Billing /
-// Profile) render inside this shell. Pushed full-screen views mount outside
-// it (own AppBar, no tab bar).
+// Profile) render inside this shell, and so does every pushed full-screen
+// view (Add/Edit Patient, Log Session, Generate SEVF, etc. — see App.tsx) —
+// the tab bar stays visible underneath a pushed view's own AppBar/back
+// arrow, so switching tabs mid-task never requires backing out first.
 export function ShellLayout() {
   const { rejectedLogs, telepracticeRequests, unreadMessageCount } = useAppData();
   const { isIndependentPractitioner } = useAuth();
