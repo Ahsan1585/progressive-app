@@ -1,5 +1,5 @@
-import { Copy, MessageSquare } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Copy, MessageSquare, X } from "lucide-react";
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
@@ -43,8 +43,14 @@ export function ViewNotesDialog({ open, onOpenChange, notes, loading }: ViewNote
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-labelledby="view-notes-dialog-title" className="max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="flex-row items-center justify-between gap-2 space-y-0">
           <DialogTitle id="view-notes-dialog-title">Comments</DialogTitle>
+          <DialogClose
+            aria-label="Close"
+            className="press-scale -mr-1 -mt-1 flex size-8 shrink-0 items-center justify-center rounded-control text-ink-muted hover:bg-surface-sunken"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </DialogClose>
         </DialogHeader>
 
         {loading ? (
