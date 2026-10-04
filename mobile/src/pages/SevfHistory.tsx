@@ -24,7 +24,7 @@ import type { GeneratedSevfResult, ApiErrorBody } from "@/types";
 // visible for the few seconds right after generating on GenerateSevf.tsx.
 export default function SevfHistory() {
   const { showToast } = useToast();
-  const { fetchAgencies } = useAppData();
+  const { agencies, fetchAgencies } = useAppData();
   const [batches, setBatches] = React.useState<GeneratedSevfResult[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -92,9 +92,20 @@ export default function SevfHistory() {
         batchId: emailTarget.batchId,
         agencyEmail: agencyEmail.trim(),
       });
+      // See GenerateSevf.tsx's identical block for why this must UPDATE an
+      // already-existing agency rather than always POSTing a new one — the
+      // agency almost always already exists without an email (that's why
+      // the checkbox was offered), and POSTing a duplicate name 409s,
+      // which was previously swallowed silently, so the email never
+      // actually got saved despite the checkbox implying it had.
       if (saveEmailForAgency && !emailTarget.agencyEmail && emailTarget.companyAffiliation) {
         try {
-          await api.post("/api/agencies", { name: emailTarget.companyAffiliation, email: agencyEmail.trim() });
+          const existing = agencies.find((a) => a.name.toLowerCase() === emailTarget.companyAffiliation!.toLowerCase());
+          if (existing) {
+            await api.put(`/api/agencies/${existing.id}`, { email: agencyEmail.trim() });
+          } else {
+            await api.post("/api/agencies", { name: emailTarget.companyAffiliation, email: agencyEmail.trim() });
+          }
           fetchAgencies();
         } catch {
           // Non-critical — the email still sent; just didn't get saved for next time.

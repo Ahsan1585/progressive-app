@@ -171,9 +171,20 @@ export default function GenerateSevf() {
       // No agency was matched/had an email on file, but the practitioner
       // typed one and left the checkbox on — save it so this is pre-filled
       // automatically next time, matching Manage Agencies' own email field.
+      // The agency almost always already exists in the directory (just
+      // without an email — that's exactly why this checkbox was offered),
+      // so this must UPDATE that existing row, not try to create a new one
+      // — POSTing a duplicate name hits the agencies table's unique index
+      // and 409s, which was previously swallowed silently, so the email
+      // never actually got saved despite the checkbox and toast implying it had.
       if (saveEmailForAgency && !emailTarget.agencyEmail && emailTarget.companyAffiliation) {
         try {
-          await api.post("/api/agencies", { name: emailTarget.companyAffiliation, email: agencyEmail.trim() });
+          const existing = agencies.find((a) => a.name.toLowerCase() === emailTarget.companyAffiliation!.toLowerCase());
+          if (existing) {
+            await api.put(`/api/agencies/${existing.id}`, { email: agencyEmail.trim() });
+          } else {
+            await api.post("/api/agencies", { name: emailTarget.companyAffiliation, email: agencyEmail.trim() });
+          }
           fetchAgencies();
         } catch {
           // Non-critical — the email still sent; just didn't get saved for next time.
