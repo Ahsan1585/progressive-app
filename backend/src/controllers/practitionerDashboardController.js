@@ -79,11 +79,17 @@ const getDashboardSummary = async (req, res) => {
 };
 
 // GET /api/practitioner-dashboard/monthly-trend — last 6 calendar months
-// (oldest first), $ invoiced and hours logged per month, both excluding
-// 'voided' sessions. Only 'completed' sessions count toward either figure
-// (a still-'self_certified' session hasn't actually been invoiced yet, so
-// it doesn't belong in a historical trend the same way "pending this
-// month" does on the summary above).
+// (oldest first), hours logged and $ invoiced per month, excluding
+// 'voided' sessions throughout.
+//
+// The two figures intentionally track different things, same as the
+// summary endpoint above: `hours` is every session logged that month
+// regardless of billing status (completed OR still self_certified/
+// pending — "how much did I work"), matching getDashboardSummary's own
+// hoursThisMonth so the top stat tile and this chart's Hours view never
+// disagree for the current month. `invoicedValue` stays strictly
+// 'completed'-only — real invoiced money, not a projection off
+// not-yet-billed hours.
 const getMonthlyTrend = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
@@ -93,25 +99,29 @@ const getMonthlyTrend = async (req, res) => {
     const sixMonthsAgoStartIso = `${sixMonthsAgoStart.getFullYear()}-${String(sixMonthsAgoStart.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { rows } = await pool.query(
-      `SELECT to_char(service_date, 'YYYY-MM') AS month, SUM(total_time) AS total_minutes
+      `SELECT to_char(service_date, 'YYYY-MM') AS month,
+              SUM(total_time) FILTER (WHERE billing_status != 'voided') AS all_minutes,
+              SUM(total_time) FILTER (WHERE billing_status = 'completed') AS invoiced_minutes
        FROM assessments
-       WHERE practitioner_id = $1 AND billing_status = 'completed' AND service_date >= $2
+       WHERE practitioner_id = $1 AND service_date >= $2
        GROUP BY to_char(service_date, 'YYYY-MM')`,
       [practitionerId, sixMonthsAgoStartIso]
     );
-    const byMonth = new Map(rows.map((r) => [r.month, parseFloat(r.total_minutes) || 0]));
+    const byMonth = new Map(rows.map((r) => [
+      r.month,
+      { allMinutes: parseFloat(r.all_minutes) || 0, invoicedMinutes: parseFloat(r.invoiced_minutes) || 0 },
+    ]));
 
     const months = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const minutes = byMonth.get(key) || 0;
-      const hours = minutes / 60;
+      const { allMinutes, invoicedMinutes } = byMonth.get(key) || { allMinutes: 0, invoicedMinutes: 0 };
       months.push({
         month: key,
         label: d.toLocaleDateString(undefined, { month: 'short' }),
-        hours,
-        invoicedValue: hours * payRate,
+        hours: allMinutes / 60,
+        invoicedValue: (invoicedMinutes / 60) * payRate,
       });
     }
 
