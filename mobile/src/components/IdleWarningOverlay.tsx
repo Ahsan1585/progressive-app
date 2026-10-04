@@ -29,7 +29,7 @@ export function IdleWarningOverlay({ open, secondsRemaining, onStayLoggedIn }: I
             <span aria-live="assertive" className="tabular font-semibold text-ink">
               {display}
             </span>{" "}
-            to protect patient information.
+            to protect child information.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

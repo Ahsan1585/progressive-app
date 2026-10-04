@@ -134,7 +134,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       // Patient.id: string type and make every `p.id === paramId` lookup work.
       setPatients(res.data.map((p) => ({ ...p, id: String(p.id) })));
     } catch {
-      setPatientsError("Couldn't load your patient roster.");
+      setPatientsError("Couldn't load your child roster.");
     } finally {
       setPatientsLoading(false);
     }

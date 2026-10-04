@@ -13,7 +13,7 @@ interface TabBarProps {
 
 const BASE_TABS = [
   { to: "/home", label: "Home", icon: Home },
-  { to: "/roster", label: "Patients", icon: Users },
+  { to: "/roster", label: "Children", icon: Users },
   { to: "/inbox", label: "Inbox", icon: Inbox },
   { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/profile", label: "Profile", icon: User },
@@ -21,7 +21,7 @@ const BASE_TABS = [
 
 const INDEPENDENT_TABS = [
   { to: "/home", label: "Home", icon: Home },
-  { to: "/roster", label: "Patients", icon: Users },
+  { to: "/roster", label: "Children", icon: Users },
   { to: "/inbox", label: "Inbox", icon: Inbox },
   { to: "/billing", label: "Billing", icon: CreditCard },
   { to: "/profile", label: "Profile", icon: User },

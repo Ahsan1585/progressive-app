@@ -107,7 +107,7 @@ export default function EditPatient() {
         try {
           await api.put(`/api/patients/${id}/agencies`, { agencyIds: selectedAgencies.map((a) => a.id) });
         } catch {
-          showToast("Patient saved, but couldn't save their agencies. Please try again.", "error");
+          showToast("Child saved, but couldn't save their agencies. Please try again.", "error");
         }
       }
       await fetchPatients();
@@ -117,7 +117,7 @@ export default function EditPatient() {
         | ApiErrorBody
         | undefined;
       setServerError(
-        (typeof body?.error === "string" && body.error) || "Failed to update patient. Please try again."
+        (typeof body?.error === "string" && body.error) || "Failed to update child. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -126,7 +126,7 @@ export default function EditPatient() {
 
   return (
     <PushScreen>
-      <AppBar title="Edit patient" />
+      <AppBar title="Edit child" />
       <form onSubmit={handleSubmit} noValidate className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {serverError && <InlineErrorBanner message={serverError} />}
 

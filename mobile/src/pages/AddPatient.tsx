@@ -85,7 +85,7 @@ export default function AddPatient() {
             agencyIds: selectedAgencies.map((a) => a.id),
           });
         } catch {
-          showToast("Patient saved, but couldn't save their agencies — you can set them from Edit Patient.", "error");
+          showToast("Child saved, but couldn't save their agencies — you can set them from Edit Child.", "error");
         }
       }
       await fetchPatients();
@@ -93,7 +93,7 @@ export default function AddPatient() {
       // that same shared record rather than failing — worth flagging so it
       // doesn't read like an ordinary "added" confirmation.
       if (res.data.linked) {
-        showToast(res.data.message || "This child was already registered — linked to your patient list.");
+        showToast(res.data.message || "This child was already registered — linked to your child list.");
       }
       navigate(`/patients/${res.data.data.id}`, { replace: true });
     } catch (err) {
@@ -101,7 +101,7 @@ export default function AddPatient() {
         | ApiErrorBody
         | undefined;
       setServerError(
-        (typeof body?.error === "string" && body.error) || "Failed to register patient. Please try again."
+        (typeof body?.error === "string" && body.error) || "Failed to register child. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -110,7 +110,7 @@ export default function AddPatient() {
 
   return (
     <PushScreen>
-      <AppBar title="Add patient" />
+      <AppBar title="Add child" />
       <form onSubmit={handleSubmit} noValidate className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {serverError && <InlineErrorBanner message={serverError} />}
 
@@ -163,7 +163,7 @@ export default function AddPatient() {
 
         <div className="pt-2">
           <Button type="submit" className="w-full" size="lg" loading={submitting}>
-            Register patient
+            Register child
           </Button>
         </div>
       </form>

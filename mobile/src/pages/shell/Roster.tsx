@@ -76,15 +76,15 @@ export default function Roster() {
             {companyName && (
               <p className="truncate text-xs font-semibold uppercase tracking-wide text-ink-faint">{companyName}</p>
             )}
-            <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Patients</h1>
+            <h1 className="text-[20px] font-semibold leading-[26px] text-ink">Children</h1>
             <p className="mt-0.5 truncate text-xs text-ink-muted">
-              Tap + to add a patient · open one to log or schedule a session
+              Tap + to add a child · open one to log or schedule a session
             </p>
           </div>
           <button
             type="button"
             onClick={() => navigate("/patients/new")}
-            aria-label="Add patient"
+            aria-label="Add child"
             className="press-scale flex size-11 shrink-0 items-center justify-center rounded-control border border-border-strong bg-surface text-ink"
           >
             <Plus className="size-5" aria-hidden="true" />
@@ -98,7 +98,7 @@ export default function Roster() {
               <CalendarPlus className="size-4 shrink-0" aria-hidden="true" />
             )}
             <p className="text-sm font-medium">
-              {logIntent ? "Select a patient below to log a session" : "Select a patient below to schedule a session"}
+              {logIntent ? "Select a child below to log a session" : "Select a child below to schedule a session"}
             </p>
           </div>
         )}
@@ -109,7 +109,7 @@ export default function Roster() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or Child ID"
-            aria-label="Search patients"
+            aria-label="Search children"
             className="h-11 w-full rounded-control border border-border bg-surface pl-9 pr-9 text-base text-ink outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/45"
           />
           {query && (
@@ -146,7 +146,7 @@ export default function Roster() {
         {patientsError ? (
           <InlineErrorBanner message={patientsError} onRetry={fetchPatients} />
         ) : patientsLoading ? (
-          <ul className="space-y-2" aria-label="Loading patients">
+          <ul className="space-y-2" aria-label="Loading children">
             {[0, 1, 2, 3].map((i) => (
               <li key={i}>
                 <Skeleton className="h-[68px] w-full" />
@@ -156,8 +156,8 @@ export default function Roster() {
         ) : patients.length === 0 ? (
           <EmptyState
             icon={Users}
-            heading="No patients yet"
-            subtext="Add your first patient to start logging visits."
+            heading="No children yet"
+            subtext="Add your first child to start logging visits."
             action={
               <button
                 type="button"
@@ -165,14 +165,14 @@ export default function Roster() {
                 className="press-scale inline-flex h-11 items-center gap-1.5 rounded-control bg-primary px-4 text-sm font-medium text-primary-fg"
               >
                 <Plus className="size-4" aria-hidden="true" />
-                Add patient
+                Add child
               </button>
             }
           />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Search}
-            heading={`No patients match "${query}"`}
+            heading={`No children match "${query}"`}
             action={
               <button type="button" onClick={() => setQuery("")} className="text-sm font-medium text-primary">
                 Clear search
@@ -180,7 +180,7 @@ export default function Roster() {
             }
           />
         ) : (
-          <ul role="list" aria-label="Patients" className="space-y-2">
+          <ul role="list" aria-label="Children" className="space-y-2">
             {filtered.map((p) => (
               <li key={p.id}>
                 <button

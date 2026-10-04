@@ -109,7 +109,7 @@ export function ScheduleSessionSheet({ target, patientId, parentEmail, onOpenCha
               <SheetDescription>
                 {parentEmail
                   ? "The parent will get an email with a calendar invite."
-                  : "No parent email on file — this patient's record won't get an emailed invite."}
+                  : "No parent email on file — this child's record won't get an emailed invite."}
               </SheetDescription>
             </SheetHeader>
 
