@@ -42,15 +42,15 @@ export function ViewNotesDialog({ open, onOpenChange, notes, loading }: ViewNote
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-labelledby="view-notes-dialog-title" className="max-h-[80vh] overflow-y-auto">
-        <DialogHeader className="flex-row items-center justify-between gap-2 space-y-0">
+      <DialogContent aria-labelledby="view-notes-dialog-title" className="relative max-h-[80vh] overflow-y-auto">
+        <DialogClose
+          aria-label="Close"
+          className="press-scale absolute right-3 top-3 flex size-8 shrink-0 items-center justify-center rounded-control text-ink-muted hover:bg-surface-sunken"
+        >
+          <X className="size-4" aria-hidden="true" />
+        </DialogClose>
+        <DialogHeader className="pr-8">
           <DialogTitle id="view-notes-dialog-title">Comments</DialogTitle>
-          <DialogClose
-            aria-label="Close"
-            className="press-scale -mr-1 -mt-1 flex size-8 shrink-0 items-center justify-center rounded-control text-ink-muted hover:bg-surface-sunken"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </DialogClose>
         </DialogHeader>
 
         {loading ? (
