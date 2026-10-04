@@ -30,15 +30,20 @@ export function AutoDismissNotice({ open, onOpenChange, message, durationMs = 30
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-0 z-50 flex items-center justify-center px-6"
+      className="fixed inset-0 z-50"
       // Tapping the backdrop dismisses early — never traps the practitioner
       // waiting out the timer if they want to move on immediately.
       onClick={() => onOpenChange(false)}
     >
+      {/* .modal-panel's own keyframes (index.css) bake in
+          translate(-50%, -50%), matching DialogContent's exact
+          `fixed left-1/2 top-1/2` positioning — reused here instead of a
+          flex-centered wrapper, which would double up that translate and
+          shove the panel off-center/off-screen. */}
       <div
         data-state="open"
         className={cn(
-          "modal-panel pointer-events-auto flex max-w-sm items-center gap-3 rounded-card border border-primary/30 bg-primary-tint px-5 py-4 text-center shadow-[var(--elev-overlay)]"
+          "modal-panel pointer-events-auto fixed left-1/2 top-1/2 flex w-[calc(100%-3rem)] max-w-sm items-center gap-3 rounded-card border border-primary/30 bg-primary-tint px-5 py-4 text-center shadow-[var(--elev-overlay)]"
         )}
       >
         <CheckCircle2 className="size-5 shrink-0 text-primary" aria-hidden="true" />
