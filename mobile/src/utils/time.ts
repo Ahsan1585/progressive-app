@@ -43,6 +43,30 @@ export const localTodayIso = (): string => {
   return `${y}-${m}-${day}`;
 };
 
+// Current wall-clock time as "HH:MM" (24-hour, zero-padded) — matches
+// <input type="time">'s own value format exactly. Used by Log Session's
+// "Start now" quick action.
+export const localNowHHMM = (): string => {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+};
+
+// Adds `minutes` to a "HH:MM" start time, wrapping past midnight (24:00 ->
+// 00:00) the same way calculateTotalMinutes above already treats an
+// end-before-start pair as crossing midnight. Used by Log Session's
+// duration quick-pick (15/30/45/60 min) to compute endTime from startTime
+// without opening the native time picker a second time.
+export const addMinutesToTime = (startTime: string, minutes: number): string => {
+  const [h, m] = startTime.split(":").map((n) => parseInt(n, 10));
+  if (Number.isNaN(h) || Number.isNaN(m)) return startTime;
+  const total = (h * 60 + m + minutes + 24 * 60) % (24 * 60);
+  const endH = Math.floor(total / 60);
+  const endM = total % 60;
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+};
+
 // Coarse relative-time label (e.g. "2 hours ago", "3 days ago") — good
 // enough for "how stale is this draft", no need for a precise duration.
 // Shared by Home's draft list and PatientDetail's "Resume draft" list, since

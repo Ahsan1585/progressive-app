@@ -7,7 +7,7 @@ const { pool } = require('../config/db');
 const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
-const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats } = require('../controllers/patientController');
+const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats, getLastSessionDefaults } = require('../controllers/patientController');
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
 const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
@@ -42,6 +42,11 @@ router.get('/practitioner-stats', protect, getPractitionerStats);
 
 // Route to get a specific patient's assessments/interventions
 router.get('/:id/assessments', protect, getPatientAssessments);
+
+// Pre-fill Log Session's fields from this child's own most recent log
+// (see patientController.js's getLastSessionDefaults) — any authenticated
+// role, same ownership scoping as every other per-patient route.
+router.get('/:id/last-session-defaults', protect, getLastSessionDefaults);
 
 // Independent-practitioner-only — the roster of agencies a child is
 // currently billed to (see agencyController.js). No office/permission

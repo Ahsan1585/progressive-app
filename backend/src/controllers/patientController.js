@@ -452,6 +452,54 @@ const deleteLog = async (req, res) => {
   }
 };
 
+// GET /api/patients/:id/last-session-defaults — the practitioner's own most
+// recent log for THIS specific child (status/type/location/group size/
+// agency), so Log Session can pre-fill fields that almost always repeat for
+// a given child (e.g. always seen at Home, individually, same service
+// status) instead of starting every field blank every time. Deliberately
+// scoped per-child, not a global "most common value across all my
+// patients" average — a practitioner's different children can legitimately
+// have very different usual service details. Ownership-scoped the same way
+// every other per-patient endpoint is (patient_practitioners join).
+const getLastSessionDefaults = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows: owned } = await pool.query(
+      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!owned[0]) return res.status(404).json({ success: false, error: 'Patient not found.' });
+
+    const { rows } = await pool.query(
+      `SELECT status, type, location, group_size_category, company_affiliation, start_time, end_time
+       FROM assessments
+       WHERE patient_id = $1 AND practitioner_id = $2
+       ORDER BY service_date DESC, id DESC
+       LIMIT 1`,
+      [id, practitionerId]
+    );
+    const last = rows[0] || null;
+    res.json({
+      success: true,
+      defaults: last
+        ? {
+            status: last.status || null,
+            type: last.type || null,
+            location: last.location || null,
+            groupSizeCategory: last.group_size_category || null,
+            companyAffiliation: last.company_affiliation || null,
+            startTime: last.start_time || null,
+            endTime: last.end_time || null,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error('Error fetching last session defaults:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch last session defaults.' });
+  }
+};
+
 const getPractitionerStats = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
@@ -478,4 +526,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats, getLastSessionDefaults };
