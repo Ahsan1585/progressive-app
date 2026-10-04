@@ -1,29 +1,23 @@
 import * as React from "react";
-import { FileText, ChevronRight, Clock, ExternalLink } from "lucide-react";
+import { FileText, ChevronRight, Clock, Building2, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
-import { formatSafeDate } from "@/utils/time";
-import type { FlatSubscriptionSummary, SubscriptionPaymentMethod } from "@/types";
+import type { PractitionerDashboardSummary, AgencyBreakdownEntry } from "@/types";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
-// Web fallback for adding/updating a payment method — Stripe Elements card
-// capture is deliberately NOT built natively in this mobile app (no Stripe
-// SDK integrated here at all yet; see docs on the independent-practitioner
-// feature's Phase 4 scoping decision). Reuses the same security posture as
-// the existing web admin checkout instead of a rushed, unverified native
-// card form.
-const WEB_BILLING_URL = (import.meta.env.VITE_FRONTEND_URL as string | undefined) || "https://izayaedge.com/eis";
-
 // Tab root for an independent practitioner (replaces Messages in the tab
-// bar — see TabBar.tsx). Read-only subscription summary + invoice history;
-// payment-method management deep-links to the web app.
+// bar — see TabBar.tsx). Scoped purely to billable-session activity
+// (what's ready to invoice, what's already been invoiced, who it's billed
+// to) — their own account subscription/payment method lives under
+// Profile > My subscription instead (moved out so this tab isn't mixing
+// "what I'm owed" with "what I owe Izaya").
 export default function Billing() {
   const navigate = useNavigate();
-  const [summary, setSummary] = React.useState<FlatSubscriptionSummary | null>(null);
-  const [paymentMethod, setPaymentMethod] = React.useState<SubscriptionPaymentMethod | null>(null);
+  const [summary, setSummary] = React.useState<PractitionerDashboardSummary | null>(null);
+  const [byAgency, setByAgency] = React.useState<AgencyBreakdownEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -31,14 +25,14 @@ export default function Billing() {
     setIsLoading(true);
     setError(null);
     try {
-      const [summaryRes, paymentRes] = await Promise.all([
-        api.get<{ success: boolean; summary: FlatSubscriptionSummary }>("/api/subscription/summary"),
-        api.get<{ success: boolean; paymentMethod: SubscriptionPaymentMethod | null }>("/api/subscription/payment-method"),
+      const [summaryRes, agencyRes] = await Promise.all([
+        api.get<{ success: boolean } & PractitionerDashboardSummary>("/api/practitioner-dashboard/summary"),
+        api.get<{ success: boolean; agencies: AgencyBreakdownEntry[] }>("/api/practitioner-dashboard/by-agency"),
       ]);
-      setSummary(summaryRes.data.summary);
-      setPaymentMethod(paymentRes.data.paymentMethod);
+      setSummary(summaryRes.data);
+      setByAgency(agencyRes.data.agencies || []);
     } catch {
-      setError("Couldn't load your subscription.");
+      setError("Couldn't load your billing activity.");
     } finally {
       setIsLoading(false);
     }
@@ -55,41 +49,39 @@ export default function Billing() {
       {error ? (
         <InlineErrorBanner message={error} onRetry={fetchData} />
       ) : isLoading ? (
-        <div className="space-y-3">
+        <div className="mb-4 space-y-3">
           <Skeleton className="h-[120px] w-full" />
           <Skeleton className="h-[72px] w-full" />
         </div>
       ) : (
-        <>
-          {summary && (
-            <div className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
-              <p className="text-[13px] font-semibold text-ink-muted">This month</p>
-              <p className="tabular mt-1 text-[28px] font-bold text-ink">{money(summary.totalAmount)}</p>
-              <p className="mt-1 text-xs text-ink-muted">
-                Next billing date {formatSafeDate(summary.nextBillingDate)}
-              </p>
-            </div>
-          )}
-
-          <div className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
-            <p className="text-[13px] font-semibold text-ink-muted">Payment method</p>
-            {paymentMethod ? (
-              <p className="mt-1 text-[15px] font-medium text-ink">
-                {paymentMethod.brand ? `${paymentMethod.brand} ····` : "Card ····"} {paymentMethod.last4}
-              </p>
-            ) : (
-              <p className="mt-1 text-[15px] text-ink-muted">No payment method on file</p>
+        summary && (
+          <>
+            {summary.pendingValue > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate("/generate-sevf")}
+                className="press-scale mb-4 flex w-full items-center gap-3 rounded-card border border-primary/30 bg-primary-tint p-4 text-left shadow-[var(--elev-rest)]"
+              >
+                <AlertCircle className="size-5 shrink-0 text-primary" aria-hidden="true" />
+                <span className="flex-1 text-[15px] font-semibold text-ink">
+                  {money(summary.pendingValue)} ready to invoice
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              </button>
             )}
-            <a
-              href={`${WEB_BILLING_URL}/billing/independent`}
-              target="_blank"
-              rel="noreferrer"
-              className="press-scale mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary"
-            >
-              Manage payment method <ExternalLink className="size-3.5" aria-hidden="true" />
-            </a>
-          </div>
-        </>
+
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <div className="rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+                <p className="text-[13px] font-semibold text-ink-muted">Invoiced this month</p>
+                <p className="tabular mt-1 text-[22px] font-bold text-ink">{money(summary.invoicedThisMonth)}</p>
+              </div>
+              <div className="rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+                <p className="text-[13px] font-semibold text-ink-muted">Sessions this month</p>
+                <p className="tabular mt-1 text-[22px] font-bold text-ink">{summary.sessionsSubmittedThisMonth}</p>
+              </div>
+            </div>
+          </>
+        )
       )}
 
       <button
@@ -105,12 +97,39 @@ export default function Billing() {
       <button
         type="button"
         onClick={() => navigate("/sevf-history")}
-        className="press-scale mt-4 flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
+        className="press-scale mt-3 flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
       >
         <Clock className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
         <span className="flex-1 text-[15px] font-medium text-ink">SEVF History</span>
         <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
       </button>
+
+      <button
+        type="button"
+        onClick={() => navigate("/profile/agencies")}
+        className="press-scale mt-3 flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
+      >
+        <Building2 className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+        <span className="flex-1 text-[15px] font-medium text-ink">Manage agencies</span>
+        <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+      </button>
+
+      {!isLoading && byAgency.length > 0 && (
+        <div className="mt-5">
+          <h2 className="mb-2 text-[13px] font-semibold text-ink-muted">Billed by agency this month</h2>
+          <div className="divide-y divide-border rounded-card border border-border bg-surface shadow-[var(--elev-rest)]">
+            {byAgency.map((a) => (
+              <div key={a.name} className="flex items-center justify-between px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-medium text-ink">{a.name}</p>
+                  <p className="text-xs text-ink-muted">{a.hours.toFixed(1)} hrs</p>
+                </div>
+                <p className="tabular text-[15px] font-semibold text-ink">{money(a.invoicedValue)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
