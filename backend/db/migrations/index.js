@@ -28,6 +28,7 @@ const MIGRATIONS = [
   'widen_ssn_column_for_encryption.sql',
   'add_independent_practitioner_support.sql',
   'add_dropdown_option_is_seeded.sql',
+  'add_agencies.sql',
 ];
 
 module.exports = { MIGRATIONS };

@@ -32,10 +32,28 @@ export interface Patient {
   last_service_date?: string | null;
   parent_name?: string | null;
   parent_email?: string | null;
-  /** Independent-practitioner-only — UX default only, seeds the log-session
-   *  form's company-affiliation field. Never authoritative for SEVF
-   *  grouping (each assessment's own company_affiliation is). */
+  /** Independent-practitioner-only — superseded by the agency roster (see
+   *  GET /api/patients/:id/agencies) but kept for older records. Never
+   *  authoritative for SEVF grouping (each assessment's own
+   *  company_affiliation is). */
   last_company_affiliation?: string | null;
+}
+
+// Independent-practitioner-only (see agencyController.js) — a practitioner-
+// owned agency they bill to. A patient's "roster" (GET/PUT
+// /api/patients/:id/agencies) is 0..N of these; a session log still picks
+// exactly one per log (assessments.company_affiliation stays a plain
+// string, matched by name — see resolveAgencyEmail on the backend).
+export interface Agency {
+  id: number;
+  name: string;
+  email: string | null;
+  phone?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Message {
@@ -145,6 +163,10 @@ export interface GeneratedSevfResult {
   /** Only present on GET /api/billing/independent/history rows, not on a
    *  just-generated result from POST .../generate-sevf. */
   generatedAt?: string;
+  /** Pre-fills "Email to Agency" — null when no saved Agency matches this
+   *  batch's companyAffiliation by name, or that agency has no email on
+   *  file (see resolveAgencyEmail in agencyController.js). */
+  agencyEmail?: string | null;
 }
 
 // GET /api/subscription/summary's shape for an independent practitioner's

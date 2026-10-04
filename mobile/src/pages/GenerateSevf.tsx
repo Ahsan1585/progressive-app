@@ -26,30 +26,13 @@ import type { SelfCertifiedSession, GeneratedSevfResult, ApiErrorBody } from "@/
 // preview below) and "generated" (the results list with print/email actions).
 export default function GenerateSevf() {
   const { showToast } = useToast();
-  const { patients } = useAppData();
+  const { patients, agencies, fetchAgencies } = useAppData();
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [companyAffiliation, setCompanyAffiliation] = React.useState("");
   const [patientId, setPatientId] = React.useState<number | null>(null);
 
-  // Same real, authoritative source as LogIntervention.tsx's
-  // CompanyAffiliationField (GET /api/billing/independent/affiliations) —
-  // see that screen's comment for why the previous patients.last_company_affiliation
-  // derivation silently lost previously-used agency names.
-  const [knownAffiliations, setKnownAffiliations] = React.useState<string[]>([]);
-
-  React.useEffect(() => {
-    api
-      .get<{ success: boolean; affiliations: string[] }>("/api/billing/independent/affiliations")
-      .then((res) => setKnownAffiliations(res.data.affiliations || []))
-      .catch(() => {
-        // Non-critical — the filter just falls back to "All agencies" only.
-      });
-  }, []);
-
-  // Every patient this practitioner has, for the "Child" filter dropdown —
-  // narrower than knownAffiliations' free-text source since patient id/name
-  // is already structured data, no dedup step needed.
+  // Every patient this practitioner has, for the "Child" filter dropdown.
   const patientOptions = React.useMemo(
     () => patients.map((p) => ({ id: Number(p.id), name: `${p.first_name} ${p.last_name}`.trim() })).sort((a, b) => a.name.localeCompare(b.name)),
     [patients]
@@ -65,6 +48,7 @@ export default function GenerateSevf() {
 
   const [emailTarget, setEmailTarget] = React.useState<GeneratedSevfResult | null>(null);
   const [agencyEmail, setAgencyEmail] = React.useState("");
+  const [saveEmailForAgency, setSaveEmailForAgency] = React.useState(false);
   const [isSendingEmail, setIsSendingEmail] = React.useState(false);
 
   const fetchPreview = React.useCallback(async () => {
@@ -163,7 +147,11 @@ export default function GenerateSevf() {
 
   const openEmailDialog = (result: GeneratedSevfResult) => {
     setEmailTarget(result);
-    setAgencyEmail("");
+    // Pre-filled from the saved Agency's email when one matches this
+    // batch's agency name (see resolveAgencyEmail in agencyController.js) —
+    // still a one-tap-to-confirm send, never auto-sent.
+    setAgencyEmail(result.agencyEmail || "");
+    setSaveEmailForAgency(!result.agencyEmail);
   };
 
   const handleSendEmail = async () => {
@@ -174,6 +162,17 @@ export default function GenerateSevf() {
         batchId: emailTarget.batchId,
         agencyEmail: agencyEmail.trim(),
       });
+      // No agency was matched/had an email on file, but the practitioner
+      // typed one and left the checkbox on — save it so this is pre-filled
+      // automatically next time, matching Manage Agencies' own email field.
+      if (saveEmailForAgency && !emailTarget.agencyEmail && emailTarget.companyAffiliation) {
+        try {
+          await api.post("/api/agencies", { name: emailTarget.companyAffiliation, email: agencyEmail.trim() });
+          fetchAgencies();
+        } catch {
+          // Non-critical — the email still sent; just didn't get saved for next time.
+        }
+      }
       showToast(
         emailTarget.invoiceDownloadUrl ? "SEVF and invoice emailed to the agency." : "SEVF emailed to the agency.",
         "success"
@@ -208,7 +207,7 @@ export default function GenerateSevf() {
             <CompanyAffiliationFilter
               value={companyAffiliation}
               onChange={setCompanyAffiliation}
-              knownAffiliations={knownAffiliations}
+              agencies={agencies}
             />
           </div>
         )}
@@ -336,8 +335,19 @@ export default function GenerateSevf() {
               placeholder="billing@agency.org"
               value={agencyEmail}
               onChange={(e) => setAgencyEmail(e.target.value)}
-              autoFocus
+              autoFocus={!emailTarget?.agencyEmail}
             />
+            {!emailTarget?.agencyEmail && emailTarget?.companyAffiliation && (
+              <label className="flex items-center gap-2 pt-1 text-xs text-ink-muted">
+                <input
+                  type="checkbox"
+                  checked={saveEmailForAgency}
+                  onChange={(e) => setSaveEmailForAgency(e.target.checked)}
+                  className="size-4 accent-primary"
+                />
+                Save this as {emailTarget.companyAffiliation}'s email for next time
+              </label>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEmailTarget(null)} disabled={isSendingEmail}>

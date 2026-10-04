@@ -32,6 +32,7 @@ const companyRoutes = require('./src/routes/companyRoutes');
 const auditLogRoutes = require('./src/routes/auditLogRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const dropdownOptionsRoutes = require('./src/routes/dropdownOptionsRoutes');
+const agencyRoutes = require('./src/routes/agencyRoutes');
 const signupRoutes = require('./src/routes/signupRoutes');
 const independentSignupRoutes = require('./src/routes/independentSignupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
@@ -106,6 +107,7 @@ app.use('/api/company', companyRoutes);
 app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/dropdown-options', dropdownOptionsRoutes);
+app.use('/api/agencies', agencyRoutes);
 app.use('/api/signup', signupRoutes);
 app.use('/api/independent-signup', independentSignupRoutes);
 // /auth must be mounted before the plain /api/platform prefix — both

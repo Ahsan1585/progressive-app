@@ -39,6 +39,7 @@ import GenerateSevf from "@/pages/GenerateSevf";
 import SevfHistory from "@/pages/SevfHistory";
 import EditWorkDetails from "@/pages/EditWorkDetails";
 import DropdownOptionsManager from "@/pages/DropdownOptionsManager";
+import ManageAgencies from "@/pages/ManageAgencies";
 
 // Single shared instance of the auth/data/idle providers for every
 // authenticated route (shell tabs and pushed views alike) — mounted once at
@@ -162,6 +163,7 @@ function App() {
               <Route path="/sevf-history" element={<SevfHistory />} />
               <Route path="/profile/work-details" element={<EditWorkDetails />} />
               <Route path="/profile/dropdown-options" element={<DropdownOptionsManager />} />
+              <Route path="/profile/agencies" element={<ManageAgencies />} />
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />

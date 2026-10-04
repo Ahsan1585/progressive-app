@@ -2,14 +2,16 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { AgencyMultiSelect } from "@/components/AgencyMultiSelect";
 import { useToast } from "@/components/ui/toast";
-import type { Patient, ApiErrorBody } from "@/types";
+import type { Agency, Patient, ApiErrorBody } from "@/types";
 
 interface FormState {
   firstName: string;
@@ -37,12 +39,14 @@ const EMPTY_FORM: FormState = {
 // keyboard need the space (design: Add Patient).
 export default function AddPatient() {
   const navigate = useNavigate();
-  const { fetchPatients } = useAppData();
+  const { fetchPatients, agencies, fetchAgencies } = useAppData();
+  const { isIndependentPractitioner } = useAuth();
   const { showToast } = useToast();
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<Partial<Record<keyof FormState, string>>>({});
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [selectedAgencies, setSelectedAgencies] = React.useState<Agency[]>([]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -71,6 +75,19 @@ export default function AddPatient() {
     setSubmitting(true);
     try {
       const res = await api.post<{ message: string; data: Patient; linked?: boolean }>("/api/patients/register", form);
+      // Roster is a separate write (PUT /api/patients/:id/agencies) — needs
+      // the patient's real id, which only exists after registration
+      // succeeds. Non-fatal if it fails: the patient itself is already
+      // saved either way, and the roster can be set later from Edit Patient.
+      if (isIndependentPractitioner && selectedAgencies.length > 0) {
+        try {
+          await api.put(`/api/patients/${res.data.data.id}/agencies`, {
+            agencyIds: selectedAgencies.map((a) => a.id),
+          });
+        } catch {
+          showToast("Patient saved, but couldn't save their agencies — you can set them from Edit Patient.", "error");
+        }
+      }
       await fetchPatients();
       // A Child ID already registered by another practitioner attaches to
       // that same shared record rather than failing — worth flagging so it
@@ -139,6 +156,10 @@ export default function AddPatient() {
         >
           <Input type="email" value={form.parentEmail} onChange={(e) => setField("parentEmail", e.target.value)} />
         </Field>
+
+        {isIndependentPractitioner && (
+          <AgencyMultiSelect value={selectedAgencies} onChange={setSelectedAgencies} agencies={agencies} onAgencyCreated={fetchAgencies} />
+        )}
 
         <div className="pt-2">
           <Button type="submit" className="w-full" size="lg" loading={submitting}>

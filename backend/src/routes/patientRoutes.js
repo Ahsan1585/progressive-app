@@ -9,7 +9,8 @@ const { getCompanyName } = require('../utils/companyName');
 // Import the functions from the controller
 const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats } = require('../controllers/patientController');
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
-const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
+const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
+const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
 
 // Staff Directory > All Children — office-wide (not ownership-scoped), placed
 // before the /:id wildcard routes below to avoid route conflicts.
@@ -41,6 +42,13 @@ router.get('/practitioner-stats', protect, getPractitionerStats);
 
 // Route to get a specific patient's assessments/interventions
 router.get('/:id/assessments', protect, getPatientAssessments);
+
+// Independent-practitioner-only — the roster of agencies a child is
+// currently billed to (see agencyController.js). No office/permission
+// concept exists for this role, so gated purely by role like the
+// billingRoutes.js independent endpoints.
+router.get('/:id/agencies', protect, requireRole(['independent_practitioner']), getPatientAgencies);
+router.put('/:id/agencies', protect, requireRole(['independent_practitioner']), updatePatientAgencies);
 
 // Route to generate the PDF report
 router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {

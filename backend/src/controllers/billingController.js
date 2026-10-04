@@ -23,6 +23,7 @@ const {
 const { logAudit } = require('../utils/auditLog');
 const { normalizeForMatch, scoredNamesMatch } = require('../utils/textMatch');
 const { sendSevfToAgencyEmail } = require('../utils/emailClient');
+const { resolveAgencyEmail } = require('./agencyController');
 const path = require('path');
 
 // --- 1. NEW Standardized Path Helper ---
@@ -512,6 +513,12 @@ const generateSelfCertifiedSEVF = async (req, res) => {
         [batchRow.id, groupIds]
       );
 
+      // Pre-fills the mobile "Email to Agency" dialog instead of it always
+      // starting blank — null when no saved agency matches this group's
+      // name (or it has no email on file), in which case the UI falls back
+      // to today's manual-entry flow.
+      const agencyEmail = await resolveAgencyEmail(practitionerId, first.company_affiliation);
+
       results.push({
         batchId: batchRow.id,
         patientId: first.patient_id,
@@ -520,6 +527,7 @@ const generateSelfCertifiedSEVF = async (req, res) => {
         month: (first.service_date || '').slice(0, 7),
         downloadUrl: signedUrl,
         invoiceDownloadUrl: invoiceSignedUrl,
+        agencyEmail,
       });
     }
 
@@ -668,7 +676,11 @@ const getSelfCertifiedHistory = async (req, res) => {
         const invoiceDownloadUrl = batchRow?.invoice_path
           ? await getSignedUrl(BILLING_INVOICES_BUCKET, batchRow.invoice_path, 3600)
           : null;
-        return { ...b, downloadUrl, invoiceDownloadUrl };
+        // Same pre-fill as generateSelfCertifiedSEVF — lets SevfHistory.tsx
+        // offer "Email to Agency" too, not just the few seconds right after
+        // generation.
+        const agencyEmail = await resolveAgencyEmail(practitionerId, b.companyAffiliation);
+        return { ...b, downloadUrl, invoiceDownloadUrl, agencyEmail };
       })
     );
 

@@ -22,7 +22,7 @@ import { DuplicateLogDialog } from "@/components/DuplicateLogDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
 import { cn } from "@/lib/utils";
-import type { ApiErrorBody, SessionDraft } from "@/types";
+import type { Agency, ApiErrorBody, SessionDraft } from "@/types";
 
 interface FormState {
   date: string;
@@ -58,32 +58,37 @@ export default function LogIntervention() {
   // no longer a single "the" draft to auto-resume.
   const draftId = searchParams.get("draftId");
   const navigate = useNavigate();
-  const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories } = useAppData();
+  const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories, agencies, fetchAgencies } = useAppData();
   const { practitioner, isIndependentPractitioner } = useAuth();
   const { showToast } = useToast();
 
   const patient = patients.find((p) => p.id === patientId);
 
-  // Every agency the practitioner has actually used, most-recently-used
-  // first — from GET /api/billing/independent/affiliations (the real,
-  // authoritative per-session history: assessments.company_affiliation).
-  // Previously derived client-side from patients.last_company_affiliation,
-  // a single non-authoritative column per patient that gets overwritten on
-  // every new log — with few patients, logging one patient under a
-  // different agency silently dropped every other agency from this list
-  // even though they were still real, previously-used agencies.
-  const [knownAffiliations, setKnownAffiliations] = React.useState<string[]>([]);
+  // This patient's own roster of agencies (0..N) — shown as fast-tap chips
+  // on CompanyAffiliationField above the full agency list. See
+  // AddPatient.tsx/EditPatient.tsx for where the roster itself is set.
+  const [rosterAgencies, setRosterAgencies] = React.useState<Agency[]>([]);
 
   React.useEffect(() => {
-    if (!isIndependentPractitioner) return;
+    if (!isIndependentPractitioner || !patientId) return;
     api
-      .get<{ success: boolean; affiliations: string[] }>("/api/billing/independent/affiliations")
-      .then((res) => setKnownAffiliations(res.data.affiliations || []))
+      .get<{ success: boolean; agencies: Agency[] }>(`/api/patients/${patientId}/agencies`)
+      .then((res) => {
+        const roster = res.data.agencies || [];
+        setRosterAgencies(roster);
+        // Auto-pick when there's exactly one agency on this child's roster
+        // and the field hasn't been set some other way yet (resuming a
+        // draft, or a fresh/new-patient default already present) — a child
+        // billed to more than one agency still requires a deliberate choice.
+        if (roster.length === 1) {
+          setForm((f) => (f.companyAffiliation ? f : { ...f, companyAffiliation: roster[0].name }));
+        }
+      })
       .catch(() => {
-        // Non-critical — the picker just falls back to empty (still usable
-        // via "Add new agency").
+        // Non-critical — the field just falls back to no pinned chips,
+        // still fully usable via the full agency list/"Add new agency".
       });
-  }, [isIndependentPractitioner]);
+  }, [isIndependentPractitioner, patientId]);
 
   const customCategories = React.useMemo(
     () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
@@ -472,7 +477,9 @@ export default function LogIntervention() {
             <CompanyAffiliationField
               value={form.companyAffiliation}
               onChange={(v) => setField("companyAffiliation", v)}
-              knownAffiliations={knownAffiliations}
+              agencies={agencies}
+              rosterAgencies={rosterAgencies}
+              onAgencyCreated={fetchAgencies}
               error={attemptedSubmit && !form.companyAffiliation ? "An agency is required." : null}
             />
           )}

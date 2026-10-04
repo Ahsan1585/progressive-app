@@ -1,13 +1,17 @@
 import * as React from "react";
-import { FileText, Printer, RotateCcw, FolderOpen } from "lucide-react";
+import { FileText, Printer, RotateCcw, FolderOpen, Send } from "lucide-react";
 import api from "@/api/axiosInstance";
+import { useAppData } from "@/contexts/AppDataContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate } from "@/utils/time";
 import type { GeneratedSevfResult, ApiErrorBody } from "@/types";
@@ -19,11 +23,16 @@ import type { GeneratedSevfResult, ApiErrorBody } from "@/types";
 // visible for the few seconds right after generating on GenerateSevf.tsx.
 export default function SevfHistory() {
   const { showToast } = useToast();
+  const { fetchAgencies } = useAppData();
   const [batches, setBatches] = React.useState<GeneratedSevfResult[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [revertTarget, setRevertTarget] = React.useState<GeneratedSevfResult | null>(null);
   const [isReverting, setIsReverting] = React.useState(false);
+  const [emailTarget, setEmailTarget] = React.useState<GeneratedSevfResult | null>(null);
+  const [agencyEmail, setAgencyEmail] = React.useState("");
+  const [saveEmailForAgency, setSaveEmailForAgency] = React.useState(false);
+  const [isSendingEmail, setIsSendingEmail] = React.useState(false);
 
   const fetchHistory = React.useCallback(async () => {
     setIsLoading(true);
@@ -61,6 +70,41 @@ export default function SevfHistory() {
       return;
     }
     window.open(result.invoiceDownloadUrl, "_blank");
+  };
+
+  const openEmailDialog = (result: GeneratedSevfResult) => {
+    setEmailTarget(result);
+    setAgencyEmail(result.agencyEmail || "");
+    setSaveEmailForAgency(!result.agencyEmail);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailTarget || !agencyEmail.trim()) return;
+    setIsSendingEmail(true);
+    try {
+      await api.post("/api/billing/independent/email-sevf", {
+        batchId: emailTarget.batchId,
+        agencyEmail: agencyEmail.trim(),
+      });
+      if (saveEmailForAgency && !emailTarget.agencyEmail && emailTarget.companyAffiliation) {
+        try {
+          await api.post("/api/agencies", { name: emailTarget.companyAffiliation, email: agencyEmail.trim() });
+          fetchAgencies();
+        } catch {
+          // Non-critical — the email still sent; just didn't get saved for next time.
+        }
+      }
+      showToast(
+        emailTarget.invoiceDownloadUrl ? "SEVF and invoice emailed to the agency." : "SEVF emailed to the agency.",
+        "success"
+      );
+      setEmailTarget(null);
+    } catch (err) {
+      const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
+      showToast(body?.error || "Couldn't send the email. Please try again.", "error");
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   const handleRevert = async () => {
@@ -125,6 +169,9 @@ export default function SevfHistory() {
                     <FileText className="size-4" aria-hidden="true" /> Invoice
                   </Button>
                 </div>
+                <Button variant="outline" className="mt-2 w-full" onClick={() => openEmailDialog(b)}>
+                  <Send className="size-4" aria-hidden="true" /> Email to Agency
+                </Button>
                 <Button variant="outline" className="mt-2 w-full" onClick={() => setRevertTarget(b)}>
                   <RotateCcw className="size-4" aria-hidden="true" /> Revert
                 </Button>
@@ -148,6 +195,47 @@ export default function SevfHistory() {
         loading={isReverting}
         onConfirm={handleRevert}
       />
+
+      <Dialog open={!!emailTarget} onOpenChange={(open) => !open && setEmailTarget(null)}>
+        <DialogContent aria-labelledby="email-sevf-history-dialog-title">
+          <DialogHeader>
+            <DialogTitle id="email-sevf-history-dialog-title">Email SEVF to agency</DialogTitle>
+            <DialogDescription>
+              Send {emailTarget?.patientName}'s SEVF{emailTarget?.invoiceDownloadUrl ? " and invoice" : ""} ({emailTarget?.month}) directly to the agency's email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label htmlFor="historyAgencyEmail" className="text-xs">Agency email</Label>
+            <Input
+              id="historyAgencyEmail"
+              type="email"
+              placeholder="billing@agency.org"
+              value={agencyEmail}
+              onChange={(e) => setAgencyEmail(e.target.value)}
+              autoFocus={!emailTarget?.agencyEmail}
+            />
+            {!emailTarget?.agencyEmail && emailTarget?.companyAffiliation && (
+              <label className="flex items-center gap-2 pt-1 text-xs text-ink-muted">
+                <input
+                  type="checkbox"
+                  checked={saveEmailForAgency}
+                  onChange={(e) => setSaveEmailForAgency(e.target.checked)}
+                  className="size-4 accent-primary"
+                />
+                Save this as {emailTarget.companyAffiliation}'s email for next time
+              </label>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailTarget(null)} disabled={isSendingEmail}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendEmail} disabled={isSendingEmail || !agencyEmail.trim()}>
+              {isSendingEmail ? "Sending…" : "Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PushScreen>
   );
 }

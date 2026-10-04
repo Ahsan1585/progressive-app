@@ -1,6 +1,7 @@
 import * as React from "react";
 import api from "@/api/axiosInstance";
-import type { DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession, SessionDraftSummary, TelepracticeSignatureRequest } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Agency, DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession, SessionDraftSummary, TelepracticeSignatureRequest } from "@/types";
 
 const EMPTY_DROPDOWN_OPTIONS: DropdownOptionsByCategory = { service_type: [], service_status: [], location: [], group_size: [] };
 
@@ -68,6 +69,14 @@ interface AppDataContextValue {
   locationCodeMap: Record<string, string>;
   fetchDropdownOptions: () => Promise<void>;
 
+  // Independent-practitioner-only (see agencyController.js) — the
+  // practitioner's own directory of agencies they bill to. Fetched once
+  // here instead of independently by LogIntervention.tsx and
+  // GenerateSevf.tsx, which previously each re-fetched the same list.
+  agencies: Agency[];
+  agenciesLoading: boolean;
+  fetchAgencies: () => Promise<void>;
+
   setSavedSignature: (base64: string | null) => void;
 }
 
@@ -77,6 +86,7 @@ const AppDataContext = React.createContext<AppDataContextValue | undefined>(unde
 // Inbox, and Patient Detail — mirrors frontend/src/pages/dashboard.jsx's
 // fetch* functions and exact endpoints/field names.
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
+  const { isIndependentPractitioner } = useAuth();
   const [patients, setPatients] = React.useState<Patient[]>([]);
   const [patientsLoading, setPatientsLoading] = React.useState(true);
   const [patientsError, setPatientsError] = React.useState<string | null>(null);
@@ -109,6 +119,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const [dropdownOptions, setDropdownOptions] = React.useState<DropdownOptionsByCategory>(EMPTY_DROPDOWN_OPTIONS);
   const [dropdownCategories, setDropdownCategories] = React.useState<DropdownCategory[]>([]);
+
+  const [agencies, setAgencies] = React.useState<Agency[]>([]);
+  const [agenciesLoading, setAgenciesLoading] = React.useState(true);
 
   const fetchPatients = React.useCallback(async () => {
     setPatientsLoading(true);
@@ -238,6 +251,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchAgencies = React.useCallback(async () => {
+    setAgenciesLoading(true);
+    try {
+      const res = await api.get<{ success: boolean; agencies: Agency[] }>("/api/agencies");
+      setAgencies(res.data.agencies || []);
+    } catch {
+      // Non-critical — the agency picker just renders empty until retried.
+    } finally {
+      setAgenciesLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchPatients();
     fetchProfile();
@@ -249,7 +274,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     fetchUpcomingSessions();
     fetchCompanyBranding();
     fetchDropdownOptions();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchTelepracticeRequests, fetchDrafts, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions]);
+    // Independent-practitioner-only — every other role 403s on this route
+    // (see agencyRoutes.js's requireRole guard), so skip the call entirely
+    // rather than firing a request that can never succeed.
+    if (isIndependentPractitioner) fetchAgencies();
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchTelepracticeRequests, fetchDrafts, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions, fetchAgencies, isIndependentPractitioner]);
 
   // Keep Inbox live — a log billing just returned, or a parent just signing
   // a telepractice session, should appear without the practitioner having
@@ -317,6 +346,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       statusCodeMap,
       locationCodeMap,
       fetchDropdownOptions,
+      agencies,
+      agenciesLoading,
+      fetchAgencies,
       setSavedSignature,
     }),
     [
@@ -360,6 +392,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       statusCodeMap,
       locationCodeMap,
       fetchDropdownOptions,
+      agencies,
+      agenciesLoading,
+      fetchAgencies,
       setSavedSignature,
     ]
   );

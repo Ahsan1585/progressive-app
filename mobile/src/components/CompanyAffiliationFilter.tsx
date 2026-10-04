@@ -3,23 +3,22 @@ import { Check, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import type { Agency } from "@/types";
 
 interface CompanyAffiliationFilterProps {
   value: string;
   onChange: (value: string) => void;
-  /** Every agency name the practitioner has used before — same source as
-   *  CompanyAffiliationField (patients' own last_company_affiliation
-   *  values), deduplicated by the caller. */
-  knownAffiliations: string[];
+  /** The practitioner's saved agencies (AppDataContext's shared `agencies`) —
+   *  filters by name, same as CompanyAffiliationField. */
+  agencies: Agency[];
 }
 
 // Same bottom-sheet visual pattern as Picker.tsx/CompanyAffiliationField.tsx,
 // but for narrowing a list (Generate SEVF's filters) rather than setting a
 // value on a session — so this always includes an "All agencies" reset
 // option and, unlike CompanyAffiliationField, has no "Add new" affordance:
-// you can only filter by an agency that already exists in your own logged
-// sessions, not invent a new one here.
-export function CompanyAffiliationFilter({ value, onChange, knownAffiliations }: CompanyAffiliationFilterProps) {
+// filtering only ever picks among agencies that already exist.
+export function CompanyAffiliationFilter({ value, onChange, agencies }: CompanyAffiliationFilterProps) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -61,16 +60,16 @@ export function CompanyAffiliationFilter({ value, onChange, knownAffiliations }:
                 {!value && <Check className="size-4 shrink-0" aria-hidden="true" />}
               </button>
             </li>
-            {knownAffiliations.map((name) => {
-              const isSelected = name === value;
+            {agencies.map((agency) => {
+              const isSelected = agency.name === value;
               return (
-                <li key={name}>
+                <li key={agency.id}>
                   <button
                     type="button"
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => {
-                      onChange(name);
+                      onChange(agency.name);
                       setOpen(false);
                     }}
                     className={cn(
@@ -78,7 +77,7 @@ export function CompanyAffiliationFilter({ value, onChange, knownAffiliations }:
                       isSelected ? "bg-primary-tint text-primary font-medium" : "text-ink hover:bg-surface-sunken"
                     )}
                   >
-                    {name}
+                    {agency.name}
                     {isSelected && <Check className="size-4 shrink-0" aria-hidden="true" />}
                   </button>
                 </li>
