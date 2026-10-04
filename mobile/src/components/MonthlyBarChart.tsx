@@ -17,7 +17,14 @@ export function MonthlyBarChart({ data, formatValue }: MonthlyBarChartProps) {
   const max = Math.max(...data.map((d) => d.value), 1); // avoid divide-by-zero when every month is 0
   const barWidth = 28;
   const gap = 14;
+  // Bars plot inside their own sub-area, leaving headroom above for the
+  // value label — without this, a month at (or near) the max value fills
+  // the full chartHeight and its label at y-6 lands above y=0, clipped
+  // off the top of the SVG's viewBox and invisible (e.g. the one month
+  // with data in a 6-month window, which is trivially also the max).
+  const labelHeadroom = 16;
   const chartHeight = 100;
+  const plotHeight = chartHeight - labelHeadroom;
   const width = data.length * (barWidth + gap) - gap;
 
   return (
@@ -31,7 +38,7 @@ export function MonthlyBarChart({ data, formatValue }: MonthlyBarChartProps) {
         className="mx-auto"
       >
         {data.map((d, i) => {
-          const barHeight = (d.value / max) * chartHeight;
+          const barHeight = (d.value / max) * plotHeight;
           const x = i * (barWidth + gap);
           const y = chartHeight - barHeight;
           const isLast = i === data.length - 1;
