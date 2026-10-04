@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { generateSignaturePng } = require('../utils/fakeSignature');
+const { assertNoConflictingSession } = require('../utils/createAssessment');
 
 const SEED_PASSWORD = 'TestData@2026';
 
@@ -486,10 +487,240 @@ const randomizeSeedSignatures = async (req, res) => {
   }
 };
 
+// Discipline codes to spread sessions across — independent of the
+// label->code maps above (those are for the spreadsheet-import seeder);
+// these are plain codes already valid against dropdown_options/NJEIS.
+const SAMPLE_DISCIPLINES = ['DI', 'SLP', 'OT', 'PT', 'PSY', 'SW'];
+const SAMPLE_VISIT_STATUSES = ['1', '1', '1', '4', '5']; // weighted toward "Direct Child Service"
+const SAMPLE_LOCATIONS = ['1', '3', '8'];
+const SAMPLE_GROUP_SIZES = ['individual', 'individual', 'consultation'];
+const SAMPLE_AGENCIES = [
+  { name: 'Sunny Days LLC', email: 'billing@sunnydaysllc.example.com' },
+  { name: 'Garden State Early Learning', email: 'accounts@gardenstateearly.example.com' },
+  { name: 'Bright Beginnings EI', email: 'invoices@brightbeginningsei.example.com' },
+  { name: 'Little Sprouts Therapy Group', email: 'ap@littlesproutstherapy.example.com' },
+  { name: 'First Steps Early Intervention', email: 'billing@firststepsei.example.com' },
+  { name: 'Hopewell Pediatric Services', email: 'finance@hopewellpeds.example.com' },
+];
+const SAMPLE_CHILDREN = [
+  { firstName: 'Izaan', lastName: 'A.', dob: '2022-03-14' },
+  { firstName: 'Mila', lastName: 'R.', dob: '2021-11-02' },
+  { firstName: 'Noah', lastName: 'K.', dob: '2022-07-19' },
+  { firstName: 'Ava', lastName: 'T.', dob: '2021-05-26' },
+  { firstName: 'Liam', lastName: 'B.', dob: '2022-01-09' },
+  { firstName: 'Sofia', lastName: 'M.', dob: '2021-09-30' },
+  { firstName: 'Ethan', lastName: 'C.', dob: '2022-04-21' },
+  { firstName: 'Olivia', lastName: 'P.', dob: '2021-12-11' },
+  { firstName: 'Mason', lastName: 'D.', dob: '2022-02-02' },
+  { firstName: 'Zara', lastName: 'H.', dob: '2021-08-17' },
+];
+const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const randInt2 = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+/**
+ * POST /api/dev/seed-my-session-logs
+ * independent_practitioner-only. Always seeds against req.practitioner's
+ * OWN id — never takes a practitioner id in the body — so it can only ever
+ * write into the calling practitioner's own per-tenant database, matching
+ * every other independent-practitioner-guarded route in this app. One-off
+ * tool for populating a near-empty staging/demo tenant with a realistic
+ * spread of historical session logs; not referenced by any UI.
+ *
+ * Body: { count?: number (default 100) }
+ *
+ * Also seeds/reactivates a real set of agencies (SAMPLE_AGENCIES, with
+ * emails — not just free-text names) via the same upsert-on-reactivate
+ * logic createAgency uses, and assigns each child a roster of 1-2 of them
+ * (patient_agencies), replacing any existing roster so re-running this is
+ * idempotent rather than ever-growing. Each session's company_affiliation
+ * is then drawn from its own child's roster, same as the real Log Session
+ * screen's fast-pick chips.
+ *
+ * Reuses this practitioner's existing children (patients linked via
+ * patient_practitioners) when there are any, topping up with fresh
+ * synthetic children (SAMPLE_CHILDREN, up to 10 total) if fewer than 3
+ * exist, so a near-empty tenant still gets believable variety instead of
+ * 100 sessions on one child. Dates are spread uniformly across the last 6
+ * months.
+ * billing_status mix: ~55% 'completed' (already SEVF'd/invoiced), ~35%
+ * 'self_certified' (logged, not yet generated), ~10% 'voided' (rejected
+ * after being completed) — representative of real usage, not uniform.
+ * Skips (rather than erroring on) any date/child/time combination that
+ * would conflict with a session already logged for that child, via the
+ * same findConflictingSession check the real log-session endpoint uses, so
+ * this never produces data the app itself couldn't have produced.
+ */
+const seedMySessionLogs = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const targetCount = Math.min(Math.max(parseInt(req.body?.count, 10) || 100, 1), 300);
+
+  const client = await pool.connect();
+  try {
+    const { rows: pracRows } = await client.query(
+      'SELECT first_name, last_name, practitioner_discipline, pay_rate FROM practitioners WHERE id = $1',
+      [practitionerId]
+    );
+    const prac = pracRows[0];
+    if (!prac) return res.status(404).json({ error: 'Practitioner not found' });
+
+    // Real agencies first (not just free-text) — reactivates/updates an
+    // existing same-name agency rather than erroring, same as createAgency's
+    // own upsert-on-reactivate behavior, so re-running this is safe.
+    const agencyIds = [];
+    for (const a of SAMPLE_AGENCIES) {
+      const { rows: existingAgency } = await client.query(
+        `SELECT id FROM agencies WHERE practitioner_id = $1 AND lower(name) = lower($2)`,
+        [practitionerId, a.name]
+      );
+      if (existingAgency[0]) {
+        await client.query(
+          `UPDATE agencies SET email = $1, is_active = true, updated_at = now() WHERE id = $2`,
+          [a.email, existingAgency[0].id]
+        );
+        agencyIds.push(existingAgency[0].id);
+      } else {
+        const { rows } = await client.query(
+          `INSERT INTO agencies (practitioner_id, name, email) VALUES ($1, $2, $3) RETURNING id`,
+          [practitionerId, a.name, a.email]
+        );
+        agencyIds.push(rows[0].id);
+      }
+    }
+
+    // Reuse this practitioner's existing children first.
+    const { rows: existingPatients } = await client.query(
+      `SELECT p.id, p.first_name, p.last_name, p.dob, p.county
+       FROM patients p
+       JOIN patient_practitioners pp ON pp.patient_id = p.id
+       WHERE pp.practitioner_id = $1 AND p.status = 'active'`,
+      [practitionerId]
+    );
+
+    let patients = [...existingPatients];
+    if (patients.length < 3) {
+      for (const c of SAMPLE_CHILDREN) {
+        if (patients.length >= 10) break;
+        const childId = `SEED-${practitionerId}-${c.firstName}`.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        const { rows } = await client.query(
+          `INSERT INTO patients (first_name, last_name, dob, county, child_id, status, practitioner_id)
+           VALUES ($1, $2, $3, 'Essex', $4, 'active', $5)
+           ON CONFLICT (child_id) DO UPDATE SET status = 'active'
+           RETURNING id, first_name, last_name, dob, county`,
+          [c.firstName, c.lastName, c.dob, childId, practitionerId]
+        );
+        const newPatient = rows[0];
+        await client.query(
+          `INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [newPatient.id, practitionerId]
+        );
+        if (!patients.some((p) => p.id === newPatient.id)) patients.push(newPatient);
+      }
+    }
+
+    if (patients.length === 0) {
+      return res.status(400).json({ error: 'No children available to seed sessions against.' });
+    }
+
+    // Give every child a roster of 1-2 agencies (replacing, not appending,
+    // so re-running this endpoint produces a stable, re-shuffled roster
+    // rather than growing unbounded) — mirrors what Add/Edit Patient's
+    // Agencies section would produce. Each session's company_affiliation is
+    // then picked from its own child's roster, same as the real Log
+    // Session screen's fast-pick chips, instead of an unrelated random name.
+    const rosterByPatient = new Map();
+    for (const patient of patients) {
+      const shuffled = [...agencyIds].sort(() => Math.random() - 0.5);
+      const rosterSize = randInt2(1, 2);
+      const roster = shuffled.slice(0, rosterSize);
+      await client.query('DELETE FROM patient_agencies WHERE patient_id = $1', [patient.id]);
+      for (const agencyId of roster) {
+        await client.query(
+          `INSERT INTO patient_agencies (patient_id, agency_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [patient.id, agencyId]
+        );
+      }
+      rosterByPatient.set(patient.id, roster.map((id) => SAMPLE_AGENCIES[agencyIds.indexOf(id)].name));
+    }
+
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+
+    let created = 0;
+    let skippedConflicts = 0;
+    const attemptsCap = targetCount * 4; // generous retry budget around conflict skips
+    let attempts = 0;
+
+    while (created < targetCount && attempts < attemptsCap) {
+      attempts += 1;
+      const patient = rand(patients);
+      const daySpan = Math.floor((now - sixMonthsAgo) / (1000 * 60 * 60 * 24));
+      const serviceDate = new Date(sixMonthsAgo.getTime() + randInt2(0, daySpan) * 24 * 60 * 60 * 1000);
+      const dateStr = serviceDate.toISOString().slice(0, 10);
+
+      const startHour = randInt2(8, 16);
+      const startMin = rand(['00', '15', '30', '45']);
+      const durationMin = rand([30, 45, 60, 60, 90]);
+      const startTotalMin = startHour * 60 + parseInt(startMin, 10);
+      const endTotalMin = startTotalMin + durationMin;
+      const startTime = `${String(startHour).padStart(2, '0')}:${startMin}`;
+      const endTime = `${String(Math.floor(endTotalMin / 60)).padStart(2, '0')}:${String(endTotalMin % 60).padStart(2, '0')}`;
+      const disciplineCode = rand(SAMPLE_DISCIPLINES);
+
+      try {
+        await assertNoConflictingSession({
+          practitionerId, patientId: patient.id, date: dateStr, type: disciplineCode, startTime, endTime,
+        });
+      } catch {
+        skippedConflicts += 1;
+        continue;
+      }
+
+      const statusRoll = Math.random();
+      const billingStatus = statusRoll < 0.55 ? 'completed' : statusRoll < 0.90 ? 'self_certified' : 'voided';
+      const patientRoster = rosterByPatient.get(patient.id) || [];
+      const agency = patientRoster.length > 0 ? rand(patientRoster) : rand(SAMPLE_AGENCIES).name;
+
+      await client.query(
+        `INSERT INTO assessments
+           (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
+            practitioner_first_name, practitioner_last_name, practitioner_discipline,
+            service_date, start_time, end_time, total_time, status, type, location, group_size_category,
+            parent_signature, practitioner_signature, form_data, billing_status, company_affiliation)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+        [
+          patient.id, practitionerId, patient.first_name, patient.last_name, patient.dob, patient.county || 'Essex',
+          prac.first_name, prac.last_name, disciplineCode,
+          dateStr, startTime, endTime, durationMin,
+          rand(SAMPLE_VISIT_STATUSES), disciplineCode, rand(SAMPLE_LOCATIONS), rand(SAMPLE_GROUP_SIZES),
+          PLACEHOLDER_SIGNATURE, PLACEHOLDER_SIGNATURE,
+          JSON.stringify({ custom_fields: {} }), billingStatus, agency,
+        ]
+      );
+      created += 1;
+    }
+
+    logAudit({
+      req,
+      action: 'seed_my_session_logs',
+      resourceType: 'test_data',
+      resourceId: practitionerId,
+      details: { created, skippedConflicts, children: patients.length, agencies: agencyIds.length },
+    });
+
+    res.json({ success: true, created, skippedConflicts, children: patients.length, agencies: agencyIds.length });
+  } catch (error) {
+    console.error('Failed to seed session logs:', error);
+    res.status(500).json({ error: 'Failed to seed session logs', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   seedComparisonTestData,
   wipeAllSeedData,
   hardDeletePractitioner,
   randomizeSeedPractitionerDetails,
   randomizeSeedSignatures,
+  seedMySessionLogs,
 };
