@@ -46,7 +46,17 @@ BEGIN
     CHECK (billing_status = ANY (ARRAY[
       'pending'::text, 'njeis_review'::text, 'invoiced'::text,
       'on_hold'::text, 'rejected'::text, 'declined'::text,
-      'self_certified'::text, 'completed'::text
+      'self_certified'::text, 'completed'::text,
+      -- 'voided' and 'locked_in_report' are added by their own later
+      -- migrations (add_voided_billing_status.sql; 'locked_in_report' has
+      -- no migration of its own, see that file's comment) — included here
+      -- too so THIS constraint, which every boot re-applies first and
+      -- which runs strictly in MIGRATIONS order before the later one
+      -- widens it again, is never narrower than data a tenant may already
+      -- have on file from a previous boot. Without this, any tenant with
+      -- a 'voided' row fails to boot at all on this earlier ALTER, before
+      -- ever reaching the migration that's supposed to allow it.
+      'voided'::text, 'locked_in_report'::text
     ]));
 END $$;
 
