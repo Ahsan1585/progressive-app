@@ -448,14 +448,30 @@ export default function PatientDetail() {
                   <p className="text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
                   <p className="tabular shrink-0 text-sm font-semibold text-ink">{(item.total_time / 60).toFixed(2)} hrs</p>
                 </div>
-                <p className="mt-1 text-xs text-ink-muted">
-                  {[
-                    `${formatTime12h(item.start_time)}–${formatTime12h(item.end_time)}`,
-                    locationCodeMap[item.location] || item.location,
-                    statusCodeMap[item.status] || item.status,
-                    item.group_size_category ? groupSizeMap[item.group_size_category] || item.group_size_category : null,
-                  ].filter(Boolean).join(" · ")}
-                </p>
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border pt-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Time</p>
+                    <p className="tabular truncate text-xs text-ink-muted">
+                      {formatTime12h(item.start_time)}–{formatTime12h(item.end_time)}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Location</p>
+                    <p className="truncate text-xs text-ink-muted">{locationCodeMap[item.location] || item.location}</p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Visit status</p>
+                    <p className="truncate text-xs text-ink-muted">{statusCodeMap[item.status] || item.status}</p>
+                  </div>
+                  {item.group_size_category && (
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Group size</p>
+                      <p className="truncate text-xs text-ink-muted">
+                        {groupSizeMap[item.group_size_category] || item.group_size_category}
+                      </p>
+                    </div>
+                  )}
+                </div>
                 {["pending", "self_certified"].includes(item.billing_status) && (
                   <div className="mt-2 flex items-center gap-4">
                     <button
