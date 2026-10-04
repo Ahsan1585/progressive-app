@@ -13,6 +13,7 @@ import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmailSentDialog } from "@/components/EmailSentDialog";
+import { AutoDismissNotice } from "@/components/AutoDismissNotice";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate } from "@/utils/time";
 import type { GeneratedSevfResult, ApiErrorBody } from "@/types";
@@ -30,6 +31,7 @@ export default function SevfHistory() {
   const [error, setError] = React.useState<string | null>(null);
   const [revertTarget, setRevertTarget] = React.useState<GeneratedSevfResult | null>(null);
   const [isReverting, setIsReverting] = React.useState(false);
+  const [revertedNoticeOpen, setRevertedNoticeOpen] = React.useState(false);
   const [emailTarget, setEmailTarget] = React.useState<GeneratedSevfResult | null>(null);
   const [agencyEmail, setAgencyEmail] = React.useState("");
   const [saveEmailForAgency, setSaveEmailForAgency] = React.useState(false);
@@ -130,8 +132,8 @@ export default function SevfHistory() {
     setIsReverting(true);
     try {
       await api.post("/api/billing/independent/revert-sevf", { batchId: revertTarget.batchId });
-      showToast("SEVF reverted — sessions are ready to generate again.", "success");
       setRevertTarget(null);
+      setRevertedNoticeOpen(true);
       fetchHistory();
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
@@ -261,6 +263,12 @@ export default function SevfHistory() {
         agencyName={emailSentConfirmation?.agencyName ?? null}
         agencyEmail={emailSentConfirmation?.agencyEmail ?? ""}
         includesInvoice={emailSentConfirmation?.includesInvoice ?? false}
+      />
+
+      <AutoDismissNotice
+        open={revertedNoticeOpen}
+        onOpenChange={setRevertedNoticeOpen}
+        message="SEVF reverted — sessions are ready to generate again."
       />
     </PushScreen>
   );
