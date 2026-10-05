@@ -14,16 +14,21 @@ import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DraftCapDialog } from "@/components/DraftCapDialog";
 import { EnterInEimsDialog } from "@/components/EnterInEimsDialog";
+import { FilterPicker } from "@/components/FilterPicker";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
+import { billingStatusConfig } from "@/constants/njeis";
+import { cn } from "@/lib/utils";
 import type { Assessment, ScheduledSession, SessionDraftListItem, LogNote } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, groupSizeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
+  const { patients, fetchPatients, serviceTypeMap, serviceTypeOptions, locationCodeMap, statusCodeMap, groupSizeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
   const { isIndependentPractitioner } = useAuth();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
@@ -52,6 +57,49 @@ export default function PatientDetail() {
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Session history filters — purely client-side (assessments is already
+  // fully fetched per child, a small list), so filtering is a plain memo
+  // rather than a second API call with query params.
+  const [filterStartDate, setFilterStartDate] = React.useState("");
+  const [filterEndDate, setFilterEndDate] = React.useState("");
+  const [filterServiceType, setFilterServiceType] = React.useState("");
+  const [filterBillingStatus, setFilterBillingStatus] = React.useState("");
+  const [filterEimsEntered, setFilterEimsEntered] = React.useState<"" | "yes" | "no">("");
+
+  const hasActiveFilters =
+    !!filterStartDate || !!filterEndDate || !!filterServiceType || !!filterBillingStatus || !!filterEimsEntered;
+
+  const clearFilters = () => {
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setFilterServiceType("");
+    setFilterBillingStatus("");
+    setFilterEimsEntered("");
+  };
+
+  const billingStatusFilterOptions = React.useMemo(() => {
+    // Only offer statuses this child's own logs actually use, not the
+    // whole app-wide vocabulary — an independent practitioner never sees
+    // "In Review"/"Accepted" (tenant-only statuses) in their own filter,
+    // and vice versa, since a child's logs are all one role's own.
+    const present = new Set(assessments.map((a) => a.billing_status));
+    return Array.from(present)
+      .filter((code) => billingStatusConfig[code])
+      .map((code) => ({ code, label: billingStatusConfig[code].label }));
+  }, [assessments]);
+
+  const filteredAssessments = React.useMemo(() => {
+    return assessments.filter((item) => {
+      if (filterStartDate && item.service_date < filterStartDate) return false;
+      if (filterEndDate && item.service_date > filterEndDate) return false;
+      if (filterServiceType && item.type !== filterServiceType) return false;
+      if (filterBillingStatus && item.billing_status !== filterBillingStatus) return false;
+      if (filterEimsEntered === "yes" && !item.eims_entered_at) return false;
+      if (filterEimsEntered === "no" && !!item.eims_entered_at) return false;
+      return true;
+    });
+  }, [assessments, filterStartDate, filterEndDate, filterServiceType, filterBillingStatus, filterEimsEntered]);
 
   const [sessions, setSessions] = React.useState<ScheduledSession[]>([]);
   const [scheduleTarget, setScheduleTarget] = React.useState<ScheduledSession | "new" | null>(null);
@@ -461,7 +509,74 @@ export default function PatientDetail() {
           )}
         </div>
 
-        <h3 className="mb-2 text-[15px] font-semibold text-ink">Session history</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-[15px] font-semibold text-ink">Session history</h3>
+          {hasActiveFilters && (
+            <button type="button" onClick={clearFilters} className="press-scale text-xs font-semibold text-primary">
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        {!error && !loading && assessments.length > 0 && (
+          <div className="mb-3 space-y-3 rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]">
+            <p className="text-[13px] font-semibold text-ink-muted">Filters</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="filterStartDate" className="text-xs">Start date</Label>
+                <Input id="filterStartDate" type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="filterEndDate" className="text-xs">End date</Label>
+                <Input id="filterEndDate" type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FilterPicker
+                id="filterServiceType"
+                label="Service type"
+                value={filterServiceType}
+                options={serviceTypeOptions.map((o) => ({ code: o.code, label: o.label }))}
+                onChange={setFilterServiceType}
+                allLabel="All types"
+              />
+              <FilterPicker
+                id="filterBillingStatus"
+                label="Status"
+                value={filterBillingStatus}
+                options={billingStatusFilterOptions}
+                onChange={setFilterBillingStatus}
+                allLabel="All statuses"
+              />
+            </div>
+            {isIndependentPractitioner && (
+              <div>
+                <Label className="text-xs">EIMS</Label>
+                <div className="mt-1.5 flex gap-2">
+                  {([
+                    { value: "", label: "All" },
+                    { value: "yes", label: "Entered" },
+                    { value: "no", label: "Not entered" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFilterEimsEntered(opt.value)}
+                      className={cn(
+                        "press-scale h-9 flex-1 rounded-control border text-sm font-medium",
+                        filterEimsEntered === opt.value
+                          ? "border-primary bg-primary-tint text-primary"
+                          : "border-border bg-surface text-ink-muted"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {error ? (
           <EmptyState
@@ -488,13 +603,28 @@ export default function PatientDetail() {
           </ul>
         ) : assessments.length === 0 ? (
           <EmptyState icon={ClipboardList} heading={`No visits logged yet for ${patient?.first_name ?? "this child"}`} />
+        ) : filteredAssessments.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            heading="No sessions match these filters"
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
         ) : (
           <ul role="list" aria-label="Session history" className="space-y-2">
-            {assessments.map((item) => (
+            {filteredAssessments.map((item) => (
               <li key={item.id} className="rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(item.service_date)}</p>
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <p className="tabular shrink-0 text-sm font-semibold text-ink">{formatSafeDate(item.service_date)}</p>
+                    <p className="tabular truncate text-xs text-ink-muted">
+                      {formatTime12h(item.start_time)}–{formatTime12h(item.end_time)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
                     <StatusBadge status={item.billing_status} />
                     {/* Independent-practitioner-only, self-reported (see
                         setEimsEntered) — always visible on the card, not
@@ -512,30 +642,6 @@ export default function PatientDetail() {
                 <div className="mt-1 flex items-baseline justify-between gap-2">
                   <p className="text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
                   <p className="tabular shrink-0 text-sm font-semibold text-ink">{(item.total_time / 60).toFixed(2)} hrs</p>
-                </div>
-                <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-border pt-2.5">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Time</p>
-                    <p className="tabular text-sm text-ink-body">
-                      {formatTime12h(item.start_time)}–{formatTime12h(item.end_time)}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Location</p>
-                    <p className="text-sm text-ink-body">{locationCodeMap[item.location] || item.location}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Visit status</p>
-                    <p className="text-sm text-ink-body">{statusCodeMap[item.status] || item.status}</p>
-                  </div>
-                  {item.group_size_category && (
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Group size</p>
-                      <p className="text-sm text-ink-body">
-                        {groupSizeMap[item.group_size_category] || item.group_size_category}
-                      </p>
-                    </div>
-                  )}
                 </div>
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
                   {["pending", "self_certified"].includes(item.billing_status) && (
