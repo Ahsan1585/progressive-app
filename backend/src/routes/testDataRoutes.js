@@ -37,6 +37,28 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
     );
     res.json({ count: rows.length, rows });
   });
+
+  // One-off cleanup for a seeding data-integrity gap: seed-my-session-logs
+  // (used earlier to populate ahsan185's staging tenant) set
+  // billing_status='completed' directly on ~55% of its rows without ever
+  // creating a real billing_batches row or SEVF/invoice PDF — so those
+  // sessions showed "SEVF Generated" in Session History but had no
+  // corresponding entry in SEVF History (which joins through
+  // billing_batches). Reverts exactly that: only the CALLING
+  // practitioner's own 'completed' rows with billing_batch_id IS NULL,
+  // back to 'self_certified' (the honest state — no SEVF was ever really
+  // generated for them). A real 'completed' row (with a real batch) is
+  // never touched.
+  router.post('/fix-orphaned-completed-logs', protect, requireRole(['independent_practitioner']), async (req, res) => {
+    const practitionerId = req.practitioner.practitionerId;
+    const { rows } = await pool.query(
+      `UPDATE assessments SET billing_status = 'self_certified'
+       WHERE practitioner_id = $1 AND billing_status = 'completed' AND billing_batch_id IS NULL
+       RETURNING id`,
+      [practitionerId]
+    );
+    res.json({ success: true, reverted: rows.length });
+  });
 }
 
 module.exports = router;
