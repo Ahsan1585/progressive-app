@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput, CheckCircle2 } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -90,6 +90,32 @@ export default function PatientDetail() {
       showToast("Couldn't load notes. Please try again.");
     } finally {
       setNotesLoading(false);
+    }
+  };
+
+  // "Completed" / "Mark not entered" inside EnterInEimsDialog — self-
+  // reported, toggleable (see setEimsEntered). Updates the session in
+  // place (both the open dialog's own `session` prop via eimsTarget, and
+  // the underlying list) so the card's "Entered in EIMS" indicator updates
+  // immediately without a full refetch.
+  const [markingEntered, setMarkingEntered] = React.useState(false);
+
+  const handleMarkEntered = async (entered: boolean) => {
+    if (!eimsTarget) return;
+    setMarkingEntered(true);
+    try {
+      const res = await api.post<{ success: boolean; eims_entered_at: string | null }>(
+        `/api/patients/logs/${eimsTarget.id}/eims-entered`,
+        { entered }
+      );
+      const updated = { ...eimsTarget, eims_entered_at: res.data.eims_entered_at };
+      setEimsTarget(updated);
+      setAssessments((prev) => prev.map((a) => (a.id === eimsTarget.id ? { ...a, eims_entered_at: res.data.eims_entered_at } : a)));
+      showToast(entered ? "Marked as entered in EIMS." : "Unmarked.");
+    } catch {
+      showToast("Couldn't update. Please try again.");
+    } finally {
+      setMarkingEntered(false);
     }
   };
 
@@ -468,7 +494,20 @@ export default function PatientDetail() {
               <li key={item.id} className="rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]">
                 <div className="flex items-start justify-between gap-2">
                   <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(item.service_date)}</p>
-                  <StatusBadge status={item.billing_status} />
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusBadge status={item.billing_status} />
+                    {/* Independent-practitioner-only, self-reported (see
+                        setEimsEntered) — always visible on the card, not
+                        just inside the "Enter in EIMS" popup, so the
+                        practitioner can tell at a glance which sessions
+                        still need to be entered into the state portal. */}
+                    {isIndependentPractitioner && item.eims_entered_at && (
+                      <span className="flex items-center gap-1 rounded-full border border-success-border bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
+                        <CheckCircle2 className="size-3" aria-hidden="true" />
+                        Entered in EIMS
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-1 flex items-baseline justify-between gap-2">
                   <p className="text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
@@ -631,6 +670,8 @@ export default function PatientDetail() {
         notes={notes}
         notesLoading={notesLoading}
         showEimsFields={isIndependentPractitioner}
+        onMarkEntered={handleMarkEntered}
+        markingEntered={markingEntered}
       />
     </PushScreen>
   );

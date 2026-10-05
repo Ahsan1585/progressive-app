@@ -30,6 +30,7 @@ const MIGRATIONS = [
   'add_dropdown_option_is_seeded.sql',
   'add_agencies.sql',
   'add_voided_billing_status.sql',
+  'add_self_reported_eims_entry.sql',
 ];
 
 module.exports = { MIGRATIONS };

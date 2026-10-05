@@ -1,0 +1,14 @@
+-- Independent-practitioner-only: lets a practitioner mark one of their own
+-- session logs as "entered in EIMS" — a self-reported, practitioner-
+-- controlled flag, NOT the existing eims_missing_approved_by/_at columns
+-- (add_eims_missing_approval.sql), which are a completely different,
+-- office/admin-side concept: an approval gate for a log with NO matching
+-- state record at all, surfaced through Compliance Analysis's automated
+-- EIMS-file matching. This flag has nothing to do with that matching
+-- pipeline — it's just the practitioner's own record that they personally
+-- logged into the state EIMS portal and copied this session's data in,
+-- which this app has no way to verify or automate (see EnterInEimsDialog
+-- for the full "why this is a copy-paste helper, not an API integration"
+-- rationale). Toggleable back off (re-clicking un-marks it) in case a
+-- practitioner marks one by mistake.
+ALTER TABLE assessments ADD COLUMN IF NOT EXISTS eims_entered_at timestamptz;

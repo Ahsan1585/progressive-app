@@ -572,6 +572,45 @@ const addMyLogComment = async (req, res) => {
   }
 };
 
+// POST /api/patients/logs/:id/eims-entered — independent-practitioner-only.
+// Toggles assessments.eims_entered_at (see add_self_reported_eims_entry.sql
+// for why this is distinct from the unrelated eims_missing_approved_at
+// columns). Self-reported — the practitioner is telling the app "I logged
+// into EIMS and entered this myself," which this app has no way to verify,
+// same spirit as the EnterInEimsDialog copy-paste helper it's paired with.
+// Body: { entered: boolean } — true sets eims_entered_at = now(), false
+// clears it, so marking one by mistake can be undone from the same toggle.
+const setEimsEntered = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  const { entered } = req.body;
+  if (typeof entered !== 'boolean') {
+    return res.status(400).json({ error: 'entered (boolean) is required.' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assessments
+       SET eims_entered_at = CASE WHEN $1 THEN now() ELSE NULL END
+       WHERE id = $2 AND practitioner_id = $3
+       RETURNING eims_entered_at`,
+      [entered, id, practitionerId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Log not found' });
+
+    logAudit({
+      req,
+      action: entered ? 'log_eims_entered_set' : 'log_eims_entered_cleared',
+      resourceType: 'assessment',
+      resourceId: id,
+    });
+    res.json({ success: true, eims_entered_at: rows[0].eims_entered_at });
+  } catch (error) {
+    console.error('Error setting EIMS-entered status:', error);
+    res.status(500).json({ error: 'Failed to update EIMS-entered status' });
+  }
+};
+
 // GET /api/patients/:id/last-session-defaults — the practitioner's own most
 // recent log for THIS specific child (status/type/location/group size/
 // agency), so Log Session can pre-fill fields that almost always repeat for
@@ -646,4 +685,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered };

@@ -235,6 +235,11 @@ export interface Assessment {
   /** Independent-practitioner-only — which agency this session is billed
    *  to. Always null for a normal tenant practitioner's logs. */
   company_affiliation?: string | null;
+  /** Independent-practitioner-only — set the moment the practitioner marks
+   *  this session as entered into the state EIMS portal themselves (see
+   *  add_self_reported_eims_entry.sql). Self-reported, not verified by this
+   *  app. Always null for a normal tenant practitioner's logs. */
+  eims_entered_at?: string | null;
 }
 
 export interface RejectedLog {
