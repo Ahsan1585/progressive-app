@@ -240,6 +240,12 @@ export interface Assessment {
    *  add_self_reported_eims_entry.sql). Self-reported, not verified by this
    *  app. Always null for a normal tenant practitioner's logs. */
   eims_entered_at?: string | null;
+  /** Independent-practitioner-only — only ever settable on a 'voided'
+   *  (self-rejected) log (see setHiddenFromHistory). A display preference
+   *  only, never a delete — the row and everything on it stays exactly as
+   *  it is; this just excludes it from the default Session History list.
+   *  Always false for a normal tenant practitioner's logs. */
+  hidden_from_history?: boolean;
 }
 
 export interface RejectedLog {

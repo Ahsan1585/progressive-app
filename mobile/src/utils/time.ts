@@ -81,3 +81,18 @@ export const timeAgo = (isoString: string): string => {
   const diffDays = Math.round(diffHours / 24);
   return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
 };
+
+// Formats a decimal-hours figure (e.g. practitionerDashboardController.js's
+// hoursThisMonth — total_time minutes / 60) as actual hours and minutes
+// instead of a rounded decimal like "4.1" (which reads as "4 hours and a
+// tenth of an hour," not the real "4h 06m" a practitioner logged). Drops
+// the minutes part when it's a whole number of hours (e.g. "4h", not
+// "4h 0m"), and shows minutes alone under an hour (e.g. "45m").
+export const formatHoursMinutes = (decimalHours: number): string => {
+  const totalMinutes = Math.round(decimalHours * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+};

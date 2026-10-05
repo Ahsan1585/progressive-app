@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import api from "@/api/axiosInstance";
-import { formatTime12h, timeAgo } from "@/utils/time";
+import { formatTime12h, timeAgo, formatHoursMinutes } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { ScheduledSession, PractitionerDashboardSummary, MonthlyTrendPoint, AgencyBreakdownEntry } from "@/types";
 
@@ -185,7 +185,7 @@ export default function Home() {
             label="Hours this month"
             value={dashboardSummary?.hoursThisMonth ?? null}
             loading={dashboardLoading}
-            formatter={(n) => n.toFixed(1)}
+            formatter={formatHoursMinutes}
           />
           <StatTile
             label="$ invoiced"
@@ -201,7 +201,7 @@ export default function Home() {
             label="Hours this month"
             value={stats?.hoursThisMonth ?? null}
             loading={statsLoading}
-            formatter={(n) => n.toFixed(1)}
+            formatter={formatHoursMinutes}
           />
           <StatTile label="In pipeline" value={stats?.pendingReviewCount ?? null} loading={statsLoading} />
         </div>

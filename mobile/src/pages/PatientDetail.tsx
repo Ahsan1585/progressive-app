@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput, CheckCircle2 } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,6 +65,12 @@ export default function PatientDetail() {
   const [filterEndDate, setFilterEndDate] = React.useState("");
   const [filterBillingStatus, setFilterBillingStatus] = React.useState("");
   const [filterEimsEntered, setFilterEimsEntered] = React.useState<"" | "yes" | "no">("");
+  // A hidden (rejected-and-hidden) session is excluded from the list by
+  // default — this toggle is the only way back to it, since
+  // hidden_from_history is otherwise a one-way-looking display preference
+  // (see setHiddenFromHistory's own comment: never a delete, always
+  // reversible, just not reachable unless explicitly asked for).
+  const [showHidden, setShowHidden] = React.useState(false);
 
   const hasActiveFilters = !!filterStartDate || !!filterEndDate || !!filterBillingStatus || !!filterEimsEntered;
 
@@ -86,8 +92,11 @@ export default function PatientDetail() {
       .map((code) => ({ code, label: billingStatusConfig[code].label }));
   }, [assessments]);
 
+  const hiddenCount = React.useMemo(() => assessments.filter((a) => a.hidden_from_history).length, [assessments]);
+
   const filteredAssessments = React.useMemo(() => {
     return assessments.filter((item) => {
+      if (!showHidden && item.hidden_from_history) return false;
       if (filterStartDate && item.service_date < filterStartDate) return false;
       if (filterEndDate && item.service_date > filterEndDate) return false;
       if (filterBillingStatus && item.billing_status !== filterBillingStatus) return false;
@@ -95,7 +104,7 @@ export default function PatientDetail() {
       if (filterEimsEntered === "no" && !!item.eims_entered_at) return false;
       return true;
     });
-  }, [assessments, filterStartDate, filterEndDate, filterBillingStatus, filterEimsEntered]);
+  }, [assessments, showHidden, filterStartDate, filterEndDate, filterBillingStatus, filterEimsEntered]);
 
   const [sessions, setSessions] = React.useState<ScheduledSession[]>([]);
   const [scheduleTarget, setScheduleTarget] = React.useState<ScheduledSession | "new" | null>(null);
@@ -160,6 +169,24 @@ export default function PatientDetail() {
       showToast("Couldn't update. Please try again.");
     } finally {
       setMarkingEntered(false);
+    }
+  };
+
+  // "Hide" / "Unhide" on a rejected (voided) session card — see
+  // setHiddenFromHistory's own comment. Only ever offered on a voided log.
+  const [hidingId, setHidingId] = React.useState<string | null>(null);
+
+  const handleToggleHidden = async (item: Assessment) => {
+    const nextHidden = !item.hidden_from_history;
+    setHidingId(item.id);
+    try {
+      await api.post(`/api/patients/logs/${item.id}/hide-from-history`, { hidden: nextHidden });
+      setAssessments((prev) => prev.map((a) => (a.id === item.id ? { ...a, hidden_from_history: nextHidden } : a)));
+      showToast(nextHidden ? "Hidden from session history." : "Unhidden.");
+    } catch {
+      showToast("Couldn't update. Please try again.");
+    } finally {
+      setHidingId(null);
     }
   };
 
@@ -507,11 +534,23 @@ export default function PatientDetail() {
 
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-[15px] font-semibold text-ink">Session history</h3>
-          {hasActiveFilters && (
-            <button type="button" onClick={clearFilters} className="press-scale text-xs font-semibold text-primary">
-              Clear filters
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {isIndependentPractitioner && hiddenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowHidden((v) => !v)}
+                className="press-scale flex items-center gap-1 text-xs font-semibold text-ink-muted"
+              >
+                {showHidden ? <EyeOff className="size-3.5" aria-hidden="true" /> : <Eye className="size-3.5" aria-hidden="true" />}
+                {showHidden ? "Hide hidden" : `Show hidden (${hiddenCount})`}
+              </button>
+            )}
+            {hasActiveFilters && (
+              <button type="button" onClick={clearFilters} className="press-scale text-xs font-semibold text-primary">
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
 
         {!error && !loading && assessments.length > 0 && (
@@ -664,6 +703,27 @@ export default function PatientDetail() {
                     >
                       <XCircle className="size-4" aria-hidden="true" />
                       Reject
+                    </button>
+                  )}
+                  {/* Independent-practitioner-only — once a session is
+                      rejected (voided), let the practitioner tuck it out
+                      of their default Session History view (see
+                      setHiddenFromHistory's own comment: a display
+                      preference, never a delete, always reversible via
+                      "Show hidden" below). */}
+                  {isIndependentPractitioner && item.billing_status === "voided" && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleHidden(item)}
+                      disabled={hidingId === item.id}
+                      className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted disabled:opacity-60"
+                    >
+                      {item.hidden_from_history ? (
+                        <Eye className="size-4" aria-hidden="true" />
+                      ) : (
+                        <EyeOff className="size-4" aria-hidden="true" />
+                      )}
+                      {item.hidden_from_history ? "Unhide" : "Hide"}
                     </button>
                   )}
                   {/* Independent-practitioner-only sees "Enter in EIMS",

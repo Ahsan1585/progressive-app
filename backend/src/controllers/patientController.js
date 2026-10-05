@@ -611,6 +611,47 @@ const setEimsEntered = async (req, res) => {
   }
 };
 
+// POST /api/patients/logs/:id/hide-from-history — independent-practitioner-
+// only. Lets the practitioner hide a 'voided' (self-rejected) session from
+// their own Session History list (see add_hidden_from_history.sql for why
+// this is a display preference, not a delete — the row and everything on
+// it, notes/eims_entered_at/etc., stay exactly as they are). Only ever
+// allowed on a 'voided' log — a session still in play (pending, self-
+// certified, completed) can't be hidden, since that would let a
+// practitioner make an active record disappear from their own history.
+// Body: { hidden: boolean } — toggleable back on.
+const setHiddenFromHistory = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  const { hidden } = req.body;
+  if (typeof hidden !== 'boolean') {
+    return res.status(400).json({ error: 'hidden (boolean) is required.' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assessments SET hidden_from_history = $1
+       WHERE id = $2 AND practitioner_id = $3 AND billing_status = 'voided'
+       RETURNING hidden_from_history`,
+      [hidden, id, practitionerId]
+    );
+    if (!rows[0]) {
+      return res.status(400).json({ error: 'Only a rejected session can be hidden from history.' });
+    }
+
+    logAudit({
+      req,
+      action: hidden ? 'log_hidden_from_history' : 'log_unhidden_from_history',
+      resourceType: 'assessment',
+      resourceId: id,
+    });
+    res.json({ success: true, hidden_from_history: rows[0].hidden_from_history });
+  } catch (error) {
+    console.error('Error setting hidden-from-history status:', error);
+    res.status(500).json({ error: 'Failed to update hidden-from-history status' });
+  }
+};
+
 // GET /api/patients/:id/last-session-defaults — the practitioner's own most
 // recent log for THIS specific child (status/type/location/group size/
 // agency), so Log Session can pre-fill fields that almost always repeat for
@@ -685,4 +726,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered, setHiddenFromHistory };

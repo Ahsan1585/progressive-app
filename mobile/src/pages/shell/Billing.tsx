@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { formatHoursMinutes } from "@/utils/time";
 import type { PractitionerDashboardSummary, AgencyBreakdownEntry, AgencyPendingEntry } from "@/types";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -124,7 +125,7 @@ export default function Billing() {
               <div key={a.name} className="flex items-center justify-between px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-medium text-ink">{a.name}</p>
-                  <p className="text-xs text-ink-muted">{a.hours.toFixed(1)} hrs logged, no SEVF yet</p>
+                  <p className="text-xs text-ink-muted">{formatHoursMinutes(a.hours)} logged, no SEVF yet</p>
                 </div>
                 <p className="tabular text-[15px] font-semibold text-ink">{money(a.pendingValue)}</p>
               </div>
@@ -141,7 +142,7 @@ export default function Billing() {
               <div key={a.name} className="flex items-center justify-between px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-medium text-ink">{a.name}</p>
-                  <p className="text-xs text-ink-muted">{a.hours.toFixed(1)} hrs</p>
+                  <p className="text-xs text-ink-muted">{formatHoursMinutes(a.hours)}</p>
                 </div>
                 <p className="tabular text-[15px] font-semibold text-ink">{money(a.invoicedValue)}</p>
               </div>
