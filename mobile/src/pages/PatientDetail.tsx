@@ -13,8 +13,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DraftCapDialog } from "@/components/DraftCapDialog";
-import { ViewNotesDialog } from "@/components/ViewNotesDialog";
-import { ExportToEimsDialog } from "@/components/ExportToEimsDialog";
+import { EnterInEimsDialog } from "@/components/EnterInEimsDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
@@ -69,16 +68,19 @@ export default function PatientDetail() {
   const [voidTarget, setVoidTarget] = React.useState<Assessment | null>(null);
   const [isVoidingLog, setIsVoidingLog] = React.useState(false);
 
-  // "View comments" on a session card — fetched lazily per-log the moment
-  // the dialog is opened (not prefetched for every card in the list), since
-  // most sessions have zero notes and this avoids N extra requests on a
-  // screen that can already list dozens of sessions.
-  const [notesTarget, setNotesTarget] = React.useState<Assessment | null>(null);
+  // "Enter in EIMS" on a session card — independent-practitioner-only (see
+  // EnterInEimsDialog for why this is a copy-paste helper, not an API
+  // integration). Its EIMS field list comes straight from the session row
+  // itself (no extra fetch), but its comment thread is fetched lazily the
+  // moment the dialog opens (not prefetched for every card in the list),
+  // since most sessions have zero comments and this avoids N extra requests
+  // on a screen that can already list dozens of sessions.
+  const [eimsTarget, setEimsTarget] = React.useState<Assessment | null>(null);
   const [notes, setNotes] = React.useState<LogNote[]>([]);
   const [notesLoading, setNotesLoading] = React.useState(false);
 
-  const handleViewNotes = async (item: Assessment) => {
-    setNotesTarget(item);
+  const handleOpenEimsDialog = async (item: Assessment) => {
+    setEimsTarget(item);
     setNotesLoading(true);
     setNotes([]);
     try {
@@ -90,11 +92,6 @@ export default function PatientDetail() {
       setNotesLoading(false);
     }
   };
-
-  // Independent-practitioner-only — "Export to EIMS" (see ExportToEimsDialog
-  // for why this is a copy-paste helper, not an API integration). Already
-  // has everything it needs from the session row itself (no extra fetch).
-  const [eimsTarget, setEimsTarget] = React.useState<Assessment | null>(null);
 
   const [drafts, setDrafts] = React.useState<SessionDraftListItem[]>([]);
   const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
@@ -538,24 +535,30 @@ export default function PatientDetail() {
                       Reject
                     </button>
                   )}
+                  {/* Independent-practitioner-only sees "Enter in EIMS",
+                      which also carries this session's comment thread
+                      (folded in rather than a separate "View comments"
+                      button for this role). A tenant-company practitioner
+                      has no EIMS concept at all, so they see a plain
+                      "View comments" button that opens the same dialog
+                      with its EIMS section hidden. */}
                   <button
                     type="button"
-                    onClick={() => handleViewNotes(item)}
+                    onClick={() => handleOpenEimsDialog(item)}
                     className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted"
                   >
-                    <MessageSquare className="size-4" aria-hidden="true" />
-                    View comments
+                    {isIndependentPractitioner ? (
+                      <>
+                        <FileOutput className="size-4" aria-hidden="true" />
+                        Enter in EIMS
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="size-4" aria-hidden="true" />
+                        View comments
+                      </>
+                    )}
                   </button>
-                  {isIndependentPractitioner && (
-                    <button
-                      type="button"
-                      onClick={() => setEimsTarget(item)}
-                      className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted"
-                    >
-                      <FileOutput className="size-4" aria-hidden="true" />
-                      Export to EIMS
-                    </button>
-                  )}
                 </div>
               </li>
             ))}
@@ -613,14 +616,7 @@ export default function PatientDetail() {
         patientName={patient ? `${patient.first_name} ${patient.last_name}`.trim() : undefined}
       />
 
-      <ViewNotesDialog
-        open={!!notesTarget}
-        onOpenChange={(open) => { if (!open) setNotesTarget(null); }}
-        notes={notes}
-        loading={notesLoading}
-      />
-
-      <ExportToEimsDialog
+      <EnterInEimsDialog
         open={!!eimsTarget}
         onOpenChange={(open) => { if (!open) setEimsTarget(null); }}
         session={eimsTarget}
@@ -632,6 +628,9 @@ export default function PatientDetail() {
             ? groupSizeMap[eimsTarget.group_size_category] || eimsTarget.group_size_category
             : null
         }
+        notes={notes}
+        notesLoading={notesLoading}
+        showEimsFields={isIndependentPractitioner}
       />
     </PushScreen>
   );
