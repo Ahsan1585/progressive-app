@@ -28,7 +28,7 @@ export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { patients, fetchPatients, serviceTypeMap, serviceTypeOptions, locationCodeMap, statusCodeMap, groupSizeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
+  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, groupSizeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
   const { isIndependentPractitioner } = useAuth();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
@@ -63,17 +63,14 @@ export default function PatientDetail() {
   // rather than a second API call with query params.
   const [filterStartDate, setFilterStartDate] = React.useState("");
   const [filterEndDate, setFilterEndDate] = React.useState("");
-  const [filterServiceType, setFilterServiceType] = React.useState("");
   const [filterBillingStatus, setFilterBillingStatus] = React.useState("");
   const [filterEimsEntered, setFilterEimsEntered] = React.useState<"" | "yes" | "no">("");
 
-  const hasActiveFilters =
-    !!filterStartDate || !!filterEndDate || !!filterServiceType || !!filterBillingStatus || !!filterEimsEntered;
+  const hasActiveFilters = !!filterStartDate || !!filterEndDate || !!filterBillingStatus || !!filterEimsEntered;
 
   const clearFilters = () => {
     setFilterStartDate("");
     setFilterEndDate("");
-    setFilterServiceType("");
     setFilterBillingStatus("");
     setFilterEimsEntered("");
   };
@@ -93,13 +90,12 @@ export default function PatientDetail() {
     return assessments.filter((item) => {
       if (filterStartDate && item.service_date < filterStartDate) return false;
       if (filterEndDate && item.service_date > filterEndDate) return false;
-      if (filterServiceType && item.type !== filterServiceType) return false;
       if (filterBillingStatus && item.billing_status !== filterBillingStatus) return false;
       if (filterEimsEntered === "yes" && !item.eims_entered_at) return false;
       if (filterEimsEntered === "no" && !!item.eims_entered_at) return false;
       return true;
     });
-  }, [assessments, filterStartDate, filterEndDate, filterServiceType, filterBillingStatus, filterEimsEntered]);
+  }, [assessments, filterStartDate, filterEndDate, filterBillingStatus, filterEimsEntered]);
 
   const [sessions, setSessions] = React.useState<ScheduledSession[]>([]);
   const [scheduleTarget, setScheduleTarget] = React.useState<ScheduledSession | "new" | null>(null);
@@ -523,35 +519,25 @@ export default function PatientDetail() {
             <p className="text-[13px] font-semibold text-ink-muted">Filters</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="filterStartDate" className="text-xs">Start date</Label>
+                <Label htmlFor="filterStartDate" className="text-xs font-semibold text-ink">Start date</Label>
                 <Input id="filterStartDate" type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="filterEndDate" className="text-xs">End date</Label>
+                <Label htmlFor="filterEndDate" className="text-xs font-semibold text-ink">End date</Label>
                 <Input id="filterEndDate" type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FilterPicker
-                id="filterServiceType"
-                label="Service type"
-                value={filterServiceType}
-                options={serviceTypeOptions.map((o) => ({ code: o.code, label: o.label }))}
-                onChange={setFilterServiceType}
-                allLabel="All types"
-              />
-              <FilterPicker
-                id="filterBillingStatus"
-                label="Status"
-                value={filterBillingStatus}
-                options={billingStatusFilterOptions}
-                onChange={setFilterBillingStatus}
-                allLabel="All statuses"
-              />
-            </div>
+            <FilterPicker
+              id="filterBillingStatus"
+              label="Status"
+              value={filterBillingStatus}
+              options={billingStatusFilterOptions}
+              onChange={setFilterBillingStatus}
+              allLabel="All statuses"
+            />
             {isIndependentPractitioner && (
               <div>
-                <Label className="text-xs">EIMS</Label>
+                <Label className="text-xs font-semibold text-ink">EIMS</Label>
                 <div className="mt-1.5 flex gap-2">
                   {([
                     { value: "", label: "All" },

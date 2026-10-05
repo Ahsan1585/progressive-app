@@ -29,7 +29,7 @@ export function FilterPicker({ id, label, value, options, onChange, allLabel = `
 
   return (
     <div>
-      <Label htmlFor={id} className="text-xs">{label}</Label>
+      <Label htmlFor={id} className="text-xs font-semibold text-ink">{label}</Label>
       <button
         id={id}
         type="button"
