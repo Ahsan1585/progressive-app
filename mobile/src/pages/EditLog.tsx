@@ -118,9 +118,9 @@ export default function EditLog() {
       await api.post(`/api/patients/logs/${logId}/notes`, { note: newComment.trim() });
       setNewComment("");
       await fetchNotes();
-      showToast("Comment added.");
+      showToast("Note added.");
     } catch {
-      showToast("Couldn't add your comment. Please try again.");
+      showToast("Couldn't add your note. Please try again.");
     } finally {
       setAddingComment(false);
     }
@@ -269,7 +269,7 @@ export default function EditLog() {
             })}
 
             <div className="border-t border-border pt-5">
-              <p className="mb-2 text-[13px] font-medium leading-[18px] text-ink-body">Comments</p>
+              <p className="mb-2 text-[13px] font-medium leading-[18px] text-ink-body">Notes</p>
               {notesLoading ? (
                 <p className="text-sm text-ink-muted">Loading…</p>
               ) : notes.length > 0 ? (
@@ -285,9 +285,9 @@ export default function EditLog() {
                   ))}
                 </ul>
               ) : (
-                <p className="mb-3 text-sm text-ink-muted">No comments yet.</p>
+                <p className="mb-3 text-sm text-ink-muted">No notes yet.</p>
               )}
-              <Field id="newComment" label="Add a comment">
+              <Field id="newComment" label="Add a note">
                 <Textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
@@ -304,7 +304,7 @@ export default function EditLog() {
                 disabled={addingComment || !newComment.trim()}
               >
                 <Send className="size-3.5" aria-hidden="true" />
-                Add comment
+                Add note
               </Button>
             </div>
           </>

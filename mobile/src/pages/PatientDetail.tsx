@@ -87,7 +87,7 @@ export default function PatientDetail() {
       const res = await api.get<{ success: boolean; notes: LogNote[] }>(`/api/patients/logs/${item.id}/notes`);
       setNotes(res.data.notes || []);
     } catch {
-      showToast("Couldn't load comments. Please try again.");
+      showToast("Couldn't load notes. Please try again.");
     } finally {
       setNotesLoading(false);
     }
@@ -555,7 +555,7 @@ export default function PatientDetail() {
                     ) : (
                       <>
                         <MessageSquare className="size-4" aria-hidden="true" />
-                        View comments
+                        View notes
                       </>
                     )}
                   </button>

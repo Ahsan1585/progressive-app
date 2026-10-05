@@ -101,7 +101,7 @@ export function EnterInEimsDialog({
           <X className="size-4" aria-hidden="true" />
         </DialogClose>
         <DialogHeader className="pr-8">
-          <DialogTitle id="enter-eims-dialog-title">{showEimsFields ? "Enter in EIMS" : "Comments"}</DialogTitle>
+          <DialogTitle id="enter-eims-dialog-title">{showEimsFields ? "Enter in EIMS" : "Notes"}</DialogTitle>
           {showEimsFields && (
             <DialogDescription>
               Copy this session's details, then paste them into the state EIMS portal while logging in yourself.
@@ -135,14 +135,14 @@ export function EnterInEimsDialog({
         )}
 
         <div className={showEimsFields ? "mt-5 border-t border-border pt-4" : ""}>
-          {showEimsFields && <p className="mb-2 text-[13px] font-semibold text-ink">Comments</p>}
+          {showEimsFields && <p className="mb-2 text-[13px] font-semibold text-ink">Notes</p>}
           {notesLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
             </div>
           ) : notes.length === 0 ? (
-            <EmptyState icon={MessageSquare} heading="No comments" subtext="Nothing has been added to this session yet." />
+            <EmptyState icon={MessageSquare} heading="No notes" subtext="Nothing has been added to this session yet." />
           ) : (
             <ul role="list" className="space-y-3">
               {notes.map((n, i) => (
