@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DraftCapDialog } from "@/components/DraftCapDialog";
 import { ViewNotesDialog } from "@/components/ViewNotesDialog";
+import { ExportToEimsDialog } from "@/components/ExportToEimsDialog";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
@@ -89,6 +90,11 @@ export default function PatientDetail() {
       setNotesLoading(false);
     }
   };
+
+  // Independent-practitioner-only — "Export to EIMS" (see ExportToEimsDialog
+  // for why this is a copy-paste helper, not an API integration). Already
+  // has everything it needs from the session row itself (no extra fetch).
+  const [eimsTarget, setEimsTarget] = React.useState<Assessment | null>(null);
 
   const [drafts, setDrafts] = React.useState<SessionDraftListItem[]>([]);
   const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
@@ -540,6 +546,16 @@ export default function PatientDetail() {
                     <MessageSquare className="size-4" aria-hidden="true" />
                     View comments
                   </button>
+                  {isIndependentPractitioner && (
+                    <button
+                      type="button"
+                      onClick={() => setEimsTarget(item)}
+                      className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted"
+                    >
+                      <FileOutput className="size-4" aria-hidden="true" />
+                      Export to EIMS
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
@@ -602,6 +618,20 @@ export default function PatientDetail() {
         onOpenChange={(open) => { if (!open) setNotesTarget(null); }}
         notes={notes}
         loading={notesLoading}
+      />
+
+      <ExportToEimsDialog
+        open={!!eimsTarget}
+        onOpenChange={(open) => { if (!open) setEimsTarget(null); }}
+        session={eimsTarget}
+        serviceTypeLabel={eimsTarget ? serviceTypeMap[eimsTarget.type] || eimsTarget.type : ""}
+        statusLabel={eimsTarget ? statusCodeMap[eimsTarget.status] || eimsTarget.status : ""}
+        locationLabel={eimsTarget ? locationCodeMap[eimsTarget.location] || eimsTarget.location : ""}
+        groupSizeLabel={
+          eimsTarget?.group_size_category
+            ? groupSizeMap[eimsTarget.group_size_category] || eimsTarget.group_size_category
+            : null
+        }
       />
     </PushScreen>
   );
