@@ -64,14 +64,11 @@ function validateIndependentSignupPayload(body) {
   if (!body.payRate || Number.isNaN(payRate) || payRate < 0 || payRate >= 100000000) {
     return 'A valid hourly pay rate is required.';
   }
+  if (!body.addressLine1 || !String(body.addressLine1).trim()) return 'Street address is required.';
+  if (!body.addressCity || !String(body.addressCity).trim()) return 'City is required.';
+  if (!body.addressState || !String(body.addressState).trim()) return 'State is required.';
+  if (!body.addressZip || !/^\d{5}(-\d{4})?$/.test(String(body.addressZip).trim())) return 'A valid ZIP code is required.';
   if (!body.address || !String(body.address).trim()) return 'Address is required.';
-  // Structured parts are required alongside the free-text address — the
-  // Places Autocomplete widget (IndependentSignupWizard.jsx) always fills
-  // all four together, so a request missing state/zip means the
-  // practitioner typed an address by hand instead of selecting a real
-  // suggestion, and we want state/zip guaranteed present as real data.
-  if (!body.addressState || !String(body.addressState).trim()) return 'Please select an address from the suggestions so we can capture your state.';
-  if (!body.addressZip || !String(body.addressZip).trim()) return 'Please select an address from the suggestions so we can capture your ZIP code.';
   if (!body.baaAccepted || !body.baaAcceptedByName || !body.baaAcceptedByEmail) {
     return 'You must accept the Business Associate Agreement to sign up.';
   }

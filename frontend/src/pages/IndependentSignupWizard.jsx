@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { loadGoogleMapsPlaces } from '@/utils/loadGoogleMaps';
 
 // Reading this as: redesign-preserve of an existing multi-step signup
 // wizard (not a landing page - multi-step forms are explicitly out of
@@ -66,9 +65,17 @@ const CUSTOM_OPTION_CATEGORIES = [
   { value: 'group_size', label: 'Group size' },
 ];
 
+const US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA',
+  'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT',
+  'VA', 'WA', 'WV', 'WI', 'WY', 'DC',
+];
+
 const STEPS = [
   { label: 'Your info', description: 'Name, email, and login code' },
-  { label: 'Your work', description: 'Disciplines, rate, and address' },
+  { label: 'Your work', description: 'Disciplines and hourly rate' },
+  { label: 'Address', description: 'Where you provide services' },
   { label: 'Vocabulary', description: 'Optional — customize your dropdowns' },
   { label: 'Agreement', description: 'Business Associate Agreement' },
   { label: 'Account', description: 'Set your password' },
@@ -167,80 +174,6 @@ function DisciplinePicker({ selected, onToggle }) {
   );
 }
 
-// Pulls street/city/state/zip out of a Google Places result's
-// address_components — same shape Google always returns for a US street
-// address, so this doesn't need to handle every country's format, just
-// needs state+zip to reliably exist for a US practitioner's own address.
-function parsePlaceComponents(place) {
-  const get = (type) => place.address_components?.find((c) => c.types.includes(type));
-  const streetNumber = get('street_number')?.long_name || '';
-  const route = get('route')?.long_name || '';
-  return {
-    line1: [streetNumber, route].filter(Boolean).join(' '),
-    city: get('locality')?.long_name || get('sublocality')?.long_name || '',
-    state: get('administrative_area_level_1')?.short_name || '',
-    zip: get('postal_code')?.long_name || '',
-    formatted: place.formatted_address || '',
-  };
-}
-
-// Google Places Autocomplete bound directly to a plain <input> (no
-// separate widget library needed) — selecting a suggestion fills the
-// visible address text AND the hidden structured state/zip/city/line1
-// the backend now requires (see independentSignupController.js's
-// addressState/addressZip validation). Typing without ever selecting a
-// suggestion leaves the structured fields empty, which submit blocks on,
-// same as leaving a required field blank — the whole point is to
-// guarantee state/zip are real, selected data rather than freehand text
-// that may or may not contain them.
-function AddressAutocompleteField({ value, onSelect, onTextChange, inputClassName }) {
-  const inputRef = useRef(null);
-  const autocompleteRef = useRef(null);
-  const [status, setStatus] = useState('loading'); // loading | ready | unavailable
-
-  useEffect(() => {
-    let cancelled = false;
-    loadGoogleMapsPlaces()
-      .then((places) => {
-        if (cancelled || !inputRef.current) return;
-        autocompleteRef.current = new places.Autocomplete(inputRef.current, {
-          types: ['address'],
-          componentRestrictions: { country: 'us' },
-          fields: ['address_components', 'formatted_address'],
-        });
-        autocompleteRef.current.addListener('place_changed', () => {
-          const place = autocompleteRef.current.getPlace();
-          if (!place?.address_components) return;
-          const parsed = parsePlaceComponents(place);
-          onSelect(parsed);
-        });
-        setStatus('ready');
-      })
-      .catch(() => setStatus('unavailable'));
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <div className="space-y-1.5">
-      <Input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => onTextChange(e.target.value)}
-        placeholder={status === 'unavailable' ? 'Street, city, state, ZIP' : 'Start typing your address…'}
-        autoComplete="off"
-        className={inputClassName}
-        required
-      />
-      {status === 'unavailable' && (
-        <p className="text-sm text-amber-600">
-          Address suggestions are unavailable right now — please type your full address including city, state, and ZIP.
-        </p>
-      )}
-    </div>
-  );
-}
-
 const IndependentSignupWizard = () => {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
@@ -250,8 +183,8 @@ const IndependentSignupWizard = () => {
   const slugCheckRef = useRef(0);
 
   const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', disciplines: [], payRate: '', address: '',
-    addressLine1: '', addressCity: '', addressState: '', addressZip: '',
+    firstName: '', lastName: '', email: '', disciplines: [], payRate: '',
+    addressLine1: '', addressLine2: '', addressCity: '', addressState: '', addressZip: '',
     baaAcceptedByName: '', baaAcceptedByEmail: '', baaAccepted: false,
     slug: '', slugTouched: false,
     password: '', confirmPassword: '',
@@ -278,24 +211,6 @@ const IndependentSignupWizard = () => {
     setForm((f) => ({
       ...f,
       disciplines: f.disciplines.includes(code) ? f.disciplines.filter((c) => c !== code) : [...f.disciplines, code],
-    }));
-  };
-
-  // Typing freely just updates the visible text — state/zip aren't touched
-  // until a real suggestion is selected (handleAddressSelect below), so a
-  // hand-typed address that's never actually selected correctly fails
-  // validation instead of silently appearing complete.
-  const handleAddressTextChange = (text) => {
-    setForm((f) => ({ ...f, address: text, addressLine1: '', addressCity: '', addressState: '', addressZip: '' }));
-  };
-  const handleAddressSelect = (parsed) => {
-    setForm((f) => ({
-      ...f,
-      address: parsed.formatted || f.address,
-      addressLine1: parsed.line1,
-      addressCity: parsed.city,
-      addressState: parsed.state,
-      addressZip: parsed.zip,
     }));
   };
 
@@ -357,19 +272,21 @@ const IndependentSignupWizard = () => {
       if (form.disciplines.length === 0) return 'Select at least one discipline.';
       const rate = Number(form.payRate);
       if (!form.payRate || Number.isNaN(rate) || rate < 0) return 'A valid hourly rate is required.';
-      if (!form.address.trim()) return 'Address is required.';
-      if (!form.addressState || !form.addressZip) {
-        return 'Please select your address from the suggestions so we can capture your state and ZIP code.';
-      }
     }
-    // Step 2 (Vocabulary) is entirely optional — no validation.
-    if (s === 3) {
+    if (s === 2) {
+      if (!form.addressLine1.trim()) return 'Street address is required.';
+      if (!form.addressCity.trim()) return 'City is required.';
+      if (!form.addressState) return 'State is required.';
+      if (!/^\d{5}(-\d{4})?$/.test(form.addressZip.trim())) return 'A valid ZIP code is required.';
+    }
+    // Step 3 (Vocabulary) is entirely optional — no validation.
+    if (s === 4) {
       if (!form.baaAcceptedByName.trim() || !form.baaAcceptedByEmail.trim()) {
         return 'Name and email are required to accept the agreement.';
       }
       if (!form.baaAccepted) return 'You must accept the Business Associate Agreement to continue.';
     }
-    if (s === 4) {
+    if (s === 5) {
       if (form.password !== form.confirmPassword) return 'Passwords do not match.';
       if (!isPasswordStrong(form.password)) {
         return 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&).';
@@ -396,7 +313,7 @@ const IndependentSignupWizard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validationError = validateStep(4);
+    const validationError = validateStep(5);
     if (validationError) {
       setError(validationError);
       return;
@@ -404,9 +321,18 @@ const IndependentSignupWizard = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      const { slugTouched, ...payload } = form;
+      const { slugTouched, addressLine2, ...payload } = form;
+      // The backend's single `address` text column stays the composed,
+      // human-readable source of truth (PDFs, invoices, Staff Directory) —
+      // addressLine1/city/state/zip travel alongside it as the structured
+      // parts (see independentSignupController.js).
+      const address = [
+        [form.addressLine1, addressLine2].filter(Boolean).join(', '),
+        form.addressCity, form.addressState, form.addressZip,
+      ].filter(Boolean).join(', ');
       await api.post('/api/independent-signup', {
         ...payload,
+        address,
         slug: payload.slug.trim().toLowerCase(),
         customDropdownOptions: customOptions.length > 0 ? customOptions : undefined,
       });
@@ -485,7 +411,7 @@ const IndependentSignupWizard = () => {
         </div>
       )}
 
-      <form onSubmit={step === 4 ? handleSubmit : handleNext} className="space-y-5">
+      <form onSubmit={step === 5 ? handleSubmit : handleNext} className="space-y-5">
         {step === 0 && (
           <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -541,25 +467,50 @@ const IndependentSignupWizard = () => {
               <Label htmlFor="payRate" className={FIELD_LABEL_CLASS}>Hourly rate ($)</Label>
               <Input id="payRate" type="number" min="0" step="0.01" value={form.payRate} onChange={set('payRate')} className={FIELD_INPUT_CLASS} required />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="address" className={FIELD_LABEL_CLASS}>Address</Label>
-              <AddressAutocompleteField
-                value={form.address}
-                onTextChange={handleAddressTextChange}
-                onSelect={handleAddressSelect}
-                inputClassName={FIELD_INPUT_CLASS}
-              />
-              {form.addressState && form.addressZip && (
-                <p className="flex items-center gap-1.5 text-sm font-medium text-teal-700">
-                  <Check className="size-4" aria-hidden="true" />
-                  {form.addressCity ? `${form.addressCity}, ` : ''}{form.addressState} {form.addressZip}
-                </p>
-              )}
-            </div>
           </>
         )}
 
         {step === 2 && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="addressLine1" className={FIELD_LABEL_CLASS}>Street address</Label>
+              <Input id="addressLine1" value={form.addressLine1} onChange={set('addressLine1')} className={FIELD_INPUT_CLASS} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressLine2" className={FIELD_LABEL_CLASS}>Apt, suite, unit <span className="font-normal text-slate-400">(optional)</span></Label>
+              <Input id="addressLine2" value={form.addressLine2} onChange={set('addressLine2')} className={FIELD_INPUT_CLASS} />
+            </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-[1fr_120px_140px]">
+              <div className="space-y-2">
+                <Label htmlFor="addressCity" className={FIELD_LABEL_CLASS}>City</Label>
+                <Input id="addressCity" value={form.addressCity} onChange={set('addressCity')} className={FIELD_INPUT_CLASS} required />
+              </div>
+              <div className="space-y-2">
+                <Label className={FIELD_LABEL_CLASS}>State</Label>
+                <Select value={form.addressState} onValueChange={(v) => setForm((f) => ({ ...f, addressState: v }))}>
+                  <SelectTrigger className={FIELD_SELECT_CLASS}><SelectValue placeholder="State" /></SelectTrigger>
+                  <SelectContent>
+                    {US_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="addressZip" className={FIELD_LABEL_CLASS}>ZIP code</Label>
+                <Input
+                  id="addressZip"
+                  value={form.addressZip}
+                  onChange={set('addressZip')}
+                  inputMode="numeric"
+                  maxLength={10}
+                  className={FIELD_INPUT_CLASS}
+                  required
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
           <>
             <p className="text-base text-slate-600">
               Your account starts with the standard NJEIS service type, status, location, and group size options
@@ -611,7 +562,7 @@ const IndependentSignupWizard = () => {
           </>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <>
             <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-5 text-base leading-relaxed text-slate-600">
               Izaya EIS ("Izaya") acts as a Business Associate under HIPAA for any Protected Health Information
@@ -644,7 +595,7 @@ const IndependentSignupWizard = () => {
           </>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <>
             <div className="space-y-2">
               <Label htmlFor="password" className={FIELD_LABEL_CLASS}>Password</Label>
@@ -691,7 +642,7 @@ const IndependentSignupWizard = () => {
             className="h-14 flex-1 rounded-xl bg-teal-700 text-base font-semibold text-white hover:bg-teal-800"
           >
             {isSubmitting ? <Loader2 className="size-5 animate-spin" aria-hidden="true" /> : null}
-            {step === 4 ? (isSubmitting ? 'Signing up...' : 'Sign up') : 'Continue'}
+            {step === 5 ? (isSubmitting ? 'Signing up...' : 'Sign up') : 'Continue'}
           </Button>
         </div>
       </form>
