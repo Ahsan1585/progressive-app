@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MarketingLayout } from '../../components/marketing/MarketingLayout';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
@@ -59,6 +60,18 @@ function Reveal({ as: Tag = 'div', className = '', style, children }) {
 }
 
 export default function Practitioners() {
+  // The hero media is an infinite, autoplaying loop — honor
+  // prefers-reduced-motion by falling back to the static photo instead
+  // of forcing continuous motion on someone who's asked not to see it.
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduceMotion(mq.matches);
+    const onChange = (e) => setReduceMotion(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   return (
     <MarketingLayout>
       {/* HERO, same asymmetric split + floating badge pattern as Home */}
@@ -82,14 +95,39 @@ export default function Practitioners() {
 
           <div className="mk-home-hero-media">
             <div className="mk-home-hero-photo">
-              <img
-                src={`${import.meta.env.BASE_URL}hero-practitioner.jpg`}
-                alt="An independent early intervention practitioner logging a session on her phone"
-                onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }}
-              />
-              <div className="mk-home-hero-photo-fallback" style={{ display: 'none' }}>
-                Add hero photo at<br /><code>frontend/public/hero-practitioner.jpg</code>
-              </div>
+              {/* Looping kinetic-type background, built to the exact
+                  1114/960 aspect ratio this slot renders at (see
+                  marketing.css's .mk-home-hero-photo) so nothing is
+                  cropped by object-fit: cover. Muted + autoPlay + loop +
+                  playsInline for silent-background behavior on mobile
+                  Safari without a tap. Falls back to the static photo under
+                  prefers-reduced-motion, or if the browser can't play it. */}
+              {reduceMotion ? (
+                <img
+                  src={`${import.meta.env.BASE_URL}hero-practitioner.jpg`}
+                  alt="An independent early intervention practitioner logging a session on her phone"
+                />
+              ) : (
+                <>
+                  <video
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="auto"
+                    poster={`${import.meta.env.BASE_URL}hero-practitioner.jpg`}
+                    aria-label="Animated: Your company hasn't signed up with Izaya. You still can."
+                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }}
+                  >
+                    <source src={`${import.meta.env.BASE_URL}practitioners-hero-loop.mp4`} type="video/mp4" />
+                  </video>
+                  <img
+                    src={`${import.meta.env.BASE_URL}hero-practitioner.jpg`}
+                    alt="An independent early intervention practitioner logging a session on her phone"
+                    style={{ display: 'none' }}
+                  />
+                </>
+              )}
             </div>
             <div className="mk-home-hero-badge">
               {FILE_ICON}
