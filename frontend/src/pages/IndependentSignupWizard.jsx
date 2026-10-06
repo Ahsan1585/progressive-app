@@ -98,14 +98,14 @@ function StepSidebar({ current, steps }) {
         return (
           <div key={s.label} className="relative flex gap-3 pb-7 last:pb-0">
             {i < steps.length - 1 && (
-              <div className={cn('absolute left-[15px] top-8 h-[calc(100%-1.25rem)] w-px', isDone ? 'bg-teal-600' : 'bg-slate-200')} aria-hidden="true" />
+              <div className={cn('absolute left-[15px] top-8 h-[calc(100%-1.25rem)] w-px', isDone ? 'bg-teal-600' : 'bg-slate-300')} aria-hidden="true" />
             )}
             <div
               className={cn(
                 'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors',
                 isDone && 'border-teal-600 bg-teal-600 text-white',
                 isActive && 'border-teal-600 bg-white text-teal-700',
-                !isDone && !isActive && 'border-slate-200 bg-white text-slate-400'
+                !isDone && !isActive && 'border-slate-300 bg-white text-slate-400'
               )}
             >
               {isDone ? <Check className="size-4" aria-hidden="true" /> : i + 1}
@@ -614,8 +614,8 @@ function SignupShell({ children, sidebar }) {
           <div className="h-1.5 bg-gradient-to-r from-teal-600 to-cyan-600" />
           {sidebar ? (
             <div className="grid grid-cols-1 lg:grid-cols-[260px_1px_1fr]">
-              <div className="p-7 sm:p-8">{sidebar}</div>
-              <div className="hidden bg-slate-100 lg:block" aria-hidden="true" />
+              <div className="bg-slate-100 p-7 sm:p-8">{sidebar}</div>
+              <div className="hidden bg-slate-200 lg:block" aria-hidden="true" />
               <div className="border-t border-slate-100 p-7 sm:p-10 lg:border-t-0">{children}</div>
             </div>
           ) : (
