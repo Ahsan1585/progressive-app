@@ -13,6 +13,7 @@
     { "source": "/eis/email-icon-done.png", "destination": "/email-icon-done.png" },
     { "source": "/eis/hero-practitioner.jpg", "destination": "/hero-practitioner.jpg" },
     { "source": "/eis/practitionerfamily.png", "destination": "/practitionerfamily.png" },
+    { "source": "/eis/practitioners-hero-loop.mp4", "destination": "/practitioners-hero-loop.mp4" },
     { "source": "/eis/message.mp3", "destination": "/message.mp3" },
     { "source": "/eis/robots.txt", "destination": "/robots.txt" },
     { "source": "/eis/sitemap.xml", "destination": "/sitemap.xml" },
