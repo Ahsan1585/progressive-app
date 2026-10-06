@@ -28,7 +28,7 @@ import type { ApiErrorBody } from "@/types";
 export default function EditWorkDetails() {
   const navigate = useNavigate();
   const { profile, fetchProfile, serviceTypeOptions } = useAppData();
-  const { practitioner } = useAuth();
+  const { practitioner, updatePractitionerName } = useAuth();
   const { showToast } = useToast();
 
   const [firstName, setFirstName] = React.useState("");
@@ -90,6 +90,7 @@ export default function EditWorkDetails() {
         legalEntityName: operatesAsBusiness ? legalEntityName : "",
       });
       setSsn("");
+      updatePractitionerName(firstName, lastName);
       await fetchProfile();
       showToast("Work details updated.");
       navigate("/profile", { replace: true });

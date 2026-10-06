@@ -19,6 +19,13 @@ interface AuthContextValue {
   login: (response: LoginResponse) => void;
   completePasswordChange: () => void;
   logout: (reason?: LogoutReason) => void;
+  /** Patches the cached practitioner's name in place (state + localStorage)
+   *  after a profile edit (Work Details) — nothing else keeps this in sync,
+   *  since `practitioner` is only ever set at login time otherwise. Without
+   *  this, Home's "Welcome back, <name>" (and anywhere else this cached
+   *  object is read) keeps showing the name as of the last login even after
+   *  a successful name change elsewhere in the app. */
+  updatePractitionerName: (firstName: string, lastName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -72,6 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearLogoutBanner = useCallback(() => setLogoutBanner(null), []);
 
+  const updatePractitionerName = useCallback((firstName: string, lastName: string) => {
+    setPractitioner((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, firstName, lastName };
+      localStorage.setItem(PRACTITIONER_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       token,
@@ -84,8 +100,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       completePasswordChange,
       logout,
+      updatePractitionerName,
     }),
-    [token, practitioner, requirePasswordChange, logoutBanner, clearLogoutBanner, login, completePasswordChange, logout]
+    [
+      token,
+      practitioner,
+      requirePasswordChange,
+      logoutBanner,
+      clearLogoutBanner,
+      login,
+      completePasswordChange,
+      logout,
+      updatePractitionerName,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
