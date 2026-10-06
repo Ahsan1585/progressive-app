@@ -27,7 +27,7 @@ import type { ApiErrorBody } from "@/types";
 // there's exactly one place each field is editable.
 export default function EditWorkDetails() {
   const navigate = useNavigate();
-  const { profile, fetchProfile, serviceTypeOptions } = useAppData();
+  const { profile, fetchProfile, fetchCompanyBranding, serviceTypeOptions } = useAppData();
   const { practitioner, updatePractitionerName } = useAuth();
   const { showToast } = useToast();
 
@@ -91,7 +91,10 @@ export default function EditWorkDetails() {
       });
       setSsn("");
       updatePractitionerName(firstName, lastName);
-      await fetchProfile();
+      // Backend also syncs company_settings.display_name to the new name
+      // for this role (see updateStaffProfile's own comment) — refetch so
+      // Home's small company-branding label picks it up without a reload.
+      await Promise.all([fetchProfile(), fetchCompanyBranding()]);
       showToast("Work details updated.");
       navigate("/profile", { replace: true });
     } catch (err) {

@@ -638,6 +638,28 @@ const updateStaffProfile = async (req, res) => {
         `UPDATE assessments SET practitioner_first_name = $1, practitioner_last_name = $2 WHERE practitioner_id = $3`,
         [updated.first_name, updated.last_name, id]
       );
+
+      // Independent-practitioner-only: company_settings.display_name is
+      // their own personal name (set once at signup — see
+      // signupController.js/platformProvisioningController.js), not a real
+      // company name, since this role's single practitioners row IS their
+      // whole "company" (see PATCH /api/practitioner/business-entity's own
+      // comment for the same display_name/legal_entity_name split). Without
+      // this, a name change here would correct Home's big "Welcome back"
+      // line (AuthContext's own cached practitioner object, patched
+      // client-side) while the small company-branding label above it keeps
+      // showing the name as of signup forever, since nothing else ever
+      // writes display_name again. Never applies to a tenant company's own
+      // practitioner — their display_name is their employer's name, must
+      // never be overwritten by an individual staff member's own edit.
+      if (updated.role === 'independent_practitioner') {
+        const fullName = `${updated.first_name} ${updated.last_name}`.trim();
+        await pool.query(
+          `INSERT INTO company_settings (id, display_name, updated_at) VALUES (1, $1, now())
+           ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now()`,
+          [fullName]
+        );
+      }
     }
 
     res.json({ success: true, staff: updatedRows[0] });
