@@ -32,6 +32,7 @@ const MIGRATIONS = [
   'add_voided_billing_status.sql',
   'add_self_reported_eims_entry.sql',
   'add_hidden_from_history.sql',
+  'add_practitioner_address_parts.sql',
 ];
 
 module.exports = { MIGRATIONS };

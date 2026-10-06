@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { loadGoogleMapsPlaces } from '@/utils/loadGoogleMaps';
 
 // Reading this as: redesign-preserve of an existing multi-step signup
 // wizard (not a landing page - multi-step forms are explicitly out of
@@ -166,6 +167,80 @@ function DisciplinePicker({ selected, onToggle }) {
   );
 }
 
+// Pulls street/city/state/zip out of a Google Places result's
+// address_components — same shape Google always returns for a US street
+// address, so this doesn't need to handle every country's format, just
+// needs state+zip to reliably exist for a US practitioner's own address.
+function parsePlaceComponents(place) {
+  const get = (type) => place.address_components?.find((c) => c.types.includes(type));
+  const streetNumber = get('street_number')?.long_name || '';
+  const route = get('route')?.long_name || '';
+  return {
+    line1: [streetNumber, route].filter(Boolean).join(' '),
+    city: get('locality')?.long_name || get('sublocality')?.long_name || '',
+    state: get('administrative_area_level_1')?.short_name || '',
+    zip: get('postal_code')?.long_name || '',
+    formatted: place.formatted_address || '',
+  };
+}
+
+// Google Places Autocomplete bound directly to a plain <input> (no
+// separate widget library needed) — selecting a suggestion fills the
+// visible address text AND the hidden structured state/zip/city/line1
+// the backend now requires (see independentSignupController.js's
+// addressState/addressZip validation). Typing without ever selecting a
+// suggestion leaves the structured fields empty, which submit blocks on,
+// same as leaving a required field blank — the whole point is to
+// guarantee state/zip are real, selected data rather than freehand text
+// that may or may not contain them.
+function AddressAutocompleteField({ value, onSelect, onTextChange, inputClassName }) {
+  const inputRef = useRef(null);
+  const autocompleteRef = useRef(null);
+  const [status, setStatus] = useState('loading'); // loading | ready | unavailable
+
+  useEffect(() => {
+    let cancelled = false;
+    loadGoogleMapsPlaces()
+      .then((places) => {
+        if (cancelled || !inputRef.current) return;
+        autocompleteRef.current = new places.Autocomplete(inputRef.current, {
+          types: ['address'],
+          componentRestrictions: { country: 'us' },
+          fields: ['address_components', 'formatted_address'],
+        });
+        autocompleteRef.current.addListener('place_changed', () => {
+          const place = autocompleteRef.current.getPlace();
+          if (!place?.address_components) return;
+          const parsed = parsePlaceComponents(place);
+          onSelect(parsed);
+        });
+        setStatus('ready');
+      })
+      .catch(() => setStatus('unavailable'));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="space-y-1.5">
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onTextChange(e.target.value)}
+        placeholder={status === 'unavailable' ? 'Street, city, state, ZIP' : 'Start typing your address…'}
+        autoComplete="off"
+        className={inputClassName}
+        required
+      />
+      {status === 'unavailable' && (
+        <p className="text-sm text-amber-600">
+          Address suggestions are unavailable right now — please type your full address including city, state, and ZIP.
+        </p>
+      )}
+    </div>
+  );
+}
+
 const IndependentSignupWizard = () => {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
@@ -176,6 +251,7 @@ const IndependentSignupWizard = () => {
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', disciplines: [], payRate: '', address: '',
+    addressLine1: '', addressCity: '', addressState: '', addressZip: '',
     baaAcceptedByName: '', baaAcceptedByEmail: '', baaAccepted: false,
     slug: '', slugTouched: false,
     password: '', confirmPassword: '',
@@ -202,6 +278,24 @@ const IndependentSignupWizard = () => {
     setForm((f) => ({
       ...f,
       disciplines: f.disciplines.includes(code) ? f.disciplines.filter((c) => c !== code) : [...f.disciplines, code],
+    }));
+  };
+
+  // Typing freely just updates the visible text — state/zip aren't touched
+  // until a real suggestion is selected (handleAddressSelect below), so a
+  // hand-typed address that's never actually selected correctly fails
+  // validation instead of silently appearing complete.
+  const handleAddressTextChange = (text) => {
+    setForm((f) => ({ ...f, address: text, addressLine1: '', addressCity: '', addressState: '', addressZip: '' }));
+  };
+  const handleAddressSelect = (parsed) => {
+    setForm((f) => ({
+      ...f,
+      address: parsed.formatted || f.address,
+      addressLine1: parsed.line1,
+      addressCity: parsed.city,
+      addressState: parsed.state,
+      addressZip: parsed.zip,
     }));
   };
 
@@ -264,6 +358,9 @@ const IndependentSignupWizard = () => {
       const rate = Number(form.payRate);
       if (!form.payRate || Number.isNaN(rate) || rate < 0) return 'A valid hourly rate is required.';
       if (!form.address.trim()) return 'Address is required.';
+      if (!form.addressState || !form.addressZip) {
+        return 'Please select your address from the suggestions so we can capture your state and ZIP code.';
+      }
     }
     // Step 2 (Vocabulary) is entirely optional — no validation.
     if (s === 3) {
@@ -446,7 +543,18 @@ const IndependentSignupWizard = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="address" className={FIELD_LABEL_CLASS}>Address</Label>
-              <Input id="address" value={form.address} onChange={set('address')} className={FIELD_INPUT_CLASS} required />
+              <AddressAutocompleteField
+                value={form.address}
+                onTextChange={handleAddressTextChange}
+                onSelect={handleAddressSelect}
+                inputClassName={FIELD_INPUT_CLASS}
+              />
+              {form.addressState && form.addressZip && (
+                <p className="flex items-center gap-1.5 text-sm font-medium text-teal-700">
+                  <Check className="size-4" aria-hidden="true" />
+                  {form.addressCity ? `${form.addressCity}, ` : ''}{form.addressState} {form.addressZip}
+                </p>
+              )}
             </div>
           </>
         )}

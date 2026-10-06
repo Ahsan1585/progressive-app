@@ -65,6 +65,13 @@ function validateIndependentSignupPayload(body) {
     return 'A valid hourly pay rate is required.';
   }
   if (!body.address || !String(body.address).trim()) return 'Address is required.';
+  // Structured parts are required alongside the free-text address — the
+  // Places Autocomplete widget (IndependentSignupWizard.jsx) always fills
+  // all four together, so a request missing state/zip means the
+  // practitioner typed an address by hand instead of selecting a real
+  // suggestion, and we want state/zip guaranteed present as real data.
+  if (!body.addressState || !String(body.addressState).trim()) return 'Please select an address from the suggestions so we can capture your state.';
+  if (!body.addressZip || !String(body.addressZip).trim()) return 'Please select an address from the suggestions so we can capture your ZIP code.';
   if (!body.baaAccepted || !body.baaAcceptedByName || !body.baaAcceptedByEmail) {
     return 'You must accept the Business Associate Agreement to sign up.';
   }
@@ -148,8 +155,9 @@ const requestIndependentSignup = async (req, res) => {
       `INSERT INTO pending_signups
          (slug, display_name, email, ceo_first_name, ceo_last_name, ceo_email, ceo_password_hash,
           baa_accepted_at, baa_accepted_by_name, baa_accepted_by_email,
-          confirm_token_hash, confirm_token_expires, account_type, disciplines, pay_rate, address, custom_dropdown_options)
-       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14,$15)
+          confirm_token_hash, confirm_token_expires, account_type, disciplines, pay_rate, address, custom_dropdown_options,
+          address_line1, address_city, address_state, address_zip)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14,$15, $16,$17,$18,$19)
        ON CONFLICT (slug) DO UPDATE SET
          display_name = EXCLUDED.display_name, email = EXCLUDED.email,
          ceo_first_name = EXCLUDED.ceo_first_name, ceo_last_name = EXCLUDED.ceo_last_name,
@@ -157,12 +165,17 @@ const requestIndependentSignup = async (req, res) => {
          baa_accepted_at = now(), baa_accepted_by_name = EXCLUDED.baa_accepted_by_name, baa_accepted_by_email = EXCLUDED.baa_accepted_by_email,
          confirm_token_hash = EXCLUDED.confirm_token_hash, confirm_token_expires = EXCLUDED.confirm_token_expires,
          account_type = EXCLUDED.account_type, disciplines = EXCLUDED.disciplines, pay_rate = EXCLUDED.pay_rate,
-         address = EXCLUDED.address, custom_dropdown_options = EXCLUDED.custom_dropdown_options`,
+         address = EXCLUDED.address, custom_dropdown_options = EXCLUDED.custom_dropdown_options,
+         address_line1 = EXCLUDED.address_line1, address_city = EXCLUDED.address_city,
+         address_state = EXCLUDED.address_state, address_zip = EXCLUDED.address_zip`,
       [
         slug, fullName, email, req.body.firstName.trim(), req.body.lastName.trim(), email, passwordHash,
         req.body.baaAcceptedByName.trim(), req.body.baaAcceptedByEmail.trim(),
         tokenHash, tokenExpiresAt,
         req.body.disciplines, Number(req.body.payRate), req.body.address.trim(), customDropdownOptions,
+        req.body.addressLine1 ? String(req.body.addressLine1).trim() : null,
+        req.body.addressCity ? String(req.body.addressCity).trim() : null,
+        String(req.body.addressState).trim(), String(req.body.addressZip).trim(),
       ]
     );
 
@@ -237,11 +250,12 @@ const confirmIndependentSignup = async (req, res) => {
     await tenantPool.query(
       `INSERT INTO practitioners
          (first_name, last_name, email, password_hash, requires_password_change, role, role_id,
-          position_title, pay_rate, address, service_types)
-       VALUES ($1, $2, $3, $4, false, 'independent_practitioner', $5, $6, $7, $8, $9)`,
+          position_title, pay_rate, address, service_types, address_line1, address_city, address_state, address_zip)
+       VALUES ($1, $2, $3, $4, false, 'independent_practitioner', $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
       [
         pending.ceo_first_name, pending.ceo_last_name, pending.ceo_email, pending.ceo_password_hash, adminRoleId,
         positionTitle, pending.pay_rate, pending.address, disciplines,
+        pending.address_line1, pending.address_city, pending.address_state, pending.address_zip,
       ]
     );
 
