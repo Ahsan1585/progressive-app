@@ -19,7 +19,7 @@ const { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup'
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { sendIndependentSignupConfirmationEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
-const { DISCIPLINE_CODE_MAP, getDisciplineCode } = require('../utils/disciplineCodes');
+const { INDEPENDENT_DISCIPLINE_CODES } = require('../constants/independentDisciplines');
 
 const CONFIRM_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -55,8 +55,9 @@ function validateIndependentSignupPayload(body) {
   if (!isPasswordStrong(body.password)) {
     return 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.';
   }
-  if (!body.discipline || !DISCIPLINE_CODE_MAP[body.discipline]) {
-    return 'A valid discipline is required.';
+  const disciplines = Array.isArray(body.disciplines) ? body.disciplines : [];
+  if (disciplines.length === 0 || !disciplines.every((d) => INDEPENDENT_DISCIPLINE_CODES.has(d))) {
+    return 'At least one valid discipline is required.';
   }
   const payRate = Number(body.payRate);
   // Same overflow guard as provisionPractitioner (practitioners.pay_rate is numeric(10,2)).
@@ -67,8 +68,45 @@ function validateIndependentSignupPayload(body) {
   if (!body.baaAccepted || !body.baaAcceptedByName || !body.baaAcceptedByEmail) {
     return 'You must accept the Business Associate Agreement to sign up.';
   }
+  if (body.customDropdownOptions !== undefined && body.customDropdownOptions !== null) {
+    if (!Array.isArray(body.customDropdownOptions)) return 'Custom options must be a list.';
+    for (const opt of body.customDropdownOptions) {
+      if (!opt || !opt.category || !opt.label || !String(opt.label).trim()) {
+        return 'Each custom option needs a category and a name.';
+      }
+      if (!['service_type', 'service_status', 'location', 'group_size'].includes(opt.category)) {
+        return 'Invalid custom option category.';
+      }
+    }
+  }
   return null;
 }
+
+// GET /api/independent-signup/slug-available?slug=... — lets the wizard's
+// name-derived suggestion (slugSuggestion() in IndependentSignupWizard.jsx)
+// check itself against the real registry and auto-disambiguate (jamie-rivera,
+// jamie-rivera-2, ...) before the practitioner ever sees a collision, instead
+// of only finding out at submit time. Never the sole enforcement — the hard
+// check still lives in requestIndependentSignup/confirmIndependentSignup
+// below (platformPool is the single source of truth; this is a convenience
+// read only, so a race between this check and submit is harmless, submit
+// still returns 409 if someone else won the slug in between).
+const checkSlugAvailable = async (req, res) => {
+  const slug = String(req.query.slug || '').toLowerCase().trim();
+  if (!SLUG_REGEX.test(slug) || RESERVED_SLUGS.has(slug)) {
+    return res.json({ available: false });
+  }
+  try {
+    const { rows } = await platformPool.query(
+      'SELECT 1 FROM companies WHERE slug = $1 UNION SELECT 1 FROM pending_signups WHERE slug = $1',
+      [slug]
+    );
+    res.json({ available: !rows[0] });
+  } catch (error) {
+    console.error('Slug availability check error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
 
 // --- Step 1: submit signup form -> email verification, no infra touched yet ---
 // Same abuse/resource-exhaustion reasoning as signupController.js's
@@ -102,24 +140,29 @@ const requestIndependentSignup = async (req, res) => {
     // (they're both "the account owner"), and display_name mirrors their
     // full name since there's no separate company name to show anywhere
     // (company_settings.display_name, invoices, etc. all read this).
+    const customDropdownOptions = Array.isArray(req.body.customDropdownOptions) && req.body.customDropdownOptions.length > 0
+      ? JSON.stringify(req.body.customDropdownOptions)
+      : null;
+
     await platformPool.query(
       `INSERT INTO pending_signups
          (slug, display_name, email, ceo_first_name, ceo_last_name, ceo_email, ceo_password_hash,
           baa_accepted_at, baa_accepted_by_name, baa_accepted_by_email,
-          confirm_token_hash, confirm_token_expires, account_type, discipline, pay_rate, address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14)
+          confirm_token_hash, confirm_token_expires, account_type, disciplines, pay_rate, address, custom_dropdown_options)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14,$15)
        ON CONFLICT (slug) DO UPDATE SET
          display_name = EXCLUDED.display_name, email = EXCLUDED.email,
          ceo_first_name = EXCLUDED.ceo_first_name, ceo_last_name = EXCLUDED.ceo_last_name,
          ceo_email = EXCLUDED.ceo_email, ceo_password_hash = EXCLUDED.ceo_password_hash,
          baa_accepted_at = now(), baa_accepted_by_name = EXCLUDED.baa_accepted_by_name, baa_accepted_by_email = EXCLUDED.baa_accepted_by_email,
          confirm_token_hash = EXCLUDED.confirm_token_hash, confirm_token_expires = EXCLUDED.confirm_token_expires,
-         account_type = EXCLUDED.account_type, discipline = EXCLUDED.discipline, pay_rate = EXCLUDED.pay_rate, address = EXCLUDED.address`,
+         account_type = EXCLUDED.account_type, disciplines = EXCLUDED.disciplines, pay_rate = EXCLUDED.pay_rate,
+         address = EXCLUDED.address, custom_dropdown_options = EXCLUDED.custom_dropdown_options`,
       [
         slug, fullName, email, req.body.firstName.trim(), req.body.lastName.trim(), email, passwordHash,
         req.body.baaAcceptedByName.trim(), req.body.baaAcceptedByEmail.trim(),
         tokenHash, tokenExpiresAt,
-        req.body.discipline, Number(req.body.payRate), req.body.address.trim(),
+        req.body.disciplines, Number(req.body.payRate), req.body.address.trim(), customDropdownOptions,
       ]
     );
 
@@ -187,7 +230,10 @@ const confirmIndependentSignup = async (req, res) => {
       [pending.display_name, pending.email]
     );
 
-    const disciplineCode = getDisciplineCode(pending.discipline);
+    const disciplines = Array.isArray(pending.disciplines) && pending.disciplines.length > 0
+      ? pending.disciplines
+      : (pending.discipline ? [pending.discipline] : []);
+    const positionTitle = disciplines.join(', ');
     await tenantPool.query(
       `INSERT INTO practitioners
          (first_name, last_name, email, password_hash, requires_password_change, role, role_id,
@@ -195,9 +241,26 @@ const confirmIndependentSignup = async (req, res) => {
        VALUES ($1, $2, $3, $4, false, 'independent_practitioner', $5, $6, $7, $8, $9)`,
       [
         pending.ceo_first_name, pending.ceo_last_name, pending.ceo_email, pending.ceo_password_hash, adminRoleId,
-        pending.discipline, pending.pay_rate, pending.address, [disciplineCode],
+        positionTitle, pending.pay_rate, pending.address, disciplines,
       ]
     );
+
+    // Any dropdown options the practitioner chose to add during signup
+    // (see ManageDropdownOptions-in-wizard step), inserted into the
+    // brand-new tenant right after provisioning — same
+    // INSERT ... ON CONFLICT DO UPDATE shape as dropdownOptionsController's
+    // createDropdownOption, just run directly against tenantPool since no
+    // authenticated request context exists yet at this point in the flow.
+    const customOptions = Array.isArray(pending.custom_dropdown_options) ? pending.custom_dropdown_options : [];
+    for (const opt of customOptions) {
+      const code = String(opt.label).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || `custom-${Date.now()}`;
+      await tenantPool.query(
+        `INSERT INTO dropdown_options (category, code, label, sort_order)
+         VALUES ($1, $2, $3, 100)
+         ON CONFLICT (category, code) DO NOTHING`,
+        [opt.category, code, String(opt.label).trim()]
+      );
+    }
 
     const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
     await platformPool.query(
@@ -230,4 +293,4 @@ const confirmIndependentSignup = async (req, res) => {
   }
 };
 
-module.exports = { requestIndependentSignup, confirmIndependentSignup };
+module.exports = { requestIndependentSignup, confirmIndependentSignup, checkSlugAvailable };
