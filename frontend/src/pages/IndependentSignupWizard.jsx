@@ -65,19 +65,39 @@ const DISCIPLINE_OPTIONS = [
 const CUSTOM_OPTION_CATEGORIES = [
   {
     value: 'service_type', label: 'Service type',
-    defaults: ['Evaluation', 'Assessment', 'IFSP Meeting', 'Audiology', 'Developmental Intervention', 'Family Training', 'Health Service', 'Medical Service', 'Nursing', 'Nutrition', 'Occupational Therapy', 'Physical Therapy', 'Psychological', 'Speech Language Therapy', 'Social Work', 'Vision', 'Childcare/Respite', 'Interpreter/Translator', 'Escort/Security', 'Transition Planning Conference'],
+    defaults: [
+      { code: 'EV', label: 'Evaluation' }, { code: 'AS', label: 'Assessment' }, { code: 'IFSP', label: 'IFSP Meeting' },
+      { code: 'AU', label: 'Audiology' }, { code: 'DI', label: 'Developmental Intervention' }, { code: 'FT', label: 'Family Training' },
+      { code: 'HS', label: 'Health Service' }, { code: 'MS', label: 'Medical Service' }, { code: 'NU', label: 'Nursing' },
+      { code: 'NT', label: 'Nutrition' }, { code: 'OT', label: 'Occupational Therapy' }, { code: 'PT', label: 'Physical Therapy' },
+      { code: 'PSY', label: 'Psychological' }, { code: 'SLP', label: 'Speech Language Therapy' }, { code: 'SW', label: 'Social Work' },
+      { code: 'VI', label: 'Vision' }, { code: 'CC', label: 'Childcare/Respite' }, { code: 'I/T', label: 'Interpreter/Translator' },
+      { code: 'ES', label: 'Escort/Security' }, { code: 'TPC', label: 'Transition Planning Conference' },
+    ],
   },
   {
     value: 'service_status', label: 'Service status',
-    defaults: ['Direct Child Service', 'Practitioner Cancelled (inc weather related)', 'Family Cancelled (inc weather related)', 'Make Up Direct Child Service', 'Family Missed (within 3 hours)', 'Team Mtg – IFSP', 'Transition Planning Conference', 'Bilingual Interpretation'],
+    defaults: [
+      { code: '1', label: 'Direct Child Service' }, { code: '2', label: 'Practitioner Cancelled (inc weather related)' },
+      { code: '3', label: 'Family Cancelled (inc weather related)' }, { code: '4', label: 'Make Up Direct Child Service' },
+      { code: '5', label: 'Family Missed (within 3 hours)' }, { code: 'IFSP', label: 'Team Mtg – IFSP' },
+      { code: 'TPC', label: 'Transition Planning Conference' }, { code: 'IT', label: 'Bilingual Interpretation' },
+    ],
   },
   {
     value: 'location', label: 'Location',
-    defaults: ['Home', 'Residential Facility', 'Service Provider Clinic/Office', 'Hospital (Inpatient)', 'EC Program - Children with Disabilities', 'EC Program - Inclusive Community', 'DCP&P Office', 'Phone/Video Conferencing'],
+    defaults: [
+      { code: '1', label: 'Home' }, { code: '2', label: 'Residential Facility' }, { code: '3', label: 'Service Provider Clinic/Office' },
+      { code: '4', label: 'Hospital (Inpatient)' }, { code: '5', label: 'EC Program - Children with Disabilities' },
+      { code: '6', label: 'EC Program - Inclusive Community' }, { code: '7', label: 'DCP&P Office' }, { code: '8', label: 'Phone/Video Conferencing' },
+    ],
   },
   {
     value: 'group_size', label: 'Group size',
-    defaults: ['Direct Child Service - Individual', 'Consultation/Facilitation with Others'],
+    defaults: [
+      { code: 'individual', label: 'Direct Child Service - Individual' },
+      { code: 'consultation', label: 'Consultation/Facilitation with Others' },
+    ],
   },
 ];
 
@@ -208,9 +228,10 @@ const IndependentSignupWizard = () => {
   const [customOptions, setCustomOptions] = useState([]); // [{ category, label }]
   const [newOptionCategory, setNewOptionCategory] = useState('service_type');
   const [newOptionLabel, setNewOptionLabel] = useState('');
+  const [newOptionCode, setNewOptionCode] = useState('');
   // Default seeded options the practitioner un-checked — tracked as
-  // "category::label" keys so toggling is a simple Set membership check,
-  // converted to [{ category, label }] only at submit time.
+  // "category::code" keys so toggling is a simple Set membership check,
+  // converted to [{ category, code }] only at submit time.
   const [removedDefaults, setRemovedDefaults] = useState(new Set());
 
   const set = (field) => (e) => {
@@ -271,15 +292,17 @@ const IndependentSignupWizard = () => {
 
   const addCustomOption = () => {
     const label = newOptionLabel.trim();
-    if (!label) return;
-    setCustomOptions((prev) => [...prev, { category: newOptionCategory, label }]);
+    const code = newOptionCode.trim();
+    if (!label || !code) return;
+    setCustomOptions((prev) => [...prev, { category: newOptionCategory, code, label }]);
     setNewOptionLabel('');
+    setNewOptionCode('');
   };
   const removeCustomOption = (index) => {
     setCustomOptions((prev) => prev.filter((_, i) => i !== index));
   };
-  const toggleDefaultOption = (category, label) => {
-    const key = `${category}::${label}`;
+  const toggleDefaultOption = (category, code) => {
+    const key = `${category}::${code}`;
     setRemovedDefaults((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
@@ -359,8 +382,8 @@ const IndependentSignupWizard = () => {
         form.addressCity, form.addressState, form.addressZip,
       ].filter(Boolean).join(', ');
       const removedDefaultOptions = [...removedDefaults].map((key) => {
-        const [category, label] = key.split('::');
-        return { category, label };
+        const [category, code] = key.split('::');
+        return { category, code };
       });
       await api.post('/api/independent-signup', {
         ...payload,
@@ -559,12 +582,12 @@ const IndependentSignupWizard = () => {
               </div>
               <div className="flex flex-wrap gap-1.5 p-4">
                 {CUSTOM_OPTION_CATEGORIES.find((c) => c.value === newOptionCategory)?.defaults.map((d) => {
-                  const isRemoved = removedDefaults.has(`${newOptionCategory}::${d}`);
+                  const isRemoved = removedDefaults.has(`${newOptionCategory}::${d.code}`);
                   return (
                     <button
-                      key={d}
+                      key={d.code}
                       type="button"
-                      onClick={() => toggleDefaultOption(newOptionCategory, d)}
+                      onClick={() => toggleDefaultOption(newOptionCategory, d.code)}
                       aria-pressed={!isRemoved}
                       className={cn(
                         'rounded-full border px-2.5 py-1 text-sm transition-colors',
@@ -573,14 +596,14 @@ const IndependentSignupWizard = () => {
                           : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300'
                       )}
                     >
-                      {d}
+                      <span className={cn('font-mono text-xs', isRemoved ? 'text-slate-400' : 'text-teal-700')}>{d.code}</span> {d.label}
                     </button>
                   );
                 })}
               </div>
             </div>
             <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[160px_1fr_auto] sm:items-end">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_100px_1fr_auto] sm:items-end">
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold text-slate-700">Category</Label>
                   <Select value={newOptionCategory} onValueChange={setNewOptionCategory}>
@@ -589,6 +612,16 @@ const IndependentSignupWizard = () => {
                       {CUSTOM_OPTION_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-slate-700">Code</Label>
+                  <Input
+                    value={newOptionCode}
+                    onChange={(e) => setNewOptionCode(e.target.value)}
+                    placeholder="e.g. BS"
+                    className="h-12 rounded-lg border-slate-300 bg-white font-mono text-sm"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomOption(); } }}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold text-slate-700">Option name</Label>
@@ -605,13 +638,15 @@ const IndependentSignupWizard = () => {
                   Add
                 </Button>
               </div>
+              <p className="text-sm text-slate-500">The code is what prints on your SEVF form, same role as the built-in codes above (EV, OT, IFSP, etc.).</p>
             </div>
             {customOptions.length > 0 && (
               <ul className="space-y-2">
                 {customOptions.map((opt, i) => (
-                  <li key={`${opt.category}-${opt.label}-${i}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <li key={`${opt.category}-${opt.code}-${i}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
                     <span className="min-w-0 truncate text-base text-slate-700">
-                      <span className="font-semibold text-slate-900">{opt.label}</span>
+                      <span className="font-mono text-sm text-teal-700">{opt.code}</span>
+                      {' '}<span className="font-semibold text-slate-900">{opt.label}</span>
                       {' '}&middot;{' '}
                       <span className="text-slate-500">{CUSTOM_OPTION_CATEGORIES.find((c) => c.value === opt.category)?.label}</span>
                     </span>

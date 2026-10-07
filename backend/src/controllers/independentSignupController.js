@@ -78,6 +78,13 @@ function validateIndependentSignupPayload(body) {
       if (!opt || !opt.category || !opt.label || !String(opt.label).trim()) {
         return 'Each custom option needs a category and a name.';
       }
+      // The code is what actually prints on the SEVF/NJEIS form (same role
+      // as the seeded codes — EV, OT, IFSP, etc.) — required, not derived
+      // from the label, since a slugified label ("bilingual-session") would
+      // never match the state's actual form vocabulary.
+      if (!opt.code || !String(opt.code).trim()) {
+        return 'Each custom option needs a code (the short code that appears on the SEVF form).';
+      }
       if (!['service_type', 'service_status', 'location', 'group_size'].includes(opt.category)) {
         return 'Invalid custom option category.';
       }
@@ -86,7 +93,7 @@ function validateIndependentSignupPayload(body) {
   if (body.removedDefaultOptions !== undefined && body.removedDefaultOptions !== null) {
     if (!Array.isArray(body.removedDefaultOptions)) return 'Removed options must be a list.';
     for (const opt of body.removedDefaultOptions) {
-      if (!opt || !opt.category || !opt.label) return 'Each removed option needs a category and a name.';
+      if (!opt || !opt.category || !opt.code) return 'Each removed option needs a category and a code.';
       if (!['service_type', 'service_status', 'location', 'group_size'].includes(opt.category)) {
         return 'Invalid removed option category.';
       }
@@ -276,29 +283,32 @@ const confirmIndependentSignup = async (req, res) => {
     // INSERT ... ON CONFLICT DO UPDATE shape as dropdownOptionsController's
     // createDropdownOption, just run directly against tenantPool since no
     // authenticated request context exists yet at this point in the flow.
+    // code is the practitioner's own entered value (required at signup, see
+    // validateIndependentSignupPayload) — the exact short code that prints
+    // on the SEVF/NJEIS form, never derived from the label.
     const customOptions = Array.isArray(pending.custom_dropdown_options) ? pending.custom_dropdown_options : [];
     for (const opt of customOptions) {
-      const code = String(opt.label).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || `custom-${Date.now()}`;
       await tenantPool.query(
         `INSERT INTO dropdown_options (category, code, label, sort_order)
          VALUES ($1, $2, $3, 100)
          ON CONFLICT (category, code) DO NOTHING`,
-        [opt.category, code, String(opt.label).trim()]
+        [opt.category, String(opt.code).trim(), String(opt.label).trim()]
       );
     }
 
     // Default seeded options the practitioner un-checked during signup
-    // (e.g. "we don't do Escort/Security") — matched by (category, label)
-    // since the wizard only knows the human label, not the seeded code.
-    // Soft-deactivated the same way deactivateDropdownOption does (never a
-    // real DELETE — is_seeded rows especially can't be hard-deleted, see
-    // dropdownOptionsController.js), so it's reversible later from Company
-    // Information -> Dropdown Options if they change their mind.
+    // (e.g. "we don't do Escort/Security") — matched by (category, code),
+    // the exact same seeded codes dropdown_options was bootstrapped with
+    // (see add_dropdown_options.sql). Soft-deactivated the same way
+    // deactivateDropdownOption does (never a real DELETE — is_seeded rows
+    // especially can't be hard-deleted, see dropdownOptionsController.js),
+    // so it's reversible later from Company Information -> Dropdown Options
+    // if they change their mind.
     const removedDefaults = Array.isArray(pending.removed_default_options) ? pending.removed_default_options : [];
     for (const opt of removedDefaults) {
       await tenantPool.query(
-        `UPDATE dropdown_options SET is_active = false, updated_at = now() WHERE category = $1 AND label = $2`,
-        [opt.category, opt.label]
+        `UPDATE dropdown_options SET is_active = false, updated_at = now() WHERE category = $1 AND code = $2`,
+        [opt.category, opt.code]
       );
     }
 
