@@ -92,7 +92,7 @@ const STEPS = [
   { label: 'Your info', description: 'Name, email, and login code' },
   { label: 'Your work', description: 'Disciplines and hourly rate' },
   { label: 'Address', description: 'Where you provide services' },
-  { label: 'Vocabulary', description: 'Optional — customize your dropdowns' },
+  { label: 'Session log options', description: 'Optional — customize what you pick from when logging a session' },
   { label: 'Agreement', description: 'Business Associate Agreement' },
   { label: 'Account', description: 'Set your password' },
 ];
@@ -307,7 +307,7 @@ const IndependentSignupWizard = () => {
       if (!form.addressState) return 'State is required.';
       if (!/^\d{5}(-\d{4})?$/.test(form.addressZip.trim())) return 'A valid ZIP code is required.';
     }
-    // Step 3 (Vocabulary) is entirely optional — no validation.
+    // Step 3 (Session log options) is entirely optional — no validation.
     if (s === 4) {
       if (!form.baaAcceptedByName.trim() || !form.baaAcceptedByEmail.trim()) {
         return 'Name and email are required to accept the agreement.';
@@ -546,8 +546,9 @@ const IndependentSignupWizard = () => {
         {step === 3 && (
           <>
             <p className="text-base text-slate-600">
-              Your account starts with the standard NJEIS service type, status, location, and group size options
-              already set up. Add anything extra you want on day one, you can always manage this later too.
+              These are the options you'll choose from every time you log a session, service type, status,
+              location, and group size. Your account starts with the standard NJEIS set already loaded.
+              Add anything extra or remove what you won't use, you can always change this later too.
             </p>
             <div className="rounded-xl border border-slate-200 bg-white">
               <div className="border-b border-slate-100 px-4 py-2.5">
