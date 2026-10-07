@@ -225,7 +225,7 @@ export default function Profile() {
             the app has no persistent sidebar to tuck this into, so it lives at
             the bottom of the one screen dedicated to account/app-level info. */}
         <div className="mt-6 flex flex-col items-center gap-1 pb-2">
-          <BrandLockup size="sm" align="center" />
+          <BrandLockup size="sm" align="center" isOne={isIndependentPractitioner} />
           <p className="text-xs font-medium text-ink-faint">Securely Powered by Izaya</p>
         </div>
       </div>

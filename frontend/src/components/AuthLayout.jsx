@@ -58,7 +58,7 @@ function LoginHero() {
 // adapts instantly on resize/rotate with no JS device-sniffing. The `md:`
 // half below is the pre-existing desktop design (kept as-is until a separate
 // desktop redesign is provided); the rest is the mobile-first layout.
-export function AuthLayout({ children }) {
+export function AuthLayout({ children, isOne = false }) {
   return (
     <div className="min-h-screen flex flex-col bg-white md:items-center md:justify-center md:bg-slate-100 md:p-4">
       <div className="flex flex-1 flex-col md:flex-none md:w-full md:max-w-[420px]">
@@ -71,7 +71,7 @@ export function AuthLayout({ children }) {
           <div className="hidden md:block h-1 bg-gradient-to-r from-cyan-600 to-teal-500" />
           <div className="px-6 pt-8 pb-6 md:p-8">
             <div className="flex flex-col items-center justify-center mb-6 md:mb-8 text-center">
-              <BrandLockup size="lg" align="center" />
+              <BrandLockup size="lg" align="center" isOne={isOne} />
             </div>
 
             {/* Trust bar — mobile only, inline in the card */}

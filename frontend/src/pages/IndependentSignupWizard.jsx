@@ -853,7 +853,7 @@ function SignupShell({ children, sidebar }) {
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-4 py-10">
       <div className={cn('w-full', sidebar ? 'max-w-[920px]' : 'max-w-[560px]')}>
         <div className="mb-7 flex justify-center">
-          <BrandLockup size="lg" align="center" />
+          <BrandLockup size="lg" align="center" isOne />
         </div>
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-8px_rgba(15,23,42,0.14)]">
           <div className="h-1.5 bg-gradient-to-r from-teal-600 to-cyan-600" />

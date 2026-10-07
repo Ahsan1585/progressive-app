@@ -111,7 +111,7 @@ export default function IndependentBilling() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout isOne>
       <h2 className="text-lg font-semibold text-slate-800 mb-1 text-center">Billing</h2>
       <p className="text-sm text-slate-500 mb-5 text-center">Manage your Izaya EIS subscription.</p>
 

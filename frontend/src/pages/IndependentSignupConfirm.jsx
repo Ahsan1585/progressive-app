@@ -26,7 +26,7 @@ const IndependentSignupConfirm = () => {
   }, [token]);
 
   return (
-    <AuthLayout>
+    <AuthLayout isOne>
       {status === 'loading' && (
         <div className="flex flex-col items-center gap-3 py-8 text-slate-500">
           <Loader2 className="w-6 h-6 animate-spin" />

@@ -60,7 +60,7 @@ function Reveal({ as: Tag = 'div', className = '', style, children }) {
 
 export default function Practitioners() {
   return (
-    <MarketingLayout>
+    <MarketingLayout isOne>
       {/* HERO, same asymmetric split + floating badge pattern as Home */}
       <section className="mk-home-hero">
         <div className="mk-home-hero-inner">

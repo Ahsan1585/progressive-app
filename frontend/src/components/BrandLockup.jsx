@@ -13,11 +13,11 @@ const SIZES = {
   lg: { wordmarkClassName: 'h-9 w-auto', eisFontSize: 27, taglineFontSize: 11, gap: 3 },
 };
 
-export function BrandLockup({ size = 'sm', align = 'flex-start', className = '' }) {
+export function BrandLockup({ size = 'sm', align = 'flex-start', className = '', isOne = false }) {
   const s = SIZES[size];
   return (
     <div className={className} style={{ display: 'flex', flexDirection: 'column', alignItems: align, gap: s.gap }}>
-      <BrandWordmarkRow wordmarkClassName={s.wordmarkClassName} eisFontSize={s.eisFontSize} />
+      <BrandWordmarkRow wordmarkClassName={s.wordmarkClassName} eisFontSize={s.eisFontSize} isOne={isOne} />
       <span style={{ fontSize: s.taglineFontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#5C6B73', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
         Early Intervention Simplified
       </span>

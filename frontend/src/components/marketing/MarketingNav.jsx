@@ -8,11 +8,11 @@ const NAV_LINKS = [
   { to: '/contact', label: 'Contact' },
 ];
 
-export function MarketingNav() {
+export function MarketingNav({ isOne = false }) {
   return (
     <nav className="mk-nav">
       <Link to="/" className="mk-nav-brand" aria-label="Izaya EISimplified home">
-        <MarketingBrand />
+        <MarketingBrand isOne={isOne} />
       </Link>
       <div className="mk-nav-right">
         {NAV_LINKS.map((link) => (

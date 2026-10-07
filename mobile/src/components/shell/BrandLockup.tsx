@@ -2,6 +2,10 @@ import type { CSSProperties } from "react";
 
 const IZAYA_NAVY = "#132A3E";
 const IZAYA_MINT = "#2FBF9F";
+// Independent-practitioner-only accent for the "ONE" badge — a warm coral,
+// deliberately a third color (not navy or mint) so it reads as a fun,
+// separate add-on to the core mark rather than a redesign of it.
+const IZAYA_ONE_CORAL = "#FF6B5B";
 
 // Same wordmark path data as frontend/src/components/marketing/IzayaMark.jsx —
 // duplicated here (not imported) because mobile is a separate Vite app with
@@ -42,10 +46,17 @@ export function BrandLockup({
   size = "sm",
   align = "flex-start",
   className = "",
+  isOne = false,
 }: {
   size?: keyof typeof SIZES;
   align?: CSSProperties["alignItems"];
   className?: string;
+  // Independent-practitioner-only "IZAYAEIS ONE" variant — a small coral
+  // badge after "EIS", never a redesign of the core mark itself. Only pass
+  // true where the role is actually known (e.g. post-login via
+  // useAuth().isIndependentPractitioner) — never in pre-login shells like
+  // AuthLayout, which render before any role is known.
+  isOne?: boolean;
 }) {
   const s = SIZES[size];
   return (
@@ -64,6 +75,25 @@ export function BrandLockup({
         >
           EIS
         </span>
+        {isOne && (
+          <span
+            style={{
+              fontFamily: "'Geist Variable', sans-serif",
+              fontWeight: 800,
+              fontSize: Math.round(s.eisFontSize * 0.5),
+              lineHeight: 1,
+              color: "#FFFFFF",
+              background: IZAYA_ONE_CORAL,
+              borderRadius: 999,
+              padding: "3px 7px",
+              letterSpacing: "0.03em",
+              transform: "rotate(-4deg)",
+              marginLeft: 1,
+            }}
+          >
+            ONE
+          </span>
+        )}
       </span>
       <span
         style={{
