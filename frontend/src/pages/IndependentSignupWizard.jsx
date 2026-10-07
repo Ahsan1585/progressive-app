@@ -139,6 +139,11 @@ function StepSidebar({ current, steps }) {
       {steps.map((s, i) => {
         const isDone = i < current;
         const isActive = i === current;
+        // The final "Download the app" step gets its own coral/sunny
+        // treatment (same accent as the IZAYAEIS ONE badge) instead of the
+        // plain teal/gray used for every other step — a visible reward to
+        // look forward to while working through the rest of the form.
+        const isFinal = i === steps.length - 1;
         return (
           <div key={s.label} className="relative flex gap-3 pb-7 last:pb-0">
             {i < steps.length - 1 && (
@@ -147,16 +152,25 @@ function StepSidebar({ current, steps }) {
             <div
               className={cn(
                 'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors',
-                isDone && 'border-teal-600 bg-teal-600 text-white',
-                isActive && 'border-teal-600 bg-white text-teal-700',
-                !isDone && !isActive && 'border-slate-300 bg-white text-slate-400'
+                isFinal && !isDone
+                  ? 'border-[#FF6B5B] bg-gradient-to-br from-[#FF6B5B] to-[#FFA64D] text-white shadow-[0_2px_8px_rgba(255,107,91,0.45)]'
+                  : cn(
+                      isDone && 'border-teal-600 bg-teal-600 text-white',
+                      isActive && 'border-teal-600 bg-white text-teal-700',
+                      !isDone && !isActive && 'border-slate-300 bg-white text-slate-400'
+                    )
               )}
             >
-              {isDone ? <Check className="size-4" aria-hidden="true" /> : i + 1}
+              {isDone ? <Check className="size-4" aria-hidden="true" /> : isFinal ? <Smartphone className="size-4" aria-hidden="true" /> : i + 1}
             </div>
             <div className="min-w-0 pt-0.5">
-              <p className={cn('text-base font-semibold', isActive || isDone ? 'text-slate-900' : 'text-slate-400')}>{s.label}</p>
-              <p className={cn('text-sm', isActive ? 'text-slate-500' : 'text-slate-400')}>{s.description}</p>
+              <p className={cn(
+                'text-base font-semibold',
+                isFinal && !isDone ? 'text-[#FF6B5B]' : isActive || isDone ? 'text-slate-900' : 'text-slate-400'
+              )}>
+                {s.label}
+              </p>
+              <p className={cn('text-sm', isActive ? 'text-slate-500' : isFinal && !isDone ? 'text-[#FF6B5B]/70' : 'text-slate-400')}>{s.description}</p>
             </div>
           </div>
         );
@@ -171,23 +185,29 @@ function StepSidebar({ current, steps }) {
 // so the actual form for the active step is visible with minimal
 // scrolling instead of being pushed below a tall step list every time.
 function HorizontalStepper({ current, steps }) {
+  const isOnFinal = current === steps.length - 1;
   return (
     <div className="mb-6 lg:hidden">
       <div className="flex items-center">
         {steps.map((s, i) => {
           const isDone = i < current;
           const isActive = i === current;
+          const isFinal = i === steps.length - 1;
           return (
             <div key={s.label} className="flex flex-1 items-center last:flex-none">
               <div
                 className={cn(
                   'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors',
-                  isDone && 'border-teal-600 bg-teal-600 text-white',
-                  isActive && 'border-teal-600 bg-white text-teal-700',
-                  !isDone && !isActive && 'border-slate-300 bg-white text-slate-400'
+                  isFinal && !isDone
+                    ? 'border-[#FF6B5B] bg-gradient-to-br from-[#FF6B5B] to-[#FFA64D] text-white shadow-[0_2px_8px_rgba(255,107,91,0.45)]'
+                    : cn(
+                        isDone && 'border-teal-600 bg-teal-600 text-white',
+                        isActive && 'border-teal-600 bg-white text-teal-700',
+                        !isDone && !isActive && 'border-slate-300 bg-white text-slate-400'
+                      )
                 )}
               >
-                {isDone ? <Check className="size-3.5" aria-hidden="true" /> : i + 1}
+                {isDone ? <Check className="size-3.5" aria-hidden="true" /> : isFinal ? <Smartphone className="size-3.5" aria-hidden="true" /> : i + 1}
               </div>
               {i < steps.length - 1 && (
                 <div className={cn('mx-1 h-0.5 flex-1', isDone ? 'bg-teal-600' : 'bg-slate-200')} aria-hidden="true" />
@@ -196,7 +216,7 @@ function HorizontalStepper({ current, steps }) {
           );
         })}
       </div>
-      <p className="mt-2.5 text-sm font-bold text-slate-900">
+      <p className={cn('mt-2.5 text-sm font-bold', isOnFinal ? 'text-[#FF6B5B]' : 'text-slate-900')}>
         Step {current + 1} of {steps.length}: {steps[current].label}
       </p>
       <p className="text-sm text-slate-500">{steps[current].description}</p>
@@ -442,7 +462,7 @@ const IndependentSignupWizard = () => {
   return (
     <SignupShell sidebar={<StepSidebar current={step} steps={STEPS} />}>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">{STEPS[step].label}</h2>
+        <h2 className={cn('text-2xl font-bold', step === STEPS.length - 1 ? 'text-[#FF6B5B]' : 'text-slate-900')}>{STEPS[step].label}</h2>
         <p className="mt-1.5 text-base text-slate-500">{STEPS[step].description}</p>
       </div>
 
