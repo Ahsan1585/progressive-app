@@ -353,7 +353,7 @@ const IndependentSignupWizard = () => {
     if (s === 1) {
       if (form.disciplines.length === 0) return 'Select at least one discipline.';
       const rate = Number(form.payRate);
-      if (!form.payRate || Number.isNaN(rate) || rate < 0) return 'A valid hourly rate is required.';
+      if (!form.payRate || Number.isNaN(rate) || rate <= 0) return 'An hourly rate greater than $0 is required.';
     }
     if (s === 2) {
       if (!form.addressLine1.trim()) return 'Street address is required.';
@@ -621,13 +621,13 @@ const IndependentSignupWizard = () => {
                       onClick={() => toggleDefaultOption(newOptionCategory, d.code)}
                       aria-pressed={!isRemoved}
                       className={cn(
-                        'rounded-full border px-2.5 py-1 text-sm transition-colors',
+                        'rounded-full border px-2.5 py-1 text-sm font-medium transition-colors',
                         isRemoved
                           ? 'border-slate-200 bg-slate-50 text-slate-400 line-through'
-                          : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300'
+                          : 'border-slate-400 bg-slate-200 text-slate-800 hover:border-slate-500 hover:bg-slate-300'
                       )}
                     >
-                      <span className={cn('font-mono text-xs', isRemoved ? 'text-slate-400' : 'text-teal-700')}>{d.code}</span> {d.label}
+                      <span className={cn('font-mono text-xs font-bold', isRemoved ? 'text-slate-400' : 'text-teal-800')}>{d.code}</span> {d.label}
                     </button>
                   );
                 })}

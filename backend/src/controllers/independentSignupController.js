@@ -61,8 +61,8 @@ function validateIndependentSignupPayload(body) {
   }
   const payRate = Number(body.payRate);
   // Same overflow guard as provisionPractitioner (practitioners.pay_rate is numeric(10,2)).
-  if (!body.payRate || Number.isNaN(payRate) || payRate < 0 || payRate >= 100000000) {
-    return 'A valid hourly pay rate is required.';
+  if (!body.payRate || Number.isNaN(payRate) || payRate <= 0 || payRate >= 100000000) {
+    return 'An hourly pay rate greater than $0 is required.';
   }
   if (!body.addressLine1 || !String(body.addressLine1).trim()) return 'Street address is required.';
   if (!body.addressCity || !String(body.addressCity).trim()) return 'City is required.';
