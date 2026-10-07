@@ -405,6 +405,13 @@ function StatCards({ companies }) {
 function CompaniesSection({ client }) {
   const [companies, setCompanies] = useState(null);
   const [error, setError] = useState('');
+  // Independent practitioners already flow through the exact same
+  // suspend/cancel/delete-data/delete-record endpoints as a tenant company
+  // (both are just companies rows, account_type-agnostic on the backend) —
+  // this filter only narrows which rows this same table/dropdown/dialogs
+  // render, so a platform admin managing independents doesn't have to
+  // scroll through every tenant company to find them.
+  const [accountTypeFilter, setAccountTypeFilter] = useState('all'); // all | tenant | independent
 
   const fetchCompanies = () => {
     client.get('/api/platform/companies')
@@ -414,10 +421,39 @@ function CompaniesSection({ client }) {
 
   useEffect(() => { fetchCompanies(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const filteredCompanies = companies && accountTypeFilter !== 'all'
+    ? companies.filter((c) => c.account_type === accountTypeFilter)
+    : companies;
+
   return (
     <div className="space-y-6">
       <StatCards companies={companies} />
-      <CompaniesTable client={client} companies={companies} error={error} fetchCompanies={fetchCompanies} />
+      <div className="flex items-center gap-2">
+        {[
+          { value: 'all', label: 'All companies' },
+          { value: 'tenant', label: 'Tenant companies' },
+          { value: 'independent', label: 'Independent practitioners' },
+        ].map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setAccountTypeFilter(opt.value)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              accountTypeFilter === opt.value
+                ? 'border-teal-500 bg-teal-500/10 text-teal-300'
+                : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600 hover:text-slate-200'
+            }`}
+          >
+            {opt.label}
+            {companies && (
+              <span className="ml-1.5 opacity-70">
+                ({opt.value === 'all' ? companies.length : companies.filter((c) => c.account_type === opt.value).length})
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      <CompaniesTable client={client} companies={filteredCompanies} error={error} fetchCompanies={fetchCompanies} />
     </div>
   );
 }
@@ -482,7 +518,7 @@ function CompaniesTable({ client, companies, error, fetchCompanies }) {
         <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-slate-500" /></div>
       )}
       {companies && companies.length === 0 && (
-        <p className="p-6 text-sm text-slate-400">No companies yet.</p>
+        <p className="p-6 text-sm text-slate-400">No companies match this filter.</p>
       )}
       {companies && companies.length > 0 && (
         <div className="overflow-x-auto">
