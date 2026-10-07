@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ChevronLeft, Loader2, Lock, Plus, ShieldCheck, X } from 'lucide-react';
+import { Check, ChevronLeft, Download, Loader2, Lock, Plus, ShieldCheck, Smartphone, X } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { BrandLockup } from '@/components/BrandLockup';
+import { MOBILE_APP_INSTALL_URL } from '@/components/AuthLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -115,6 +116,7 @@ const STEPS = [
   { label: 'Session log options', description: 'Optional — customize what you pick from when logging a session' },
   { label: 'Agreement', description: 'Business Associate Agreement' },
   { label: 'Account', description: 'Set your password' },
+  { label: 'Download the app', description: 'Get set up on your phone' },
 ];
 
 const FIELD_LABEL_CLASS = 'text-base font-semibold text-slate-800';
@@ -438,6 +440,7 @@ const IndependentSignupWizard = () => {
         removedDefaultOptions: removedDefaultOptions.length > 0 ? removedDefaultOptions : undefined,
       });
       setSubmitted(true);
+      setStep(6); // advance into the final "Download the app" step
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to sign up. Please try again.');
     } finally {
@@ -452,32 +455,6 @@ const IndependentSignupWizard = () => {
   const handleGoogleClick = () => {
     setError('Sign up with Google is coming soon — please use the form below for now.');
   };
-
-  if (submitted) {
-    return (
-      <SignupShell>
-        <div className="space-y-6 text-center">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-teal-50">
-            <Check className="size-8 text-teal-600" aria-hidden="true" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Check your email</h2>
-            <p className="mt-2 text-base text-slate-600">
-              Confirm your signup to finish setting up your account. Your 15-day free trial starts once you confirm.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left">
-            <p className="text-sm font-semibold text-slate-500">Your login code</p>
-            <p className="mt-1 font-mono text-xl font-bold text-slate-900">{form.slug}</p>
-            <p className="mt-2 text-sm text-slate-500">You'll need this along with your email and password to sign in.</p>
-          </div>
-          <Link to="/" className="inline-block text-base font-semibold text-teal-700 hover:underline">
-            Back to Sign In
-          </Link>
-        </div>
-      </SignupShell>
-    );
-  }
 
   return (
     <SignupShell sidebar={<StepSidebar current={step} steps={STEPS} />}>
@@ -785,29 +762,76 @@ const IndependentSignupWizard = () => {
           </>
         )}
 
-        <div className="flex gap-3 pt-3">
-          {step > 0 && (
+        {step < 6 && (
+          <div className="flex gap-3 pt-3">
+            {step > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                className="h-14 flex-1 rounded-xl border-slate-300 text-base font-semibold"
+                disabled={isSubmitting}
+              >
+                <ChevronLeft className="size-5" aria-hidden="true" />
+                Back
+              </Button>
+            )}
             <Button
-              type="button"
-              variant="outline"
-              onClick={handleBack}
-              className="h-14 flex-1 rounded-xl border-slate-300 text-base font-semibold"
+              type="submit"
               disabled={isSubmitting}
+              className="h-14 flex-1 rounded-xl bg-teal-700 text-base font-semibold text-white hover:bg-teal-800"
             >
-              <ChevronLeft className="size-5" aria-hidden="true" />
-              Back
+              {isSubmitting ? <Loader2 className="size-5 animate-spin" aria-hidden="true" /> : null}
+              {step === 5 ? (isSubmitting ? 'Signing up...' : 'Sign up') : 'Continue'}
             </Button>
-          )}
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="h-14 flex-1 rounded-xl bg-teal-700 text-base font-semibold text-white hover:bg-teal-800"
-          >
-            {isSubmitting ? <Loader2 className="size-5 animate-spin" aria-hidden="true" /> : null}
-            {step === 5 ? (isSubmitting ? 'Signing up...' : 'Sign up') : 'Continue'}
-          </Button>
-        </div>
+          </div>
+        )}
       </form>
+
+      {step === 6 && submitted && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-teal-100 bg-teal-50 p-5 text-left">
+            <div className="flex items-start gap-3">
+              <Check className="mt-0.5 size-5 shrink-0 text-teal-600" aria-hidden="true" />
+              <p className="text-sm font-medium text-teal-800">
+                Check your email to confirm your signup and finish setting up your account.
+                Your 15-day free trial starts once you confirm.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">Your login code</p>
+            <p className="mt-1 font-mono text-xl font-bold text-slate-900">{form.slug}</p>
+            <p className="mt-2 text-sm text-slate-500">You'll need this along with your email and password to sign in.</p>
+          </div>
+          <div>
+            <p className="mb-3 text-base text-slate-600">
+              Get the app on your phone now, it'll be ready as soon as you confirm your email.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <a
+                href={MOBILE_APP_INSTALL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-14 items-center justify-center gap-2.5 rounded-xl bg-[#132A3E] text-base font-semibold text-white transition-colors hover:brightness-110"
+              >
+                <Smartphone className="size-5" aria-hidden="true" />
+                iPhone
+              </a>
+              <a
+                href={MOBILE_APP_INSTALL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-14 items-center justify-center gap-2.5 rounded-xl bg-[#132A3E] text-base font-semibold text-white transition-colors hover:brightness-110"
+              >
+                <Download className="size-5" aria-hidden="true" />
+                Android
+              </a>
+            </div>
+            <p className="mt-2 text-sm text-slate-500">No app store needed, installs right from your browser in seconds.</p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-7 border-t border-slate-100 pt-5 text-center">
         <Link to="/" className="text-base font-semibold text-slate-500 transition-colors hover:text-teal-700">
