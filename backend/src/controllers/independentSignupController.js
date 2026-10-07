@@ -83,6 +83,15 @@ function validateIndependentSignupPayload(body) {
       }
     }
   }
+  if (body.removedDefaultOptions !== undefined && body.removedDefaultOptions !== null) {
+    if (!Array.isArray(body.removedDefaultOptions)) return 'Removed options must be a list.';
+    for (const opt of body.removedDefaultOptions) {
+      if (!opt || !opt.category || !opt.label) return 'Each removed option needs a category and a name.';
+      if (!['service_type', 'service_status', 'location', 'group_size'].includes(opt.category)) {
+        return 'Invalid removed option category.';
+      }
+    }
+  }
   return null;
 }
 
@@ -147,14 +156,17 @@ const requestIndependentSignup = async (req, res) => {
     const customDropdownOptions = Array.isArray(req.body.customDropdownOptions) && req.body.customDropdownOptions.length > 0
       ? JSON.stringify(req.body.customDropdownOptions)
       : null;
+    const removedDefaultOptions = Array.isArray(req.body.removedDefaultOptions) && req.body.removedDefaultOptions.length > 0
+      ? JSON.stringify(req.body.removedDefaultOptions)
+      : null;
 
     await platformPool.query(
       `INSERT INTO pending_signups
          (slug, display_name, email, ceo_first_name, ceo_last_name, ceo_email, ceo_password_hash,
           baa_accepted_at, baa_accepted_by_name, baa_accepted_by_email,
           confirm_token_hash, confirm_token_expires, account_type, disciplines, pay_rate, address, custom_dropdown_options,
-          address_line1, address_city, address_state, address_zip)
-       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14,$15, $16,$17,$18,$19)
+          address_line1, address_city, address_state, address_zip, removed_default_options)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14,$15, $16,$17,$18,$19, $20)
        ON CONFLICT (slug) DO UPDATE SET
          display_name = EXCLUDED.display_name, email = EXCLUDED.email,
          ceo_first_name = EXCLUDED.ceo_first_name, ceo_last_name = EXCLUDED.ceo_last_name,
@@ -164,7 +176,8 @@ const requestIndependentSignup = async (req, res) => {
          account_type = EXCLUDED.account_type, disciplines = EXCLUDED.disciplines, pay_rate = EXCLUDED.pay_rate,
          address = EXCLUDED.address, custom_dropdown_options = EXCLUDED.custom_dropdown_options,
          address_line1 = EXCLUDED.address_line1, address_city = EXCLUDED.address_city,
-         address_state = EXCLUDED.address_state, address_zip = EXCLUDED.address_zip`,
+         address_state = EXCLUDED.address_state, address_zip = EXCLUDED.address_zip,
+         removed_default_options = EXCLUDED.removed_default_options`,
       [
         slug, fullName, email, req.body.firstName.trim(), req.body.lastName.trim(), email, passwordHash,
         req.body.baaAcceptedByName.trim(), req.body.baaAcceptedByEmail.trim(),
@@ -173,6 +186,7 @@ const requestIndependentSignup = async (req, res) => {
         req.body.addressLine1 ? String(req.body.addressLine1).trim() : null,
         req.body.addressCity ? String(req.body.addressCity).trim() : null,
         String(req.body.addressState).trim(), String(req.body.addressZip).trim(),
+        removedDefaultOptions,
       ]
     );
 
@@ -270,6 +284,21 @@ const confirmIndependentSignup = async (req, res) => {
          VALUES ($1, $2, $3, 100)
          ON CONFLICT (category, code) DO NOTHING`,
         [opt.category, code, String(opt.label).trim()]
+      );
+    }
+
+    // Default seeded options the practitioner un-checked during signup
+    // (e.g. "we don't do Escort/Security") — matched by (category, label)
+    // since the wizard only knows the human label, not the seeded code.
+    // Soft-deactivated the same way deactivateDropdownOption does (never a
+    // real DELETE — is_seeded rows especially can't be hard-deleted, see
+    // dropdownOptionsController.js), so it's reversible later from Company
+    // Information -> Dropdown Options if they change their mind.
+    const removedDefaults = Array.isArray(pending.removed_default_options) ? pending.removed_default_options : [];
+    for (const opt of removedDefaults) {
+      await tenantPool.query(
+        `UPDATE dropdown_options SET is_active = false, updated_at = now() WHERE category = $1 AND label = $2`,
+        [opt.category, opt.label]
       );
     }
 

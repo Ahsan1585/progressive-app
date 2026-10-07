@@ -58,11 +58,27 @@ const DISCIPLINE_OPTIONS = [
 // seeded with (backend/db/migrations/add_dropdown_categories.sql) — the
 // only categories a custom option added at signup can target, since no
 // tenant-specific custom category can exist before the tenant itself does.
+// `defaults` mirrors add_dropdown_options.sql's seed INSERT exactly, so the
+// signup step can actually show what's already there instead of just
+// asserting it in prose — the practitioner can see at a glance whether
+// something they were about to add already exists under a different name.
 const CUSTOM_OPTION_CATEGORIES = [
-  { value: 'service_type', label: 'Service type' },
-  { value: 'service_status', label: 'Service status' },
-  { value: 'location', label: 'Location' },
-  { value: 'group_size', label: 'Group size' },
+  {
+    value: 'service_type', label: 'Service type',
+    defaults: ['Evaluation', 'Assessment', 'IFSP Meeting', 'Audiology', 'Developmental Intervention', 'Family Training', 'Health Service', 'Medical Service', 'Nursing', 'Nutrition', 'Occupational Therapy', 'Physical Therapy', 'Psychological', 'Speech Language Therapy', 'Social Work', 'Vision', 'Childcare/Respite', 'Interpreter/Translator', 'Escort/Security', 'Transition Planning Conference'],
+  },
+  {
+    value: 'service_status', label: 'Service status',
+    defaults: ['Direct Child Service', 'Practitioner Cancelled (inc weather related)', 'Family Cancelled (inc weather related)', 'Make Up Direct Child Service', 'Family Missed (within 3 hours)', 'Team Mtg – IFSP', 'Transition Planning Conference', 'Bilingual Interpretation'],
+  },
+  {
+    value: 'location', label: 'Location',
+    defaults: ['Home', 'Residential Facility', 'Service Provider Clinic/Office', 'Hospital (Inpatient)', 'EC Program - Children with Disabilities', 'EC Program - Inclusive Community', 'DCP&P Office', 'Phone/Video Conferencing'],
+  },
+  {
+    value: 'group_size', label: 'Group size',
+    defaults: ['Direct Child Service - Individual', 'Consultation/Facilitation with Others'],
+  },
 ];
 
 const US_STATES = [
@@ -192,6 +208,10 @@ const IndependentSignupWizard = () => {
   const [customOptions, setCustomOptions] = useState([]); // [{ category, label }]
   const [newOptionCategory, setNewOptionCategory] = useState('service_type');
   const [newOptionLabel, setNewOptionLabel] = useState('');
+  // Default seeded options the practitioner un-checked — tracked as
+  // "category::label" keys so toggling is a simple Set membership check,
+  // converted to [{ category, label }] only at submit time.
+  const [removedDefaults, setRemovedDefaults] = useState(new Set());
 
   const set = (field) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -257,6 +277,14 @@ const IndependentSignupWizard = () => {
   };
   const removeCustomOption = (index) => {
     setCustomOptions((prev) => prev.filter((_, i) => i !== index));
+  };
+  const toggleDefaultOption = (category, label) => {
+    const key = `${category}::${label}`;
+    setRemovedDefaults((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
   };
 
   const validateStep = (s) => {
@@ -330,11 +358,16 @@ const IndependentSignupWizard = () => {
         [form.addressLine1, addressLine2].filter(Boolean).join(', '),
         form.addressCity, form.addressState, form.addressZip,
       ].filter(Boolean).join(', ');
+      const removedDefaultOptions = [...removedDefaults].map((key) => {
+        const [category, label] = key.split('::');
+        return { category, label };
+      });
       await api.post('/api/independent-signup', {
         ...payload,
         address,
         slug: payload.slug.trim().toLowerCase(),
         customDropdownOptions: customOptions.length > 0 ? customOptions : undefined,
+        removedDefaultOptions: removedDefaultOptions.length > 0 ? removedDefaultOptions : undefined,
       });
       setSubmitted(true);
     } catch (err) {
@@ -516,6 +549,35 @@ const IndependentSignupWizard = () => {
               Your account starts with the standard NJEIS service type, status, location, and group size options
               already set up. Add anything extra you want on day one, you can always manage this later too.
             </p>
+            <div className="rounded-xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-100 px-4 py-2.5">
+                <p className="text-sm font-semibold text-slate-700">
+                  Already included under {CUSTOM_OPTION_CATEGORIES.find((c) => c.value === newOptionCategory)?.label}
+                </p>
+                <p className="text-sm text-slate-500">Click any you don't need to leave it off your account.</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 p-4">
+                {CUSTOM_OPTION_CATEGORIES.find((c) => c.value === newOptionCategory)?.defaults.map((d) => {
+                  const isRemoved = removedDefaults.has(`${newOptionCategory}::${d}`);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleDefaultOption(newOptionCategory, d)}
+                      aria-pressed={!isRemoved}
+                      className={cn(
+                        'rounded-full border px-2.5 py-1 text-sm transition-colors',
+                        isRemoved
+                          ? 'border-slate-200 bg-slate-50 text-slate-400 line-through'
+                          : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300'
+                      )}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[160px_1fr_auto] sm:items-end">
                 <div className="space-y-1.5">
