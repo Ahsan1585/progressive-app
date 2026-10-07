@@ -618,11 +618,11 @@ const IndependentSignupWizard = () => {
                       className={cn(
                         'rounded-full border px-2.5 py-1 text-sm font-medium transition-colors',
                         isRemoved
-                          ? 'border-slate-200 bg-slate-50 text-slate-400 line-through'
-                          : 'border-slate-400 bg-slate-200 text-slate-800 hover:border-slate-500 hover:bg-slate-300'
+                          ? 'border-slate-200 bg-slate-100 text-slate-400 hover:border-slate-300'
+                          : 'border-teal-700 bg-teal-700 text-white hover:bg-teal-800'
                       )}
                     >
-                      <span className={cn('font-mono text-xs font-bold', isRemoved ? 'text-slate-400' : 'text-teal-800')}>{d.code}</span> {d.label}
+                      <span className={cn('font-mono text-xs font-bold', isRemoved ? 'text-slate-400' : 'text-teal-100')}>{d.code}</span> {d.label}
                     </button>
                   );
                 })}
