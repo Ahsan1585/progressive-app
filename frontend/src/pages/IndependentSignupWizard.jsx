@@ -123,15 +123,6 @@ const FIELD_LABEL_CLASS = 'text-base font-semibold text-slate-800';
 const FIELD_INPUT_CLASS = 'h-14 rounded-xl border-slate-300 px-4 text-base md:text-base placeholder:text-slate-400 focus-visible:ring-4 focus-visible:ring-teal-600/15 focus-visible:border-teal-600';
 const FIELD_SELECT_CLASS = 'h-14 w-full rounded-xl border-slate-300 px-4 text-base font-normal text-slate-800 data-placeholder:text-slate-400';
 
-const GOOGLE_ICON = (
-  <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-    <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.66-.22-2.45H12v4.63h6.47a5.54 5.54 0 0 1-2.4 3.64v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82Z" />
-    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.91l-3.88-3c-1.08.72-2.46 1.15-4.06 1.15-3.12 0-5.77-2.11-6.72-4.94H1.27v3.1A12 12 0 0 0 12 24Z" />
-    <path fill="#FBBC05" d="M5.28 14.3a7.2 7.2 0 0 1 0-4.6v-3.1H1.27a12 12 0 0 0 0 10.8l4.01-3.1Z" />
-    <path fill="#EA4335" d="M12 4.75c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.94 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.6l4.01 3.1C6.23 6.86 8.88 4.75 12 4.75Z" />
-  </svg>
-);
-
 // Sidebar step list, persistent on the left — matches the referenced
 // design's left-rail pattern (numbered/checked circles, label + one-line
 // description, connecting rail) rather than the previous top progress bar.
@@ -448,14 +439,6 @@ const IndependentSignupWizard = () => {
     }
   };
 
-  // Google sign-up — UI only for now. No Google OAuth client exists yet
-  // for this app (greenfield integration); this button is wired up to a
-  // real flow once a Client ID is provisioned. Clicking it today surfaces
-  // that plainly rather than pretending to work.
-  const handleGoogleClick = () => {
-    setError('Sign up with Google is coming soon — please use the form below for now.');
-  };
-
   return (
     <SignupShell sidebar={<StepSidebar current={step} steps={STEPS} />}>
       <div className="mb-6">
@@ -464,24 +447,6 @@ const IndependentSignupWizard = () => {
       </div>
 
       <HorizontalStepper current={step} steps={STEPS} />
-
-      {step === 0 && (
-        <>
-          <button
-            type="button"
-            onClick={handleGoogleClick}
-            className="flex h-14 w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            {GOOGLE_ICON}
-            Sign up with Google
-          </button>
-          <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-sm font-medium text-slate-400">OR</span>
-            <div className="h-px flex-1 bg-slate-200" />
-          </div>
-        </>
-      )}
 
       {error && (
         <div className="mb-5 rounded-xl border-l-4 border-red-500 bg-red-50 p-4 text-sm font-medium text-red-700">
