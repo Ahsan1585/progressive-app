@@ -133,6 +133,13 @@ const GOOGLE_ICON = (
 // Sidebar step list, persistent on the left — matches the referenced
 // design's left-rail pattern (numbered/checked circles, label + one-line
 // description, connecting rail) rather than the previous top progress bar.
+// Desktop-only (lg:+) vertical rail — the referenced design's left-column
+// pattern. Below lg:, the page uses HorizontalStepper instead (see below):
+// stacking this full vertical list above the form on a narrow screen pushed
+// every field down a full extra scroll, the exact "too much scrolling,
+// first this section then the form" problem reported against the previous
+// layout, which rendered this same component (just in a single grid
+// column) below lg: too.
 function StepSidebar({ current, steps }) {
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Signup steps">
@@ -165,17 +172,41 @@ function StepSidebar({ current, steps }) {
   );
 }
 
-function MobileStepProgress({ current, steps }) {
+// Below lg:, a compact horizontal row of step dots (connected by a line,
+// current step's own label shown as one line underneath) replaces the
+// vertical rail entirely — a few inches tall regardless of step count,
+// so the actual form for the active step is visible with minimal
+// scrolling instead of being pushed below a tall step list every time.
+function HorizontalStepper({ current, steps }) {
   return (
     <div className="mb-6 lg:hidden">
-      <div className="mb-3 flex items-center gap-1.5">
-        {steps.map((s, i) => (
-          <div key={s.label} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', i <= current ? 'bg-teal-600' : 'bg-slate-200')} />
-        ))}
+      <div className="flex items-center">
+        {steps.map((s, i) => {
+          const isDone = i < current;
+          const isActive = i === current;
+          return (
+            <div key={s.label} className="flex flex-1 items-center last:flex-none">
+              <div
+                className={cn(
+                  'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors',
+                  isDone && 'border-teal-600 bg-teal-600 text-white',
+                  isActive && 'border-teal-600 bg-white text-teal-700',
+                  !isDone && !isActive && 'border-slate-300 bg-white text-slate-400'
+                )}
+              >
+                {isDone ? <Check className="size-3.5" aria-hidden="true" /> : i + 1}
+              </div>
+              {i < steps.length - 1 && (
+                <div className={cn('mx-1 h-0.5 flex-1', isDone ? 'bg-teal-600' : 'bg-slate-200')} aria-hidden="true" />
+              )}
+            </div>
+          );
+        })}
       </div>
-      <p className="text-sm font-bold text-slate-900">
+      <p className="mt-2.5 text-sm font-bold text-slate-900">
         Step {current + 1} of {steps.length}: {steps[current].label}
       </p>
+      <p className="text-sm text-slate-500">{steps[current].description}</p>
     </div>
   );
 }
@@ -441,7 +472,7 @@ const IndependentSignupWizard = () => {
         <p className="mt-1.5 text-base text-slate-500">{STEPS[step].description}</p>
       </div>
 
-      <MobileStepProgress current={step} steps={STEPS} />
+      <HorizontalStepper current={step} steps={STEPS} />
 
       {step === 0 && (
         <>
@@ -771,9 +802,9 @@ function SignupShell({ children, sidebar }) {
           <div className="h-1.5 bg-gradient-to-r from-teal-600 to-cyan-600" />
           {sidebar ? (
             <div className="grid grid-cols-1 lg:grid-cols-[260px_1px_1fr]">
-              <div className="bg-slate-100 p-7 sm:p-8">{sidebar}</div>
+              <div className="hidden bg-slate-100 p-7 sm:p-8 lg:block">{sidebar}</div>
               <div className="hidden bg-slate-200 lg:block" aria-hidden="true" />
-              <div className="border-t border-slate-100 p-7 sm:p-10 lg:border-t-0">{children}</div>
+              <div className="p-7 sm:p-10">{children}</div>
             </div>
           ) : (
             <div className="p-7 sm:p-10">{children}</div>
