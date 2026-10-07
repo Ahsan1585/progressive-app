@@ -340,6 +340,20 @@ const IndependentSignupWizard = () => {
       return next;
     });
   };
+  // Bulk actions scoped to whichever category is currently shown — flips
+  // every default in that one category at once, so clearing out an entire
+  // category (or restoring it) is one click instead of one per chip.
+  const deselectAllInCategory = (category) => {
+    const keys = CUSTOM_OPTION_CATEGORIES.find((c) => c.value === category)?.defaults.map((d) => `${category}::${d.code}`) || [];
+    setRemovedDefaults((prev) => new Set([...prev, ...keys]));
+  };
+  const selectAllInCategory = (category) => {
+    setRemovedDefaults((prev) => {
+      const next = new Set(prev);
+      for (const key of next) if (key.startsWith(`${category}::`)) next.delete(key);
+      return next;
+    });
+  };
 
   const validateStep = (s) => {
     if (s === 0) {
@@ -605,11 +619,30 @@ const IndependentSignupWizard = () => {
               Add anything extra or remove what you won't use, you can always change this later too.
             </p>
             <div className="rounded-xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-100 px-4 py-2.5">
-                <p className="text-sm font-semibold text-slate-700">
-                  Already included under {CUSTOM_OPTION_CATEGORIES.find((c) => c.value === newOptionCategory)?.label}
-                </p>
-                <p className="text-sm text-slate-500">Click any you don't need to leave it off your account.</p>
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">
+                    Already included under {CUSTOM_OPTION_CATEGORIES.find((c) => c.value === newOptionCategory)?.label}
+                  </p>
+                  <p className="text-sm text-slate-500">Click any you don't need to leave it off your account.</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => selectAllInCategory(newOptionCategory)}
+                    className="text-sm font-semibold text-teal-700 hover:underline"
+                  >
+                    Select all
+                  </button>
+                  <span className="text-slate-300" aria-hidden="true">|</span>
+                  <button
+                    type="button"
+                    onClick={() => deselectAllInCategory(newOptionCategory)}
+                    className="text-sm font-semibold text-slate-500 hover:underline"
+                  >
+                    Deselect all
+                  </button>
+                </div>
               </div>
               <div className="flex flex-wrap gap-1.5 p-4">
                 {CUSTOM_OPTION_CATEGORIES.find((c) => c.value === newOptionCategory)?.defaults.map((d) => {
