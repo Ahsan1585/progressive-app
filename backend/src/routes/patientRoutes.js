@@ -7,9 +7,10 @@ const { pool } = require('../config/db');
 const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
-const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats } = require('../controllers/patientController');
+const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered, setHiddenFromHistory } = require('../controllers/patientController');
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
-const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
+const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
+const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
 
 // Staff Directory > All Children — office-wide (not ownership-scoped), placed
 // before the /:id wildcard routes below to avoid route conflicts.
@@ -35,12 +36,37 @@ router.post('/resubmit-log', protect, resubmitLog);
 router.post('/acknowledge-log', protect, acknowledgeLog);
 router.put('/logs/:id', protect, editLog);
 router.delete('/logs/:id', protect, deleteLog);
+// Independent-practitioner-only — see voidCompletedLog's own comment for
+// why this is a distinct action from edit/delete, gated purely by role
+// like every other independent-only endpoint (no office/permission system
+// exists for this role).
+router.post('/logs/:id/void', protect, requireRole(['independent_practitioner']), voidCompletedLog);
+// Any authenticated role may view/add notes on their own log — ownership
+// is enforced inside each controller itself (practitioner_id match).
+router.get('/logs/:id/notes', protect, getMyLogNotes);
+router.post('/logs/:id/notes', protect, addMyLogComment);
+// Independent-practitioner-only — see setEimsEntered's own comment.
+router.post('/logs/:id/eims-entered', protect, requireRole(['independent_practitioner']), setEimsEntered);
+// Independent-practitioner-only — see setHiddenFromHistory's own comment.
+router.post('/logs/:id/hide-from-history', protect, requireRole(['independent_practitioner']), setHiddenFromHistory);
 
 // Practitioner's own quick stats — placed before /:id wildcard to avoid route conflict
 router.get('/practitioner-stats', protect, getPractitionerStats);
 
 // Route to get a specific patient's assessments/interventions
 router.get('/:id/assessments', protect, getPatientAssessments);
+
+// Pre-fill Log Session's fields from this child's own most recent log
+// (see patientController.js's getLastSessionDefaults) — any authenticated
+// role, same ownership scoping as every other per-patient route.
+router.get('/:id/last-session-defaults', protect, getLastSessionDefaults);
+
+// Independent-practitioner-only — the roster of agencies a child is
+// currently billed to (see agencyController.js). No office/permission
+// concept exists for this role, so gated purely by role like the
+// billingRoutes.js independent endpoints.
+router.get('/:id/agencies', protect, requireRole(['independent_practitioner']), getPatientAgencies);
+router.put('/:id/agencies', protect, requireRole(['independent_practitioner']), updatePatientAgencies);
 
 // Route to generate the PDF report
 router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {

@@ -24,12 +24,20 @@ CREATE TABLE IF NOT EXISTS companies (
   baa_accepted_at timestamptz,
   baa_accepted_by_name text,
   baa_accepted_by_email text,
+  -- Distinguishes a registered tenant company from an individually-
+  -- registered independent practitioner (see add_independent_practitioners.sql
+  -- and the independent-practitioner plan). Both are still just one row
+  -- here with their own tenant_<slug> database — this column is consulted
+  -- only by registration-flow branching, platform-admin filtering, and
+  -- pricing-engine selection, never by tenant-side application code.
+  account_type text NOT NULL DEFAULT 'tenant',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT companies_slug_key UNIQUE (slug),
   CONSTRAINT companies_tenant_db_name_key UNIQUE (tenant_db_name),
   CONSTRAINT companies_slug_format_check CHECK (slug ~ '^[a-z0-9-]{3,40}$'),
-  CONSTRAINT companies_status_check CHECK (status = ANY (ARRAY['trial'::text, 'active'::text, 'suspended'::text, 'cancelled'::text]))
+  CONSTRAINT companies_status_check CHECK (status = ANY (ARRAY['trial'::text, 'active'::text, 'suspended'::text, 'cancelled'::text])),
+  CONSTRAINT companies_account_type_check CHECK (account_type = ANY (ARRAY['tenant'::text, 'independent'::text]))
 );
 CREATE INDEX IF NOT EXISTS companies_slug_idx ON companies (slug);
 CREATE INDEX IF NOT EXISTS companies_stripe_customer_id_idx ON companies (stripe_customer_id);
@@ -55,6 +63,13 @@ CREATE TABLE IF NOT EXISTS pending_signups (
   baa_accepted_by_email text NOT NULL,
   confirm_token_hash text NOT NULL,
   confirm_token_expires timestamptz NOT NULL,
+  -- Mirrors companies.account_type — lets confirmIndependentSignup know
+  -- which provisioning branch to run. discipline/pay_rate are independent-
+  -- practitioner-only fields (nullable; a tenant-company signup never fills
+  -- these, since a "company" has neither a discipline nor a personal rate).
+  account_type text NOT NULL DEFAULT 'tenant',
+  discipline text,
+  pay_rate numeric(10,2),
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT pending_signups_slug_key UNIQUE (slug)
 );

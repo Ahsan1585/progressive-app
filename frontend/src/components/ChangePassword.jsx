@@ -45,6 +45,8 @@ const ChangePassword = () => {
         const role = localStorage.getItem('role');
         if (role === 'ceo' || role === 'staff') {
           navigate('/admin-dashboard');
+        } else if (role === 'independent_practitioner') {
+          navigate('/billing/independent');
         } else {
           navigate('/practitioner-app-required');
         }

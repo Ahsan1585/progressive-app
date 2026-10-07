@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Home from './pages/marketing/Home';
 import HowItWorks from './pages/marketing/HowItWorks';
 import PractitionerApp from './pages/marketing/PractitionerApp';
+import Practitioners from './pages/marketing/Practitioners';
 import Contact from './pages/marketing/Contact';
 import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
@@ -12,6 +13,9 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import SignupWizard from './pages/SignupWizard';
 import SignupConfirm from './pages/SignupConfirm';
+import IndependentSignupWizard from './pages/IndependentSignupWizard';
+import IndependentSignupConfirm from './pages/IndependentSignupConfirm';
+import IndependentBilling from './pages/IndependentBilling';
 import ActivateAccount from './pages/ActivateAccount';
 import PractitionerAppRequired from './pages/PractitionerAppRequired';
 import TelepracticeSign from './pages/TelepracticeSign';
@@ -117,6 +121,7 @@ const WEB_ROUTES = (
   <>
     <Route path="/" element={<Home />} />
     <Route path="/how-it-works" element={<HowItWorks />} />
+    <Route path="/practitioners" element={<Practitioners />} />
     <Route path="/download" element={<PractitionerApp />} />
     <Route path="/contact" element={<Contact />} />
     <Route path="/login" element={<Login />} />
@@ -125,6 +130,8 @@ const WEB_ROUTES = (
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/signup" element={<SignupWizard />} />
     <Route path="/signup/confirm/:token" element={<SignupConfirm />} />
+    <Route path="/signup/independent" element={<IndependentSignupWizard />} />
+    <Route path="/signup/independent/confirm/:token" element={<IndependentSignupConfirm />} />
     <Route path="/:companySlug/activate/:token" element={<ActivateAccount />} />
     {/* Public, unauthenticated — a parent reaches this from the telepractice signature-request email, never from within the app. */}
     <Route path="/:companySlug/sign/:token" element={<TelepracticeSign />} />
@@ -137,6 +144,10 @@ const WEB_ROUTES = (
     <Route
       path="/dashboard"
       element={<ProtectedRoute element={<Dashboard />} allowedRoles={['practitioner']} />}
+    />
+    <Route
+      path="/billing/independent"
+      element={<ProtectedRoute element={<IndependentBilling />} allowedRoles={['independent_practitioner']} />}
     />
     <Route
       path="/admin-dashboard"

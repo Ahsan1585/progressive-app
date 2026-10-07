@@ -1,8 +1,9 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,16 +13,23 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DraftCapDialog } from "@/components/DraftCapDialog";
+import { EnterInEimsDialog } from "@/components/EnterInEimsDialog";
+import { FilterPicker } from "@/components/FilterPicker";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
-import type { Assessment, ScheduledSession, SessionDraftListItem } from "@/types";
+import { billingStatusConfig } from "@/constants/njeis";
+import { cn } from "@/lib/utils";
+import type { Assessment, ScheduledSession, SessionDraftListItem, LogNote } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
+  const { patients, fetchPatients, serviceTypeMap, locationCodeMap, statusCodeMap, groupSizeMap, telepracticeRequests, fetchTelepracticeRequests } = useAppData();
+  const { isIndependentPractitioner } = useAuth();
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
   const [resendingId, setResendingId] = React.useState<string | null>(null);
@@ -50,12 +58,137 @@ export default function PatientDetail() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Session history filters — purely client-side (assessments is already
+  // fully fetched per child, a small list), so filtering is a plain memo
+  // rather than a second API call with query params.
+  const [filterStartDate, setFilterStartDate] = React.useState("");
+  const [filterEndDate, setFilterEndDate] = React.useState("");
+  const [filterBillingStatus, setFilterBillingStatus] = React.useState("");
+  const [filterEimsEntered, setFilterEimsEntered] = React.useState<"" | "yes" | "no">("");
+  // A hidden (rejected-and-hidden) session is excluded from the list by
+  // default — this toggle is the only way back to it, since
+  // hidden_from_history is otherwise a one-way-looking display preference
+  // (see setHiddenFromHistory's own comment: never a delete, always
+  // reversible, just not reachable unless explicitly asked for).
+  const [showHidden, setShowHidden] = React.useState(false);
+
+  const hasActiveFilters = !!filterStartDate || !!filterEndDate || !!filterBillingStatus || !!filterEimsEntered;
+
+  const clearFilters = () => {
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setFilterBillingStatus("");
+    setFilterEimsEntered("");
+  };
+
+  const billingStatusFilterOptions = React.useMemo(() => {
+    // Only offer statuses this child's own logs actually use, not the
+    // whole app-wide vocabulary — an independent practitioner never sees
+    // "In Review"/"Accepted" (tenant-only statuses) in their own filter,
+    // and vice versa, since a child's logs are all one role's own.
+    const present = new Set(assessments.map((a) => a.billing_status));
+    return Array.from(present)
+      .filter((code) => billingStatusConfig[code])
+      .map((code) => ({ code, label: billingStatusConfig[code].label }));
+  }, [assessments]);
+
+  const hiddenCount = React.useMemo(() => assessments.filter((a) => a.hidden_from_history).length, [assessments]);
+
+  const filteredAssessments = React.useMemo(() => {
+    return assessments.filter((item) => {
+      if (!showHidden && item.hidden_from_history) return false;
+      if (filterStartDate && item.service_date < filterStartDate) return false;
+      if (filterEndDate && item.service_date > filterEndDate) return false;
+      if (filterBillingStatus && item.billing_status !== filterBillingStatus) return false;
+      if (filterEimsEntered === "yes" && !item.eims_entered_at) return false;
+      if (filterEimsEntered === "no" && !!item.eims_entered_at) return false;
+      return true;
+    });
+  }, [assessments, showHidden, filterStartDate, filterEndDate, filterBillingStatus, filterEimsEntered]);
+
   const [sessions, setSessions] = React.useState<ScheduledSession[]>([]);
   const [scheduleTarget, setScheduleTarget] = React.useState<ScheduledSession | "new" | null>(null);
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = React.useState<Assessment | null>(null);
   const [isDeletingLog, setIsDeletingLog] = React.useState(false);
+
+  // Independent-practitioner-only — a "completed" log (SEVF/invoice already
+  // generated) can no longer be edited or deleted; Reject is the only
+  // remaining action at that point (see voidCompletedLog in
+  // patientController.js — this does NOT touch the already-generated
+  // documents, only excludes the session from future value/hour totals).
+  const [voidTarget, setVoidTarget] = React.useState<Assessment | null>(null);
+  const [isVoidingLog, setIsVoidingLog] = React.useState(false);
+
+  // "Enter in EIMS" on a session card — independent-practitioner-only (see
+  // EnterInEimsDialog for why this is a copy-paste helper, not an API
+  // integration). Its EIMS field list comes straight from the session row
+  // itself (no extra fetch), but its comment thread is fetched lazily the
+  // moment the dialog opens (not prefetched for every card in the list),
+  // since most sessions have zero comments and this avoids N extra requests
+  // on a screen that can already list dozens of sessions.
+  const [eimsTarget, setEimsTarget] = React.useState<Assessment | null>(null);
+  const [notes, setNotes] = React.useState<LogNote[]>([]);
+  const [notesLoading, setNotesLoading] = React.useState(false);
+
+  const handleOpenEimsDialog = async (item: Assessment) => {
+    setEimsTarget(item);
+    setNotesLoading(true);
+    setNotes([]);
+    try {
+      const res = await api.get<{ success: boolean; notes: LogNote[] }>(`/api/patients/logs/${item.id}/notes`);
+      setNotes(res.data.notes || []);
+    } catch {
+      showToast("Couldn't load notes. Please try again.");
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  // "Completed" / "Mark not entered" inside EnterInEimsDialog — self-
+  // reported, toggleable (see setEimsEntered). Updates the session in
+  // place (both the open dialog's own `session` prop via eimsTarget, and
+  // the underlying list) so the card's "Entered in EIMS" indicator updates
+  // immediately without a full refetch.
+  const [markingEntered, setMarkingEntered] = React.useState(false);
+
+  const handleMarkEntered = async (entered: boolean) => {
+    if (!eimsTarget) return;
+    setMarkingEntered(true);
+    try {
+      const res = await api.post<{ success: boolean; eims_entered_at: string | null }>(
+        `/api/patients/logs/${eimsTarget.id}/eims-entered`,
+        { entered }
+      );
+      const updated = { ...eimsTarget, eims_entered_at: res.data.eims_entered_at };
+      setEimsTarget(updated);
+      setAssessments((prev) => prev.map((a) => (a.id === eimsTarget.id ? { ...a, eims_entered_at: res.data.eims_entered_at } : a)));
+      showToast(entered ? "Marked as entered in EIMS." : "Unmarked.");
+    } catch {
+      showToast("Couldn't update. Please try again.");
+    } finally {
+      setMarkingEntered(false);
+    }
+  };
+
+  // "Hide" / "Unhide" on a rejected (voided) session card — see
+  // setHiddenFromHistory's own comment. Only ever offered on a voided log.
+  const [hidingId, setHidingId] = React.useState<string | null>(null);
+
+  const handleToggleHidden = async (item: Assessment) => {
+    const nextHidden = !item.hidden_from_history;
+    setHidingId(item.id);
+    try {
+      await api.post(`/api/patients/logs/${item.id}/hide-from-history`, { hidden: nextHidden });
+      setAssessments((prev) => prev.map((a) => (a.id === item.id ? { ...a, hidden_from_history: nextHidden } : a)));
+      showToast(nextHidden ? "Hidden from session history." : "Unhidden.");
+    } catch {
+      showToast("Couldn't update. Please try again.");
+    } finally {
+      setHidingId(null);
+    }
+  };
 
   const [drafts, setDrafts] = React.useState<SessionDraftListItem[]>([]);
   const [discardDraftTarget, setDiscardDraftTarget] = React.useState<string | null>(null); // draft id, or null
@@ -194,6 +327,22 @@ export default function PatientDetail() {
       showToast(body?.error || "Couldn't delete this log. Please try again.");
     } finally {
       setIsDeletingLog(false);
+    }
+  };
+
+  const handleVoidLog = async () => {
+    if (!voidTarget) return;
+    setIsVoidingLog(true);
+    try {
+      await api.post(`/api/patients/logs/${voidTarget.id}/void`);
+      setAssessments((prev) => prev.map((a) => (a.id === voidTarget.id ? { ...a, billing_status: "voided" } : a)));
+      showToast("Session rejected — excluded from your totals. The generated SEVF/invoice is unaffected.");
+      setVoidTarget(null);
+    } catch (err) {
+      const body = (err as { response?: { data?: { error?: string } } }).response?.data;
+      showToast(body?.error || "Couldn't reject this session. Please try again.");
+    } finally {
+      setIsVoidingLog(false);
     }
   };
 
@@ -383,7 +532,76 @@ export default function PatientDetail() {
           )}
         </div>
 
-        <h3 className="mb-2 text-[15px] font-semibold text-ink">Session history</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-[15px] font-semibold text-ink">Session history</h3>
+          <div className="flex items-center gap-3">
+            {isIndependentPractitioner && hiddenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowHidden((v) => !v)}
+                className="press-scale flex items-center gap-1 text-xs font-semibold text-ink-muted"
+              >
+                {showHidden ? <EyeOff className="size-3.5" aria-hidden="true" /> : <Eye className="size-3.5" aria-hidden="true" />}
+                {showHidden ? "Hide hidden" : `Show hidden (${hiddenCount})`}
+              </button>
+            )}
+            {hasActiveFilters && (
+              <button type="button" onClick={clearFilters} className="press-scale text-xs font-semibold text-primary">
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!error && !loading && assessments.length > 0 && (
+          <div className="mb-3 space-y-3 rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]">
+            <p className="text-[13px] font-semibold text-ink-muted">Filters</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="filterStartDate" className="text-xs font-semibold text-ink">Start date</Label>
+                <Input id="filterStartDate" type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="filterEndDate" className="text-xs font-semibold text-ink">End date</Label>
+                <Input id="filterEndDate" type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} />
+              </div>
+            </div>
+            <FilterPicker
+              id="filterBillingStatus"
+              label="Status"
+              value={filterBillingStatus}
+              options={billingStatusFilterOptions}
+              onChange={setFilterBillingStatus}
+              allLabel="All statuses"
+            />
+            {isIndependentPractitioner && (
+              <div>
+                <Label className="text-xs font-semibold text-ink">EIMS</Label>
+                <div className="mt-1.5 flex gap-2">
+                  {([
+                    { value: "", label: "All" },
+                    { value: "yes", label: "Entered" },
+                    { value: "no", label: "Not entered" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFilterEimsEntered(opt.value)}
+                      className={cn(
+                        "press-scale h-9 flex-1 rounded-control border text-sm font-medium",
+                        filterEimsEntered === opt.value
+                          ? "border-primary bg-primary-tint text-primary"
+                          : "border-border bg-surface text-ink-muted"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {error ? (
           <EmptyState
@@ -410,47 +628,129 @@ export default function PatientDetail() {
           </ul>
         ) : assessments.length === 0 ? (
           <EmptyState icon={ClipboardList} heading={`No visits logged yet for ${patient?.first_name ?? "this child"}`} />
+        ) : filteredAssessments.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            heading="No sessions match these filters"
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
         ) : (
           <ul role="list" aria-label="Session history" className="space-y-2">
-            {assessments.map((item) => (
+            {filteredAssessments.map((item) => (
               <li key={item.id} className="rounded-card border border-border bg-surface p-3.5 shadow-[var(--elev-rest)]">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(item.service_date)}</p>
-                    <p className="mt-0.5 text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
-                    <p className="mt-0.5 text-xs text-ink-muted">{locationCodeMap[item.location] || item.location}</p>
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <p className="tabular shrink-0 text-sm font-semibold text-ink">{formatSafeDate(item.service_date)}</p>
+                    <p className="tabular truncate text-xs text-ink-muted">
+                      {formatTime12h(item.start_time)}–{formatTime12h(item.end_time)}
+                    </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex shrink-0 flex-col items-end gap-1">
                     <StatusBadge status={item.billing_status} />
-                    <p className="tabular text-sm font-semibold text-ink">{(item.total_time / 60).toFixed(2)} hrs</p>
+                    {/* Independent-practitioner-only, self-reported (see
+                        setEimsEntered) — always visible on the card, not
+                        just inside the "Enter in EIMS" popup, so the
+                        practitioner can tell at a glance which sessions
+                        still need to be entered into the state portal. */}
+                    {isIndependentPractitioner && item.eims_entered_at && (
+                      <span className="flex items-center gap-1 rounded-full border border-success-border bg-success-bg px-2 py-0.5 text-[11px] font-semibold text-success">
+                        <CheckCircle2 className="size-3" aria-hidden="true" />
+                        Entered in EIMS
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-ink-muted">
-                  <span className="tabular">
-                    {formatTime12h(item.start_time)} - {formatTime12h(item.end_time)}
-                  </span>
-                  <span className="font-semibold uppercase tracking-wide">{statusCodeMap[item.status] || item.status}</span>
+                <div className="mt-1 flex items-baseline justify-between gap-2">
+                  <p className="text-sm text-ink-body">{serviceTypeMap[item.type] || item.type}</p>
+                  <p className="tabular shrink-0 text-sm font-semibold text-ink">{(item.total_time / 60).toFixed(2)} hrs</p>
                 </div>
-                {item.billing_status === "pending" && (
-                  <div className="mt-2 flex items-center gap-4">
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {["pending", "self_certified"].includes(item.billing_status) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/patients/${id}/logs/${item.id}/edit`)}
+                        className="press-scale flex items-center gap-1.5 text-sm font-semibold text-primary"
+                      >
+                        <PencilLine className="size-4" aria-hidden="true" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(item)}
+                        className="press-scale flex items-center gap-1.5 text-sm font-semibold text-danger"
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                        Delete
+                      </button>
+                    </>
+                  )}
+                  {/* Independent-practitioner-only — a SEVF/invoice has
+                      already been generated for this log, so it can no
+                      longer be edited or deleted; Reject is the only
+                      remaining action (see voidCompletedLog's own comment
+                      for why this doesn't touch the already-generated
+                      documents). */}
+                  {isIndependentPractitioner && item.billing_status === "completed" && (
                     <button
                       type="button"
-                      onClick={() => navigate(`/patients/${id}/logs/${item.id}/edit`)}
-                      className="press-scale flex items-center gap-1 text-xs font-semibold text-primary"
+                      onClick={() => setVoidTarget(item)}
+                      className="press-scale flex items-center gap-1.5 text-sm font-semibold text-danger"
                     >
-                      <PencilLine className="size-3.5" aria-hidden="true" />
-                      Edit
+                      <XCircle className="size-4" aria-hidden="true" />
+                      Reject
                     </button>
+                  )}
+                  {/* Independent-practitioner-only — once a session is
+                      rejected (voided), let the practitioner tuck it out
+                      of their default Session History view (see
+                      setHiddenFromHistory's own comment: a display
+                      preference, never a delete, always reversible via
+                      "Show hidden" below). */}
+                  {isIndependentPractitioner && item.billing_status === "voided" && (
                     <button
                       type="button"
-                      onClick={() => setDeleteTarget(item)}
-                      className="press-scale flex items-center gap-1 text-xs font-semibold text-danger"
+                      onClick={() => handleToggleHidden(item)}
+                      disabled={hidingId === item.id}
+                      className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted disabled:opacity-60"
                     >
-                      <Trash2 className="size-3.5" aria-hidden="true" />
-                      Delete
+                      {item.hidden_from_history ? (
+                        <Eye className="size-4" aria-hidden="true" />
+                      ) : (
+                        <EyeOff className="size-4" aria-hidden="true" />
+                      )}
+                      {item.hidden_from_history ? "Unhide" : "Hide"}
                     </button>
-                  </div>
-                )}
+                  )}
+                  {/* Independent-practitioner-only sees "Enter in EIMS",
+                      which also carries this session's comment thread
+                      (folded in rather than a separate "View comments"
+                      button for this role). A tenant-company practitioner
+                      has no EIMS concept at all, so they see a plain
+                      "View comments" button that opens the same dialog
+                      with its EIMS section hidden. */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEimsDialog(item)}
+                    className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted"
+                  >
+                    {isIndependentPractitioner ? (
+                      <>
+                        <FileOutput className="size-4" aria-hidden="true" />
+                        Enter in EIMS
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="size-4" aria-hidden="true" />
+                        View notes
+                      </>
+                    )}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -480,6 +780,17 @@ export default function PatientDetail() {
       />
 
       <ConfirmDialog
+        open={!!voidTarget}
+        onOpenChange={(open) => !open && setVoidTarget(null)}
+        title="Reject this session?"
+        description="This session's SEVF and invoice have already been generated and sent — those documents stay exactly as they are. Rejecting just excludes this session from your own totals going forward, as a $0 session. This cannot be undone."
+        confirmLabel="Reject"
+        destructive
+        loading={isVoidingLog}
+        onConfirm={handleVoidLog}
+      />
+
+      <ConfirmDialog
         open={!!discardDraftTarget}
         onOpenChange={(open) => { if (!open) setDiscardDraftTarget(null); }}
         title="Discard this draft?"
@@ -494,6 +805,25 @@ export default function PatientDetail() {
         open={draftCapDialogOpen}
         onOpenChange={setDraftCapDialogOpen}
         patientName={patient ? `${patient.first_name} ${patient.last_name}`.trim() : undefined}
+      />
+
+      <EnterInEimsDialog
+        open={!!eimsTarget}
+        onOpenChange={(open) => { if (!open) setEimsTarget(null); }}
+        session={eimsTarget}
+        serviceTypeLabel={eimsTarget ? serviceTypeMap[eimsTarget.type] || eimsTarget.type : ""}
+        statusLabel={eimsTarget ? statusCodeMap[eimsTarget.status] || eimsTarget.status : ""}
+        locationLabel={eimsTarget ? locationCodeMap[eimsTarget.location] || eimsTarget.location : ""}
+        groupSizeLabel={
+          eimsTarget?.group_size_category
+            ? groupSizeMap[eimsTarget.group_size_category] || eimsTarget.group_size_category
+            : null
+        }
+        notes={notes}
+        notesLoading={notesLoading}
+        showEimsFields={isIndependentPractitioner}
+        onMarkEntered={handleMarkEntered}
+        markingEntered={markingEntered}
       />
     </PushScreen>
   );

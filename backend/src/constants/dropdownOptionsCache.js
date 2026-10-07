@@ -38,7 +38,7 @@ async function loadDropdownOptionsCache(tenantDbName = getCurrentTenantDb()) {
     'SELECT key, display_name, is_custom, is_required_on_log, sort_order, is_active FROM dropdown_categories WHERE is_active = true ORDER BY sort_order, key'
   );
   const { rows: optionRows } = await pool.query(
-    'SELECT id, category, code, label, sort_order, is_active FROM dropdown_options ORDER BY category, sort_order, id'
+    'SELECT id, category, code, label, sort_order, is_active, is_seeded FROM dropdown_options ORDER BY category, sort_order, id'
   );
 
   const next = {};

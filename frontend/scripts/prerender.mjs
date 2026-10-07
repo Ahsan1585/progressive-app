@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build-time prerenderer for the four public marketing routes served under
+// Build-time prerenderer for the public marketing routes served under
 // izayaedge.com/eis/*. Run automatically after `vite build` (see the
 // "build" script in package.json).
 //
@@ -13,7 +13,7 @@
 // crawler's very first response already contains the actual headline, body
 // copy, and per-page <title>/<meta description> — no JS execution required.
 //
-// Scope, deliberately narrow: only the four PUBLIC marketing routes below
+// Scope, deliberately narrow: only the PUBLIC marketing routes below
 // are prerendered. Everything else (/login, /dashboard, /admin-dashboard,
 // /signup, etc.) is untouched and keeps working exactly as it does today —
 // those are behind auth, shouldn't be indexed, and route through several
@@ -53,12 +53,14 @@ const { default: Home } = await vite.ssrLoadModule('/src/pages/marketing/Home.js
 const { default: HowItWorks } = await vite.ssrLoadModule('/src/pages/marketing/HowItWorks.jsx');
 const { default: PractitionerApp } = await vite.ssrLoadModule('/src/pages/marketing/PractitionerApp.jsx');
 const { default: Contact } = await vite.ssrLoadModule('/src/pages/marketing/Contact.jsx');
+const { default: Practitioners } = await vite.ssrLoadModule('/src/pages/marketing/Practitioners.jsx');
 
 const ROUTES = [
   { routePath: '/', Component: Home, outDir: '' },
   { routePath: '/how-it-works', Component: HowItWorks, outDir: 'how-it-works' },
   { routePath: '/download', Component: PractitionerApp, outDir: 'download' },
   { routePath: '/contact', Component: Contact, outDir: 'contact' },
+  { routePath: '/practitioners', Component: Practitioners, outDir: 'practitioners' },
 ];
 
 function escapeHtml(str) {

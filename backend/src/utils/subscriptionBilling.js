@@ -189,6 +189,50 @@ function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+// Independent-practitioner-only (see docs on the independent-practitioner
+// feature) — a flat $30/mo, not the per-seat calculation
+// computeCurrentPeriodSummary does. Deliberately a SEPARATE function
+// rather than a branch inside computeCurrentPeriodSummary: that function's
+// getPractitionerActivity/getOfficeStaffCount queries hardcode
+// `role = 'practitioner'`/`role != 'practitioner'`, which would miscount
+// an independent practitioner's single `role = 'independent_practitioner'`
+// row as an office-staff seat rather than a billable practitioner seat —
+// patching those queries to also recognize the new role risks subtly
+// changing what "office staff" means for the existing tenant per-seat
+// billing model. This function shares only the period-boundary/date-math
+// helpers above, none of the seat-counting ones.
+async function getFlatSubscriptionSettings() {
+  const { rows } = await pool.query(
+    `SELECT subscription_flat_price, stripe_customer_id,
+            stripe_default_payment_method_id, stripe_default_pm_type,
+            stripe_default_pm_brand, stripe_default_pm_last4, stripe_default_pm_exp
+     FROM company_settings WHERE id = 1`
+  );
+  const row = rows[0] || {};
+  return {
+    flatPrice: Number(row.subscription_flat_price ?? 30),
+    stripeCustomerId: row.stripe_customer_id || null,
+    defaultPaymentMethodId: row.stripe_default_payment_method_id || null,
+    defaultPaymentMethodType: row.stripe_default_pm_type || null,
+    defaultPaymentMethodBrand: row.stripe_default_pm_brand || null,
+    defaultPaymentMethodLast4: row.stripe_default_pm_last4 || null,
+    defaultPaymentMethodExp: row.stripe_default_pm_exp || null,
+  };
+}
+
+async function computeFlatRatePeriodSummary(at = new Date()) {
+  const { periodStart, periodEnd } = getPeriodBounds(at);
+  const settings = await getFlatSubscriptionSettings();
+
+  return {
+    periodStart,
+    periodEnd,
+    nextBillingDate: nextBillingDate(at),
+    flatPrice: settings.flatPrice,
+    totalAmount: settings.flatPrice,
+  };
+}
+
 module.exports = {
   getPeriodBounds,
   getPreviousPeriodBounds,
@@ -199,4 +243,6 @@ module.exports = {
   getOfficeStaffCount,
   getSubscriptionSettings,
   computeCurrentPeriodSummary,
+  getFlatSubscriptionSettings,
+  computeFlatRatePeriodSummary,
 };

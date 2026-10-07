@@ -1,6 +1,7 @@
 import * as React from "react";
 import { FileText, Receipt } from "lucide-react";
 import api from "@/api/axiosInstance";
+import { useAuth } from "@/contexts/AuthContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,11 +12,16 @@ import { formatSafeDate } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { Invoice, ApiErrorBody } from "@/types";
 
-// Practitioner self-service view of their own approved invoices (issued by
-// billing) — mirrors admin's Completed Bills paid/unpaid distinction, but
-// scoped to just this practitioner and read-only (view/download only).
+// Practitioner self-service view of their own invoices. For a normal tenant
+// practitioner these are approved by billing (mirrors admin's Completed
+// Bills paid/unpaid distinction) — for an independent practitioner (no
+// office review step) the invoice is self-generated alongside their SEVF
+// (see generateSelfCertifiedSEVF) and never goes through a separate
+// approval, so the "Approved" framing below is swapped for "Generated" for
+// this role. Read-only either way (view/download only).
 export default function MyInvoices() {
   const { showToast } = useToast();
+  const { isIndependentPractitioner } = useAuth();
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -85,7 +91,11 @@ export default function MyInvoices() {
           <EmptyState
             icon={Receipt}
             heading="No invoices yet"
-            subtext="Approved invoices will show up here once billing issues them."
+            subtext={
+              isIndependentPractitioner
+                ? "Invoices you generate alongside a SEVF will show up here."
+                : "Approved invoices will show up here once billing issues them."
+            }
           />
         ) : (
           <ul role="list" className="space-y-2">
@@ -105,7 +115,11 @@ export default function MyInvoices() {
                       {formatSafeDate(invoice.start_date)} – {formatSafeDate(invoice.end_date)}
                     </p>
                     <p className="text-xs text-ink-muted">
-                      {invoice.paid ? `Paid ${formatSafeDate(invoice.paid_at)}` : "Approved — payment pending"}
+                      {invoice.paid
+                        ? `Paid ${formatSafeDate(invoice.paid_at)}`
+                        : isIndependentPractitioner
+                          ? "Generated — send to the agency when ready"
+                          : "Approved — payment pending"}
                     </p>
                   </div>
                   <span
@@ -116,7 +130,7 @@ export default function MyInvoices() {
                         : "border-warning-border bg-warning-bg text-warning"
                     )}
                   >
-                    {invoice.paid ? "Paid" : "Approved"}
+                    {invoice.paid ? "Paid" : isIndependentPractitioner ? "Generated" : "Approved"}
                   </span>
                 </button>
               </li>

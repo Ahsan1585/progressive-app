@@ -25,6 +25,12 @@ export const MARKETING_META = {
       'See how Izaya EIS turns a practitioner’s session log into a validated, error-free billing record — automatic validation, instant error correction, and SEVF/invoice generation.',
     path: '/eis/how-it-works',
   },
+  '/practitioners': {
+    title: 'Izaya EIS for Independent Practitioners | NJ Early Intervention Billing',
+    description:
+      'No company registered with Izaya? You can still log sessions, generate your own SEVF, and bill the early intervention agencies you work with — $30/month, 15-day free trial.',
+    path: '/eis/practitioners',
+  },
   '/download': {
     title: 'Download the Practitioner App | Izaya EIS',
     description:

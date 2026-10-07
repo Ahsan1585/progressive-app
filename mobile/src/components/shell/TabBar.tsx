@@ -1,13 +1,17 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, Inbox, MessageCircle, User } from "lucide-react";
+import { Home, Users, Inbox, MessageCircle, User, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TabBarProps {
   inboxCount: number;
   messagesCount: number;
+  /** No office exists for a company-less account — omit Messages entirely
+   *  rather than showing it disabled, and show Billing in its place since
+   *  this role pays Izaya directly instead of a company handling it. */
+  isIndependentPractitioner: boolean;
 }
 
-const TABS = [
+const BASE_TABS = [
   { to: "/home", label: "Home", icon: Home },
   { to: "/roster", label: "Children", icon: Users },
   { to: "/inbox", label: "Inbox", icon: Inbox },
@@ -15,16 +19,29 @@ const TABS = [
   { to: "/profile", label: "Profile", icon: User },
 ];
 
+const INDEPENDENT_TABS = [
+  { to: "/home", label: "Home", icon: Home },
+  { to: "/roster", label: "Children", icon: Users },
+  { to: "/inbox", label: "Inbox", icon: Inbox },
+  { to: "/billing", label: "Billing", icon: CreditCard },
+  { to: "/profile", label: "Profile", icon: User },
+];
+
 // Bottom tab bar — solid surface + 1px top hairline (never glassmorphism),
 // >= 56x48px targets, safe-area-inset-bottom padding. Tab switches never
 // animate (Kowalski: used hundreds of times/day) — only the active
 // indicator's position transitions. Art-direction §5.
-export function TabBar({ inboxCount, messagesCount }: TabBarProps) {
+export function TabBar({ inboxCount, messagesCount, isIndependentPractitioner }: TabBarProps) {
+  const TABS = isIndependentPractitioner ? INDEPENDENT_TABS : BASE_TABS;
   return (
     <nav
       aria-label="Primary"
       className="safe-bottom sticky bottom-0 z-40 border-t border-border bg-surface shadow-[var(--elev-raised)]"
     >
+      {/* Both TABS variants are exactly 5 entries (Messages swapped for
+          Billing, not removed) so this stays a static, JIT-safe class —
+          a template-literal grid-cols-${n} class would not be picked up
+          by Tailwind's build-time content scan. */}
       <ul className="grid grid-cols-5">
         {TABS.map(({ to, label, icon: Icon }) => (
           <li key={to}>

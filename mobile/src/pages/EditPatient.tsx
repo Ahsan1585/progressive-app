@@ -2,13 +2,16 @@ import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
-import type { Patient, ApiErrorBody } from "@/types";
+import { AgencyMultiSelect } from "@/components/AgencyMultiSelect";
+import { useToast } from "@/components/ui/toast";
+import type { Agency, Patient, ApiErrorBody } from "@/types";
 
 interface FormState {
   firstName: string;
@@ -37,13 +40,16 @@ const EMPTY_FORM: FormState = {
 export default function EditPatient() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { patients, fetchPatients } = useAppData();
+  const { patients, fetchPatients, agencies, fetchAgencies } = useAppData();
+  const { isIndependentPractitioner } = useAuth();
+  const { showToast } = useToast();
   const patient = patients.find((p) => String(p.id) === id);
 
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<Partial<Record<keyof FormState, string>>>({});
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [selectedAgencies, setSelectedAgencies] = React.useState<Agency[]>([]);
 
   React.useEffect(() => {
     if (patient) {
@@ -59,6 +65,16 @@ export default function EditPatient() {
       });
     }
   }, [patient]);
+
+  React.useEffect(() => {
+    if (!isIndependentPractitioner || !id) return;
+    api
+      .get<{ success: boolean; agencies: Agency[] }>(`/api/patients/${id}/agencies`)
+      .then((res) => setSelectedAgencies(res.data.agencies || []))
+      .catch(() => {
+        // Non-critical — the field just starts empty, still editable/savable.
+      });
+  }, [isIndependentPractitioner, id]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -87,6 +103,13 @@ export default function EditPatient() {
     setSubmitting(true);
     try {
       await api.put<{ message: string; data: Patient }>(`/api/patients/${id}`, form);
+      if (isIndependentPractitioner) {
+        try {
+          await api.put(`/api/patients/${id}/agencies`, { agencyIds: selectedAgencies.map((a) => a.id) });
+        } catch {
+          showToast("Child saved, but couldn't save their agencies. Please try again.", "error");
+        }
+      }
       await fetchPatients();
       navigate(`/patients/${id}`, { replace: true });
     } catch (err) {
@@ -149,6 +172,10 @@ export default function EditPatient() {
         >
           <Input type="email" value={form.parentEmail} onChange={(e) => setField("parentEmail", e.target.value)} />
         </Field>
+
+        {isIndependentPractitioner && (
+          <AgencyMultiSelect value={selectedAgencies} onChange={setSelectedAgencies} agencies={agencies} onAgencyCreated={fetchAgencies} />
+        )}
 
         <div className="pt-2">
           <Button type="submit" className="w-full" size="lg" loading={submitting}>

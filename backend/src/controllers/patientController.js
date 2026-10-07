@@ -353,16 +353,22 @@ const resubmitLog = async (req, res) => {
 const editLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
-  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category, custom_fields } = req.body;
+  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category, custom_fields, company_affiliation } = req.body;
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, patient_id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      'SELECT id, patient_id, billing_status, company_affiliation FROM assessments WHERE id = $1 AND practitioner_id = $2',
       [id, practitionerId]
     );
     const log = rows[0];
     if (!log) return res.status(404).json({ error: 'Log not found' });
-    if (log.billing_status !== 'pending') {
+    // 'self_certified' is an independent practitioner's own pre-billing
+    // equivalent of 'pending' — editable for the same reason: no SEVF/
+    // invoice has been generated for it yet (see docs on the independent-
+    // practitioner feature). Once generated (billing_status='completed')
+    // the documents already exist — see voidCompletedLog below for the
+    // only remaining action at that point.
+    if (!['pending', 'self_certified'].includes(log.billing_status)) {
       return res.status(400).json({ error: 'This log can no longer be edited.' });
     }
 
@@ -385,13 +391,20 @@ const editLog = async (req, res) => {
 
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
 
+    // company_affiliation is independent-practitioner-only and always NULL
+    // for a normal tenant log — only overwritten here when the caller
+    // actually sent a value, so this UPDATE is a no-op on that column for
+    // every other role (and preserves it unless the practitioner
+    // deliberately changes it, rather than silently wiping it every edit).
     await pool.query(
       `UPDATE assessments
        SET service_date = $1, type = $2, location = $3, start_time = $4, end_time = $5,
-           total_time = $6, status = $7, group_size_category = $8, form_data = $9
-       WHERE id = $10`,
+           total_time = $6, status = $7, group_size_category = $8, form_data = $9,
+           company_affiliation = $10
+       WHERE id = $11`,
       [service_date, type, location, start_time, end_time, total_time, status, group_size_category || null,
-       JSON.stringify({ custom_fields: sanitizedCustomFields }), id]
+       JSON.stringify({ custom_fields: sanitizedCustomFields }),
+       company_affiliation !== undefined ? company_affiliation : log.company_affiliation, id]
     );
     logAudit({ req, action: 'log_edit', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });
@@ -405,9 +418,13 @@ const editLog = async (req, res) => {
 };
 
 // Practitioner-initiated, permanent — only while a log hasn't entered the
-// billing pipeline (still 'pending') or has been sent back for revision
-// ('rejected'/Returned). Anything past that (njeis_review, invoiced,
-// declined, on_hold) is billing's record to keep, not the practitioner's to delete.
+// billing pipeline (still 'pending'), has been sent back for revision
+// ('rejected'/Returned), or — independent-practitioner-only — is still
+// 'self_certified' (no SEVF/invoice generated for it yet). Anything past
+// that (njeis_review, invoiced, declined, on_hold, or the independent-
+// practitioner's own 'completed') is billing's record to keep, not the
+// practitioner's to delete — see voidCompletedLog below for the only
+// remaining action on a 'completed' log.
 const deleteLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
@@ -418,7 +435,7 @@ const deleteLog = async (req, res) => {
     );
     const log = rows[0];
     if (!log) return res.status(404).json({ error: 'Log not found' });
-    if (!['pending', 'rejected'].includes(log.billing_status)) {
+    if (!['pending', 'rejected', 'self_certified'].includes(log.billing_status)) {
       return res.status(400).json({ error: 'This log can no longer be deleted.' });
     }
 
@@ -452,6 +469,237 @@ const deleteLog = async (req, res) => {
   }
 };
 
+// POST /api/patients/logs/:id/void — independent-practitioner-only. Once a
+// SEVF/invoice has already been generated for a log (billing_status=
+// 'completed'), it can no longer be edited or deleted (see editLog/
+// deleteLog above) — the documents already exist and, in the common case,
+// have already been emailed to the agency. This is the only remaining
+// correction available at that point: flips the log to billing_status=
+// 'voided', a terminal state excluded from this practitioner's own hour/
+// revenue totals going forward (treated as a $0 session), WITHOUT touching
+// the already-generated SEVF/invoice files or the billing_batches row they
+// belong to — those stay exactly as generated/sent. This is a forward-
+// looking correction, not a retroactive revert (see revertSelfCertifiedSEVF
+// in billingController.js for the separate, existing "undo the whole
+// batch" flow this does not replace or call).
+const voidCompletedLog = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, billing_status FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    const log = rows[0];
+    if (!log) return res.status(404).json({ error: 'Log not found' });
+    if (log.billing_status !== 'completed') {
+      return res.status(400).json({ error: 'Only a session with a generated SEVF can be rejected this way.' });
+    }
+
+    await pool.query("UPDATE assessments SET billing_status = 'voided' WHERE id = $1", [id]);
+    logAudit({ req, action: 'log_void', resourceType: 'assessment', resourceId: id });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error voiding log:', error);
+    res.status(500).json({ error: 'Failed to reject this session.' });
+  }
+};
+
+// GET /api/patients/logs/:id/notes — this practitioner's own notes/comment
+// thread on one of their own logs (assessment_notes). Mirrors
+// billingController.getLogNotes exactly (same query, same response shape)
+// but ownership-scoped to the calling practitioner instead of gated behind
+// the office-side 'billing_pending' permission — an independent
+// practitioner has no office billing permission system at all (see
+// billingRoutes.js's independentGuard comment), so that route 403s for
+// this role; this is the equivalent for a practitioner viewing their own
+// log's thread (e.g. a note they left themselves at log time).
+const getMyLogNotes = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows: owned } = await pool.query(
+      'SELECT id FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!owned[0]) return res.status(404).json({ error: 'Log not found' });
+
+    const { rows: notes } = await pool.query(
+      `SELECT n.author_role, n.note, n.created_at, p.first_name, p.last_name
+       FROM assessment_notes n
+       LEFT JOIN practitioners p ON p.id = n.author_id
+       WHERE n.assessment_id = $1
+       ORDER BY n.created_at ASC`,
+      [id]
+    );
+    res.json({ success: true, notes });
+  } catch (error) {
+    console.error('Error fetching log notes:', error);
+    res.status(500).json({ error: 'Failed to fetch log notes' });
+  }
+};
+
+// POST /api/patients/logs/:id/notes — add a new comment to one of this
+// practitioner's own logs. Ownership-scoped equivalent of
+// billingController.addLogComment, for the same reason getMyLogNotes
+// exists above (no office permission system for this role to gate
+// through). Appends only — an existing comment is never edited/deleted
+// in place, same as the office-side thread, so the thread stays an
+// honest, append-only record of what was said and when.
+const addMyLogComment = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  const { note } = req.body;
+  if (!note?.trim()) return res.status(400).json({ error: 'A comment is required.' });
+
+  try {
+    const { rows: owned } = await pool.query(
+      'SELECT id FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!owned[0]) return res.status(404).json({ error: 'Log not found' });
+
+    await pool.query(
+      `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
+       VALUES ($1, $2, $3, $4)`,
+      [id, practitionerId, req.practitioner.role, note.trim()]
+    );
+    logAudit({ req, action: 'log_comment_add', resourceType: 'assessment', resourceId: id });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding log comment:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+};
+
+// POST /api/patients/logs/:id/eims-entered — independent-practitioner-only.
+// Toggles assessments.eims_entered_at (see add_self_reported_eims_entry.sql
+// for why this is distinct from the unrelated eims_missing_approved_at
+// columns). Self-reported — the practitioner is telling the app "I logged
+// into EIMS and entered this myself," which this app has no way to verify,
+// same spirit as the EnterInEimsDialog copy-paste helper it's paired with.
+// Body: { entered: boolean } — true sets eims_entered_at = now(), false
+// clears it, so marking one by mistake can be undone from the same toggle.
+const setEimsEntered = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  const { entered } = req.body;
+  if (typeof entered !== 'boolean') {
+    return res.status(400).json({ error: 'entered (boolean) is required.' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assessments
+       SET eims_entered_at = CASE WHEN $1 THEN now() ELSE NULL END
+       WHERE id = $2 AND practitioner_id = $3
+       RETURNING eims_entered_at`,
+      [entered, id, practitionerId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Log not found' });
+
+    logAudit({
+      req,
+      action: entered ? 'log_eims_entered_set' : 'log_eims_entered_cleared',
+      resourceType: 'assessment',
+      resourceId: id,
+    });
+    res.json({ success: true, eims_entered_at: rows[0].eims_entered_at });
+  } catch (error) {
+    console.error('Error setting EIMS-entered status:', error);
+    res.status(500).json({ error: 'Failed to update EIMS-entered status' });
+  }
+};
+
+// POST /api/patients/logs/:id/hide-from-history — independent-practitioner-
+// only. Lets the practitioner hide a 'voided' (self-rejected) session from
+// their own Session History list (see add_hidden_from_history.sql for why
+// this is a display preference, not a delete — the row and everything on
+// it, notes/eims_entered_at/etc., stay exactly as they are). Only ever
+// allowed on a 'voided' log — a session still in play (pending, self-
+// certified, completed) can't be hidden, since that would let a
+// practitioner make an active record disappear from their own history.
+// Body: { hidden: boolean } — toggleable back on.
+const setHiddenFromHistory = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  const { hidden } = req.body;
+  if (typeof hidden !== 'boolean') {
+    return res.status(400).json({ error: 'hidden (boolean) is required.' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assessments SET hidden_from_history = $1
+       WHERE id = $2 AND practitioner_id = $3 AND billing_status = 'voided'
+       RETURNING hidden_from_history`,
+      [hidden, id, practitionerId]
+    );
+    if (!rows[0]) {
+      return res.status(400).json({ error: 'Only a rejected session can be hidden from history.' });
+    }
+
+    logAudit({
+      req,
+      action: hidden ? 'log_hidden_from_history' : 'log_unhidden_from_history',
+      resourceType: 'assessment',
+      resourceId: id,
+    });
+    res.json({ success: true, hidden_from_history: rows[0].hidden_from_history });
+  } catch (error) {
+    console.error('Error setting hidden-from-history status:', error);
+    res.status(500).json({ error: 'Failed to update hidden-from-history status' });
+  }
+};
+
+// GET /api/patients/:id/last-session-defaults — the practitioner's own most
+// recent log for THIS specific child (status/type/location/group size/
+// agency), so Log Session can pre-fill fields that almost always repeat for
+// a given child (e.g. always seen at Home, individually, same service
+// status) instead of starting every field blank every time. Deliberately
+// scoped per-child, not a global "most common value across all my
+// patients" average — a practitioner's different children can legitimately
+// have very different usual service details. Ownership-scoped the same way
+// every other per-patient endpoint is (patient_practitioners join).
+const getLastSessionDefaults = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const { id } = req.params;
+  try {
+    const { rows: owned } = await pool.query(
+      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
+      [id, practitionerId]
+    );
+    if (!owned[0]) return res.status(404).json({ success: false, error: 'Patient not found.' });
+
+    const { rows } = await pool.query(
+      `SELECT status, type, location, group_size_category, company_affiliation, start_time, end_time
+       FROM assessments
+       WHERE patient_id = $1 AND practitioner_id = $2
+       ORDER BY service_date DESC, id DESC
+       LIMIT 1`,
+      [id, practitionerId]
+    );
+    const last = rows[0] || null;
+    res.json({
+      success: true,
+      defaults: last
+        ? {
+            status: last.status || null,
+            type: last.type || null,
+            location: last.location || null,
+            groupSizeCategory: last.group_size_category || null,
+            companyAffiliation: last.company_affiliation || null,
+            startTime: last.start_time || null,
+            endTime: last.end_time || null,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error('Error fetching last session defaults:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch last session defaults.' });
+  }
+};
+
 const getPractitionerStats = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
@@ -478,4 +726,4 @@ const getPractitionerStats = async (req, res) => {
   }
 };
 
-module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, getPractitionerStats };
+module.exports = { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered, setHiddenFromHistory };

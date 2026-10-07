@@ -26,6 +26,13 @@ const MIGRATIONS = [
   'add_realtime_messaging.sql',
   'add_platform_support_flag.sql',
   'widen_ssn_column_for_encryption.sql',
+  'add_independent_practitioner_support.sql',
+  'add_dropdown_option_is_seeded.sql',
+  'add_agencies.sql',
+  'add_voided_billing_status.sql',
+  'add_self_reported_eims_entry.sql',
+  'add_hidden_from_history.sql',
+  'add_practitioner_address_parts.sql',
 ];
 
 module.exports = { MIGRATIONS };

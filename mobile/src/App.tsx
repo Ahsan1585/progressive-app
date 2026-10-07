@@ -4,7 +4,7 @@ import { useSystemColorScheme } from "@/hooks/useSystemColorScheme";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppDataProvider } from "@/contexts/AppDataContext";
 import { ToastProvider } from "@/components/ui/toast";
-import { RequireAuth, RequireForcedChange, RequireGuest } from "@/routes/guards";
+import { RequireAuth, RequireForcedChange, RequireGuest, RequireOffice } from "@/routes/guards";
 import { IdleGate } from "@/components/shell/IdleGate";
 import { BaaGate } from "@/components/shell/BaaGate";
 import { ShellLayout } from "@/components/shell/ShellLayout";
@@ -21,6 +21,7 @@ import Home from "@/pages/shell/Home";
 import Roster from "@/pages/shell/Roster";
 import Inbox from "@/pages/shell/Inbox";
 import Messages from "@/pages/shell/Messages";
+import Billing from "@/pages/shell/Billing";
 import Profile from "@/pages/shell/Profile";
 
 import AddPatient from "@/pages/AddPatient";
@@ -34,6 +35,12 @@ import ChangePasswordVoluntary from "@/pages/ChangePasswordVoluntary";
 import ManageSignature from "@/pages/ManageSignature";
 import EditContactInfo from "@/pages/EditContactInfo";
 import MyInvoices from "@/pages/MyInvoices";
+import MySubscription from "@/pages/MySubscription";
+import GenerateSevf from "@/pages/GenerateSevf";
+import SevfHistory from "@/pages/SevfHistory";
+import EditWorkDetails from "@/pages/EditWorkDetails";
+import DropdownOptionsManager from "@/pages/DropdownOptionsManager";
+import ManageAgencies from "@/pages/ManageAgencies";
 
 // Single shared instance of the auth/data/idle providers for every
 // authenticated route (shell tabs and pushed views alike) — mounted once at
@@ -139,7 +146,8 @@ function App() {
                 <Route path="/home" element={<Home />} />
                 <Route path="/roster" element={<Roster />} />
                 <Route path="/inbox" element={<Inbox />} />
-                <Route path="/messages" element={<Messages />} />
+                <Route path="/messages" element={<RequireOffice><Messages /></RequireOffice>} />
+                <Route path="/billing" element={<Billing />} />
                 <Route path="/profile" element={<Profile />} />
 
                 {/* Pushed full-screen views */}
@@ -154,6 +162,12 @@ function App() {
                 <Route path="/profile/signature" element={<ManageSignature />} />
                 <Route path="/profile/contact-info" element={<EditContactInfo />} />
                 <Route path="/profile/invoices" element={<MyInvoices />} />
+                <Route path="/profile/subscription" element={<MySubscription />} />
+                <Route path="/generate-sevf" element={<GenerateSevf />} />
+                <Route path="/sevf-history" element={<SevfHistory />} />
+                <Route path="/profile/work-details" element={<EditWorkDetails />} />
+                <Route path="/profile/dropdown-options" element={<DropdownOptionsManager />} />
+                <Route path="/profile/agencies" element={<ManageAgencies />} />
               </Route>
             </Route>
 

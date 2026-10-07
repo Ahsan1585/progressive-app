@@ -43,6 +43,30 @@ export const localTodayIso = (): string => {
   return `${y}-${m}-${day}`;
 };
 
+// Current wall-clock time as "HH:MM" (24-hour, zero-padded) — matches
+// <input type="time">'s own value format exactly. Used by Log Session's
+// "Start now" quick action.
+export const localNowHHMM = (): string => {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+};
+
+// Adds `minutes` to a "HH:MM" start time, wrapping past midnight (24:00 ->
+// 00:00) the same way calculateTotalMinutes above already treats an
+// end-before-start pair as crossing midnight. Used by Log Session's
+// duration quick-pick (15/30/45/60 min) to compute endTime from startTime
+// without opening the native time picker a second time.
+export const addMinutesToTime = (startTime: string, minutes: number): string => {
+  const [h, m] = startTime.split(":").map((n) => parseInt(n, 10));
+  if (Number.isNaN(h) || Number.isNaN(m)) return startTime;
+  const total = (h * 60 + m + minutes + 24 * 60) % (24 * 60);
+  const endH = Math.floor(total / 60);
+  const endM = total % 60;
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+};
+
 // Coarse relative-time label (e.g. "2 hours ago", "3 days ago") — good
 // enough for "how stale is this draft", no need for a precise duration.
 // Shared by Home's draft list and PatientDetail's "Resume draft" list, since
@@ -56,4 +80,19 @@ export const timeAgo = (isoString: string): string => {
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
   const diffDays = Math.round(diffHours / 24);
   return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+};
+
+// Formats a decimal-hours figure (e.g. practitionerDashboardController.js's
+// hoursThisMonth — total_time minutes / 60) as actual hours and minutes
+// instead of a rounded decimal like "4.1" (which reads as "4 hours and a
+// tenth of an hour," not the real "4h 06m" a practitioner logged). Drops
+// the minutes part when it's a whole number of hours (e.g. "4h", not
+// "4h 0m"), and shows minutes alone under an hour (e.g. "45m").
+export const formatHoursMinutes = (decimalHours: number): string => {
+  const totalMinutes = Math.round(decimalHours * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${String(minutes).padStart(2, "0")}m`;
 };

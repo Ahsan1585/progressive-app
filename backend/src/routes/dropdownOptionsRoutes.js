@@ -7,6 +7,7 @@ const {
   createDropdownOption,
   updateDropdownOption,
   deactivateDropdownOption,
+  deleteDropdownOptionPermanently,
   reactivateDropdownOption,
 } = require('../controllers/dropdownOptionsController');
 const {
@@ -25,6 +26,7 @@ const writeGuard = [protect, loadPermissions, requirePermission('company_info_dr
 router.post('/', ...writeGuard, createDropdownOption);
 router.put('/:id', ...writeGuard, updateDropdownOption);
 router.delete('/:id', ...writeGuard, deactivateDropdownOption);
+router.delete('/:id/permanent', ...writeGuard, deleteDropdownOptionPermanently);
 router.put('/:id/reactivate', ...writeGuard, reactivateDropdownOption);
 
 // Category management — any authenticated role needs the category list to

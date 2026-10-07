@@ -2,6 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
@@ -16,6 +17,7 @@ import type { ApiErrorBody } from "@/types";
 export default function EditContactInfo() {
   const navigate = useNavigate();
   const { profile, fetchProfile } = useAppData();
+  const { isIndependentPractitioner } = useAuth();
   const { showToast } = useToast();
 
   const [address, setAddress] = React.useState("");
@@ -37,7 +39,7 @@ export default function EditContactInfo() {
     try {
       await api.patch("/api/practitioner/contact-info", { address, phone_number: phoneNumber });
       await fetchProfile();
-      showToast("Submitted — an admin will review your change shortly.");
+      showToast(isIndependentPractitioner ? "Contact information updated." : "Submitted — an admin will review your change shortly.");
       navigate("/profile", { replace: true });
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;

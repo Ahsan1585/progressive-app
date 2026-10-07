@@ -16,4 +16,10 @@ export const billingStatusConfig: Record<string, BillingStatusConfig> = {
   invoiced: { label: "Accepted", variant: "success" },
   rejected: { label: "Returned", variant: "warning" },
   declined: { label: "Declined", variant: "danger" },
+  // Independent-practitioner-only (see docs on the independent-practitioner
+  // feature) — this role has no office review queue, so these three
+  // replace pending/njeis_review/invoiced for their own logs.
+  self_certified: { label: "Ready to Generate", variant: "neutral" },
+  completed: { label: "SEVF Generated", variant: "success" },
+  voided: { label: "Rejected", variant: "danger" },
 };

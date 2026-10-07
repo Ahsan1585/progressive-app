@@ -1,7 +1,7 @@
 // Shapes mirror the existing backend's actual responses exactly
 // (backend/src/controllers/*.js, backend/index.js) — no invented fields.
 
-export type Role = "practitioner" | "ceo" | "billing" | "staff_director";
+export type Role = "practitioner" | "ceo" | "billing" | "staff_director" | "independent_practitioner";
 
 export interface AuthPractitioner {
   id: string;
@@ -32,6 +32,28 @@ export interface Patient {
   last_service_date?: string | null;
   parent_name?: string | null;
   parent_email?: string | null;
+  /** Independent-practitioner-only — superseded by the agency roster (see
+   *  GET /api/patients/:id/agencies) but kept for older records. Never
+   *  authoritative for SEVF grouping (each assessment's own
+   *  company_affiliation is). */
+  last_company_affiliation?: string | null;
+}
+
+// Independent-practitioner-only (see agencyController.js) — a practitioner-
+// owned agency they bill to. A patient's "roster" (GET/PUT
+// /api/patients/:id/agencies) is 0..N of these; a session log still picks
+// exactly one per log (assessments.company_affiliation stays a plain
+// string, matched by name — see resolveAgencyEmail on the backend).
+export interface Agency {
+  id: number;
+  name: string;
+  email: string | null;
+  phone?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Message {
@@ -67,6 +89,11 @@ export interface DropdownOption {
   label: string;
   sort_order: number;
   is_active: boolean;
+  /** True only for the original seeded/default rows (EV, AS, IFSP, ...) —
+   *  these can be deactivated but never permanently deleted. A
+   *  practitioner-added option has this false and can be hard-deleted via
+   *  DELETE /api/dropdown-options/:id/permanent once unused. */
+  is_seeded: boolean;
 }
 
 export interface DropdownOptionsByCategory {
@@ -96,12 +123,86 @@ export interface Invoice {
   paid_at: string | null;
 }
 
+// Independent-practitioner-only SEVF self-certification (see
+// GET/POST /api/billing/independent/* in billingController.js). A single
+// generate request can legitimately produce several separate SEVFs — one
+// per (patient, company affiliation, calendar month) group.
+export interface SelfCertifiedSevfGroup {
+  key: string;
+  patientId: number;
+  patientName: string;
+  companyAffiliation: string | null;
+  month: string; // 'YYYY-MM'
+  sessionCount: number;
+}
+
+// One individual eligible session, as returned alongside SelfCertifiedSevfGroup
+// by GET /api/billing/independent/pending — lets the mobile Generate SEVF
+// screen show a checkbox per session (plus "Select all") instead of only
+// ever generating every session matching the current filters.
+export interface SelfCertifiedSession {
+  id: number;
+  /** Same 3-part key SelfCertifiedSevfGroup.key uses — (patientId, companyAffiliation, month) — for grouping selected sessions client-side. */
+  groupKey: string;
+  patientId: number;
+  patientName: string;
+  companyAffiliation: string | null;
+  serviceDate: string;
+  totalTime: number | null;
+}
+
+export interface GeneratedSevfResult {
+  batchId: string;
+  patientId: number;
+  patientName: string;
+  companyAffiliation: string | null;
+  month: string;
+  downloadUrl: string | null;
+  /** Absent on a batch generated before invoices existed on this flow. */
+  invoiceDownloadUrl?: string | null;
+  /** Only present on GET /api/billing/independent/history rows, not on a
+   *  just-generated result from POST .../generate-sevf. */
+  generatedAt?: string;
+  /** Pre-fills "Email to Agency" — null when no saved Agency matches this
+   *  batch's companyAffiliation by name, or that agency has no email on
+   *  file (see resolveAgencyEmail in agencyController.js). */
+  agencyEmail?: string | null;
+}
+
+// GET /api/subscription/summary's shape for an independent practitioner's
+// account (computeFlatRatePeriodSummary) — a flat monthly price, not the
+// per-seat breakdown a tenant company's summary carries.
+export interface FlatSubscriptionSummary {
+  periodStart: string;
+  periodEnd: string;
+  nextBillingDate: string;
+  flatPrice: number;
+  totalAmount: number;
+}
+
+export interface SubscriptionPaymentMethod {
+  type: string;
+  brand: string | null;
+  last4: string | null;
+  exp: string | null;
+}
+
 export type BillingStatus =
   | "pending"
   | "njeis_review"
   | "invoiced"
   | "rejected"
-  | "declined";
+  | "declined"
+  /** Independent-practitioner-only equivalent of "pending" — see docs on
+   *  the independent-practitioner feature. */
+  | "self_certified"
+  /** Independent-practitioner-only — set the moment a SEVF/invoice is
+   *  generated for this log. */
+  | "completed"
+  /** Independent-practitioner-only — a "completed" log the practitioner
+   *  later flagged as a mistake via Reject. Excluded from hour/revenue
+   *  totals going forward; the already-generated SEVF/invoice is untouched. */
+  | "voided";
 
 export interface Assessment {
   id: string;
@@ -131,6 +232,20 @@ export interface Assessment {
   practitioner_signature?: string | null;
   acknowledged_at?: string | null;
   practitioner_response?: string | null;
+  /** Independent-practitioner-only — which agency this session is billed
+   *  to. Always null for a normal tenant practitioner's logs. */
+  company_affiliation?: string | null;
+  /** Independent-practitioner-only — set the moment the practitioner marks
+   *  this session as entered into the state EIMS portal themselves (see
+   *  add_self_reported_eims_entry.sql). Self-reported, not verified by this
+   *  app. Always null for a normal tenant practitioner's logs. */
+  eims_entered_at?: string | null;
+  /** Independent-practitioner-only — only ever settable on a 'voided'
+   *  (self-rejected) log (see setHiddenFromHistory). A display preference
+   *  only, never a delete — the row and everything on it stays exactly as
+   *  it is; this just excludes it from the default Session History list.
+   *  Always false for a normal tenant practitioner's logs. */
+  hidden_from_history?: boolean;
 }
 
 export interface RejectedLog {
@@ -153,6 +268,18 @@ export interface RejectedLog {
   parent_signature: string | null;
   billing_status: "rejected" | "declined";
   acknowledged_at: string | null;
+}
+
+// One entry in a log's comment thread — matches GET /api/patients/logs/:id/notes
+// (patientController.getMyLogNotes, mirroring billingController.getLogNotes's
+// own response shape exactly). first_name/last_name are null when the
+// authoring practitioner account has since been removed.
+export interface LogNote {
+  author_role: string;
+  note: string;
+  created_at: string;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 // A telepractice session awaiting (or having just received) the parent's
@@ -243,6 +370,14 @@ export interface PractitionerProfile {
   address?: string | null;
   phone_number?: string | null;
   service_types?: string[] | null;
+  /** Only populated for role='independent_practitioner' (see
+   *  GET /api/practitioner/profile) — a normal tenant practitioner's own
+   *  rate is office-set and deliberately excluded from this response. */
+  pay_rate?: number | null;
+  /** Independent-practitioner-only — company_settings.legal_entity_name
+   *  (see PATCH /api/practitioner/business-entity). null/"" means they
+   *  operate as an individual, not through a registered business entity. */
+  legal_entity_name?: string | null;
   saved_signature?: string | null;
   // Mapped by the backend from saved_signature for convenience.
   signature?: string | null;
@@ -260,6 +395,42 @@ export interface PractitionerStats {
   logsThisMonth: number;
   hoursThisMonth: number;
   pendingReviewCount: number;
+}
+
+// Independent-practitioner-only (see practitionerDashboardController.js) —
+// business-dashboard data for Home's dollar-value summary/trend.
+export interface PractitionerDashboardSummary {
+  sessionsSubmittedThisMonth: number;
+  hoursThisMonth: number;
+  invoicedThisMonth: number;
+  pendingValue: number;
+  /** null when last month had $0 invoiced — no meaningful baseline to show a % against. */
+  percentChangeVsLastMonth: number | null;
+}
+
+export interface MonthlyTrendPoint {
+  month: string; // 'YYYY-MM'
+  label: string; // e.g. "Jun"
+  hours: number;
+  invoicedValue: number;
+}
+
+export interface AgencyBreakdownEntry {
+  name: string;
+  hours: number;
+  invoicedValue: number;
+}
+
+// Independent-practitioner-only — all-time (not month-scoped) pending-SEVF
+// breakdown per agency, from GET /api/practitioner-dashboard/by-agency's
+// `pending` field. Same scope as PractitionerDashboardSummary.pendingValue
+// (every still-self_certified session, any service_date), kept as a
+// separate shape from AgencyBreakdownEntry so a pending dollar figure can
+// never be mistaken for money already invoiced.
+export interface AgencyPendingEntry {
+  name: string;
+  hours: number;
+  pendingValue: number;
 }
 
 export interface ApiErrorBody {

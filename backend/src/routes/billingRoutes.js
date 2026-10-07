@@ -6,6 +6,12 @@ const { protect, requireRole, loadPermissions, requirePermission } = require('..
 const {
   getPendingLogs,
   generateNJEISForms,
+  getSelfCertifiedPending,
+  generateSelfCertifiedSEVF,
+  emailSevfToAgency,
+  getKnownAffiliations,
+  getSelfCertifiedHistory,
+  revertSelfCertifiedSEVF,
   generateFinancialInvoice,
   completeBilling,
   getInvoiceHistory,
@@ -54,6 +60,18 @@ const invoiceStatusWriteGuard = [protect, loadPermissions, requirePermission('bi
 // not gated by the admin/billing-only guards above.
 router.get('/my-invoices',              protect, getMyInvoices);
 router.get('/my-invoices/:id/download', protect, getMyInvoiceDownloadUrl);
+
+// Independent-practitioner-only SEVF self-certification — no office review
+// exists for this role, so these bypass the pendingGuard/permission system
+// entirely and are gated purely by role (see docs on the independent-
+// practitioner feature).
+const independentGuard = [protect, loadPermissions, requireRole(['independent_practitioner'])];
+router.get('/independent/pending',        ...independentGuard, getSelfCertifiedPending);
+router.get('/independent/affiliations',   ...independentGuard, getKnownAffiliations);
+router.post('/independent/generate-sevf', ...independentGuard, generateSelfCertifiedSEVF);
+router.post('/independent/email-sevf',    ...independentGuard, emailSevfToAgency);
+router.get('/independent/history',        ...independentGuard, getSelfCertifiedHistory);
+router.post('/independent/revert-sevf',   ...independentGuard, revertSelfCertifiedSEVF);
 
 router.get('/pending-logs',      ...pendingGuard, getPendingLogs);
 router.get('/practitioner-logs', ...pendingGuard, getPractitionerLogs);

@@ -8,6 +8,12 @@
 // these same two colors.
 export const IZAYA_NAVY = '#132A3E';
 export const IZAYA_MINT = '#2FBF9F';
+// Independent-practitioner-only accent for the "ONE" badge appended to EIS
+// (see BrandWordmarkRow's isOne prop) — deliberately a third color, not
+// navy or mint, so it reads as a playful add-on rather than a redesign of
+// the core mark. Mirrors mobile/src/components/shell/BrandLockup.tsx's
+// IZAYA_ONE_CORAL — keep the two in sync if this ever changes.
+export const IZAYA_ONE_CORAL = '#FF6B5B';
 
 // The app's real logo — the IZAYA wordmark as paths (chevron, I, Z, two A's,
 // Y), unchanged from what the site used before. Renders crisply at any size
@@ -48,7 +54,10 @@ export function IzayaWordmark({ className }) {
 // responsive breakpoints, e.g. MarketingBrand's mk-eis-text below) instead
 // of the fixed `eisFontSize` px value — when given, fontSize is left off
 // the inline style so the class (and its media queries) actually wins.
-export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 23, eisClassName }) {
+// `isOne` appends a small coral "ONE" badge for the independent-practitioner
+// flow — only pass true where that role/context is actually certain (e.g.
+// the independent signup wizard), never on a page shared by every role.
+export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 23, eisClassName, isOne = false }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
       <IzayaWordmark className={wordmarkClassName} />
@@ -65,14 +74,33 @@ export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 23, eisClass
       >
         EIS
       </span>
+      {isOne && (
+        <span
+          style={{
+            fontFamily: "'Sora Variable', sans-serif",
+            fontWeight: 800,
+            fontSize: Math.round(eisFontSize * 0.5),
+            lineHeight: 1,
+            color: '#FFFFFF',
+            background: IZAYA_ONE_CORAL,
+            borderRadius: 999,
+            padding: '3px 7px',
+            letterSpacing: '0.03em',
+            transform: 'rotate(-4deg)',
+            marginLeft: 6,
+          }}
+        >
+          ONE
+        </span>
+      )}
     </span>
   );
 }
 
-export function MarketingBrand({ className }) {
+export function MarketingBrand({ className, isOne = false }) {
   return (
     <span className={className} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <BrandWordmarkRow wordmarkClassName="mk-nav-logo" eisClassName="mk-eis-text" />
+      <BrandWordmarkRow wordmarkClassName="mk-nav-logo" eisClassName="mk-eis-text" isOne={isOne} />
       <span className="mk-nav-slogan">Early Intervention Simplified</span>
     </span>
   );

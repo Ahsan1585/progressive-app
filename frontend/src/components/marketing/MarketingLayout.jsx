@@ -12,7 +12,7 @@ import { PageMeta } from './PageMeta';
 
 const MOBILE_BANNER_SEEN_KEY = 'izaya-mobile-install-banner-seen';
 
-export function MarketingLayout({ children }) {
+export function MarketingLayout({ children, isOne = false }) {
   const [showMobileInstallBanner, setShowMobileInstallBanner] = useState(() => {
     try {
       const isPhoneViewport = window.matchMedia('(max-width: 767px)').matches;
@@ -31,7 +31,7 @@ export function MarketingLayout({ children }) {
   return (
     <div className="mk-page">
       <PageMeta />
-      <MarketingNav />
+      <MarketingNav isOne={isOne} />
       <main>{children}</main>
       <MarketingFooter />
 

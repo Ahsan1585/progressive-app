@@ -40,7 +40,7 @@ const OptionRow = ({ option, onSaved, onDeleted }) => {
   };
 
   const handleDelete = async () => {
-    if (!(await showConfirm(`Remove "${option.label}"? It will no longer appear in the dropdown for new logs, but existing logs that used it will keep showing this name.`))) {
+    if (!(await showConfirm(`Remove "${option.label}"? It won't appear in the dropdown for new logs, but existing logs that used it will keep showing this name. This isn't permanent — you can bring it back anytime with Reactivate.`))) {
       return;
     }
     setIsDeleting(true);
@@ -66,6 +66,25 @@ const OptionRow = ({ option, onSaved, onDeleted }) => {
     }
   };
 
+  // Only ever offered for an already-deactivated, non-seeded (company-added)
+  // option — the backend separately refuses this for a seeded default or
+  // one still used on any existing log (see deleteDropdownOptionPermanently
+  // in dropdownOptionsController.js).
+  const handlePermanentDelete = async () => {
+    if (!(await showConfirm(`Delete "${option.label}" permanently? This can't be undone. Only possible if no existing log uses this code; if any do, you'll need to keep it deactivated instead.`))) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await api.delete(`/api/dropdown-options/${option.id}/permanent`);
+      onDeleted(option);
+    } catch (error) {
+      showAlert(error.response?.data?.error || 'Failed to permanently delete option.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <tr className={`border-t border-slate-200 ${option.is_active ? 'bg-white' : 'bg-slate-50 opacity-60'}`}>
       <td className="px-3 py-2">
@@ -87,14 +106,26 @@ const OptionRow = ({ option, onSaved, onDeleted }) => {
             <TrashIcon />
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={handleReactivate}
-            disabled={isSaving}
-            className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
-          >
-            Reactivate
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleReactivate}
+              disabled={isSaving}
+              className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
+            >
+              Reactivate
+            </button>
+            {!option.is_seeded && (
+              <button
+                type="button"
+                onClick={handlePermanentDelete}
+                disabled={isDeleting}
+                className="text-xs font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
+              >
+                Delete permanently
+              </button>
+            )}
+          </div>
         )}
       </td>
     </tr>

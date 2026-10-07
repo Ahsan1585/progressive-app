@@ -13,15 +13,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Picker } from "@/components/Picker";
+import { ChipPicker } from "@/components/ChipPicker";
+import { CompanyAffiliationField } from "@/components/CompanyAffiliationField";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TelepracticeSentDialog } from "@/components/TelepracticeSentDialog";
 import { ParentEmailPromptDialog } from "@/components/ParentEmailPromptDialog";
 import { DuplicateLogDialog } from "@/components/DuplicateLogDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
-import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
+import { calculateTotalMinutes, localTodayIso, localNowHHMM, addMinutesToTime } from "@/utils/time";
 import { cn } from "@/lib/utils";
-import type { ApiErrorBody, SessionDraft } from "@/types";
+import type { Agency, ApiErrorBody, SessionDraft } from "@/types";
 
 interface FormState {
   date: string;
@@ -33,6 +35,10 @@ interface FormState {
   groupSizeCategory: string;
   customFields: Record<string, string>;
   note: string;
+  /** Independent-practitioner-only — which agency this session is billed
+   *  to (see CompanyAffiliationField). Ignored/unused for a tenant
+   *  practitioner, whose form never renders this field. */
+  companyAffiliation: string;
 }
 
 const todayIso = localTodayIso;
@@ -53,11 +59,71 @@ export default function LogIntervention() {
   // no longer a single "the" draft to auto-resume.
   const draftId = searchParams.get("draftId");
   const navigate = useNavigate();
-  const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories } = useAppData();
-  const { practitioner } = useAuth();
+  const { patients, profile, setSavedSignature, serviceTypeOptions, statusOptions, locationOptions, groupSizeOptions, dropdownOptions, dropdownCategories, agencies, fetchAgencies } = useAppData();
+  const { practitioner, isIndependentPractitioner } = useAuth();
   const { showToast } = useToast();
 
   const patient = patients.find((p) => p.id === patientId);
+
+  // This patient's own roster of agencies (0..N) — shown as fast-tap chips
+  // on CompanyAffiliationField above the full agency list. See
+  // AddPatient.tsx/EditPatient.tsx for where the roster itself is set.
+  const [rosterAgencies, setRosterAgencies] = React.useState<Agency[]>([]);
+
+  React.useEffect(() => {
+    if (!isIndependentPractitioner || !patientId) return;
+    api
+      .get<{ success: boolean; agencies: Agency[] }>(`/api/patients/${patientId}/agencies`)
+      .then((res) => {
+        const roster = res.data.agencies || [];
+        setRosterAgencies(roster);
+        // Auto-pick when there's exactly one agency on this child's roster
+        // and the field hasn't been set some other way yet (resuming a
+        // draft, or a fresh/new-patient default already present) — a child
+        // billed to more than one agency still requires a deliberate choice.
+        if (roster.length === 1) {
+          setForm((f) => (f.companyAffiliation ? f : { ...f, companyAffiliation: roster[0].name }));
+        }
+      })
+      .catch(() => {
+        // Non-critical — the field just falls back to no pinned chips,
+        // still fully usable via the full agency list/"Add new agency".
+      });
+  }, [isIndependentPractitioner, patientId]);
+
+  // Pre-fills Status/Service Type/Location/Group Size from this same
+  // child's own most recent log (see patientController.js's
+  // getLastSessionDefaults) — a given child's usual service details repeat
+  // session to session far more often than they change, so starting every
+  // field blank every time is pure repeated tapping. Skipped entirely when
+  // resuming a saved draft (draftId set) — that draft's own saved values
+  // take priority and must never be silently overwritten by "last session"
+  // data once the draft-loading effect above runs.
+  React.useEffect(() => {
+    if (draftId || !patientId) return;
+    api
+      .get<{
+        success: boolean;
+        defaults: {
+          status: string | null; type: string | null; location: string | null;
+          groupSizeCategory: string | null; companyAffiliation: string | null;
+        } | null;
+      }>(`/api/patients/${patientId}/last-session-defaults`)
+      .then((res) => {
+        const d = res.data.defaults;
+        if (!d) return;
+        setForm((f) => ({
+          ...f,
+          status: f.status || d.status || f.status,
+          type: f.type || d.type || f.type,
+          location: f.location || d.location || f.location,
+          groupSizeCategory: f.groupSizeCategory || d.groupSizeCategory || f.groupSizeCategory,
+        }));
+      })
+      .catch(() => {
+        // Non-critical — every field just starts blank, same as before this existed.
+      });
+  }, [draftId, patientId]);
 
   const customCategories = React.useMemo(
     () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
@@ -80,6 +146,7 @@ export default function LogIntervention() {
     groupSizeCategory: "individual",
     customFields: {},
     note: "",
+    companyAffiliation: patient?.last_company_affiliation || "",
   });
   const [zeroTime, setZeroTime] = React.useState(false);
   const [isTelepractice, setIsTelepractice] = React.useState(false);
@@ -124,6 +191,7 @@ export default function LogIntervention() {
           groupSizeCategory: saved.groupSizeCategory ?? f.groupSizeCategory,
           customFields: saved.customFields ?? f.customFields,
           note: saved.note ?? f.note,
+          companyAffiliation: saved.companyAffiliation ?? f.companyAffiliation,
         }));
         if (saved.zeroTime) setZeroTime(true);
         if (draft.parentSignatureBase64) setParentSig(draft.parentSignatureBase64);
@@ -164,6 +232,7 @@ export default function LogIntervention() {
   if (!form.type) missing.push("service type");
   if (!form.status) missing.push("status");
   if (!form.location) missing.push("location");
+  if (isIndependentPractitioner && !form.companyAffiliation) missing.push("agency");
   if (isTelepractice) {
     if (!patient?.parent_email) missing.push("parent email on file");
   } else if (!parentSig) {
@@ -178,6 +247,33 @@ export default function LogIntervention() {
     setActiveSection(sectionId);
     sectionRefs.current[sectionId]?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  // Details + Codes are the fields almost every session needs filled in
+  // order; Notes is optional and Signatures is the only other hard
+  // requirement. Once both are complete, auto-advance straight to
+  // Signatures (skipping the optional Notes tap/scroll a practitioner would
+  // otherwise have to pass through every single time) — fires once per
+  // screen visit (hasAutoAdvanced guards against re-firing on every
+  // keystroke once already complete, and against overriding a section the
+  // practitioner deliberately navigated to themselves afterward).
+  const detailsAndCodesComplete =
+    !!form.date &&
+    (zeroTime || (!!form.startTime && !!form.endTime)) &&
+    !!form.type &&
+    !!form.status &&
+    !!form.location &&
+    (!isIndependentPractitioner || !!form.companyAffiliation) &&
+    customCategories.every((cat) => !cat.is_required_on_log || !!form.customFields[cat.key]);
+  const hasAutoAdvanced = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasAutoAdvanced.current) return;
+    if (detailsAndCodesComplete && activeSection === "codes") {
+      hasAutoAdvanced.current = true;
+      scrollToSection("signatures");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailsAndCodesComplete, activeSection]);
 
   const handleUseSavedSignature = () => {
     if (!profile?.signature) return;
@@ -204,7 +300,7 @@ export default function LogIntervention() {
     setAttemptedSubmit(true);
     setServerError(null);
     if (missing.length > 0) {
-      scrollToSection(!form.date || !form.startTime || !form.endTime ? "details" : !form.type || !form.status || !form.location ? "codes" : "signatures");
+      scrollToSection(!form.date || !form.startTime || !form.endTime ? "details" : !form.type || !form.status || !form.location || (isIndependentPractitioner && !form.companyAffiliation) ? "codes" : "signatures");
       return;
     }
 
@@ -237,6 +333,7 @@ export default function LogIntervention() {
         practitionerSignatureBase64: practitionerSig,
         custom_fields: form.customFields,
         note: form.note,
+        companyAffiliation: isIndependentPractitioner ? form.companyAffiliation : undefined,
       };
 
       if (isTelepractice) {
@@ -388,6 +485,31 @@ export default function LogIntervention() {
               <Input type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} disabled={zeroTime} required={!zeroTime} />
             </Field>
           </div>
+          {!zeroTime && (
+            <div className="flex flex-wrap gap-2">
+              {/* One tap instead of opening the native time picker — covers
+                  the common case of logging a session as it starts/ends.
+                  Still fully editable via the fields above either way. */}
+              <button
+                type="button"
+                onClick={() => setField("startTime", localNowHHMM())}
+                className="press-scale min-h-[36px] rounded-full border border-border-strong bg-surface px-3.5 text-xs font-semibold text-ink"
+              >
+                Start now
+              </button>
+              {[15, 30, 45, 60].map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  disabled={!form.startTime}
+                  onClick={() => setField("endTime", addMinutesToTime(form.startTime, mins))}
+                  className="press-scale min-h-[36px] rounded-full border border-border-strong bg-surface px-3.5 text-xs font-semibold text-ink disabled:opacity-40"
+                >
+                  {mins} min
+                </button>
+              ))}
+            </div>
+          )}
           <label className="flex items-center gap-2.5 text-[13px] font-medium text-ink-body">
             <input
               type="checkbox"
@@ -415,7 +537,7 @@ export default function LogIntervention() {
             onChange={(v) => setField("type", v)}
             error={attemptedSubmit && !form.type ? "Service type is required." : null}
           />
-          <Picker
+          <ChipPicker
             id="status"
             label="Status"
             value={form.status}
@@ -423,7 +545,7 @@ export default function LogIntervention() {
             onChange={(v) => setField("status", v)}
             error={attemptedSubmit && !form.status ? "Status is required." : null}
           />
-          <Picker
+          <ChipPicker
             id="location"
             label="Location"
             value={form.location}
@@ -431,13 +553,23 @@ export default function LogIntervention() {
             onChange={(v) => setField("location", v)}
             error={attemptedSubmit && !form.location ? "Location is required." : null}
           />
-          <Picker
+          <ChipPicker
             id="groupSizeCategory"
             label="Group size category"
             value={form.groupSizeCategory}
             options={groupSizeOptions}
             onChange={(v) => setField("groupSizeCategory", v)}
           />
+          {isIndependentPractitioner && (
+            <CompanyAffiliationField
+              value={form.companyAffiliation}
+              onChange={(v) => setField("companyAffiliation", v)}
+              agencies={agencies}
+              rosterAgencies={rosterAgencies}
+              onAgencyCreated={fetchAgencies}
+              error={attemptedSubmit && !form.companyAffiliation ? "An agency is required." : null}
+            />
+          )}
           {customCategories.map((cat) => {
             const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
             return (
