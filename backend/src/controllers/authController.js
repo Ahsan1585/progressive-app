@@ -562,7 +562,13 @@ const updateStaffProfile = async (req, res) => {
     const target = targetRows[0];
     if (!target) return res.status(404).json({ error: 'Staff member not found.' });
 
-    if (!req.isAdmin && !req.permissions.has('staff_directory_edit_role') && target.role !== 'practitioner') {
+    // An independent practitioner editing their OWN row (route-level gate
+    // is requireStaffEditOrSelf, see authRoutes.js) has no staff_directory_edit
+    // permission — their own role is 'independent_practitioner', not
+    // 'practitioner', so the generic self-service-practitioner check below
+    // would otherwise wrongly 403 them out of editing themselves.
+    const isSelfEdit = String(id) === String(req.practitioner.practitionerId);
+    if (!isSelfEdit && !req.isAdmin && !req.permissions.has('staff_directory_edit_role') && target.role !== 'practitioner') {
       return res.status(403).json({ error: 'You can only edit Practitioner accounts.' });
     }
 

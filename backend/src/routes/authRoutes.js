@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-const { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requirePlatformSupportOnly } = require('../middleware/authMiddleware');
+const { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireStaffEditOrSelf, requirePlatformSupportOnly } = require('../middleware/authMiddleware');
 const { resolveTenantBySlug } = require('../middleware/tenantMiddleware');
 
 // Throttle login attempts to slow brute-force / credential-stuffing (HIPAA §164.308(a)(5))
@@ -99,7 +99,7 @@ router.get('/staff', protect, loadPermissions, requireAnyPermission('staff_direc
 
 // Edit a staff member's profile (staff_directory_edit; controller restricts
 // non-role-editors to Practitioner-role targets)
-router.patch('/staff/:id', protect, loadPermissions, requirePermission('staff_directory_edit'), updateStaffProfile);
+router.patch('/staff/:id', protect, loadPermissions, requireStaffEditOrSelf, updateStaffProfile);
 
 // Change a staff member's role (staff_directory_edit_role) — practitioners
 // don't have a role_id to change, so this one stays single-permission.

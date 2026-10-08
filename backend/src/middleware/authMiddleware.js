@@ -117,15 +117,25 @@ const loadPermissions = (req, res, next) => {
     req.permissions = new Set();
     return next();
   }
-  // An independent practitioner is CEO of their own single-seat company —
-  // full admin access (self-service dropdown/vocabulary config, own
-  // profile edits, billing) with no office-staff roles ever created to
-  // delegate to, so this mirrors the 'ceo' branch exactly rather than
-  // joining through roles/role_permissions (which assumes a multi-seat
-  // tenant's own roles table has meaningful rows to join against).
+  // An independent practitioner is CEO of their own single-seat company,
+  // but — unlike a real tenant 'ceo' — has no office staff, no other
+  // practitioners, and no company to run audits/reports/compliance docs
+  // for. Granting req.isAdmin = true here (as a prior version of this code
+  // did) was a real bug: requirePermission/requireAnyPermission both
+  // short-circuit on isAdmin, so it silently passed every tenant-admin-only
+  // check too — Staff Directory, Master Reports/audit exports, compliance
+  // docs, audit logs, and the office billing-review tabs (Pending/Completed
+  // Bills) — none of which apply to or should be reachable by this role.
+  // Their own real workflows (self-certified SEVF generation, etc.) are
+  // already gated separately via requireRole(['independent_practitioner'])
+  // (see billingRoutes.js's independentGuard), not through this permission
+  // system at all. Only the two permission keys this role's own UI actually
+  // calls through requirePermission — self-service dropdown/vocabulary
+  // config, and their own subscription/billing/payment-method management —
+  // are granted here, explicitly, rather than via a blanket admin bypass.
   if (req.practitioner.role === 'independent_practitioner') {
-    req.isAdmin = true;
-    req.permissions = new Set();
+    req.isAdmin = false;
+    req.permissions = new Set(['company_info_dropdown_options', 'subscription_billing']);
     return next();
   }
   if (req.practitioner.role === 'practitioner') {
@@ -170,6 +180,21 @@ const requireAnyPermission = (...keys) => (req, res, next) => {
   return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
 };
 
+// PATCH /api/auth/staff/:id needs to stay reachable by an independent
+// practitioner editing their OWN row (EditWorkDetails.tsx, mobile) even
+// though they no longer hold staff_directory_edit (see loadPermissions'
+// independent_practitioner branch above — that permission is deliberately
+// NOT granted to this role, since it would also let them edit any OTHER
+// practitioner's profile). Self-edit is still safe without that permission
+// because updateStaffProfile only ever lets a non-admin caller touch
+// Practitioner-role targets, and here the "target" IS the caller.
+const requireStaffEditOrSelf = (req, res, next) => {
+  if (String(req.params.id) === String(req.practitioner?.practitionerId)) {
+    return next();
+  }
+  return requirePermission('staff_directory_edit')(req, res, next);
+};
+
 const requireOfficeStaff = (req, res, next) => {
   // An independent practitioner has no office staff — their single-seat
   // company has nobody to be "the office side" of anything office-staff-
@@ -203,4 +228,4 @@ const requireRole = (allowedRoles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireOfficeStaff, requirePlatformSupportOnly };
+module.exports = { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireStaffEditOrSelf, requireOfficeStaff, requirePlatformSupportOnly };
