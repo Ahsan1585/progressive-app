@@ -14,8 +14,14 @@ import type { LoginResponse, ApiErrorBody } from "@/types";
 // No company registered with Izaya yet? Independent practitioners sign up
 // on the web (the marketing site + signup wizard live in frontend/, not
 // this app) — same cross-app link pattern as Billing.tsx's "Manage payment
-// method" link.
+// method" link. On the shared app, this links to the /practitioners pitch
+// page first (the visitor may not know what this is yet); on the
+// separately-deployed Izaya One build, every visitor already IS an
+// independent practitioner by definition, so it skips straight to the
+// signup wizard instead of showing them their own app's own marketing
+// pitch for itself.
 const WEB_URL = (import.meta.env.VITE_FRONTEND_URL as string | undefined) || "https://izayaedge.com/eis";
+const SIGNUP_PATH = import.meta.env.VITE_APP_BRAND === "one" ? "/signup/independent" : "/practitioners";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -207,7 +213,7 @@ export default function Login() {
 
         <p className="text-center text-sm text-ink-muted">
           No company code?{" "}
-          <a href={`${WEB_URL}/practitioners`} className="font-medium text-primary">
+          <a href={`${WEB_URL}${SIGNUP_PATH}`} className="font-medium text-primary">
             Sign up as an independent practitioner
           </a>
         </p>
