@@ -9,6 +9,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173/eis';
 // copy, which gets a new hashed filename every deploy) — email clients
 // cache/reference image URLs long-term, so this one needs to never move.
 const LOGO_URL = `${FRONTEND_URL}/email-logo.png`;
+// Same stable-path convention, for the separately-branded "Izaya One"
+// confirmation email (sendIndependentSignupConfirmationEmail) — the
+// independent-practitioner-only app's own wordmark + coral "ONE" badge,
+// not the shared mark every other transactional email uses.
+const IZAYA_ONE_LOGO_URL = `${FRONTEND_URL}/email-logo-one.png`;
 // Step-guide icons for sendParentSignatureRequestEmail's "what happens
 // next" row — same stable-path convention as LOGO_URL.
 const STEP_ICON_REVIEW_URL = `${FRONTEND_URL}/email-icon-review.png`;
@@ -87,7 +92,7 @@ function linkFallback(url) {
 // and a minimal footer. Plain tables + inline styles throughout (no flexbox/
 // grid, no custom web fonts, no gradients) so it renders consistently across
 // Gmail, Apple Mail, and Outlook desktop alike.
-function emailShell({ preheader, eyebrow, heading, bodyHtml, footnote }) {
+function emailShell({ preheader, eyebrow, heading, bodyHtml, footnote, logoUrl = LOGO_URL }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -114,7 +119,7 @@ function emailShell({ preheader, eyebrow, heading, bodyHtml, footnote }) {
 <tr><td style="height:5px; line-height:5px; font-size:0; background-color:${COLORS.teal};" bgcolor="${COLORS.teal}">&nbsp;</td></tr>
 <tr>
 <td align="center" class="il-card-pad" style="padding:36px 40px 6px;">
-<img src="${LOGO_URL}" width="140" alt="Izaya" style="display:block; width:140px; max-width:100%; height:auto; margin-bottom:14px;" />
+<img src="${logoUrl}" width="140" alt="Izaya" style="display:block; width:140px; max-width:100%; height:auto; margin-bottom:14px;" />
 <div style="font-family:${SANS}; font-size:10.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:${COLORS.slate};">Early Intervention Simplified</div>
 </td>
 </tr>
@@ -238,16 +243,17 @@ const sendIndependentSignupConfirmationEmail = async (toEmail, { confirmUrl, pra
     return;
   }
   const bodyHtml = `
-    <p style="margin:0;">Thanks for signing up for Izaya EIS, <b style="color:${COLORS.navy};">${practitionerName}</b> — session logging, state matching, and SEVF generation, on your own account. Confirm your email to activate your account and start your 15-day free trial. No card required.</p>
+    <p style="margin:0;">Thanks for signing up for Izaya One, <b style="color:${COLORS.navy};">${practitionerName}</b> — session logging, state matching, and SEVF generation, on your own account. Confirm your email to activate your account and start your 15-day free trial. No card required.</p>
     ${ctaButton(confirmUrl, 'Confirm & Start My Trial')}
     ${linkFallback(confirmUrl)}
   `;
   const html = emailShell({
-    preheader: `One click and your 15-day trial begins — Izaya EIS for independent practitioners.`,
+    preheader: `One click and your 15-day trial begins — Izaya One for independent practitioners.`,
     eyebrow: 'Welcome to Izaya',
     heading: "You're one step from your trial",
     bodyHtml,
     footnote: "This link expires in 24 hours. If you didn't request this, you can safely ignore this email.",
+    logoUrl: IZAYA_ONE_LOGO_URL,
   });
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
