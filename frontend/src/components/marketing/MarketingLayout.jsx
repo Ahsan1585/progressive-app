@@ -5,7 +5,7 @@ import { useState } from 'react';
 import '@fontsource-variable/sora';
 import '@fontsource-variable/manrope';
 import '../../styles/marketing.css';
-import { MOBILE_APP_INSTALL_URL } from '../AuthLayout';
+import { MOBILE_APP_INSTALL_URL, IZAYA_ONE_INSTALL_URL } from '../AuthLayout';
 import { MarketingNav } from './MarketingNav';
 import { MarketingFooter } from './MarketingFooter';
 import { PageMeta } from './PageMeta';
@@ -45,7 +45,7 @@ export function MarketingLayout({ children, isOne = false }) {
             <div className="t2">Faster access, right from your home screen</div>
           </div>
           <a
-            href={MOBILE_APP_INSTALL_URL}
+            href={isOne ? IZAYA_ONE_INSTALL_URL : MOBILE_APP_INSTALL_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="mk-mobile-banner-cta"

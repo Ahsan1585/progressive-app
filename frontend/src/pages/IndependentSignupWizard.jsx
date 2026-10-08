@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, ChevronLeft, Download, Loader2, Lock, Plus, ShieldCheck, Smartphone, X } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { BrandLockup } from '@/components/BrandLockup';
-import { MOBILE_APP_INSTALL_URL } from '@/components/AuthLayout';
+import { IZAYA_ONE_INSTALL_URL } from '@/components/AuthLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -795,7 +795,7 @@ const IndependentSignupWizard = () => {
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <a
-                href={MOBILE_APP_INSTALL_URL}
+                href={IZAYA_ONE_INSTALL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-14 items-center justify-center gap-2.5 rounded-xl bg-[#132A3E] text-base font-semibold text-white transition-colors hover:brightness-110"
@@ -804,7 +804,7 @@ const IndependentSignupWizard = () => {
                 iPhone
               </a>
               <a
-                href={MOBILE_APP_INSTALL_URL}
+                href={IZAYA_ONE_INSTALL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-14 items-center justify-center gap-2.5 rounded-xl bg-[#132A3E] text-base font-semibold text-white transition-colors hover:brightness-110"

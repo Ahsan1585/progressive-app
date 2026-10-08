@@ -9,6 +9,16 @@ export const MOBILE_APP_URL = 'https://app.izayaedge.com/EIS/login';
 // card instead of burying it below the sign-in form.
 export const MOBILE_APP_INSTALL_URL = `${MOBILE_APP_URL}?install=1`;
 
+// Izaya One — the separately-deployed, coral-branded build of the exact
+// same mobile app (same codebase, same /EIS path, different Vercel
+// project/domain, see mobile/vite.config.ts's VITE_APP_BRAND) for
+// independent practitioners specifically. The independent-signup wizard
+// links here instead of MOBILE_APP_URL above, so a brand-new independent
+// practitioner installs "Izaya One" (their own icon/name on their home
+// screen), not the shared tenant-company practitioner app.
+export const IZAYA_ONE_URL = 'https://one.izayaedge.com/EIS/login';
+export const IZAYA_ONE_INSTALL_URL = `${IZAYA_ONE_URL}?install=1`;
+
 // Decorative hero banner (mobile layout only) — early-intervention motif
 // (sprout growth + a parent/child pair holding hands) on the Izaya
 // teal/sky/mint gradient. Purely illustrative; hidden from assistive tech.

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MarketingLayout } from '../../components/marketing/MarketingLayout';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
+import { IZAYA_ONE_INSTALL_URL } from '../../components/AuthLayout';
 
 const PHONE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M11 18h2" /></svg>;
 const FILE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>;
@@ -75,7 +76,7 @@ export default function Practitioners() {
                 Sign up, $30/month
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               </Link>
-              <Link to="/download" className="mk-btn-text">Download the practitioner app</Link>
+              <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="mk-btn-text">Download the Izaya One app</a>
             </div>
             <p className="mk-home-hero-note">15-day free trial. No card required to start.</p>
           </div>

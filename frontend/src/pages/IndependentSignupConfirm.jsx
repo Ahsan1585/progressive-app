@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import api from '@/api/axiosInstance';
-import { AuthLayout } from '@/components/AuthLayout';
+import { AuthLayout, IZAYA_ONE_INSTALL_URL } from '@/components/AuthLayout';
 
 // Independent-practitioner equivalent of SignupConfirm.jsx — same
 // deferred-provisioning shape (see independentSignupController.js's
@@ -39,9 +39,9 @@ const IndependentSignupConfirm = () => {
           <div className="bg-teal-50 border-l-4 border-teal-600 p-4 rounded-lg text-sm text-teal-800 font-medium text-left">
             Your account is set up and your 15-day free trial has started. Download the practitioner app to log in.
           </div>
-          <Link to="/download" className="inline-block font-semibold text-cyan-700 hover:underline">
-            Get the practitioner app
-          </Link>
+          <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="inline-block font-semibold text-cyan-700 hover:underline">
+            Get the Izaya One app
+          </a>
         </div>
       )}
 
