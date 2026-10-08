@@ -6,6 +6,7 @@
   "rewrites": [
     { "source": "/EIS/assets/:path*", "destination": "/assets/:path*" },
     { "source": "/EIS/icons/:path*", "destination": "/icons/:path*" },
+    { "source": "/EIS/icons-one/:path*", "destination": "/icons-one/:path*" },
     { "source": "/EIS/favicon.png", "destination": "/favicon.png" },
     { "source": "/EIS/sw.js", "destination": "/sw.js" },
     { "source": "/EIS/registerSW.js", "destination": "/registerSW.js" },
@@ -36,6 +37,12 @@
     },
     {
       "source": "/icons/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/icons-one/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]

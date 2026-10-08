@@ -2,20 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="%BASE_URL%favicon.png" />
+    <!-- The icon dir, name, theme color, and description below are plain
+         string substitution (Vite replaces any percent-wrapped VITE_ env
+         var in index.html with that var's build-time value) — see
+         vite.config.ts's BRAND_CONFIG for where these four get set per
+         build (shared "Izaya EIS" app vs. the separately-deployed "Izaya
+         One" app for independent practitioners). -->
+    <link rel="icon" type="image/png" href="%BASE_URL%%VITE_APP_ICON_DIR%/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
-    <meta name="theme-color" content="#2563eb" />
-    <meta name="description" content="Izaya EIS — practitioner field app for NJEIS encounter logging." />
+    <meta name="theme-color" content="%VITE_APP_THEME_COLOR%" />
+    <meta name="description" content="%VITE_APP_DESCRIPTION%" />
 
     <!-- iOS PWA (Safari has no beforeinstallprompt/manifest install flow — these
          tags make "Add to Home Screen" behave like a real standalone app). -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Izaya EIS" />
-    <link rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="%VITE_APP_NAME%" />
+    <link rel="apple-touch-icon" href="%BASE_URL%%VITE_APP_ICON_DIR%/apple-touch-icon.png" />
 
-    <title>Izaya EIS</title>
+    <title>%VITE_APP_NAME%</title>
   </head>
   <body>
     <div id="root"></div>
