@@ -142,8 +142,17 @@ const requestIndependentSignup = async (req, res) => {
     if (existingSlug[0]) return res.status(409).json({ error: 'This login code is already taken.' });
 
     const email = String(req.body.email).trim().toLowerCase();
+    // A pending_signups row whose confirm_token_expires has already passed
+    // is dead — its link no longer works and confirmIndependentSignup would
+    // refuse it anyway — so it must never block a fresh signup attempt with
+    // the same email. Previously this checked for ANY pending_signups row
+    // regardless of expiry, so an abandoned signup from months ago (never
+    // confirmed, token long expired) permanently locked that email out with
+    // no way to retry and no trace in Platform Admin (which only lists
+    // confirmed `companies` rows, not pending_signups).
     const { rows: existingByEmail } = await platformPool.query(
-      'SELECT 1 FROM pending_signups WHERE ceo_email = $1 UNION SELECT 1 FROM companies WHERE email = $1',
+      `SELECT 1 FROM pending_signups WHERE ceo_email = $1 AND confirm_token_expires > now()
+       UNION SELECT 1 FROM companies WHERE email = $1`,
       [email]
     );
     if (existingByEmail[0]) return res.status(409).json({ error: 'An account with this email already exists or is pending confirmation.' });
