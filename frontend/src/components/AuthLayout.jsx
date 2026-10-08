@@ -97,7 +97,7 @@ export function AuthLayout({ children, isOne = false }) {
         {/* Mobile: single combined install badge — flush width, fills the rest of the screen so no page background shows around it */}
         <div className="md:hidden flex flex-1 flex-col items-center justify-center gap-2.5 bg-slate-50 px-6 py-8">
           <a
-            href={MOBILE_APP_INSTALL_URL}
+            href={isOne ? IZAYA_ONE_INSTALL_URL : MOBILE_APP_INSTALL_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2.5 rounded-xl bg-[#132A3E] px-4.5 py-2.5 text-white transition-colors hover:brightness-110"
@@ -130,7 +130,7 @@ export function AuthLayout({ children, isOne = false }) {
 
         <div className="mt-4 flex items-center gap-3">
           <a
-            href={MOBILE_APP_INSTALL_URL}
+            href={isOne ? IZAYA_ONE_INSTALL_URL : MOBILE_APP_INSTALL_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/60 px-3 py-1.5 text-[11px] font-medium text-slate-600 backdrop-blur-sm transition-colors hover:border-cyan-600/40 hover:text-cyan-700"
@@ -139,7 +139,7 @@ export function AuthLayout({ children, isOne = false }) {
             Get it on Android
           </a>
           <a
-            href={MOBILE_APP_INSTALL_URL}
+            href={isOne ? IZAYA_ONE_INSTALL_URL : MOBILE_APP_INSTALL_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/60 px-3 py-1.5 text-[11px] font-medium text-slate-600 backdrop-blur-sm transition-colors hover:border-cyan-600/40 hover:text-cyan-700"
