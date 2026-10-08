@@ -7,6 +7,15 @@ const HOLD_MS = 3200;
 const DEPART_MS = 500;
 const REDUCED_MOTION_HOLD_MS = 600;
 
+// Mint everywhere below (leaf fill, chevron stroke, node pop, ambient glow)
+// swaps to coral on the separately-deployed Izaya One build — same
+// VITE_APP_BRAND flag driving BrandLockup.tsx's badge default and
+// vite.config.ts's manifest/icons, so the very first thing a user sees on
+// launch matches the rest of that build's identity.
+const IS_ONE = import.meta.env.VITE_APP_BRAND === "one";
+const ACCENT = IS_ONE ? "#FF6B5B" : "#2FBF9F";
+const ACCENT_RGB = IS_ONE ? "255,107,91" : "47,191,159";
+
 // Full-screen launch animation for the mobile hybrid app. Mounted once at
 // app start (not re-shown on ordinary in-session navigation) and sits above
 // the real route tree via a fixed overlay so the destination screen is
@@ -43,7 +52,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
           position:absolute;
           inset:0;
           background:
-            radial-gradient(120% 90% at 50% 110%, rgba(47,191,159,0.35), transparent 60%),
+            radial-gradient(120% 90% at 50% 110%, rgba(${ACCENT_RGB},0.35), transparent 60%),
             radial-gradient(140% 100% at 50% 120%, rgba(14,110,103,0.5), transparent 70%),
             linear-gradient(180deg, #0B1B2A 0%, #132A3E 100%);
           opacity:0;
@@ -57,7 +66,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
           width:340px; height:340px;
           transform:translate(-50%,-50%) scale(0.4);
           border-radius:50%;
-          background:radial-gradient(circle, rgba(244,251,247,0.28) 0%, rgba(47,191,159,0.14) 40%, transparent 70%);
+          background:radial-gradient(circle, rgba(244,251,247,0.28) 0%, rgba(${ACCENT_RGB},0.14) 40%, transparent 70%);
           opacity:0;
           animation: splashBloom 1.5s cubic-bezier(0.33,0,0.13,1) 0.4s forwards;
           animation-fill-mode:forwards;
@@ -78,7 +87,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
           stroke-dasharray:60; stroke-dashoffset:60;
           animation: splashDraw 0.55s cubic-bezier(0.33,0,0.13,1) 0.75s forwards;
         }
-        .splash-leaf{ fill:#2FBF9F; opacity:0; transform-origin:center bottom; transform:scale(0.4); }
+        .splash-leaf{ fill:${ACCENT}; opacity:0; transform-origin:center bottom; transform:scale(0.4); }
         .splash-leaf.l{ animation: splashUnfurl 0.45s cubic-bezier(0.33,0,0.13,1) 1.15s forwards; }
         .splash-leaf.r{ animation: splashUnfurl 0.45s cubic-bezier(0.33,0,0.13,1) 1.28s forwards; }
         @keyframes splashDraw{ to{ stroke-dashoffset:0; } }
@@ -88,7 +97,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
 
         .splash-logo{ width:min(300px, 78vw); height:auto; display:block; margin:0 auto; overflow:visible; }
         .splash-stroke-w{ stroke:#F4FBF7; fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
-        .splash-stroke-g{ stroke:#2FBF9F; fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
+        .splash-stroke-g{ stroke:${ACCENT}; fill:none; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
         .splash-letter{ opacity:0; transform:translateY(8px); animation: splashLetterIn 0.35s cubic-bezier(0.33,0,0.13,1) forwards; }
         .splash-letter:nth-of-type(1){ animation-delay:1.55s; }
         .splash-letter:nth-of-type(2){ animation-delay:1.62s; }
@@ -98,7 +107,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
         .splash-letter:nth-of-type(6){ animation-delay:1.9s; }
         @keyframes splashLetterIn{ to{ opacity:1; transform:translateY(0); } }
         .splash-node{
-          fill:#2FBF9F; opacity:0; transform-box:fill-box; transform-origin:center; transform:scale(0);
+          fill:${ACCENT}; opacity:0; transform-box:fill-box; transform-origin:center; transform:scale(0);
           animation: splashNodePop 0.25s cubic-bezier(0.34,1.5,0.5,1) forwards;
         }
         .splash-node.n1{ animation-delay:2.075s; }
@@ -109,7 +118,7 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
         .splash-tagline{
           margin-top:22px; font-size:15px; font-weight:700; letter-spacing:3px;
           text-transform:uppercase; color:#F4FBF7; opacity:0;
-          text-shadow:0 1px 12px rgba(47,191,159,0.55);
+          text-shadow:0 1px 12px rgba(${ACCENT_RGB},0.55);
           animation: splashWhisper 0.6s cubic-bezier(0.33,0,0.13,1) 2.45s forwards;
         }
         @keyframes splashWhisper{ to{ opacity:1; } }

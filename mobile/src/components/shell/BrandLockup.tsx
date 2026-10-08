@@ -42,20 +42,28 @@ const SIZES = {
   lg: { wordmarkClassName: "h-9 w-auto", eisFontSize: 24, taglineFontSize: 11, gap: 3 },
 } as const;
 
+// Build-time default — the separately-deployed "Izaya One" app (its own
+// Vercel project, one.izayaedge.com, VITE_APP_BRAND=one — see
+// vite.config.ts) is ENTIRELY independent-practitioner-only, so every
+// BrandLockup in that build shows the badge by default, including
+// pre-login screens (AuthLayout) where no per-user role is known yet.
+// The shared "Izaya EIS" app (VITE_APP_BRAND unset) still defaults to
+// false here, same as before.
+const DEFAULT_IS_ONE = import.meta.env.VITE_APP_BRAND === "one";
+
 export function BrandLockup({
   size = "sm",
   align = "flex-start",
   className = "",
-  isOne = false,
+  isOne = DEFAULT_IS_ONE,
 }: {
   size?: keyof typeof SIZES;
   align?: CSSProperties["alignItems"];
   className?: string;
-  // Independent-practitioner-only "IZAYAEIS ONE" variant — a small coral
-  // badge after "EIS", never a redesign of the core mark itself. Only pass
-  // true where the role is actually known (e.g. post-login via
-  // useAuth().isIndependentPractitioner) — never in pre-login shells like
-  // AuthLayout, which render before any role is known.
+  // Shows the small coral "ONE" badge after "EIS" — never a redesign of
+  // the core mark itself. Defaults to DEFAULT_IS_ONE (true on the Izaya
+  // One build, false on the shared app); pass explicitly to override, e.g.
+  // a per-user role check on the shared app's own post-login screens.
   isOne?: boolean;
 }) {
   const s = SIZES[size];
