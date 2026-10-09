@@ -101,7 +101,7 @@ export default function About() {
         <div className="mk-section-inner">
           <div className="mk-section-head mk-center">
             <div className="mk-eyebrow">Our story</div>
-            <h2>From an idea to a platform agencies and practitioners use every day</h2>
+            <h2>From an idea to a platform built for every day</h2>
           </div>
           <div className="mk-split-2" style={{ alignItems: 'center', marginTop: 8 }}>
             <div>
@@ -109,7 +109,7 @@ export default function About() {
                 Izaya Consulting LLC started with a simple goal: build better software for New Jersey's early intervention community, agencies and the practitioners who do the hands-on work with children and families.
               </p>
               <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-                That work became Izaya EIS, short for Izaya Early Intervention Simplified. We launched it in the <b style={{ color: 'var(--mk-navy)' }}>summer of 2025</b>. Since then, agencies and independent practitioners across New Jersey have used it to log sessions from the field, generate their state-required paperwork automatically, and manage billing in one place.
+                That work became Izaya EIS, short for Izaya Early Intervention Simplified. We launched it in the <b style={{ color: 'var(--mk-navy)' }}>summer of 2025</b>, built so agencies and independent practitioners across New Jersey can log sessions from the field, generate their state-required paperwork automatically, and manage billing in one place.
               </p>
               <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
                 Today, we support both registered early intervention agencies and independent practitioners managing their own caseload, each with a version of Izaya EIS built around how they actually work.
