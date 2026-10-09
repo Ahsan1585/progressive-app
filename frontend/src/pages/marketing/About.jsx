@@ -119,7 +119,7 @@ export default function About() {
               <div className="mk-card" style={{ border: '1px solid var(--mk-line)', borderRadius: 16, padding: 22, background: '#fff' }}>
                 <div className="mk-feature-icon">{ROCKET_ICON}</div>
                 <h3>Launched summer 2025</h3>
-                <p>Izaya EIS went live in the summer of 2025 and has been in active use by New Jersey early intervention agencies and practitioners since.</p>
+                <p>Izaya EIS went live in the summer of 2025 and is available for agencies and independent practitioners across New Jersey.</p>
               </div>
             </div>
           </div>
