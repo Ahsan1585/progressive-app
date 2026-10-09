@@ -11,14 +11,14 @@ const BUILDING_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const USER_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>;
 
 const WHAT_WE_DO = [
-  { icon: PHONE_ICON, title: 'Session logging in the field', body: 'Practitioners log a visit — client, service, date, start and end time — from their phone right after the session, with signatures captured on the spot.' },
-  { icon: SHIELD_ICON, title: 'Automatic validation', body: 'Every log is checked the moment it is submitted — required fields, service codes, signatures, time rules, and duplicates — before it ever reaches a billing queue.' },
-  { icon: FILE_ICON, title: 'SEVF and invoice generation', body: 'Approved logs produce New Jersey\'s state-required Service Verification Form and a matching invoice automatically, with units, rates, and totals calculated from the same source data.' },
+  { icon: PHONE_ICON, title: 'Session logging in the field', body: 'Practitioners log each visit right from their phone, right after the session: client, service, date, start and end time, with signatures captured on the spot.' },
+  { icon: SHIELD_ICON, title: 'Automatic validation', body: 'The moment a log is submitted, we check it for required fields, service codes, signatures, time rules, and duplicates, before it ever reaches a billing queue.' },
+  { icon: FILE_ICON, title: 'SEVF and invoice generation', body: 'Approved logs turn into New Jersey\'s state-required Service Verification Form and a matching invoice automatically, with units, rates, and totals calculated for you.' },
 ];
 
 const WHO_WE_SERVE = [
-  { icon: BUILDING_ICON, title: 'Early intervention agencies', body: 'Agencies managing a team of practitioners use Izaya EIS to run session logging, exception review, compliance, SEVF generation, and invoicing for their whole caseload in one platform.' },
-  { icon: USER_ICON, title: 'Independent practitioners', body: 'Practitioners who bill early intervention agencies directly, without a registered company of their own, use Izaya EIS to log their own sessions and generate their own SEVFs and invoices.' },
+  { icon: BUILDING_ICON, title: 'Early intervention agencies', body: 'If you manage a team of practitioners, Izaya EIS handles session logging, exception review, compliance, SEVF generation, and invoicing for your whole caseload in one place.' },
+  { icon: USER_ICON, title: 'Independent practitioners', body: 'If you bill early intervention agencies directly, without a company of your own, Izaya EIS lets you log your own sessions and generate your own SEVFs and invoices.' },
 ];
 
 export default function About() {
@@ -27,9 +27,9 @@ export default function About() {
       <section className="mk-hero-band">
         <div className="mk-hero-band-inner">
           <div className="mk-eyebrow">About Izaya EIS</div>
-          <h1>Built in New Jersey, for the people doing New Jersey's early intervention work</h1>
+          <h1>Built in New Jersey, for New Jersey's early intervention community</h1>
           <p className="mk-sub">
-            Izaya EIS is a startup based in Central New Jersey, building billing and compliance software for early intervention agencies and practitioners — the people doing the actual developmental therapy and service coordination work under New Jersey's Early Intervention System.
+            Izaya EIS is a startup based in Central New Jersey. We build billing and compliance software for early intervention agencies and the practitioners who work with them every day.
           </p>
         </div>
       </section>
@@ -43,19 +43,19 @@ export default function About() {
               Early intervention professionals do incredible work, but too much of their day is consumed by administrative tasks that keep them away from the children they serve. Between session logs, compliance checks, and billing, a frustrating amount of time is lost to manual, repetitive paperwork.
             </p>
             <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-              We built Izaya to help carry that administrative load. By automating background tasks like data validation, SEVF generation, and invoicing, our goal is simply to give agencies and practitioners their time back — so they can focus on what they do best.
+              We built Izaya to help carry that load. By automating data validation, SEVF generation, and invoicing, our goal is simple: give agencies and practitioners their time back, so they can focus on what they do best.
             </p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mk-card" style={{ border: '1px solid var(--mk-line)', borderRadius: 16, padding: 22 }}>
               <div className="mk-feature-icon">{TARGET_ICON}</div>
               <h3>Purpose-built for early intervention</h3>
-              <p>Not a generic practice-management tool adapted for the job — Izaya EIS is built specifically around New Jersey's Early Intervention System and the paperwork it requires.</p>
+              <p>Izaya EIS is built specifically for New Jersey's Early Intervention System and the paperwork it requires, not adapted from a generic practice-management tool.</p>
             </div>
             <div className="mk-card" style={{ border: '1px solid var(--mk-line)', borderRadius: 16, padding: 22 }}>
               <div className="mk-feature-icon">{MAP_PIN_ICON}</div>
               <h3>Based in Central New Jersey</h3>
-              <p>Izaya Consulting LLC is a New Jersey startup, built close to the agencies and practitioners we work with.</p>
+              <p>We're a New Jersey startup, built close to the agencies and practitioners we work with.</p>
             </div>
           </div>
         </div>
@@ -106,13 +106,13 @@ export default function About() {
           <div className="mk-split-2" style={{ alignItems: 'center', marginTop: 8 }}>
             <div>
               <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6 }}>
-                Izaya Consulting LLC set out to build better software for New Jersey's early intervention community: agencies managing teams of practitioners, and practitioners doing the direct, hands-on work with children and families.
+                Izaya Consulting LLC started with a simple goal: build better software for New Jersey's early intervention community, agencies and the practitioners who do the hands-on work with children and families.
               </p>
               <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-                That work became Izaya EIS — Izaya Early Intervention Simplified — which we launched in the <b style={{ color: 'var(--mk-navy)' }}>summer of 2025</b>. Since then, agencies and independent practitioners across New Jersey have used it to log sessions from the field, generate state-required paperwork automatically, and manage billing in one place.
+                That work became Izaya EIS, short for Izaya Early Intervention Simplified. We launched it in the <b style={{ color: 'var(--mk-navy)' }}>summer of 2025</b>. Since then, agencies and independent practitioners across New Jersey have used it to log sessions from the field, generate their state-required paperwork automatically, and manage billing in one place.
               </p>
               <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-                Today, Izaya EIS supports both registered early intervention agencies and independent practitioners who manage their own caseload directly, each with a version of the platform built around how they actually work.
+                Today, we support both registered early intervention agencies and independent practitioners managing their own caseload, each with a version of Izaya EIS built around how they actually work.
               </p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
