@@ -40,10 +40,10 @@ export default function About() {
             <div className="mk-eyebrow">Why we started</div>
             <h3>Too much of the work was paperwork, not practice</h3>
             <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 12 }}>
-              Early intervention agencies and practitioners spend a significant share of every day on administrative work that has nothing to do with the children they serve: session logs, service verification forms, compliance checks, and billing paperwork, most of it done by hand, re-typed between systems, or chased down after the fact.
+              Early intervention professionals do incredible work, but too much of their day is consumed by administrative tasks that keep them away from the children they serve. Between session logs, compliance checks, and billing, a frustrating amount of time is lost to manual, repetitive paperwork.
             </p>
             <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-              We started Izaya to take that overhead off agencies' and practitioners' plates. Our platform automates the parts of the workflow that don't need a person — validation, SEVF generation, invoicing — so the people doing early intervention work can spend more of their time on it, not around it.
+              We built Izaya to help carry that administrative load. By automating background tasks like data validation, SEVF generation, and invoicing, our goal is simply to give agencies and practitioners their time back — so they can focus on what they do best.
             </p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
