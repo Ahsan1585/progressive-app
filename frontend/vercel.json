@@ -23,6 +23,7 @@
     { "source": "/eis/how-it-works", "destination": "/how-it-works/index.html" },
     { "source": "/eis/download", "destination": "/download/index.html" },
     { "source": "/eis/contact", "destination": "/contact/index.html" },
+    { "source": "/eis/about", "destination": "/about/index.html" },
     { "source": "/(.*)", "destination": "/app.html" }
   ],
   "headers": [

@@ -15,6 +15,7 @@ export function MarketingFooter() {
           <h3>Explore</h3>
           <ul>
             <li><Link to="/how-it-works">How it works</Link></li>
+            <li><Link to="/about">About</Link></li>
             <li><Link to="/download">Practitioner app</Link></li>
             <li><Link to="/contact">Schedule a demo</Link></li>
           </ul>

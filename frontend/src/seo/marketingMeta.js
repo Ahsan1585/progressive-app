@@ -43,6 +43,42 @@ export const MARKETING_META = {
       'Talk to Izaya EIS about bringing automated billing, validation, and invoicing to your early intervention agency. Schedule a demo today.',
     path: '/eis/contact',
   },
+  '/about': {
+    title: 'About Us | Izaya EIS',
+    description:
+      'Izaya EIS is a Central New Jersey startup building billing and compliance software for early intervention agencies and practitioners. Launched summer 2025.',
+    path: '/eis/about',
+    // Organization structured data (JSON-LD) — read by Google and AI
+    // crawlers to answer "who/what/when" questions about the company
+    // directly (founding date, location, description) rather than
+    // inferring them from prose. Only this route defines jsonLd; every
+    // other entry's `jsonLd` is simply undefined and injectHead skips it.
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'Izaya Consulting LLC',
+      alternateName: 'Izaya EIS',
+      url: 'https://izayaedge.com',
+      logo: 'https://izayaedge.com/eis/email-logo.png',
+      description:
+        "Izaya EIS is a startup based in Central New Jersey that builds billing and compliance automation software for early intervention agencies and practitioners. The company launched its digital platform, Izaya EIS, in summer 2025.",
+      foundingDate: '2025',
+      foundingLocation: {
+        '@type': 'Place',
+        name: 'Central New Jersey, United States',
+      },
+      areaServed: {
+        '@type': 'State',
+        name: 'New Jersey',
+      },
+      knowsAbout: [
+        'Early intervention billing',
+        'NJEIS compliance',
+        'Service Verification Forms (SEVF)',
+        'Practitioner session logging',
+      ],
+    },
+  },
 };
 
 export function absoluteUrl(routePath) {

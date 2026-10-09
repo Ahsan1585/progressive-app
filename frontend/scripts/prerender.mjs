@@ -54,6 +54,7 @@ const { default: HowItWorks } = await vite.ssrLoadModule('/src/pages/marketing/H
 const { default: PractitionerApp } = await vite.ssrLoadModule('/src/pages/marketing/PractitionerApp.jsx');
 const { default: Contact } = await vite.ssrLoadModule('/src/pages/marketing/Contact.jsx');
 const { default: Practitioners } = await vite.ssrLoadModule('/src/pages/marketing/Practitioners.jsx');
+const { default: About } = await vite.ssrLoadModule('/src/pages/marketing/About.jsx');
 
 const ROUTES = [
   { routePath: '/', Component: Home, outDir: '' },
@@ -61,6 +62,7 @@ const ROUTES = [
   { routePath: '/download', Component: PractitionerApp, outDir: 'download' },
   { routePath: '/contact', Component: Contact, outDir: 'contact' },
   { routePath: '/practitioners', Component: Practitioners, outDir: 'practitioners' },
+  { routePath: '/about', Component: About, outDir: 'about' },
 ];
 
 function escapeHtml(str) {
@@ -73,6 +75,13 @@ function escapeHtml(str) {
 
 function injectHead(shellHtml, meta) {
   const canonical = `https://izayaedge.com${meta.path}`;
+  // JSON-LD structured data — optional per-route (see marketingMeta.js's
+  // `/about` entry for the only current example). JSON.stringify already
+  // escapes everything needed inside a <script> body; no HTML-escaping
+  // applies here the way it does to the plain-text meta tags above.
+  const jsonLdBlock = meta.jsonLd
+    ? `\n    <script type="application/ld+json">${JSON.stringify(meta.jsonLd)}</script>`
+    : '';
   const headExtras = `
     <title>${escapeHtml(meta.title)}</title>
     <meta name="description" content="${escapeHtml(meta.description)}" />
@@ -83,7 +92,7 @@ function injectHead(shellHtml, meta) {
     <meta property="og:url" content="${canonical}" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="${escapeHtml(meta.title)}" />
-    <meta name="twitter:description" content="${escapeHtml(meta.description)}" />`;
+    <meta name="twitter:description" content="${escapeHtml(meta.description)}" />${jsonLdBlock}`;
 
   // The built index.html already carries frontend/index.html's static
   // <title> and baseline <meta name="description"> (the fallback used if

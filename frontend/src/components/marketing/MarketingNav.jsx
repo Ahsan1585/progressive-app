@@ -4,6 +4,7 @@ import { MarketingBrand } from './IzayaMark';
 const NAV_LINKS = [
   { to: '/', label: 'Home', end: true },
   { to: '/how-it-works', label: 'How it works' },
+  { to: '/about', label: 'About' },
   { to: '/download', label: 'Practitioner app' },
   { to: '/contact', label: 'Contact' },
 ];

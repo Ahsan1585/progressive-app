@@ -7,6 +7,7 @@ import HowItWorks from './pages/marketing/HowItWorks';
 import PractitionerApp from './pages/marketing/PractitionerApp';
 import Practitioners from './pages/marketing/Practitioners';
 import Contact from './pages/marketing/Contact';
+import About from './pages/marketing/About';
 import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
@@ -124,6 +125,7 @@ const WEB_ROUTES = (
     <Route path="/practitioners" element={<Practitioners />} />
     <Route path="/download" element={<PractitionerApp />} />
     <Route path="/contact" element={<Contact />} />
+    <Route path="/about" element={<About />} />
     <Route path="/login" element={<Login />} />
     <Route path="/change-password" element={<ChangePassword />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
