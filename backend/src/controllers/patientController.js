@@ -353,11 +353,11 @@ const resubmitLog = async (req, res) => {
 const editLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
-  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category, custom_fields, company_affiliation } = req.body;
+  const { service_date, type, location, start_time, end_time, total_time, status, group_size_category, custom_fields, company_affiliation, session_notes } = req.body;
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, patient_id, billing_status, company_affiliation FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      'SELECT id, patient_id, billing_status, company_affiliation, session_notes FROM assessments WHERE id = $1 AND practitioner_id = $2',
       [id, practitionerId]
     );
     const log = rows[0];
@@ -400,11 +400,12 @@ const editLog = async (req, res) => {
       `UPDATE assessments
        SET service_date = $1, type = $2, location = $3, start_time = $4, end_time = $5,
            total_time = $6, status = $7, group_size_category = $8, form_data = $9,
-           company_affiliation = $10
-       WHERE id = $11`,
+           company_affiliation = $10, session_notes = $11
+       WHERE id = $12`,
       [service_date, type, location, start_time, end_time, total_time, status, group_size_category || null,
        JSON.stringify({ custom_fields: sanitizedCustomFields }),
-       company_affiliation !== undefined ? company_affiliation : log.company_affiliation, id]
+       company_affiliation !== undefined ? company_affiliation : log.company_affiliation,
+       session_notes !== undefined ? (session_notes?.trim() || null) : log.session_notes, id]
     );
     logAudit({ req, action: 'log_edit', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });

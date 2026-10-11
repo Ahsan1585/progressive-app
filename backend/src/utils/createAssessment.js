@@ -94,7 +94,7 @@ async function createAssessmentFromPayload({
   status, type, location, groupSizeCategory,
   parentSignatureBase64, practitionerSignatureBase64,
   sanitizedCustomFields,
-  note, authorId, authorRole,
+  note,
   // Independent-practitioner-only (see docs on the independent-practitioner
   // feature) — callers pass 'self_certified' explicitly for that role;
   // every other caller omits it and gets the table's real DEFAULT
@@ -109,8 +109,8 @@ async function createAssessmentFromPayload({
        (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
         practitioner_first_name, practitioner_last_name, practitioner_discipline,
         service_date, start_time, end_time, total_time, status, type, location, group_size_category,
-        parent_signature, practitioner_signature, form_data, billing_status, company_affiliation)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        parent_signature, practitioner_signature, form_data, billing_status, company_affiliation, session_notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
      RETURNING *`,
     [
       patientId, practitionerId, patient_first_name, patient_last_name, patient_dob, patient_county,
@@ -119,6 +119,7 @@ async function createAssessmentFromPayload({
       parentSignatureBase64, practitionerSignatureBase64,
       JSON.stringify({ custom_fields: sanitizedCustomFields || {} }),
       billingStatus || 'pending', companyAffiliation || null,
+      note && note.trim() ? note.trim() : null,
     ]
   );
 
@@ -130,16 +131,6 @@ async function createAssessmentFromPayload({
   // which always uses this assessment row's own company_affiliation).
   if (companyAffiliation) {
     await pool.query('UPDATE patients SET last_company_affiliation = $1 WHERE id = $2', [companyAffiliation, patientId]);
-  }
-
-  // Optional — surfaces in the same comment thread billing/admins already
-  // see in Session Detail (getLogNotes), rather than a new separate field.
-  if (note && note.trim()) {
-    await pool.query(
-      `INSERT INTO assessment_notes (assessment_id, author_id, author_role, note)
-       VALUES ($1, $2, $3, $4)`,
-      [assessment.id, authorId, authorRole, note.trim()]
-    );
   }
 
   // A real, submitted log supersedes any in-progress draft for this same

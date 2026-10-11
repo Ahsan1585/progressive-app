@@ -590,8 +590,8 @@ export default function LogIntervention() {
         </div>
 
         <div ref={(el) => { sectionRefs.current.notes = el; }} className="space-y-4">
-          <h2 className="text-[15px] font-semibold text-ink">Notes</h2>
-          <Field id="note" label="Notes" optional>
+          <h2 className="text-[15px] font-semibold text-ink">Session notes</h2>
+          <Field id="note" label="Session notes" optional>
             <Textarea
               placeholder="Add any context on this session..."
               value={form.note}

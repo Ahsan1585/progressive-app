@@ -34,6 +34,7 @@ const MIGRATIONS = [
   'add_hidden_from_history.sql',
   'add_practitioner_address_parts.sql',
   'add_referral_program.sql',
+  'add_assessment_provider_notes.sql',
 ];
 
 module.exports = { MIGRATIONS };

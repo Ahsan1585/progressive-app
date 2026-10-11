@@ -247,6 +247,10 @@ export interface Assessment {
   /** Independent-practitioner-only — which agency this session is billed
    *  to. Always null for a normal tenant practitioner's logs. */
   company_affiliation?: string | null;
+  /** The practitioner's own private note on what progress was made with the
+   *  child this session — fully separate from the billing-review notes
+   *  thread (GET /api/patients/logs/:id/notes), which is unrelated. */
+  session_notes?: string | null;
   /** Independent-practitioner-only — set the moment the practitioner marks
    *  this session as entered into the state EIMS portal themselves (see
    *  add_self_reported_eims_entry.sql). Self-reported, not verified by this
