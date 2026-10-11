@@ -77,12 +77,27 @@ function IdleLogout() {
 // React Router doesn't reset scroll position on navigation the way a
 // traditional multi-page site does — without this, clicking an in-app link
 // from partway down a page lands the new page scrolled to that same
-// mid-page offset instead of the top.
+// mid-page offset instead of the top. A link with a #hash (e.g. the
+// Practitioners nav's "How it works" anchor) is the one case that should
+// scroll to that section instead of the top — checked after the new
+// page's content has rendered, since the target element doesn't exist yet
+// on the same tick the route changes.
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   useEffect(() => {
+    if (hash) {
+      const id = hash.slice(1);
+      const scrollToHash = () => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else window.scrollTo(0, 0);
+      };
+      const raf = requestAnimationFrame(scrollToHash);
+      return () => cancelAnimationFrame(raf);
+    }
     window.scrollTo(0, 0);
-  }, [pathname]);
+    return undefined;
+  }, [pathname, hash]);
   return null;
 }
 

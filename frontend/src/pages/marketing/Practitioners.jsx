@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import QRCode from 'qrcode';
 import {
   Smartphone, FileCheck2, ShieldCheck, CalendarDays, Video, Users,
   ArrowRight, Check, ChevronDown,
@@ -7,6 +9,8 @@ import { MarketingLayout } from '../../components/marketing/MarketingLayout';
 import { PromoPriceBadge } from '../../components/marketing/PromoPriceBadge';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 import { IZAYA_ONE_INSTALL_URL } from '../../components/AuthLayout';
+
+const QR_HOST = new URL(IZAYA_ONE_INSTALL_URL).host;
 
 const SIGNUP_URL = '/signup/independent';
 
@@ -107,6 +111,32 @@ function FaqItem({ q, a }) {
       </summary>
       <p>{a}</p>
     </details>
+  );
+}
+
+function InstallQR() {
+  const canvasRef = useRef(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    QRCode.toCanvas(canvasRef.current, IZAYA_ONE_INSTALL_URL, {
+      width: 176,
+      margin: 1,
+      color: { dark: '#132A3E', light: '#ffffff' },
+    }).catch(() => setFailed(true));
+  }, []);
+
+  return (
+    <div className="lv-qr-tile">
+      <div className="lv-qr" aria-label={`QR code linking to ${QR_HOST}`}>
+        {failed ? (
+          <span className="lv-qr-fallback">Visit<br /><b>{QR_HOST}</b><br />on your phone</span>
+        ) : (
+          <canvas ref={canvasRef} width={176} height={176} />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -217,6 +247,23 @@ export default function Practitioners() {
                   <p>{f.body}</p>
                 </Reveal>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* DOWNLOAD / QR */}
+        <section className="lv-section lv-download" id="download">
+          <div className="lv-wrap lv-download-inner">
+            <InstallQR />
+            <div>
+              <h2 className="lv-section-title">Get Izaya One on your phone</h2>
+              <p className="lv-section-copy">
+                Scan the code with your phone's camera to open the install page, or tap the button below if you're already on the device you'll use for sessions.
+              </p>
+              <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="lv-btn lv-btn-outline-dark" style={{ marginTop: 18 }}>
+                Open the app
+                <ArrowRight size={18} />
+              </a>
             </div>
           </div>
         </section>

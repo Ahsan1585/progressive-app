@@ -494,6 +494,19 @@
 @media (max-width: 900px) { .lv-feature-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .lv-feature-grid { grid-template-columns: 1fr; } }
 
+/* download / QR */
+.lv-download { background: var(--lv-muted); }
+.lv-download-inner { display: grid; grid-template-columns: auto 1fr; gap: 44px; align-items: center; }
+.lv-download-inner .lv-section-copy { max-width: 420px; }
+.lv-qr-tile {
+  background: var(--lv-background); border: 1px solid var(--lv-border); border-radius: 18px;
+  padding: 18px; box-shadow: var(--lv-shadow-floating); width: fit-content;
+}
+.lv-qr { width: 176px; height: 176px; display: flex; align-items: center; justify-content: center; }
+.lv-qr canvas { border-radius: 6px; display: block; }
+.lv-qr-fallback { font-size: 13px; color: var(--lv-muted-foreground); text-align: center; line-height: 1.6; }
+@media (max-width: 700px) { .lv-download-inner { grid-template-columns: 1fr; justify-items: center; text-align: center; } .lv-download-inner .lv-section-copy { max-width: none; } }
+
 /* pricing band */
 .lv-pricing-band { background: var(--lv-hero); color: var(--lv-hero-foreground); padding: 80px 0; }
 .lv-pricing-inner { display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; }
