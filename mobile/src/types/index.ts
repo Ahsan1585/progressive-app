@@ -180,6 +180,18 @@ export interface FlatSubscriptionSummary {
   totalAmount: number;
 }
 
+export interface ReferralEntry {
+  referredDisplayName: string;
+  status: "invited" | "rewarded";
+  rewardedAt: string | null;
+}
+
+export interface ReferralSummary {
+  referralCode: string;
+  freeMonthsOwed: number;
+  referrals: ReferralEntry[];
+}
+
 export interface SubscriptionPaymentMethod {
   type: string;
   brand: string | null;

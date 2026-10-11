@@ -24,6 +24,7 @@ describe('getReferrals', () => {
 
     expect(res.json).toHaveBeenCalledWith({
       success: true,
+      referralCode: 'my-slug',
       freeMonthsOwed: 1,
       referrals: [
         { referredDisplayName: 'Jamie Smith', status: 'rewarded', rewardedAt: '2026-10-05T00:00:00Z' },

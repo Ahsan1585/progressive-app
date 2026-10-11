@@ -11,7 +11,7 @@ const getReferrals = async (req, res) => {
       'SELECT id FROM companies WHERE slug = $1', [req.practitioner.slug]
     );
     const companyId = companyRows[0]?.id;
-    if (!companyId) return res.json({ success: true, freeMonthsOwed: 0, referrals: [] });
+    if (!companyId) return res.json({ success: true, referralCode: req.practitioner.slug, freeMonthsOwed: 0, referrals: [] });
 
     const [{ rows: redemptions }, { rows: creditRows }] = await Promise.all([
       platformPool.query(
@@ -24,6 +24,7 @@ const getReferrals = async (req, res) => {
 
     res.json({
       success: true,
+      referralCode: req.practitioner.slug,
       freeMonthsOwed: Number(creditRows[0]?.free_months_owed || 0),
       referrals: redemptions.map((r) => ({
         referredDisplayName: r.referred_display_name,

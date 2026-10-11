@@ -36,6 +36,7 @@ import ManageSignature from "@/pages/ManageSignature";
 import EditContactInfo from "@/pages/EditContactInfo";
 import MyInvoices from "@/pages/MyInvoices";
 import MySubscription from "@/pages/MySubscription";
+import ReferralProgram from "@/pages/ReferralProgram";
 import GenerateSevf from "@/pages/GenerateSevf";
 import SevfHistory from "@/pages/SevfHistory";
 import EditWorkDetails from "@/pages/EditWorkDetails";
@@ -163,6 +164,7 @@ function App() {
                 <Route path="/profile/contact-info" element={<EditContactInfo />} />
                 <Route path="/profile/invoices" element={<MyInvoices />} />
                 <Route path="/profile/subscription" element={<MySubscription />} />
+                <Route path="/profile/referrals" element={<ReferralProgram />} />
                 <Route path="/generate-sevf" element={<GenerateSevf />} />
                 <Route path="/sevf-history" element={<SevfHistory />} />
                 <Route path="/profile/work-details" element={<EditWorkDetails />} />
