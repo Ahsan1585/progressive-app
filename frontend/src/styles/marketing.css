@@ -390,13 +390,14 @@
    /.mk-stat-* primitives (also used by About.jsx) keep their normal
    cooler/crisper tone everywhere else. */
 .mk-warm {
-  --mk-warm-sand: #FBF3E7; --mk-warm-sand-deep: #F3E6D2; --mk-warm-coral: #E8784F; --mk-warm-coral-deep: #C75E38; --mk-warm-line: #EADFC8;
+  --mk-warm-sand: #FBF3E7; --mk-warm-sand-deep: #F3E6D2; --mk-warm-coral: #C0272F; --mk-warm-coral-deep: #9A1F2B; --mk-warm-line: #EADFC8;
   --mk-warm-blue: #2E8FC7; --mk-warm-pink: #D6598A; --mk-warm-green: #3F9E6B; --mk-warm-violet: #6B4FB0; --mk-warm-amber: #DA9A2C;
+  --mk-warm-navy: #132A3E; --mk-warm-gold: #FFD23F;
 }
 
 .mk-warm-hero {
   position: relative; overflow: hidden;
-  background: radial-gradient(70% 70% at 88% 10%, rgba(232, 120, 79, 0.10), transparent 60%), linear-gradient(180deg, var(--mk-warm-sand) 0%, var(--mk-paper) 100%);
+  background: radial-gradient(70% 70% at 88% 10%, rgba(192, 39, 47, 0.08), transparent 60%), linear-gradient(180deg, var(--mk-warm-sand) 0%, var(--mk-paper) 100%);
   padding: 60px 48px 24px;
 }
 .mk-warm-blob { position: absolute; border-radius: 50%; filter: blur(2px); opacity: 0.5; pointer-events: none; }
@@ -422,7 +423,7 @@
   background: var(--mk-warm-coral); color: #fff; border: none; border-radius: 12px; padding: 14px 24px;
   font-size: 15.5px; font-weight: 600; font-family: 'Manrope Variable', sans-serif;
   text-decoration: none; cursor: pointer; transition: filter 0.18s ease, transform 0.1s ease;
-  box-shadow: 0 12px 26px -10px rgba(199, 94, 56, 0.5);
+  box-shadow: 0 12px 26px -10px rgba(154, 31, 43, 0.5);
 }
 .mk-warm-btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .mk-warm-hero-note { font-size: 14.5px; color: var(--mk-slate); }
@@ -492,9 +493,27 @@
   .mk-warm-trial-banner { flex-wrap: wrap; text-align: center; padding: 18px 20px; }
 }
 
+/* quick-facts strip: dense, scannable 6-up grid stating the concrete
+   deliverables immediately after the hero, before any narrative copy */
+.mk-warm-quickfacts {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
+}
+.mk-warm-quickfact {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+  background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 18px; padding: 16px 10px 14px;
+}
+.mk-warm-quickfact-icon {
+  width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--mk-badge-tint); flex-shrink: 0;
+}
+.mk-warm-quickfact-icon svg { width: 21px; height: 21px; color: var(--mk-badge-ink); stroke-width: 1.8; }
+.mk-warm-quickfact-label { font-size: 13px; font-weight: 700; color: var(--mk-navy); line-height: 1.25; }
+@media (max-width: 1020px) { .mk-warm-quickfacts { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .mk-warm-quickfacts { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
+
 /* day-in-the-life cards: softer radius, sand fill, rotating colored icon badges */
 .mk-warm .mk-feature-card { background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 22px; }
-.mk-warm .mk-feature-card:hover { box-shadow: 0 18px 36px -22px rgba(199, 94, 56, 0.18); }
+.mk-warm .mk-feature-card:hover { box-shadow: 0 18px 36px -22px rgba(154, 31, 43, 0.2); }
 .mk-warm .mk-feature-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mk-badge-tint); box-shadow: none; }
 .mk-warm .mk-feature-icon svg { color: var(--mk-badge-ink); stroke-width: 1.6; }
 

@@ -7,14 +7,24 @@ const HEART_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const PHONE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M11 18h2" /></svg>;
 const FILE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>;
 const CALENDAR_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>;
-const VIDEO_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" /></svg>;
-const MAIL_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></svg>;
 const SLIDERS_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h14M22 18h-2" /><circle cx="17" cy="6" r="2" /><circle cx="7" cy="12" r="2" /><circle cx="19" cy="18" r="2" /></svg>;
 const SHIELD_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5.5 3.4 9.7 8 11 4.6-1.3 8-5.5 8-11V5l-8-3Z" /><path d="m9 12 2 2 4-4" /></svg>;
 const SPARKLE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>;
 const UNDERLINE_SVG = <svg viewBox="0 0 200 14" preserveAspectRatio="none" fill="none"><path d="M2 10c30-8 140-8 196 1" stroke="currentColor" strokeWidth="5" strokeLinecap="round" /></svg>;
 const TRIAL_CALENDAR_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 15l2 2 4-4" /></svg>;
 const TRIAL_ARROW_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="mk-warm-trial-arrow"><path d="M5 12h14M13 5l7 7-7 7" /></svg>;
+const CHECK_CLOUD_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.4-9A5.5 5.5 0 0 1 17 8a4 4 0 0 1-.5 8H7Z" /><path d="m9.5 13 2 2 3.5-3.5" /></svg>;
+const SIGNATURE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17c2-1 3-3 3.5-5S7 8 8.5 8s1 3-.5 6 .5 3 2.5 1 3-4 4.5-4 .5 2 2 2 2-1 3.5-2" /><path d="M3 21h18" /></svg>;
+const NOTE_PEN_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="m9.5 15.5 5-5 1.5 1.5-5 5H9.5v-1.5Z" /></svg>;
+
+const QUICK_FACTS = [
+  { icon: PHONE_ICON, label: 'Just log the session' },
+  { icon: FILE_ICON, label: 'Own SEVF, built for you' },
+  { icon: CHECK_CLOUD_ICON, label: 'Own invoice, built for you' },
+  { icon: CALENDAR_ICON, label: 'Your schedule, in one place' },
+  { icon: SIGNATURE_ICON, label: 'Parent signatures on the phone' },
+  { icon: NOTE_PEN_ICON, label: 'Enter your own EIMS notes' },
+];
 
 const BADGE_COLORS = [
   { tint: '#E7F1F8', ink: 'var(--mk-warm-blue)' },
@@ -28,33 +38,33 @@ const BADGE_COLORS = [
 const DAY_IN_LIFE = [
   {
     icon: PHONE_ICON,
-    title: 'Log a visit right after the session',
-    body: "You're already on your phone, so use it. Jot down who you saw, what you worked on, and when, before you forget a single detail on the drive to your next family.",
+    title: 'Log the visit, that\'s it',
+    body: "Who you saw, what you worked on, how long it ran. Tap it in on your phone before you've even left the driveway. Nothing else to remember.",
   },
   {
     icon: FILE_ICON,
-    title: 'Your paperwork, done for you',
-    body: 'That state form every agency needs? It builds itself from the visits you already logged. No extra form to fill out, no second copy to keep track of.',
+    title: 'Your SEVF, built automatically',
+    body: 'The state form every agency needs gets generated straight from the visit you just logged. No blank form, no copying numbers over by hand.',
+  },
+  {
+    icon: CHECK_CLOUD_ICON,
+    title: 'Your invoice, done the same way',
+    body: 'Hours and rates calculated for you, separated out by agency so each one gets exactly what it needs. Print it, or send it straight over.',
   },
   {
     icon: CALENDAR_ICON,
-    title: 'See your whole week at a glance',
-    body: "All your families, all in one calendar. Izaya sends a gentle reminder so nobody's left waiting on you, and you're never left guessing who's next.",
+    title: 'Every family, one schedule',
+    body: "All your visits in a single calendar, with a reminder before each one so nobody's left waiting and you're never guessing who's next.",
   },
   {
-    icon: VIDEO_ICON,
-    title: 'Meet by video when a visit calls for it',
-    body: "Some sessions work better over a screen. When they do, it's built right in, and a parent can sign off from their own phone after.",
-  },
-  {
-    icon: MAIL_ICON,
-    title: 'Send your paperwork with one tap',
-    body: "Once it's ready, send it straight to the agency you did the work for. No printer, no envelope, no trip to the mailbox.",
+    icon: SIGNATURE_ICON,
+    title: 'Parent signatures, right on your phone',
+    body: "No more carrying paper for a signature. Meet by video when that's easier, and get the sign-off from a parent's own phone after.",
   },
   {
     icon: SLIDERS_ICON,
-    title: 'Set it up the way you actually work',
-    body: 'Add the services you provide and the agencies you work with, in your own words. It only ever shows you what applies to you.',
+    title: 'Your own services, your own agencies',
+    body: 'Set up the vocabulary you actually use, once. From then on, it only ever shows you the services and agencies that apply to you.',
   },
 ];
 
@@ -105,6 +115,24 @@ export default function Practitioners() {
               <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="mk-btn-text">Download the Izaya One app</a>
             </div>
             <p className="mk-warm-hero-note">Free for 30 days. No card required to start.</p>
+          </div>
+        </section>
+
+        {/* QUICK FACTS: what you actually get, scannable in one glance */}
+        <section className="mk-section" style={{ paddingTop: 0 }}>
+          <div className="mk-section-inner">
+            <Reveal className="mk-warm-quickfacts">
+              {QUICK_FACTS.map((f, i) => (
+                <div
+                  className="mk-warm-quickfact"
+                  style={{ '--mk-badge-tint': BADGE_COLORS[i].tint, '--mk-badge-ink': BADGE_COLORS[i].ink }}
+                  key={f.label}
+                >
+                  <div className="mk-warm-quickfact-icon">{f.icon}</div>
+                  <div className="mk-warm-quickfact-label">{f.label}</div>
+                </div>
+              ))}
+            </Reveal>
           </div>
         </section>
 
