@@ -4,6 +4,7 @@ import {
   ArrowRight, Check, ChevronDown,
 } from 'lucide-react';
 import { MarketingLayout } from '../../components/marketing/MarketingLayout';
+import { PromoPriceBadge } from '../../components/marketing/PromoPriceBadge';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 import { IZAYA_ONE_INSTALL_URL } from '../../components/AuthLayout';
 
@@ -149,7 +150,7 @@ export default function Practitioners() {
               <span><Check size={13} />Everything included</span>
             </div>
             <div className="lv-hero-value">
-              <span className="lv-hero-price">$19.99<small>/ month</small></span>
+              <PromoPriceBadge className="lv-promo-badge" />
               <span className="lv-hero-price-caption">
                 After your trial.<br />Every feature. Every agency. One price.
               </span>
