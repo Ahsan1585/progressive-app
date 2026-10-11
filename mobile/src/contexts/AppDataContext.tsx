@@ -1,7 +1,7 @@
 import * as React from "react";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Agency, DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession, SessionDraftSummary, TelepracticeSignatureRequest } from "@/types";
+import type { Agency, AppNotification, DropdownCategory, DropdownOption, DropdownOptionsByCategory, Patient, PractitionerProfile, PractitionerStats, RejectedLog, ScheduledSession, SessionDraftSummary, TelepracticeSignatureRequest } from "@/types";
 
 const EMPTY_DROPDOWN_OPTIONS: DropdownOptionsByCategory = { service_type: [], service_status: [], location: [], group_size: [] };
 
@@ -78,6 +78,14 @@ interface AppDataContextValue {
   agenciesLoading: boolean;
   fetchAgencies: () => Promise<void>;
 
+  // Independent-practitioner-only (see notificationController.js) — system
+  // notifications (referral earned, bill due soon, payment failed), surfaced
+  // as a third item type inside Inbox.tsx. Same fetch-once-here pattern as
+  // agencies above.
+  notifications: AppNotification[];
+  notificationsLoading: boolean;
+  fetchNotifications: () => Promise<void>;
+
   setSavedSignature: (base64: string | null) => void;
 }
 
@@ -123,6 +131,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const [agencies, setAgencies] = React.useState<Agency[]>([]);
   const [agenciesLoading, setAgenciesLoading] = React.useState(true);
+
+  const [notifications, setNotifications] = React.useState<AppNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = React.useState(true);
 
   const fetchPatients = React.useCallback(async () => {
     setPatientsLoading(true);
@@ -264,6 +275,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchNotifications = React.useCallback(async () => {
+    setNotificationsLoading(true);
+    try {
+      const res = await api.get<{ success: boolean; notifications: AppNotification[] }>("/api/notifications");
+      setNotifications(res.data.notifications || []);
+    } catch {
+      // Non-critical — the Inbox notification section just stays empty until retried.
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchPatients();
     fetchProfile();
@@ -279,7 +302,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     // (see agencyRoutes.js's requireRole guard), so skip the call entirely
     // rather than firing a request that can never succeed.
     if (isIndependentPractitioner) fetchAgencies();
-  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchTelepracticeRequests, fetchDrafts, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions, fetchAgencies, isIndependentPractitioner]);
+    if (isIndependentPractitioner) fetchNotifications();
+  }, [fetchPatients, fetchProfile, fetchRejectedLogs, fetchTelepracticeRequests, fetchDrafts, fetchStats, fetchUnreadMessageCount, fetchUpcomingSessions, fetchCompanyBranding, fetchDropdownOptions, fetchAgencies, fetchNotifications, isIndependentPractitioner]);
 
   // Keep Inbox live — a log billing just returned, or a parent just signing
   // a telepractice session, should appear without the practitioner having
@@ -352,6 +376,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       agencies,
       agenciesLoading,
       fetchAgencies,
+      notifications,
+      notificationsLoading,
+      fetchNotifications,
       setSavedSignature,
     }),
     [
@@ -399,6 +426,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       agencies,
       agenciesLoading,
       fetchAgencies,
+      notifications,
+      notificationsLoading,
+      fetchNotifications,
       setSavedSignature,
     ]
   );

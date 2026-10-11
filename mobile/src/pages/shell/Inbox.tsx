@@ -1,7 +1,9 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Inbox as InboxIcon, ChevronRight, PenLine } from "lucide-react";
+import { Inbox as InboxIcon, ChevronRight, PenLine, Bell } from "lucide-react";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/api/axiosInstance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
@@ -14,9 +16,11 @@ export default function Inbox() {
   const {
     rejectedLogs, rejectedLoading, rejectedError, fetchRejectedLogs,
     telepracticeRequests, telepracticeLoading, telepracticeError, fetchTelepracticeRequests,
+    notifications, notificationsLoading, fetchNotifications,
     serviceTypeMap,
     companyName,
   } = useAppData();
+  const { isIndependentPractitioner } = useAuth();
   const navigate = useNavigate();
   const [acknowledging, setAcknowledging] = React.useState<RejectedLog | null>(null);
 
@@ -25,17 +29,23 @@ export default function Inbox() {
     [telepracticeRequests]
   );
 
+  const unreadNotifications = React.useMemo(
+    () => (isIndependentPractitioner ? notifications.filter((n) => !n.read_at) : []),
+    [isIndependentPractitioner, notifications]
+  );
+
   // Refetch every time the practitioner lands on Inbox (route components
   // fully remount on navigation) — replaces the native pull-to-refresh
   // gesture disabled by the page-pinning bounce fix.
   React.useEffect(() => {
     fetchRejectedLogs();
     fetchTelepracticeRequests();
-  }, [fetchRejectedLogs, fetchTelepracticeRequests]);
+    if (isIndependentPractitioner) fetchNotifications();
+  }, [fetchRejectedLogs, fetchTelepracticeRequests, fetchNotifications, isIndependentPractitioner]);
 
-  const loading = rejectedLoading || telepracticeLoading;
+  const loading = rejectedLoading || telepracticeLoading || (isIndependentPractitioner && notificationsLoading);
   const error = rejectedError || telepracticeError;
-  const isEmpty = rejectedLogs.length === 0 && signedTelepracticeRequests.length === 0;
+  const isEmpty = rejectedLogs.length === 0 && signedTelepracticeRequests.length === 0 && unreadNotifications.length === 0;
 
   return (
     <div className="safe-top flex flex-1 flex-col">
@@ -61,10 +71,33 @@ export default function Inbox() {
         <EmptyState
           icon={InboxIcon}
           heading="You're all caught up"
-          subtext="No rejected/declined logs or signed telepractice sessions right now."
+          subtext={
+            isIndependentPractitioner
+              ? "No rejected/declined logs, signed telepractice sessions, or notifications right now."
+              : "No rejected/declined logs or signed telepractice sessions right now."
+          }
         />
       ) : (
         <ul role="list" aria-label="Items needing your attention" className="space-y-2">
+          {isIndependentPractitioner && unreadNotifications.map((n) => (
+            <li key={`notification-${n.id}`}>
+              <button
+                type="button"
+                onClick={async () => {
+                  await api.post(`/api/notifications/${n.id}/read`);
+                  fetchNotifications();
+                }}
+                className="press-scale flex w-full flex-col gap-1.5 rounded-card border border-border bg-surface p-3.5 text-left shadow-[var(--elev-rest)]"
+              >
+                <div className="flex items-center gap-2">
+                  <Bell className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  <p className="text-[15px] font-semibold text-ink">{n.title}</p>
+                </div>
+                <p className="text-xs text-ink-muted">{n.body}</p>
+                <span className="text-xs text-ink-faint">{formatSafeDate(n.created_at)}</span>
+              </button>
+            </li>
+          ))}
           {signedTelepracticeRequests.map((req) => (
             <li key={`telepractice-${req.id}`}>
               <button

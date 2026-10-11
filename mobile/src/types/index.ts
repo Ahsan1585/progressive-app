@@ -260,6 +260,15 @@ export interface Assessment {
   hidden_from_history?: boolean;
 }
 
+export interface AppNotification {
+  id: number;
+  type: "referral_first_month_free" | "referral_reward_earned" | "bill_due_soon" | "payment_failed";
+  title: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+
 export interface RejectedLog {
   id: string;
   patient_first_name: string;
