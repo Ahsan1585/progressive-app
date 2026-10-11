@@ -4,6 +4,7 @@ jest.mock('../../config/platformDb', () => ({ platformPool: { query: jest.fn() }
 const { platformPool } = require('../../config/platformDb');
 jest.mock('../../utils/emailClient', () => ({
   sendIndependentSignupConfirmationEmail: jest.fn(),
+  sendIndependentWelcomeEmail: jest.fn(),
   sendReferralFirstMonthFreeEmail: jest.fn(),
 }));
 
@@ -143,5 +144,29 @@ describe('confirmIndependentSignup referral resolution', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     const freeMonthsCall = tenantQueryMock.mock.calls.find((call) => call[0].includes('free_months_owed'));
     expect(freeMonthsCall).toBeUndefined();
+  });
+
+  it('sends the welcome email with the login code to every confirmed signup, referred or not', async () => {
+    const pending = basePending({ slug: 'jsmith', display_name: 'Jamie Smith', ceo_email: 'jamie@example.com' });
+    platformPool.query
+      .mockResolvedValueOnce({ rows: [pending] }) // lookup by token
+      .mockResolvedValueOnce({ rows: [] })         // existing company by slug check
+      .mockResolvedValueOnce({ rows: [] })         // INSERT INTO companies
+      .mockResolvedValueOnce({ rows: [] });         // DELETE FROM pending_signups
+
+    const { provisionTenantDatabase } = require('../../utils/tenantProvisioning');
+    const tenantQueryMock = jest.fn().mockResolvedValue({ rows: [] });
+    provisionTenantDatabase.mockResolvedValue({ tenantPool: { query: tenantQueryMock }, adminRoleId: 1 });
+
+    const { sendIndependentWelcomeEmail } = require('../../utils/emailClient');
+
+    const { req, res } = mockReqRes({});
+    req.params = { token: 'raw-token' };
+    await confirmIndependentSignup(req, res);
+
+    expect(sendIndependentWelcomeEmail).toHaveBeenCalledWith(
+      'jamie@example.com',
+      expect.objectContaining({ practitionerName: 'Jamie Smith', loginCode: 'jsmith' })
+    );
   });
 });

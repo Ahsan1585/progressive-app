@@ -23,8 +23,26 @@ function resolveTenantBySlug(req, res, next) {
   }
 
   lookupCompanyBySlug(slug)
-    .then((company) => {
+    .then(async (company) => {
       if (!company) {
+        // An independent-practitioner signup that hasn't confirmed their
+        // email yet has no `companies` row (only `pending_signups` —
+        // confirmIndependentSignup is what creates the real row), so this
+        // login code legitimately "doesn't exist" yet from this query's
+        // point of view. Rather than the generic 404, tell them the one
+        // thing that actually unblocks them: check their email. Scoped to
+        // account_type = 'independent' only — an unconfirmed TENANT-company
+        // signup keeps the existing generic message, since that flow's own
+        // UI/support path is different and this isn't the place to change it.
+        const { rows: pendingRows } = await platformPool.query(
+          `SELECT account_type FROM pending_signups WHERE slug = $1`,
+          [slug]
+        );
+        if (pendingRows[0]?.account_type === 'independent') {
+          return res.status(403).json({
+            error: 'Please confirm your email before logging in — check your inbox for the confirmation link we sent when you signed up.',
+          });
+        }
         return res.status(404).json({ error: 'Unknown company code' });
       }
       if (company.status === 'cancelled') {

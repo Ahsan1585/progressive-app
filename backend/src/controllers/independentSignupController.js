@@ -18,7 +18,7 @@ const { evictTenantPool } = require('../config/tenantPoolRegistry');
 const { provisionTenantDatabase } = require('../utils/tenantProvisioning');
 const { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup');
 const { isPasswordStrong } = require('../utils/passwordValidation');
-const { sendIndependentSignupConfirmationEmail, sendReferralFirstMonthFreeEmail } = require('../utils/emailClient');
+const { sendIndependentSignupConfirmationEmail, sendIndependentWelcomeEmail, sendReferralFirstMonthFreeEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
 const { INDEPENDENT_DISCIPLINE_CODES } = require('../constants/independentDisciplines');
 const { writeNotification } = require('../utils/notifications');
@@ -383,6 +383,21 @@ const confirmIndependentSignup = async (req, res) => {
       actorEmail: pending.ceo_email, actorRole: 'independent_practitioner', action: 'independent_practitioner_signup_confirmed',
       resourceType: 'company', resourceId: pending.slug, details: { slug: pending.slug, trialEndsAt },
     });
+
+    // Sent to everyone who confirms, referred or not — the one place their
+    // login code lives outside their own memory, so it goes out regardless
+    // of the referral-specific email below (which only fires conditionally
+    // and covers a different purpose entirely).
+    try {
+      const izayaOneUrl = process.env.IZAYA_ONE_URL || 'https://one.izayaedge.com/EIS';
+      await sendIndependentWelcomeEmail(pending.ceo_email, {
+        practitionerName: pending.display_name,
+        loginCode: pending.slug,
+        loginUrl: `${izayaOneUrl}/login`,
+      });
+    } catch (emailError) {
+      console.error('Failed to send independent-practitioner welcome email:', emailError);
+    }
 
     if (referrerCompanyId) {
       const { rows: referrerRows } = await platformPool.query('SELECT email, display_name FROM companies WHERE id = $1', [referrerCompanyId]);

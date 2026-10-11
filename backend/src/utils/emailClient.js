@@ -263,6 +263,48 @@ const sendIndependentSignupConfirmationEmail = async (toEmail, { confirmUrl, pra
   });
 };
 
+// Sent once provisioning actually succeeds (confirmIndependentSignup),
+// never at the request step above — this is the "your account is ready"
+// moment, distinct from "confirm your email." Carries the login code
+// (company_settings/companies.slug) front and center since it's the one
+// piece of account info a practitioner has no other record of; email and
+// password they chose themselves and are expected to remember, but the
+// login code is either self-picked in a rush or auto-suggested, so it's
+// the one detail worth putting somewhere they can always find again.
+const sendIndependentWelcomeEmail = async (toEmail, { practitionerName, loginCode, loginUrl }) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping independent-practitioner welcome email send.');
+    return;
+  }
+  const bodyHtml = `
+    <p style="margin:0;">Welcome to Izaya One, <b style="color:${COLORS.navy};">${practitionerName}</b> — your account is set up and your 15-day free trial has started. No card required.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;">
+      <tr>
+        <td align="center" bgcolor="${COLORS.paper}" style="border:1px solid ${COLORS.line}; border-radius:10px; padding:16px;">
+          <div style="font-family:${SANS}; font-size:11px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:${COLORS.slate}; margin-bottom:6px;">Your login code</div>
+          <div style="font-family:${SANS}; font-size:20px; font-weight:700; color:${COLORS.navy}; letter-spacing:0.5px;">${loginCode}</div>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0;">You'll need this login code along with your email and password every time you sign in — keep this email somewhere you can find it later.</p>
+    ${ctaButton(loginUrl, 'Log In to Izaya One')}
+  `;
+  const html = emailShell({
+    preheader: `Your account is ready — here's your login code.`,
+    eyebrow: 'Welcome to Izaya',
+    heading: "You're all set up",
+    bodyHtml,
+    footnote: "If you didn't create this account, please contact support@izayaedge.com.",
+    logoUrl: IZAYA_ONE_LOGO_URL,
+  });
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'Welcome to Izaya One — your login code inside',
+    html,
+  });
+};
+
 // Sent to the REFERRED practitioner at signup confirmation, when they
 // signed up via a valid ?ref= link — a fork of
 // sendIndependentSignupConfirmationEmail's wording convention (see the
@@ -534,6 +576,7 @@ module.exports = {
   sendInviteEmail,
   sendSignupConfirmationEmail,
   sendIndependentSignupConfirmationEmail,
+  sendIndependentWelcomeEmail,
   sendReferralFirstMonthFreeEmail,
   sendReferralRewardEarnedEmail,
   sendSevfToAgencyEmail,
