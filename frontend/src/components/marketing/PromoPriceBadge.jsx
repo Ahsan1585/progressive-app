@@ -10,22 +10,35 @@ export function PromoPriceBadge({ className = '' }) {
       role="img"
       aria-label="Special promotion for a limited time. $19.99 per month."
     >
-      {/* torn brush-stroke swatch — irregular spiky silhouette, not a clean shape */}
+      {/* brush-stroke swatch — soft, uneven wave edges rather than a clean
+          rectangle, like a paint-roller pass rather than a cut sticker */}
       <path
-        d="M24 70
-           L8 56 L30 48 L10 36 L34 28 L18 14 L46 16 L38 2 L64 10 L70 0
-           L300 0 L330 8 L360 1 L368 14 L396 6 L390 20 L418 16 L406 32
-           L434 30 L418 46 L444 48 L426 62
-           L446 92
-           L432 104 L450 118 L430 128 L448 144
-           L428 156 L446 172 L424 182
-           L440 204 L414 206 L428 222 L398 218 L406 236 L376 226
-           L368 244 L344 228 L332 248 L312 230
-           L70 230
-           L52 246 L44 228 L18 240 L22 220 L-4 224 L8 206
-           L-10 198 L10 182 L-6 168 L14 156
-           L-4 138 L16 126 L0 108 L22 96
-           L4 84 Z"
+        d="M30 12
+           C10 8 -4 24 6 40
+           C-6 52 2 72 18 76
+           C4 86 2 106 16 114
+           C0 124 2 146 20 150
+           C4 160 4 182 22 188
+           C10 198 14 216 32 220
+           C24 232 34 248 54 246
+           C64 256 86 254 98 244
+           C120 256 150 250 164 236
+           C190 248 220 244 236 230
+           C262 244 296 240 312 224
+           C336 236 366 228 378 210
+           C400 220 426 210 434 190
+           C452 196 470 180 464 160
+           C480 150 478 126 462 116
+           C474 102 468 80 450 72
+           C460 58 452 36 432 30
+           C436 14 420 -4 398 4
+           C392 -10 368 -14 352 0
+           C336 -12 308 -10 296 4
+           C276 -8 246 -6 234 10
+           C212 -6 182 -4 170 10
+           C148 -4 118 -2 108 14
+           C86 0 58 2 46 18
+           C40 6 24 -2 30 12 Z"
         fill="#E8352B"
       />
       <g transform="translate(66 22) rotate(-4)">
@@ -34,10 +47,10 @@ export function PromoPriceBadge({ className = '' }) {
              L304 28 L288 24 L300 40 L276 34 L284 48 L8 48 L16 34 L-8 38 L0 24 L-10 16 Z"
           fill="#FFE100"
         />
-        <text x="148" y="20" textAnchor="middle" fontFamily="'Manrope Variable', sans-serif" fontWeight="800" fontSize="15" letterSpacing="0.5" fill="#C21807">
+        <text x="148" y="22" textAnchor="middle" fontFamily="'Manrope Variable', sans-serif" fontWeight="800" fontSize="19" letterSpacing="0.3" fill="#C21807">
           SPECIAL PROMOTION
         </text>
-        <text x="148" y="40" textAnchor="middle" fontFamily="'Manrope Variable', sans-serif" fontWeight="800" fontSize="15" letterSpacing="0.5" fill="#C21807">
+        <text x="148" y="43" textAnchor="middle" fontFamily="'Manrope Variable', sans-serif" fontWeight="800" fontSize="19" letterSpacing="0.3" fill="#C21807">
           FOR A LIMITED TIME
         </text>
       </g>
