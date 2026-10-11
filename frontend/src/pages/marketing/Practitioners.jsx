@@ -118,7 +118,7 @@ export default function Practitioners() {
       <section className="mk-section mk-alt">
         <div className="mk-section-inner">
           <Reveal as="div" className="mk-section-head mk-center">
-            <h2>Everything a tenant-registered practitioner gets, adapted for working independently</h2>
+            <h2>Everything you need to run your caseload on your own</h2>
           </Reveal>
           <div className="mk-feature-grid">
             {FEATURES.map((f, i) => (
@@ -139,10 +139,10 @@ export default function Practitioners() {
             <div className="mk-eyebrow">What's different</div>
             <h3>No office. No invoice. No problem.</h3>
             <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 12 }}>
-              A tenant-registered practitioner's logs go to their company's billing team for review, who issue an invoice for the practitioner's pay. As an independent practitioner, you certify your own sessions directly, no review queue, no waiting, and instead of an invoice you generate the SEVF your agencies need for reimbursement.
+              You certify your own sessions directly, no review queue, no waiting on anyone else. Instead of an invoice, you generate the SEVF your agencies need for reimbursement, yourself, the moment a session is logged.
             </p>
             <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-              You pay Izaya directly, $30 a month, instead of billing through a company's subscription. Everything else, validation, signatures, scheduling, telepractice, works exactly the same.
+              $30 a month gets you the full app: validation, signatures, scheduling, and telepractice, all built for working on your own.
             </p>
             <div className="mk-bullets" style={{ marginTop: 18 }}>
               <div className="mk-bullet">{CIRCLE_CHECK_ICON}One child, one SEVF, split correctly across agencies and months</div>
