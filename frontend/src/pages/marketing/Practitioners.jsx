@@ -92,7 +92,7 @@ export default function Practitioners() {
               </p>
               <div className="mk-warm-hero-ctas">
                 <Link to={signupHref} className="mk-warm-btn-primary">
-                  Get started, $30/month
+                  Get started, $19.99/month
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
                 </Link>
                 <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="mk-btn-text">Download the Izaya One app</a>
@@ -121,7 +121,7 @@ export default function Practitioners() {
             <Reveal className="mk-warm-price-band">
               <div className="mk-warm-price-sticker">
                 <span className="mk-warm-price-badge">Your rate, locked in</span>
-                <span className="mk-warm-price-now">$30<span>/month, flat</span></span>
+                <span className="mk-warm-price-now">$19.99<span>/month, flat</span></span>
                 <span className="mk-warm-price-foot">No matter how many agencies you work with</span>
               </div>
               {NUMBERS.map((s) => (
@@ -171,7 +171,7 @@ export default function Practitioners() {
                 You already carry the hardest part of this work, showing up for kids and families. Izaya One just means the form that comes after doesn't sit on your desk, or anyone else's.
               </p>
               <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-                $30 a month, and everything's included: logging visits, building your forms, scheduling, video sessions, all of it, built for someone working on their own.
+                $19.99 a month, and everything's included: logging visits, building your forms, scheduling, video sessions, all of it, built for someone working on their own.
               </p>
               <div className="mk-warm-quote" style={{ marginTop: 22 }}>
                 {SHIELD_ICON}
