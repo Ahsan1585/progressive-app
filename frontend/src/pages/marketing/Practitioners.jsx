@@ -85,35 +85,26 @@ export default function Practitioners() {
           <div className="mk-warm-blob" style={{ width: 160, height: 160, top: -40, left: '38%', background: 'var(--mk-warm-blue)', opacity: 0.12 }} />
           <div className="mk-warm-blob" style={{ width: 120, height: 120, bottom: 10, left: '4%', background: 'var(--mk-warm-green)', opacity: 0.14 }} />
           <div className="mk-warm-blob" style={{ width: 90, height: 90, top: '30%', right: '6%', background: 'var(--mk-warm-violet)', opacity: 0.12 }} />
-          <div className="mk-warm-hero-inner">
-            <div>
-              <div className="mk-warm-eyebrow">{HEART_ICON}For independent practitioners</div>
-              <h1>You work on your own. Your <span className="mk-warm-underline">paperwork{UNDERLINE_SVG}</span> should too.</h1>
-              <p className="mk-warm-hero-sub">
-                Izaya One is a simple app for early intervention practitioners who don't go through a company. Log your visits from your phone, and let it take care of the forms.
-              </p>
-              <div className="mk-warm-hero-ctas">
-                <Link to={signupHref} className="mk-warm-btn-primary">
-                  Get started, $19.99/month
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
-                </Link>
-                <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="mk-btn-text">Download the Izaya One app</a>
-              </div>
-              <p className="mk-warm-hero-note">Free for 30 days. No card required to start.</p>
+          <div className="mk-warm-hero-banner-strip">
+            <img
+              src={`${import.meta.env.BASE_URL}practitioners-hero-banner.png`}
+              alt="A practitioner logging a session on her phone with a child, next to a list: Log Sessions, Get Parent Signatures, Print SEVFs and Invoices, Enter EIMS Notes, all on your phone"
+            />
+          </div>
+          <div className="mk-warm-hero-inner mk-warm-hero-inner-centered">
+            <div className="mk-warm-eyebrow" style={{ justifyContent: 'center' }}>{HEART_ICON}For independent practitioners</div>
+            <h1>You work on your own. Your <span className="mk-warm-underline">paperwork{UNDERLINE_SVG}</span> should too.</h1>
+            <p className="mk-warm-hero-sub">
+              Izaya One is a simple app for early intervention practitioners who don't go through a company. Log your visits from your phone, and let it take care of the forms.
+            </p>
+            <div className="mk-warm-hero-ctas" style={{ justifyContent: 'center' }}>
+              <Link to={signupHref} className="mk-warm-btn-primary">
+                Get started, $19.99/month
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+              </Link>
+              <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="mk-btn-text">Download the Izaya One app</a>
             </div>
-
-            <div className="mk-warm-hero-media">
-              <div className="mk-warm-hero-photo">
-                <img
-                  src={`${import.meta.env.BASE_URL}hero-practitioner.jpg`}
-                  alt="An early intervention practitioner logging a visit on her phone after a home session"
-                />
-              </div>
-              <div className="mk-warm-hero-badge">
-                {FILE_ICON}
-                <span>Your forms,<br />ready when you are</span>
-              </div>
-            </div>
+            <p className="mk-warm-hero-note">Free for 30 days. No card required to start.</p>
           </div>
         </section>
 
