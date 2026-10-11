@@ -96,7 +96,7 @@ ALTER TABLE telepractice_signature_requests ADD COLUMN IF NOT EXISTS company_aff
 -- (see computeFlatRatePeriodSummary in subscriptionBilling.js). Platform
 -- admin can override it per-practitioner the same way per-company pricing
 -- is already overridden (platformAdminController.js's setCompanyPricing).
-ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS subscription_flat_price numeric(10,2) NOT NULL DEFAULT 30.00;
+ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS subscription_flat_price numeric(10,2) NOT NULL DEFAULT 19.99;
 
 -- subscription_invoices' per-seat columns (active_practitioner_count,
 -- price_per_practitioner, etc.) are all NOT NULL with no way to represent

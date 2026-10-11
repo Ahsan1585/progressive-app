@@ -210,7 +210,7 @@ async function getFlatSubscriptionSettings() {
   );
   const row = rows[0] || {};
   return {
-    flatPrice: Number(row.subscription_flat_price ?? 30),
+    flatPrice: Number(row.subscription_flat_price ?? 19.99),
     stripeCustomerId: row.stripe_customer_id || null,
     defaultPaymentMethodId: row.stripe_default_payment_method_id || null,
     defaultPaymentMethodType: row.stripe_default_pm_type || null,
