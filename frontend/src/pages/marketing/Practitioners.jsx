@@ -118,10 +118,10 @@ export default function Practitioners() {
           </div>
         </section>
 
-        {/* QUICK FACTS: what you actually get, scannable in one glance */}
-        <section className="mk-section" style={{ paddingTop: 0 }}>
+        {/* QUICK FACTS + PRICE + TRIAL, one dense block, no dead air between them */}
+        <section className="mk-section" style={{ paddingTop: 0, paddingBottom: 24 }}>
           <div className="mk-section-inner">
-            <Reveal className="mk-warm-quickfacts">
+            <Reveal className="mk-warm-quickfacts" style={{ marginBottom: 18 }}>
               {QUICK_FACTS.map((f, i) => (
                 <div
                   className="mk-warm-quickfact"
@@ -133,13 +133,7 @@ export default function Practitioners() {
                 </div>
               ))}
             </Reveal>
-          </div>
-        </section>
-
-        {/* PRICE + NUMBERS */}
-        <section className="mk-section" style={{ paddingTop: 0 }}>
-          <div className="mk-section-inner">
-            <Reveal className="mk-warm-price-band">
+            <Reveal className="mk-warm-price-band" style={{ marginBottom: 14 }}>
               <div className="mk-warm-price-sticker">
                 <span className="mk-warm-price-badge">Your rate, locked in</span>
                 <span className="mk-warm-price-now">$19.99<span>/month, flat</span></span>
@@ -192,7 +186,7 @@ export default function Practitioners() {
         </section>
 
         {/* WHAT'S DIFFERENT, text + real app screenshot */}
-        <section className="mk-section">
+        <section className="mk-section" style={{ paddingBottom: 24 }}>
           <div className="mk-section-inner mk-split-2" style={{ alignItems: 'center' }}>
             <Reveal>
               <div className="mk-warm-eyebrow">{HEART_ICON}Why practitioners like it</div>

@@ -355,6 +355,7 @@
 
 /* ============ PRACTITIONERS PAGE: ICON FEATURE GRID ============ */
 .mk-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.mk-warm .mk-feature-grid { gap: 14px; }
 .mk-feature-card {
   background: var(--mk-card); border: 1px solid var(--mk-line); border-radius: 18px; padding: 24px;
   transition: transform 0.22s var(--mk-ease), box-shadow 0.22s var(--mk-ease);
@@ -394,15 +395,21 @@
   --mk-warm-blue: #2E8FC7; --mk-warm-pink: #D6598A; --mk-warm-green: #3F9E6B; --mk-warm-violet: #6B4FB0; --mk-warm-amber: #DA9A2C;
   --mk-warm-navy: #132A3E; --mk-warm-gold: #FFD23F;
 }
+/* This page runs denser than the default marketing section rhythm — fewer,
+   tighter scroll stops instead of airy full-bleed sections, closer to a
+   print flyer's pacing than a typical SaaS landing page. */
+.mk-warm .mk-section { padding: 40px 48px; }
+.mk-warm .mk-section-head { margin-bottom: 26px; }
+@media (max-width: 700px) { .mk-warm .mk-section { padding: 32px 20px; } }
 
 .mk-warm-hero {
   position: relative; overflow: hidden;
   background: radial-gradient(70% 70% at 88% 10%, rgba(192, 39, 47, 0.08), transparent 60%), linear-gradient(180deg, var(--mk-warm-sand) 0%, var(--mk-paper) 100%);
-  padding: 60px 48px 24px;
+  padding: 32px 48px 8px;
 }
 .mk-warm-blob { position: absolute; border-radius: 50%; filter: blur(2px); opacity: 0.5; pointer-events: none; }
 .mk-warm-hero-banner-strip {
-  position: relative; z-index: 1; max-width: 1160px; margin: 0 auto 36px;
+  position: relative; z-index: 1; max-width: 1160px; margin: 0 auto 22px;
   border-radius: 20px; overflow: hidden;
   box-shadow: 0 1px 2px rgba(19, 42, 62, 0.06), 0 24px 48px -24px rgba(19, 42, 62, 0.35);
 }
@@ -411,13 +418,13 @@
 .mk-warm-hero-inner-centered { grid-template-columns: 1fr; max-width: 720px; text-align: center; }
 .mk-warm-hero-inner-centered h1,
 .mk-warm-hero-inner-centered .mk-warm-hero-sub { max-width: none; margin-left: auto; margin-right: auto; }
-.mk-warm-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--mk-warm-coral-deep); margin-bottom: 14px; }
+.mk-warm-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--mk-warm-coral-deep); margin-bottom: 10px; }
 .mk-warm-eyebrow svg { width: 16px; height: 16px; }
-.mk-warm-hero h1 { font-size: clamp(32px, 4vw, 48px); line-height: 1.16; letter-spacing: -0.6px; margin-bottom: 18px; max-width: 540px; position: relative; }
+.mk-warm-hero h1 { font-size: clamp(30px, 3.6vw, 44px); line-height: 1.14; letter-spacing: -0.6px; margin-bottom: 12px; max-width: 540px; position: relative; }
 .mk-warm-underline { position: relative; display: inline-block; white-space: nowrap; }
 .mk-warm-underline svg { position: absolute; left: -2%; right: -2%; bottom: -0.1em; width: 104%; height: 0.3em; color: var(--mk-warm-amber); }
-.mk-warm-hero-sub { font-size: 18px; color: var(--mk-body); line-height: 1.65; max-width: 480px; margin-bottom: 26px; }
-.mk-warm-hero-ctas { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+.mk-warm-hero-sub { font-size: 16.5px; color: var(--mk-body); line-height: 1.55; max-width: 480px; margin-bottom: 18px; }
+.mk-warm-hero-ctas { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 10px; }
 .mk-warm-btn-primary {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--mk-warm-coral); color: #fff; border: none; border-radius: 12px; padding: 14px 24px;
