@@ -1,6 +1,7 @@
 // Two-step self-serve registration for an "independent practitioner" — a
 // practitioner with no tenant company registering directly with Izaya as a
-// $30/month customer. Mirrors signupController.js's shape exactly (request
+// flat-rate customer (see company_settings.subscription_flat_price).
+// Mirrors signupController.js's shape exactly (request
 // -> email-confirm -> provision) but collects a person's own fields
 // (discipline, hourly rate, personal address) instead of a company's, and
 // creates exactly one practitioners row with role='independent_practitioner'
@@ -17,9 +18,10 @@ const { evictTenantPool } = require('../config/tenantPoolRegistry');
 const { provisionTenantDatabase } = require('../utils/tenantProvisioning');
 const { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup');
 const { isPasswordStrong } = require('../utils/passwordValidation');
-const { sendIndependentSignupConfirmationEmail } = require('../utils/emailClient');
+const { sendIndependentSignupConfirmationEmail, sendReferralFirstMonthFreeEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
 const { INDEPENDENT_DISCIPLINE_CODES } = require('../constants/independentDisciplines');
+const { writeNotification } = require('../utils/notifications');
 
 const CONFIRM_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -157,6 +159,8 @@ const requestIndependentSignup = async (req, res) => {
     );
     if (existingByEmail[0]) return res.status(409).json({ error: 'An account with this email already exists or is pending confirmation.' });
 
+    const referredByCode = req.body.referredByCode ? String(req.body.referredByCode).toLowerCase().trim() : null;
+
     const fullName = `${req.body.firstName.trim()} ${req.body.lastName.trim()}`;
     const passwordHash = await bcrypt.hash(req.body.password, await bcrypt.genSalt(10));
 
@@ -181,8 +185,8 @@ const requestIndependentSignup = async (req, res) => {
          (slug, display_name, email, ceo_first_name, ceo_last_name, ceo_email, ceo_password_hash,
           baa_accepted_at, baa_accepted_by_name, baa_accepted_by_email,
           confirm_token_hash, confirm_token_expires, account_type, disciplines, pay_rate, address, custom_dropdown_options,
-          address_line1, address_city, address_state, address_zip, removed_default_options)
-       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14,$15, $16,$17,$18,$19, $20)
+          address_line1, address_city, address_state, address_zip, removed_default_options, referred_by_code)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, now(), $8,$9, $10,$11, 'independent', $12,$13,$14,$15, $16,$17,$18,$19, $20, $21)
        ON CONFLICT (slug) DO UPDATE SET
          display_name = EXCLUDED.display_name, email = EXCLUDED.email,
          ceo_first_name = EXCLUDED.ceo_first_name, ceo_last_name = EXCLUDED.ceo_last_name,
@@ -193,7 +197,7 @@ const requestIndependentSignup = async (req, res) => {
          address = EXCLUDED.address, custom_dropdown_options = EXCLUDED.custom_dropdown_options,
          address_line1 = EXCLUDED.address_line1, address_city = EXCLUDED.address_city,
          address_state = EXCLUDED.address_state, address_zip = EXCLUDED.address_zip,
-         removed_default_options = EXCLUDED.removed_default_options`,
+         removed_default_options = EXCLUDED.removed_default_options, referred_by_code = EXCLUDED.referred_by_code`,
       [
         slug, fullName, email, req.body.firstName.trim(), req.body.lastName.trim(), email, passwordHash,
         req.body.baaAcceptedByName.trim(), req.body.baaAcceptedByEmail.trim(),
@@ -202,7 +206,7 @@ const requestIndependentSignup = async (req, res) => {
         req.body.addressLine1 ? String(req.body.addressLine1).trim() : null,
         req.body.addressCity ? String(req.body.addressCity).trim() : null,
         String(req.body.addressState).trim(), String(req.body.addressZip).trim(),
-        removedDefaultOptions,
+        removedDefaultOptions, referredByCode,
       ]
     );
 
@@ -255,6 +259,21 @@ const confirmIndependentSignup = async (req, res) => {
 
   const tenantDbName = `tenant_${pending.slug.replace(/-/g, '_')}`;
 
+  // Resolved up front (outside the provisioning try/catch below) so a bad
+  // referral code can never fail the signup itself — an unknown/invalid
+  // code just silently resolves to null, same as no code at all. The
+  // self-referral guard (referred_by_code === own slug) is checked here
+  // too, before any lookup query runs, so a self-referral never even
+  // queries for a matching company.
+  let referrerCompanyId = null;
+  if (pending.referred_by_code && pending.referred_by_code !== pending.slug) {
+    const { rows: referrerRows } = await platformPool.query(
+      `SELECT id FROM companies WHERE slug = $1 AND account_type = 'independent' AND status != 'cancelled'`,
+      [pending.referred_by_code]
+    );
+    referrerCompanyId = referrerRows[0]?.id || null;
+  }
+
   try {
     const { tenantPool, adminRoleId } = await provisionTenantDatabase({ slug: pending.slug, tenantDbName });
 
@@ -269,6 +288,17 @@ const confirmIndependentSignup = async (req, res) => {
        ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name, billing_email = EXCLUDED.billing_email`,
       [pending.display_name, pending.email]
     );
+
+    if (referrerCompanyId) {
+      await tenantPool.query(
+        `UPDATE company_settings SET free_months_owed = free_months_owed + 1 WHERE id = 1`
+      );
+      await writeNotification({
+        type: 'referral_first_month_free',
+        title: 'Your first month is free',
+        body: 'Your first month is free, thanks to your referral.',
+      }, tenantPool);
+    }
 
     const disciplines = Array.isArray(pending.disciplines) && pending.disciplines.length > 0
       ? pending.disciplines
@@ -325,19 +355,45 @@ const confirmIndependentSignup = async (req, res) => {
     await platformPool.query(
       `INSERT INTO companies
          (slug, display_name, email, tenant_db_name, status, trial_ends_at,
-          baa_accepted_at, baa_accepted_by_name, baa_accepted_by_email, account_type)
-       VALUES ($1,$2,$3,$4,'trial',$5,$6,$7,$8,'independent')`,
+          baa_accepted_at, baa_accepted_by_name, baa_accepted_by_email, account_type, referred_by_company_id)
+       VALUES ($1,$2,$3,$4,'trial',$5,$6,$7,$8,'independent',$9)`,
       [
         pending.slug, pending.display_name, pending.email,
         tenantDbName, trialEndsAt, pending.baa_accepted_at, pending.baa_accepted_by_name, pending.baa_accepted_by_email,
+        referrerCompanyId,
       ]
     );
+
+    if (referrerCompanyId) {
+      const { rows: newCompanyRows } = await platformPool.query('SELECT id FROM companies WHERE slug = $1', [pending.slug]);
+      const newCompanyId = newCompanyRows[0]?.id;
+      if (newCompanyId) {
+        await platformPool.query(
+          `INSERT INTO referral_redemptions (referrer_company_id, referred_company_id, referred_display_name)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (referred_company_id) DO NOTHING`,
+          [referrerCompanyId, newCompanyId, pending.display_name]
+        );
+      }
+    }
+
     await platformPool.query('DELETE FROM pending_signups WHERE slug = $1', [pending.slug]);
 
     logAudit({
       actorEmail: pending.ceo_email, actorRole: 'independent_practitioner', action: 'independent_practitioner_signup_confirmed',
       resourceType: 'company', resourceId: pending.slug, details: { slug: pending.slug, trialEndsAt },
     });
+
+    if (referrerCompanyId) {
+      const { rows: referrerRows } = await platformPool.query('SELECT email, display_name FROM companies WHERE id = $1', [referrerCompanyId]);
+      if (referrerRows[0]) {
+        try {
+          await sendReferralFirstMonthFreeEmail(pending.ceo_email, referrerRows[0].display_name);
+        } catch (emailError) {
+          console.error('Failed to send referral first-month-free email:', emailError);
+        }
+      }
+    }
 
     res.json({ success: true, slug: pending.slug, message: 'Your account is set up. You can now log in.' });
   } catch (error) {

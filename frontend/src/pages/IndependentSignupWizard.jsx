@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Check, ChevronLeft, Download, Loader2, Lock, Plus, ShieldCheck, Smartphone, X } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { BrandLockup } from '@/components/BrandLockup';
@@ -259,6 +259,8 @@ const IndependentSignupWizard = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [searchParams] = useSearchParams();
+  const referredByCode = useMemo(() => searchParams.get('ref') || null, [searchParams]);
   const [slugStatus, setSlugStatus] = useState('idle'); // idle | checking | available | taken
   const slugCheckRef = useRef(0);
 
@@ -449,6 +451,7 @@ const IndependentSignupWizard = () => {
         slug: payload.slug.trim().toLowerCase(),
         customDropdownOptions: customOptions.length > 0 ? customOptions : undefined,
         removedDefaultOptions: removedDefaultOptions.length > 0 ? removedDefaultOptions : undefined,
+        referredByCode,
       });
       setSubmitted(true);
       setStep(6); // advance into the final "Download the app" step
@@ -784,6 +787,11 @@ const IndependentSignupWizard = () => {
               </p>
             </div>
           </div>
+          {referredByCode && (
+            <div className="rounded-2xl border border-[#FF6B5B]/30 bg-[#FF6B5B]/10 p-5 text-left">
+              <p className="text-sm font-medium text-[#C94A3B]">Your first month is free, thanks to your referral.</p>
+            </div>
+          )}
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-sm font-semibold text-slate-500">Your login code</p>
             <p className="mt-1 font-mono text-xl font-bold text-slate-900">{form.slug}</p>

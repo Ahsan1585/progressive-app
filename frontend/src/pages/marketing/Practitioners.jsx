@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { MarketingLayout } from '../../components/marketing/MarketingLayout';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 import { IZAYA_ONE_INSTALL_URL } from '../../components/AuthLayout';
@@ -71,6 +71,10 @@ function Reveal({ as: Tag = 'div', className = '', style, children }) {
 }
 
 export default function Practitioners() {
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get('ref');
+  const signupHref = refCode ? `/signup/independent?ref=${encodeURIComponent(refCode)}` : '/signup/independent';
+
   return (
     <MarketingLayout isOne>
       <div className="mk-warm">
@@ -87,7 +91,7 @@ export default function Practitioners() {
                 Izaya One is a simple app for early intervention practitioners who don't go through a company. Log your visits from your phone, and let it take care of the forms.
               </p>
               <div className="mk-warm-hero-ctas">
-                <Link to="/signup/independent" className="mk-warm-btn-primary">
+                <Link to={signupHref} className="mk-warm-btn-primary">
                   Get started, $30/month
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
                 </Link>
@@ -192,7 +196,7 @@ export default function Practitioners() {
                 <h2>Give yourself a lighter week</h2>
                 <p>Try it free for 15 days. No card needed. You could log your first visit before your next appointment.</p>
               </div>
-              <Link to="/signup/independent" className="mk-warm-btn-primary">Get started</Link>
+              <Link to={signupHref} className="mk-warm-btn-primary">Get started</Link>
             </div>
           </div>
         </section>

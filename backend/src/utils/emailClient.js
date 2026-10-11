@@ -263,6 +263,58 @@ const sendIndependentSignupConfirmationEmail = async (toEmail, { confirmUrl, pra
   });
 };
 
+// Sent to the REFERRED practitioner at signup confirmation, when they
+// signed up via a valid ?ref= link — a fork of
+// sendIndependentSignupConfirmationEmail's wording convention (see the
+// comment on that function), not a shared/parameterized template.
+const sendReferralFirstMonthFreeEmail = async (toEmail, referrerName) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping referral first-month-free email send.');
+    return;
+  }
+  const bodyHtml = `
+    <p style="margin:0;">Your first month is free, thanks to <b style="color:${COLORS.navy};">${referrerName}</b>. No charge for your first billing cycle — your card is only charged starting your second month.</p>
+  `;
+  const html = emailShell({
+    preheader: `Your first month on Izaya One is on us.`,
+    eyebrow: 'Referral applied',
+    heading: 'Your first month is free',
+    bodyHtml,
+    logoUrl: IZAYA_ONE_LOGO_URL,
+  });
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'Your first month on Izaya One is free',
+    html,
+  });
+};
+
+// Sent to the REFERRER once their reward vests (the referred practitioner's
+// 2nd real paid invoice) — see maybeRewardReferrer in subscriptionController.js.
+const sendReferralRewardEarnedEmail = async (toEmail, referredName) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping referral reward-earned email send.');
+    return;
+  }
+  const bodyHtml = `
+    <p style="margin:0;"><b style="color:${COLORS.navy};">${referredName}</b>'s second payment just went through — you've earned a free month on Izaya One. It'll apply automatically to your next bill.</p>
+  `;
+  const html = emailShell({
+    preheader: `You've earned a free month on Izaya One.`,
+    eyebrow: 'Referral reward',
+    heading: 'You earned a free month',
+    bodyHtml,
+    logoUrl: IZAYA_ONE_LOGO_URL,
+  });
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'You earned a free month on Izaya One',
+    html,
+  });
+};
+
 // Independent-practitioner-only (see docs on the independent-practitioner
 // feature): emails an already-generated SEVF (and, since each SEVF now has
 // an invoice generated alongside it — see generateSelfCertifiedSEVF — its
@@ -482,6 +534,8 @@ module.exports = {
   sendInviteEmail,
   sendSignupConfirmationEmail,
   sendIndependentSignupConfirmationEmail,
+  sendReferralFirstMonthFreeEmail,
+  sendReferralRewardEarnedEmail,
   sendSevfToAgencyEmail,
   sendSessionScheduledEmail,
   sendContactRequestEmail,
