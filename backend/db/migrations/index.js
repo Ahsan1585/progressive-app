@@ -33,6 +33,7 @@ const MIGRATIONS = [
   'add_self_reported_eims_entry.sql',
   'add_hidden_from_history.sql',
   'add_practitioner_address_parts.sql',
+  'add_referral_program.sql',
 ];
 
 module.exports = { MIGRATIONS };

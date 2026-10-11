@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS companies (
 CREATE INDEX IF NOT EXISTS companies_slug_idx ON companies (slug);
 CREATE INDEX IF NOT EXISTS companies_stripe_customer_id_idx ON companies (stripe_customer_id);
 
+-- Set once at signup confirmation when a valid ?ref=<slug> referral link was
+-- used (see independentSignupController.js's confirmIndependentSignup) —
+-- the company that referred this one. Never set for tenant-company signups.
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS referred_by_company_id uuid REFERENCES companies(id);
+
 -- Pending signups that haven't clicked their email-confirmation link yet —
 -- deliberately separate from `companies` so an unconfirmed signup never
 -- consumes a real tenant database (see signupController.js: provisioning
@@ -105,6 +110,26 @@ CREATE TABLE IF NOT EXISTS promo_code_redemptions (
   CONSTRAINT promo_code_redemptions_unique_per_company UNIQUE (promo_code_id, company_id)
 );
 CREATE INDEX IF NOT EXISTS promo_code_redemptions_company_id_idx ON promo_code_redemptions (company_id);
+
+-- One row per successful referral. referred_second_payment_at and
+-- referrer_rewarded_at both start NULL and are set together, once, by the
+-- Stripe webhook handler the first time the referred company's SECOND
+-- invoice is paid via a real (non-waived) charge — see subscriptionController.js's
+-- stripeWebhook. The UNIQUE constraint on referred_company_id is the
+-- idempotency guard against Stripe's at-least-once webhook delivery
+-- double-granting a reward.
+CREATE TABLE IF NOT EXISTS referral_redemptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_company_id uuid NOT NULL REFERENCES companies(id),
+  referred_company_id uuid NOT NULL REFERENCES companies(id),
+  referred_display_name text NOT NULL,
+  referred_first_waived_at timestamptz NOT NULL DEFAULT now(),
+  referred_second_payment_at timestamptz,
+  referrer_rewarded_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT referral_redemptions_referred_unique UNIQUE (referred_company_id)
+);
+CREATE INDEX IF NOT EXISTS referral_redemptions_referrer_idx ON referral_redemptions (referrer_company_id);
 
 -- Real platform-admin accounts (email + password) for /platform-admin —
 -- replaces the old shared-secret (PLATFORM_ADMIN_KEY) gate. See
