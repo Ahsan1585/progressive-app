@@ -389,16 +389,23 @@
    Everything below is scoped under .mk-warm so the shared .mk-feature-*
    /.mk-stat-* primitives (also used by About.jsx) keep their normal
    cooler/crisper tone everywhere else. */
-.mk-warm { --mk-warm-sand: #FBF3E7; --mk-warm-sand-deep: #F3E6D2; --mk-warm-coral: #E8784F; --mk-warm-coral-deep: #C75E38; --mk-warm-line: #EADFC8; }
+.mk-warm {
+  --mk-warm-sand: #FBF3E7; --mk-warm-sand-deep: #F3E6D2; --mk-warm-coral: #E8784F; --mk-warm-coral-deep: #C75E38; --mk-warm-line: #EADFC8;
+  --mk-warm-blue: #2E8FC7; --mk-warm-pink: #D6598A; --mk-warm-green: #3F9E6B; --mk-warm-violet: #6B4FB0; --mk-warm-amber: #DA9A2C;
+}
 
 .mk-warm-hero {
+  position: relative; overflow: hidden;
   background: radial-gradient(70% 70% at 88% 10%, rgba(232, 120, 79, 0.10), transparent 60%), linear-gradient(180deg, var(--mk-warm-sand) 0%, var(--mk-paper) 100%);
   padding: 60px 48px 24px;
 }
-.mk-warm-hero-inner { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1fr 0.86fr; gap: 56px; align-items: center; }
+.mk-warm-blob { position: absolute; border-radius: 50%; filter: blur(2px); opacity: 0.5; pointer-events: none; }
+.mk-warm-hero-inner { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1fr 0.86fr; gap: 56px; align-items: center; position: relative; z-index: 1; }
 .mk-warm-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--mk-warm-coral-deep); margin-bottom: 14px; }
 .mk-warm-eyebrow svg { width: 16px; height: 16px; }
-.mk-warm-hero h1 { font-size: clamp(32px, 4vw, 48px); line-height: 1.16; letter-spacing: -0.6px; margin-bottom: 18px; max-width: 540px; }
+.mk-warm-hero h1 { font-size: clamp(32px, 4vw, 48px); line-height: 1.16; letter-spacing: -0.6px; margin-bottom: 18px; max-width: 540px; position: relative; }
+.mk-warm-underline { position: relative; display: inline-block; white-space: nowrap; }
+.mk-warm-underline svg { position: absolute; left: -2%; right: -2%; bottom: -0.1em; width: 104%; height: 0.3em; color: var(--mk-warm-amber); }
 .mk-warm-hero-sub { font-size: 18px; color: var(--mk-body); line-height: 1.65; max-width: 480px; margin-bottom: 26px; }
 .mk-warm-hero-ctas { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
 .mk-warm-btn-primary {
@@ -429,20 +436,34 @@
   .mk-warm-hero h1, .mk-warm-hero-sub { max-width: none; }
 }
 
-/* soft pill numbers instead of the cool divided stat row */
-.mk-warm-numbers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.mk-warm-number { background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 20px; padding: 26px 22px; text-align: center; }
-.mk-warm-number-num { font-family: 'Sora Variable', sans-serif; font-weight: 800; font-size: clamp(26px, 3vw, 34px); color: var(--mk-warm-coral-deep); letter-spacing: -0.5px; line-height: 1; }
+/* price-lock sticker callout, replaces the plain divided stat row */
+.mk-warm-price-band {
+  display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 18px; align-items: stretch;
+}
+.mk-warm-price-sticker {
+  position: relative; background: #fff; border: 2px solid var(--mk-warm-coral); border-radius: 22px; padding: 22px 24px;
+  display: flex; flex-direction: column; justify-content: center; text-align: center;
+}
+.mk-warm-price-now { font-family: 'Sora Variable', sans-serif; font-weight: 800; font-size: clamp(30px, 3.4vw, 40px); color: var(--mk-warm-coral-deep); letter-spacing: -0.5px; line-height: 1; margin-top: 6px; }
+.mk-warm-price-now span { font-size: 15px; font-weight: 600; color: var(--mk-slate); }
+.mk-warm-price-foot { margin-top: 8px; font-size: 13px; color: var(--mk-slate); line-height: 1.4; }
+.mk-warm-price-badge {
+  position: absolute; top: -14px; right: 14px;
+  background: var(--mk-warm-amber); color: #fff; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 6px 12px; border-radius: 999px; box-shadow: 0 8px 16px -6px rgba(218, 154, 44, 0.6);
+}
+.mk-warm-number { background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 20px; padding: 22px 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+.mk-warm-number-num { font-family: 'Sora Variable', sans-serif; font-weight: 800; font-size: clamp(24px, 2.8vw, 32px); letter-spacing: -0.5px; line-height: 1; }
 .mk-warm-number-label { margin-top: 8px; font-size: 13.5px; color: var(--mk-slate); line-height: 1.4; }
-@media (max-width: 700px) { .mk-warm-numbers { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .mk-warm-price-band { grid-template-columns: 1fr; } }
 
-/* day-in-the-life cards: softer radius, sand fill, rounded icon badges */
+/* day-in-the-life cards: softer radius, sand fill, rotating colored icon badges */
 .mk-warm .mk-feature-card { background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 22px; }
 .mk-warm .mk-feature-card:hover { box-shadow: 0 18px 36px -22px rgba(199, 94, 56, 0.18); }
-.mk-warm .mk-feature-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mk-warm-sand-deep); box-shadow: none; }
-.mk-warm .mk-feature-icon svg { color: var(--mk-warm-coral-deep); stroke-width: 1.6; }
+.mk-warm .mk-feature-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mk-badge-tint); box-shadow: none; }
+.mk-warm .mk-feature-icon svg { color: var(--mk-badge-ink); stroke-width: 1.6; }
 
-.mk-warm-section.mk-alt { background: var(--mk-warm-sand); border-top: 1px solid var(--mk-warm-line); border-bottom: 1px solid var(--mk-warm-line); }
+.mk-warm-section.mk-alt { position: relative; overflow: hidden; background: var(--mk-warm-sand); border-top: 1px solid var(--mk-warm-line); border-bottom: 1px solid var(--mk-warm-line); }
 
 .mk-warm-quote {
   background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 22px; padding: 28px 30px;
@@ -457,6 +478,12 @@
   color: #fff;
   display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;
 }
+.mk-warm-cta::before, .mk-warm-cta::after {
+  content: ''; position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.12); pointer-events: none;
+}
+.mk-warm-cta::before { width: 240px; height: 240px; top: -110px; right: -60px; }
+.mk-warm-cta::after { width: 140px; height: 140px; bottom: -60px; left: 18%; background: rgba(255, 255, 255, 0.08); }
+.mk-warm-cta > * { position: relative; z-index: 1; }
 .mk-warm-cta h2 { color: #fff; font-size: clamp(22px, 2.6vw, 30px); margin-bottom: 8px; }
 .mk-warm-cta p { font-size: 15.5px; color: rgba(255, 255, 255, 0.88); line-height: 1.6; margin: 0; max-width: 440px; }
 .mk-warm-cta .mk-warm-btn-primary { background: #fff; color: var(--mk-warm-coral-deep); box-shadow: none; }

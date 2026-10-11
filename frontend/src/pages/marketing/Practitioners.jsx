@@ -12,6 +12,16 @@ const MAIL_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const SLIDERS_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h14M22 18h-2" /><circle cx="17" cy="6" r="2" /><circle cx="7" cy="12" r="2" /><circle cx="19" cy="18" r="2" /></svg>;
 const SHIELD_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5.5 3.4 9.7 8 11 4.6-1.3 8-5.5 8-11V5l-8-3Z" /><path d="m9 12 2 2 4-4" /></svg>;
 const SPARKLE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>;
+const UNDERLINE_SVG = <svg viewBox="0 0 200 14" preserveAspectRatio="none" fill="none"><path d="M2 10c30-8 140-8 196 1" stroke="currentColor" strokeWidth="5" strokeLinecap="round" /></svg>;
+
+const BADGE_COLORS = [
+  { tint: '#E7F1F8', ink: 'var(--mk-warm-blue)' },
+  { tint: '#FBEAF0', ink: 'var(--mk-warm-pink)' },
+  { tint: '#E9F5EE', ink: 'var(--mk-warm-green)' },
+  { tint: 'var(--mk-warm-sand-deep)', ink: 'var(--mk-warm-coral-deep)' },
+  { tint: '#F0EBF8', ink: 'var(--mk-warm-violet)' },
+  { tint: '#FBF2DF', ink: 'var(--mk-warm-amber)' },
+];
 
 const DAY_IN_LIFE = [
   {
@@ -47,9 +57,8 @@ const DAY_IN_LIFE = [
 ];
 
 const NUMBERS = [
-  { num: '$30', label: 'a month, flat, however many agencies you work with' },
-  { num: '15', label: 'days to try it free, no card needed to start' },
-  { num: '0', label: 'paperwork left over for you to chase down later' },
+  { num: '15', label: 'days to try it free, no card needed to start', color: 'var(--mk-warm-blue)' },
+  { num: '0', label: 'paperwork left over for you to chase down later', color: 'var(--mk-warm-green)' },
 ];
 
 function Reveal({ as: Tag = 'div', className = '', style, children }) {
@@ -67,10 +76,13 @@ export default function Practitioners() {
       <div className="mk-warm">
         {/* HERO */}
         <section className="mk-warm-hero">
+          <div className="mk-warm-blob" style={{ width: 160, height: 160, top: -40, left: '38%', background: 'var(--mk-warm-blue)', opacity: 0.12 }} />
+          <div className="mk-warm-blob" style={{ width: 120, height: 120, bottom: 10, left: '4%', background: 'var(--mk-warm-green)', opacity: 0.14 }} />
+          <div className="mk-warm-blob" style={{ width: 90, height: 90, top: '30%', right: '6%', background: 'var(--mk-warm-violet)', opacity: 0.12 }} />
           <div className="mk-warm-hero-inner">
             <div>
               <div className="mk-warm-eyebrow">{HEART_ICON}For independent practitioners</div>
-              <h1>You work on your own. Your paperwork should too.</h1>
+              <h1>You work on your own. Your <span className="mk-warm-underline">paperwork{UNDERLINE_SVG}</span> should too.</h1>
               <p className="mk-warm-hero-sub">
                 Izaya One is a simple app for early intervention practitioners who don't go through a company. Log your visits from your phone, and let it take care of the forms.
               </p>
@@ -99,13 +111,18 @@ export default function Practitioners() {
           </div>
         </section>
 
-        {/* NUMBERS */}
+        {/* PRICE + NUMBERS */}
         <section className="mk-section" style={{ paddingTop: 0 }}>
           <div className="mk-section-inner">
-            <Reveal className="mk-warm-numbers">
+            <Reveal className="mk-warm-price-band">
+              <div className="mk-warm-price-sticker">
+                <span className="mk-warm-price-badge">Your rate, locked in</span>
+                <span className="mk-warm-price-now">$30<span>/month, flat</span></span>
+                <span className="mk-warm-price-foot">No matter how many agencies you work with</span>
+              </div>
               {NUMBERS.map((s) => (
                 <div className="mk-warm-number" key={s.label}>
-                  <div className="mk-warm-number-num">{s.num}</div>
+                  <div className="mk-warm-number-num" style={{ color: s.color }}>{s.num}</div>
                   <div className="mk-warm-number-label">{s.label}</div>
                 </div>
               ))}
@@ -115,6 +132,8 @@ export default function Practitioners() {
 
         {/* A DAY WITH IZAYA ONE */}
         <section className="mk-warm-section mk-section mk-alt">
+          <div className="mk-warm-blob" style={{ width: 130, height: 130, top: 20, right: '8%', background: 'var(--mk-warm-pink)', opacity: 0.14 }} />
+          <div className="mk-warm-blob" style={{ width: 100, height: 100, bottom: -20, left: '10%', background: 'var(--mk-warm-amber)', opacity: 0.15 }} />
           <div className="mk-section-inner">
             <Reveal as="div" className="mk-section-head mk-center">
               <div className="mk-warm-eyebrow" style={{ justifyContent: 'center' }}>{SPARKLE_ICON}What it does for you</div>
@@ -123,7 +142,12 @@ export default function Practitioners() {
             </Reveal>
             <div className="mk-feature-grid">
               {DAY_IN_LIFE.map((f, i) => (
-                <Reveal as="div" className="mk-feature-card" style={{ transitionDelay: `${i * 60}ms` }} key={f.title}>
+                <Reveal
+                  as="div"
+                  className="mk-feature-card"
+                  style={{ transitionDelay: `${i * 60}ms`, '--mk-badge-tint': BADGE_COLORS[i].tint, '--mk-badge-ink': BADGE_COLORS[i].ink }}
+                  key={f.title}
+                >
                   <div className="mk-feature-icon">{f.icon}</div>
                   <h3>{f.title}</h3>
                   <p>{f.body}</p>
