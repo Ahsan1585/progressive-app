@@ -1,64 +1,91 @@
 import { Link, useSearchParams } from 'react-router-dom';
+import {
+  Smartphone, FileCheck2, ShieldCheck, CalendarDays, Video, Users,
+  ArrowRight, Check, ChevronDown,
+} from 'lucide-react';
 import { MarketingLayout } from '../../components/marketing/MarketingLayout';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 import { IZAYA_ONE_INSTALL_URL } from '../../components/AuthLayout';
 
-const HEART_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7.5-5.2-10-9.8C.3 7.6 2.3 4 6 4c2 0 3.6 1.1 4.5 2.6C11.4 5.1 13 4 15 4c3.7 0 5.7 3.6 4 7.2-2.5 4.6-10 9.8-10 9.8Z" /></svg>;
-const PHONE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M11 18h2" /></svg>;
-const FILE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>;
-const CALENDAR_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>;
-const VIDEO_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" /></svg>;
-const MAIL_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></svg>;
-const SLIDERS_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h14M22 18h-2" /><circle cx="17" cy="6" r="2" /><circle cx="7" cy="12" r="2" /><circle cx="19" cy="18" r="2" /></svg>;
-const SHIELD_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5.5 3.4 9.7 8 11 4.6-1.3 8-5.5 8-11V5l-8-3Z" /><path d="m9 12 2 2 4-4" /></svg>;
-const SPARKLE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>;
-const UNDERLINE_SVG = <svg viewBox="0 0 200 14" preserveAspectRatio="none" fill="none"><path d="M2 10c30-8 140-8 196 1" stroke="currentColor" strokeWidth="5" strokeLinecap="round" /></svg>;
+const SIGNUP_URL = '/signup/independent';
 
-const BADGE_COLORS = [
-  { tint: '#E7F1F8', ink: 'var(--mk-warm-blue)' },
-  { tint: '#FBEAF0', ink: 'var(--mk-warm-pink)' },
-  { tint: '#E9F5EE', ink: 'var(--mk-warm-green)' },
-  { tint: 'var(--mk-warm-sand-deep)', ink: 'var(--mk-warm-coral-deep)' },
-  { tint: '#F0EBF8', ink: 'var(--mk-warm-violet)' },
-  { tint: '#FBF2DF', ink: 'var(--mk-warm-amber)' },
-];
-
-const DAY_IN_LIFE = [
+const WORKFLOW_STEPS = [
   {
-    icon: PHONE_ICON,
-    title: 'Log a visit right after the session',
-    body: "You're already on your phone, so use it. Jot down who you saw, what you worked on, and when, before you forget a single detail on the drive to your next family.",
+    icon: Smartphone,
+    title: 'Log your session',
+    body: 'Record a session from your phone. No piles of notes. No entering the same details twice.',
   },
   {
-    icon: FILE_ICON,
-    title: 'Your paperwork, done for you',
-    body: 'That state form every agency needs? It builds itself from the visits you already logged. No extra form to fill out, no second copy to keep track of.',
+    icon: FileCheck2,
+    title: "Get the parent's signature",
+    body: 'On your phone in person, or on theirs when you meet remotely.',
   },
   {
-    icon: CALENDAR_ICON,
-    title: 'See your whole week at a glance',
-    body: "All your families, all in one calendar. Izaya sends a gentle reminder so nobody's left waiting on you, and you're never left guessing who's next.",
-  },
-  {
-    icon: VIDEO_ICON,
-    title: 'Meet by video when a visit calls for it',
-    body: "Some sessions work better over a screen. When they do, it's built right in, and a parent can sign off from their own phone after.",
-  },
-  {
-    icon: MAIL_ICON,
-    title: 'Send your paperwork with one tap',
-    body: "Once it's ready, send it straight to the agency you did the work for. No printer, no envelope, no trip to the mailbox.",
-  },
-  {
-    icon: SLIDERS_ICON,
-    title: 'Set it up the way you actually work',
-    body: 'Add the services you provide and the agencies you work with, in your own words. It only ever shows you what applies to you.',
+    icon: ArrowRight,
+    title: 'Generate. Send. Move on.',
+    body: 'Turn your logged sessions into SEVFs and invoices, with hours and amounts calculated automatically.',
   },
 ];
 
-const NUMBERS = [
-  { num: '30', label: 'days to try it free, no card needed to start', color: 'var(--mk-warm-blue)' },
-  { num: '0', label: 'paperwork left over for you to chase down later', color: 'var(--mk-warm-green)' },
+const FEATURES = [
+  {
+    icon: Users,
+    title: 'Unlimited sessions & children',
+    body: 'Unlimited children, sessions, and agencies. One place to keep it all.',
+  },
+  {
+    icon: CalendarDays,
+    title: 'A clearer calendar',
+    body: 'Your families and appointments together, with helpful reminders.',
+  },
+  {
+    icon: Video,
+    title: 'Built-in video sessions',
+    body: 'Parents sign right on your phone, or remotely for telehealth. Keep the session moving.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Ready for each agency',
+    body: 'Separate SEVFs and invoices for every company you work with.',
+  },
+];
+
+const PRICING_INCLUDES = [
+  'Mobile session logging',
+  'Automatic SEVFs',
+  'Automatic invoices',
+  'Parent signatures',
+  'Scheduling & reminders',
+  'Telehealth, built in',
+  'Multiple agencies',
+  'Unlimited everything',
+];
+
+const FAQS = [
+  {
+    q: 'What is included in $19.99 a month?',
+    a: 'Session logging, automatic SEVFs and invoices, parent signatures, your calendar, and video sessions are included. Keep your children, sessions, and agencies together with no extra charge for working with more agencies.',
+  },
+  {
+    q: 'What happens during my free trial?',
+    a: 'You can try Izaya One free for 30 days, with no credit card required to start. Explore session logging, forms, signatures, scheduling, and video sessions before deciding whether it fits your work.',
+  },
+  {
+    q: 'Do I need to enter a credit card?',
+    a: 'No. You can start your 30-day free trial without entering a credit card.',
+  },
+  {
+    q: 'Can I work with multiple agencies?',
+    a: 'Yes. Add the agencies you work with and keep each company’s SEVFs and invoices separate. Your monthly rate is flat, no matter how many agencies you work with.',
+  },
+  {
+    q: 'Can parents sign for a telehealth session?',
+    a: 'Yes. Video sessions are built in, and parents can sign remotely from their own phone.',
+  },
+  {
+    q: 'Who is Izaya One for?',
+    a: 'Izaya One is built for independent early intervention practitioners, including occupational therapists, physical therapists, speech-language pathologists, developmental interventionists, social workers, and translators.',
+  },
 ];
 
 function Reveal({ as: Tag = 'div', className = '', style, children }) {
@@ -70,89 +97,121 @@ function Reveal({ as: Tag = 'div', className = '', style, children }) {
   );
 }
 
+function FaqItem({ q, a }) {
+  return (
+    <details className="lv-faq-item">
+      <summary>
+        {q}
+        <ChevronDown className="lv-faq-chevron" size={18} />
+      </summary>
+      <p>{a}</p>
+    </details>
+  );
+}
+
 export default function Practitioners() {
   const [searchParams] = useSearchParams();
   const refCode = searchParams.get('ref');
-  const signupHref = refCode ? `/signup/independent?ref=${encodeURIComponent(refCode)}` : '/signup/independent';
+  const signupHref = refCode ? `${SIGNUP_URL}?ref=${encodeURIComponent(refCode)}` : SIGNUP_URL;
 
   return (
     <MarketingLayout isOne>
-      <div className="mk-warm">
+      <div className="lv-page">
         {/* HERO */}
-        <section className="mk-warm-hero">
-          <div className="mk-warm-blob" style={{ width: 160, height: 160, top: -40, left: '38%', background: 'var(--mk-warm-blue)', opacity: 0.12 }} />
-          <div className="mk-warm-blob" style={{ width: 120, height: 120, bottom: 10, left: '4%', background: 'var(--mk-warm-green)', opacity: 0.14 }} />
-          <div className="mk-warm-blob" style={{ width: 90, height: 90, top: '30%', right: '6%', background: 'var(--mk-warm-violet)', opacity: 0.12 }} />
-          <div className="mk-warm-hero-inner">
+        <section className="lv-hero">
+          <img
+            className="lv-hero-photo"
+            src={`${import.meta.env.BASE_URL}lovable-hero-photo.jpg`}
+            alt="An early intervention practitioner in scrubs, smiling at her phone while logging a session"
+          />
+          <div className="lv-wrap lv-hero-content">
+            <span className="lv-eyebrow">For independent practitioners</span>
+            <h1 className="lv-hero-title">
+              Your sessions.<br /><span>Not your paperwork.</span>
+            </h1>
+            <p className="lv-hero-lead">
+              One session log. Automatic SEVFs and invoices.<br />
+              Parent signatures. All from your phone.
+            </p>
+            <div className="lv-hero-actions">
+              <Link to={signupHref} className="lv-btn lv-btn-trial">
+                Start my 30-day free trial
+                <ArrowRight size={18} />
+              </Link>
+              <a href="#how-it-works" className="lv-btn lv-btn-outline">
+                See how it works
+                <ArrowRight size={18} />
+              </a>
+            </div>
+            <div className="lv-hero-notes">
+              <span><Check size={13} />30 days free</span>
+              <span><Check size={13} />No credit card</span>
+              <span><Check size={13} />Everything included</span>
+            </div>
+            <div className="lv-hero-value">
+              <span className="lv-hero-price">$19.99<small>/ month</small></span>
+              <span className="lv-hero-price-caption">
+                After your trial.<br />Every feature. Every agency. One price.
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* VALUE STRIP */}
+        <section className="lv-value-strip">
+          <div className="lv-wrap lv-value-strip-inner">
             <div>
-              <div className="mk-warm-eyebrow">{HEART_ICON}For independent practitioners</div>
-              <h1>You work on your own. Your <span className="mk-warm-underline">paperwork{UNDERLINE_SVG}</span> should too.</h1>
-              <p className="mk-warm-hero-sub">
-                Izaya One is a simple app for early intervention practitioners who don't go through a company. Log your visits from your phone, and let it take care of the forms.
-              </p>
-              <div className="mk-warm-hero-ctas">
-                <Link to={signupHref} className="mk-warm-btn-primary">
-                  Get started, $19.99/month
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
-                </Link>
-                <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="mk-btn-text">Download the Izaya One app</a>
-              </div>
-              <p className="mk-warm-hero-note">Free for 30 days. No card required to start.</p>
+              <h3>Log once. From your phone.</h3>
+              <p>Add the child, session time, and notes while everything is still fresh.</p>
             </div>
-
-            <div className="mk-warm-hero-media">
-              <div className="mk-warm-hero-photo">
-                <img
-                  src={`${import.meta.env.BASE_URL}hero-practitioner.jpg`}
-                  alt="An early intervention practitioner logging a visit on her phone after a home session"
-                />
-              </div>
-              <div className="mk-warm-hero-badge">
-                {FILE_ICON}
-                <span>Your forms,<br />ready when you are</span>
-              </div>
+            <div>
+              <h3>Forms &amp; invoices. Made automatically.</h3>
+              <p>Your SEVFs and invoices are calculated and organized by agency, ready to send.</p>
+            </div>
+            <div>
+              <h3>Unlimited everything. One flat price.</h3>
+              <p>All the essentials included. Not sold separately.</p>
             </div>
           </div>
         </section>
 
-        {/* PRICE + NUMBERS */}
-        <section className="mk-section" style={{ paddingTop: 0 }}>
-          <div className="mk-section-inner">
-            <Reveal className="mk-warm-price-band">
-              <div className="mk-warm-price-sticker">
-                <span className="mk-warm-price-badge">Your rate, locked in</span>
-                <span className="mk-warm-price-now">$19.99<span>/month, flat</span></span>
-                <span className="mk-warm-price-foot">No matter how many agencies you work with</span>
-              </div>
-              {NUMBERS.map((s) => (
-                <div className="mk-warm-number" key={s.label}>
-                  <div className="mk-warm-number-num" style={{ color: s.color }}>{s.num}</div>
-                  <div className="mk-warm-number-label">{s.label}</div>
-                </div>
+        {/* WORKFLOW / HOW IT WORKS */}
+        <section className="lv-section lv-workflow" id="how-it-works">
+          <div className="lv-wrap">
+            <Reveal as="div" className="lv-section-head">
+              <h2 className="lv-section-title">From a logged session to &ldquo;all taken care of.&rdquo;</h2>
+              <p className="lv-section-copy">From the last minute of a session to the last form of the month.</p>
+            </Reveal>
+            <div className="lv-workflow-grid">
+              {WORKFLOW_STEPS.map((s, i) => (
+                <Reveal as="div" className="lv-workflow-step" style={{ transitionDelay: `${i * 70}ms` }} key={s.title}>
+                  <span className="lv-step-number">{i + 1}</span>
+                  <div className="lv-feature-icon"><s.icon size={20} strokeWidth={1.8} /></div>
+                  <h3>{s.title}</h3>
+                  <p>{s.body}</p>
+                </Reveal>
               ))}
+            </div>
+            <Reveal className="lv-dashboard-shot">
+              <img
+                src={`${import.meta.env.BASE_URL}lovable-dashboard.png`}
+                alt="The Izaya One home screen, showing sessions this month, hours, amount invoiced, and a quick button to log a session"
+              />
             </Reveal>
           </div>
         </section>
 
-        {/* A DAY WITH IZAYA ONE */}
-        <section className="mk-warm-section mk-section mk-alt">
-          <div className="mk-warm-blob" style={{ width: 130, height: 130, top: 20, right: '8%', background: 'var(--mk-warm-pink)', opacity: 0.14 }} />
-          <div className="mk-warm-blob" style={{ width: 100, height: 100, bottom: -20, left: '10%', background: 'var(--mk-warm-amber)', opacity: 0.15 }} />
-          <div className="mk-section-inner">
-            <Reveal as="div" className="mk-section-head mk-center">
-              <div className="mk-warm-eyebrow" style={{ justifyContent: 'center' }}>{SPARKLE_ICON}What it does for you</div>
-              <h2>A day with Izaya One</h2>
-              <p>From your first visit of the day to the last form you send, here's what's easier.</p>
+        {/* FEATURES */}
+        <section className="lv-section">
+          <div className="lv-wrap">
+            <Reveal as="div" className="lv-section-head">
+              <h2 className="lv-section-title">Your work matters. Your time does, too.</h2>
+              <p className="lv-section-copy">Not another tool to juggle. Everything an independent practitioner needs, in one simple app.</p>
             </Reveal>
-            <div className="mk-feature-grid">
-              {DAY_IN_LIFE.map((f, i) => (
-                <Reveal
-                  as="div"
-                  className="mk-feature-card"
-                  style={{ transitionDelay: `${i * 60}ms`, '--mk-badge-tint': BADGE_COLORS[i].tint, '--mk-badge-ink': BADGE_COLORS[i].ink }}
-                  key={f.title}
-                >
-                  <div className="mk-feature-icon">{f.icon}</div>
+            <div className="lv-feature-grid">
+              {FEATURES.map((f, i) => (
+                <Reveal as="div" className="lv-feature-card" style={{ transitionDelay: `${i * 60}ms` }} key={f.title}>
+                  <div className="lv-feature-icon"><f.icon size={20} strokeWidth={1.8} /></div>
                   <h3>{f.title}</h3>
                   <p>{f.body}</p>
                 </Reveal>
@@ -161,43 +220,61 @@ export default function Practitioners() {
           </div>
         </section>
 
-        {/* WHAT'S DIFFERENT, text + real app screenshot */}
-        <section className="mk-section">
-          <div className="mk-section-inner mk-split-2" style={{ alignItems: 'center' }}>
-            <Reveal>
-              <div className="mk-warm-eyebrow">{HEART_ICON}Why practitioners like it</div>
-              <h3>Nobody to wait on but yourself</h3>
-              <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 12 }}>
-                You already carry the hardest part of this work, showing up for kids and families. Izaya One just means the form that comes after doesn't sit on your desk, or anyone else's.
-              </p>
-              <p style={{ fontSize: 16, color: 'var(--mk-body)', lineHeight: 1.6, marginTop: 10 }}>
-                $19.99 a month, and everything's included: logging visits, building your forms, scheduling, video sessions, all of it, built for someone working on their own.
-              </p>
-              <div className="mk-warm-quote" style={{ marginTop: 22 }}>
-                {SHIELD_ICON}
-                <p>Your information is kept private and secure, the same way it is for every practitioner on Izaya, no matter who they work with.</p>
-              </div>
-            </Reveal>
-            <Reveal>
-              <div className="mk-phone-mockup">
-                <div className="mk-phone-mockup-screen">
-                  <img src={`${import.meta.env.BASE_URL}Pract_Dash.png`} alt="The Izaya One home screen, showing a practitioner's visits this month and a quick button to log a session" />
+        {/* PRICING */}
+        <section className="lv-pricing-band">
+          <div className="lv-wrap">
+            <Reveal as="div" className="lv-pricing-inner">
+              <div className="lv-pricing-head">
+                <h2 className="lv-section-title">We take care of the paperwork.</h2>
+                <p className="lv-section-copy">For less than $20 a month, bring your sessions, signatures, forms, invoices, and schedule into one simple app.</p>
+                <div className="lv-pricing-price">
+                  <span>$19.99</span>
+                  <small>/ month, after your free 30-day trial</small>
                 </div>
+                <Link to={signupHref} className="lv-btn lv-btn-trial">
+                  Start my 30-day free trial
+                  <ArrowRight size={18} />
+                </Link>
+                <p className="lv-pricing-foot">No credit card required</p>
               </div>
+              <ul className="lv-pricing-list">
+                {PRICING_INCLUDES.map((item) => (
+                  <li key={item}><Check size={16} />{item}</li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="lv-section">
+          <div className="lv-wrap lv-faq-wrap">
+            <Reveal as="div" className="lv-section-head">
+              <h2 className="lv-section-title">Good questions. Simple answers.</h2>
+            </Reveal>
+            <Reveal className="lv-faq-list">
+              {FAQS.map((f) => <FaqItem key={f.q} q={f.q} a={f.a} />)}
             </Reveal>
           </div>
         </section>
 
         {/* FINAL CTA */}
-        <section className="mk-section" style={{ paddingTop: 0 }}>
-          <div className="mk-section-inner">
-            <div className="mk-warm-cta">
-              <div>
-                <h2>Give yourself a lighter week</h2>
-                <p>Try it free for 30 days. No card needed. You could log your first visit before your next appointment.</p>
+        <section className="lv-section lv-final-cta">
+          <div className="lv-wrap">
+            <Reveal as="div" className="lv-final-cta-inner">
+              <h2>30 days to see the difference for yourself.</h2>
+              <p>With less on your plate.</p>
+              <div className="lv-final-cta-actions">
+                <Link to={signupHref} className="lv-btn lv-btn-trial">
+                  Start my 30-day free trial
+                  <ArrowRight size={18} />
+                </Link>
+                <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="lv-btn lv-btn-outline-dark">
+                  Get the app
+                </a>
               </div>
-              <Link to={signupHref} className="mk-warm-btn-primary">Get started</Link>
-            </div>
+              <p className="lv-final-cta-note">30 days free &middot; No card required &middot; Then $19.99/month</p>
+            </Reveal>
           </div>
         </section>
       </div>

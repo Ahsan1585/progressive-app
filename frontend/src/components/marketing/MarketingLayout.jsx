@@ -4,6 +4,7 @@ import { useState } from 'react';
 // load. Same pattern the old landing page used.
 import '@fontsource-variable/sora';
 import '@fontsource-variable/manrope';
+import '@fontsource-variable/geist';
 import '../../styles/marketing.css';
 import { MOBILE_APP_INSTALL_URL, IZAYA_ONE_INSTALL_URL } from '../AuthLayout';
 import { MarketingNav } from './MarketingNav';
