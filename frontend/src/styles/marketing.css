@@ -392,14 +392,14 @@
 .lv-page {
   --lv-background: oklch(100% 0 0);
   --lv-foreground: oklch(24% .035 245);
-  --lv-primary: oklch(90% .19 123);
-  --lv-primary-foreground: oklch(19% .013 190);
+  --lv-primary: #2E8FE0;
+  --lv-primary-foreground: #ffffff;
   --lv-muted: oklch(97.7% .005 230);
   --lv-muted-foreground: oklch(49% .027 240);
   --lv-border: oklch(90% .014 220);
   --lv-teal: oklch(48% .12 169);
   --lv-teal-soft: oklch(94% .035 169);
-  --lv-lime: oklch(90% .19 123);
+  --lv-lime: #2E8FE0;
   --lv-hero: oklch(19% .013 190);
   --lv-hero-foreground: oklch(99% .005 150);
   --lv-hero-muted: oklch(82% .012 175);
