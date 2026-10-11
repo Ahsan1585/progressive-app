@@ -301,18 +301,23 @@ async function closePeriodInvoice(periodStart, periodEnd, accountType) {
     }
   }
 
-  // Not waived by a referral credit and has a real amount owed — let the
-  // practitioner know a bill is about to be charged.
-  if (isIndependent && Number(invoice.total_amount) > 0) {
+  const stripe = getStripeClient();
+  const settings = isIndependent ? await getFlatSubscriptionSettings() : await getSubscriptionSettings();
+
+  // Not waived by a referral credit, has a real amount owed, AND a payment
+  // method is actually on file — only then is a charge about to happen.
+  // Card collection is deliberately deferred to first Billing-tab visit
+  // (see independentSignupController.js's confirmIndependentSignup), so a
+  // brand-new practitioner's first invoice can close with no payment
+  // method yet; telling them "will be charged to your card on file" in
+  // that case would be false — no card exists and no charge is attempted.
+  if (isIndependent && Number(invoice.total_amount) > 0 && settings.stripeCustomerId && settings.defaultPaymentMethodId) {
     await writeNotification({
       type: 'bill_due_soon',
       title: 'Your bill is ready',
       body: `Your ${periodStart} to ${periodEnd} bill of $${Number(invoice.total_amount).toFixed(2)} will be charged to your card on file.`,
     });
   }
-
-  const stripe = getStripeClient();
-  const settings = isIndependent ? await getFlatSubscriptionSettings() : await getSubscriptionSettings();
   if (stripe && settings.stripeCustomerId && settings.defaultPaymentMethodId && Number(invoice.total_amount) > 0) {
     try {
       const paymentIntent = await stripe.paymentIntents.create({
@@ -613,8 +618,12 @@ async function maybeRewardReferrer(referredTenantDbName) {
   const { rows: paidCountRows } = await pool.query(
     `SELECT COUNT(*)::int AS count FROM subscription_invoices WHERE status = 'paid' AND waived_by_referral = false`
   );
+  // A threshold (not a strict === 2) so a batch backfill or a race that
+  // skips straight from 1 paid invoice to 3+ still rewards the referrer —
+  // this only ever runs once per referral regardless, guarded by the
+  // referrer_rewarded_at null-check above.
   const paidNonWaivedCount = Number(paidCountRows[0]?.count || 0);
-  if (paidNonWaivedCount !== 2) return; // only fires on exactly the 2nd real paid invoice
+  if (paidNonWaivedCount < 2) return; // hasn't reached the 2nd real paid invoice yet
 
   const { rows: referrerCompanyRows } = await platformPool.query(
     'SELECT tenant_db_name, email, display_name FROM companies WHERE id = $1',

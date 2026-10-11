@@ -61,8 +61,8 @@ describe('closePeriodInvoice free-month credit', () => {
     expect(decrementCall[0]).not.toContain('- 2');
   });
 
-  it('writes a bill-due-soon notification when a real (non-waived) invoice is created', async () => {
-    const flatSettingsRow = { subscription_flat_price: '19.99', stripe_customer_id: null, stripe_default_payment_method_id: null };
+  it('writes a bill-due-soon notification when a real (non-waived) invoice is created and a payment method is on file', async () => {
+    const flatSettingsRow = { subscription_flat_price: '19.99', stripe_customer_id: 'cus_1', stripe_default_payment_method_id: 'pm_1' };
     // computeFlatRatePeriodSummary -> getFlatSubscriptionSettings's own query
     pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
     // no existing invoice for this period
@@ -71,12 +71,30 @@ describe('closePeriodInvoice free-month credit', () => {
     pool.query.mockResolvedValueOnce({ rows: [{ id: 3, total_amount: '19.99', status: 'pending' }] });
     // SELECT free_months_owed -> 0, no credit to spend
     pool.query.mockResolvedValueOnce({ rows: [{ free_months_owed: 0 }] });
-    // getFlatSubscriptionSettings() called again directly (no stripe customer/pm, so no charge attempted — still a real, non-waived invoice)
+    // getFlatSubscriptionSettings() called again directly, now checked BEFORE the notification decision
     pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
+    // the real Stripe charge that then proceeds, since a payment method is on file
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 3, total_amount: '19.99', status: 'paid' }] });
+
+    const stripe = { paymentIntents: { create: jest.fn().mockResolvedValue({ status: 'succeeded', id: 'pi_1' }) } };
+    getStripeClient.mockReturnValue(stripe);
 
     await closePeriodInvoice('2026-10-01', '2026-10-31', 'independent');
 
     expect(writeNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'bill_due_soon' }));
+  });
+
+  it('does NOT write a bill-due-soon notification when no payment method is on file yet (card collection deferred)', async () => {
+    const flatSettingsRow = { subscription_flat_price: '19.99', stripe_customer_id: null, stripe_default_payment_method_id: null };
+    pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 3, total_amount: '19.99', status: 'pending' }] });
+    pool.query.mockResolvedValueOnce({ rows: [{ free_months_owed: 0 }] });
+    pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
+
+    await closePeriodInvoice('2026-10-01', '2026-10-31', 'independent');
+
+    expect(writeNotification).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'bill_due_soon' }));
   });
 
   it('writes a payment-failed notification when the Stripe charge attempt errors', async () => {
@@ -153,5 +171,34 @@ describe('stripeWebhook referrer reward', () => {
 
     expect(writeNotification).not.toHaveBeenCalled();
     expect(sendReferralRewardEarnedEmail).not.toHaveBeenCalled();
+  });
+
+  it('rewards the referrer even if the paid-invoice count jumps past exactly 2 (e.g. a batch backfill)', async () => {
+    const stripe = { webhooks: { constructEvent: jest.fn(() => ({
+      type: 'payment_intent.succeeded',
+      data: { object: { customer: 'cus_referred', id: 'pi_999', last_payment_error: null } },
+    })) } };
+    getStripeClient.mockReturnValue(stripe);
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
+
+    platformPool.query
+      .mockResolvedValueOnce({ rows: [{ tenant_db_name: 'tenant_referred' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'referred-uuid' }] })
+      .mockResolvedValueOnce({ rows: [{ referrer_company_id: 'referrer-uuid', referrer_rewarded_at: null }] })
+      .mockResolvedValueOnce({ rows: [{ tenant_db_name: 'tenant_referrer', email: 'referrer@example.com', display_name: 'Referrer Co' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ display_name: 'Referred Co' }] });
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE subscription_invoices status
+      .mockResolvedValueOnce({ rows: [{ count: '3' }] }) // a batch backfill paid 3 invoices at once -- count skipped past 2
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'sig' } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis(), send: jest.fn() };
+    await stripeWebhook(req, res);
+
+    expect(writeNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'referral_reward_earned' }));
+    expect(sendReferralRewardEarnedEmail).toHaveBeenCalled();
   });
 });
