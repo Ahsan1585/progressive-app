@@ -355,7 +355,6 @@
 
 /* ============ PRACTITIONERS PAGE: ICON FEATURE GRID ============ */
 .mk-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.mk-warm .mk-feature-grid { gap: 14px; }
 .mk-feature-card {
   background: var(--mk-card); border: 1px solid var(--mk-line); border-radius: 18px; padding: 24px;
   transition: transform 0.22s var(--mk-ease), box-shadow 0.22s var(--mk-ease);
@@ -391,46 +390,30 @@
    /.mk-stat-* primitives (also used by About.jsx) keep their normal
    cooler/crisper tone everywhere else. */
 .mk-warm {
-  --mk-warm-sand: #FBF3E7; --mk-warm-sand-deep: #F3E6D2; --mk-warm-coral: #C0272F; --mk-warm-coral-deep: #9A1F2B; --mk-warm-line: #EADFC8;
+  --mk-warm-sand: #FBF3E7; --mk-warm-sand-deep: #F3E6D2; --mk-warm-coral: #E8784F; --mk-warm-coral-deep: #C75E38; --mk-warm-line: #EADFC8;
   --mk-warm-blue: #2E8FC7; --mk-warm-pink: #D6598A; --mk-warm-green: #3F9E6B; --mk-warm-violet: #6B4FB0; --mk-warm-amber: #DA9A2C;
-  --mk-warm-navy: #132A3E; --mk-warm-gold: #FFD23F;
 }
-/* This page runs denser than the default marketing section rhythm — fewer,
-   tighter scroll stops instead of airy full-bleed sections, closer to a
-   print flyer's pacing than a typical SaaS landing page. */
-.mk-warm .mk-section { padding: 40px 48px; }
-.mk-warm .mk-section-head { margin-bottom: 26px; }
-@media (max-width: 700px) { .mk-warm .mk-section { padding: 32px 20px; } }
 
 .mk-warm-hero {
   position: relative; overflow: hidden;
-  background: radial-gradient(70% 70% at 88% 10%, rgba(192, 39, 47, 0.08), transparent 60%), linear-gradient(180deg, var(--mk-warm-sand) 0%, var(--mk-paper) 100%);
-  padding: 32px 48px 8px;
+  background: radial-gradient(70% 70% at 88% 10%, rgba(232, 120, 79, 0.10), transparent 60%), linear-gradient(180deg, var(--mk-warm-sand) 0%, var(--mk-paper) 100%);
+  padding: 60px 48px 24px;
 }
 .mk-warm-blob { position: absolute; border-radius: 50%; filter: blur(2px); opacity: 0.5; pointer-events: none; }
-.mk-warm-hero-banner-strip {
-  position: relative; z-index: 1; max-width: 1160px; margin: 0 auto 22px;
-  border-radius: 20px; overflow: hidden;
-  box-shadow: 0 1px 2px rgba(19, 42, 62, 0.06), 0 24px 48px -24px rgba(19, 42, 62, 0.35);
-}
-.mk-warm-hero-banner-strip img { display: block; width: 100%; height: auto; }
 .mk-warm-hero-inner { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1fr 0.86fr; gap: 56px; align-items: center; position: relative; z-index: 1; }
-.mk-warm-hero-inner-centered { grid-template-columns: 1fr; max-width: 720px; text-align: center; }
-.mk-warm-hero-inner-centered h1,
-.mk-warm-hero-inner-centered .mk-warm-hero-sub { max-width: none; margin-left: auto; margin-right: auto; }
-.mk-warm-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--mk-warm-coral-deep); margin-bottom: 10px; }
+.mk-warm-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--mk-warm-coral-deep); margin-bottom: 14px; }
 .mk-warm-eyebrow svg { width: 16px; height: 16px; }
-.mk-warm-hero h1 { font-size: clamp(30px, 3.6vw, 44px); line-height: 1.14; letter-spacing: -0.6px; margin-bottom: 12px; max-width: 540px; position: relative; }
+.mk-warm-hero h1 { font-size: clamp(32px, 4vw, 48px); line-height: 1.16; letter-spacing: -0.6px; margin-bottom: 18px; max-width: 540px; position: relative; }
 .mk-warm-underline { position: relative; display: inline-block; white-space: nowrap; }
 .mk-warm-underline svg { position: absolute; left: -2%; right: -2%; bottom: -0.1em; width: 104%; height: 0.3em; color: var(--mk-warm-amber); }
-.mk-warm-hero-sub { font-size: 16.5px; color: var(--mk-body); line-height: 1.55; max-width: 480px; margin-bottom: 18px; }
-.mk-warm-hero-ctas { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 10px; }
+.mk-warm-hero-sub { font-size: 18px; color: var(--mk-body); line-height: 1.65; max-width: 480px; margin-bottom: 26px; }
+.mk-warm-hero-ctas { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
 .mk-warm-btn-primary {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--mk-warm-coral); color: #fff; border: none; border-radius: 12px; padding: 14px 24px;
   font-size: 15.5px; font-weight: 600; font-family: 'Manrope Variable', sans-serif;
   text-decoration: none; cursor: pointer; transition: filter 0.18s ease, transform 0.1s ease;
-  box-shadow: 0 12px 26px -10px rgba(154, 31, 43, 0.5);
+  box-shadow: 0 12px 26px -10px rgba(199, 94, 56, 0.5);
 }
 .mk-warm-btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .mk-warm-hero-note { font-size: 14.5px; color: var(--mk-slate); }
@@ -474,53 +457,9 @@
 .mk-warm-number-label { margin-top: 8px; font-size: 13.5px; color: var(--mk-slate); line-height: 1.4; }
 @media (max-width: 700px) { .mk-warm-price-band { grid-template-columns: 1fr; } }
 
-/* Bold, impossible-to-miss trial callout — deliberately louder/higher-
-   contrast than the rest of this page's palette (crimson, not coral), so
-   it reads as an urgent offer banner rather than another content card. */
-.mk-warm-trial-banner {
-  position: relative; overflow: hidden; margin-top: 16px;
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  background: linear-gradient(120deg, #9A1F2B 0%, #C0272F 55%, #9A1F2B 100%);
-  border-radius: 18px; padding: 18px 28px;
-  box-shadow: 0 14px 30px -12px rgba(122, 20, 28, 0.55);
-}
-.mk-warm-trial-banner-icon {
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  width: 42px; height: 42px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16); color: #fff;
-}
-.mk-warm-trial-banner-icon svg { width: 22px; height: 22px; }
-.mk-warm-trial-banner-text {
-  font-family: 'Sora Variable', sans-serif; font-weight: 800; letter-spacing: -0.2px;
-  font-size: clamp(17px, 2.2vw, 21px); color: #fff; line-height: 1.25;
-}
-.mk-warm-trial-banner-text .mk-warm-trial-highlight { color: #FFD23F; }
-.mk-warm-trial-banner svg.mk-warm-trial-arrow { width: 20px; height: 20px; color: #fff; flex-shrink: 0; }
-@media (max-width: 560px) {
-  .mk-warm-trial-banner { flex-wrap: wrap; text-align: center; padding: 18px 20px; }
-}
-
-/* quick-facts strip: dense, scannable 6-up grid stating the concrete
-   deliverables immediately after the hero, before any narrative copy */
-.mk-warm-quickfacts {
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
-}
-.mk-warm-quickfact {
-  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
-  background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 18px; padding: 16px 10px 14px;
-}
-.mk-warm-quickfact-icon {
-  width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: var(--mk-badge-tint); flex-shrink: 0;
-}
-.mk-warm-quickfact-icon svg { width: 21px; height: 21px; color: var(--mk-badge-ink); stroke-width: 1.8; }
-.mk-warm-quickfact-label { font-size: 13px; font-weight: 700; color: var(--mk-navy); line-height: 1.25; }
-@media (max-width: 1020px) { .mk-warm-quickfacts { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 560px) { .mk-warm-quickfacts { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
-
 /* day-in-the-life cards: softer radius, sand fill, rotating colored icon badges */
 .mk-warm .mk-feature-card { background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 22px; }
-.mk-warm .mk-feature-card:hover { box-shadow: 0 18px 36px -22px rgba(154, 31, 43, 0.2); }
+.mk-warm .mk-feature-card:hover { box-shadow: 0 18px 36px -22px rgba(199, 94, 56, 0.18); }
 .mk-warm .mk-feature-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mk-badge-tint); box-shadow: none; }
 .mk-warm .mk-feature-icon svg { color: var(--mk-badge-ink); stroke-width: 1.6; }
 
