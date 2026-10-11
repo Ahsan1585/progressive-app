@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { AgencyMultiSelect } from "@/components/AgencyMultiSelect";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import type { Agency, Patient, ApiErrorBody } from "@/types";
 
@@ -47,9 +48,25 @@ export default function AddPatient() {
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [selectedAgencies, setSelectedAgencies] = React.useState<Agency[]>([]);
+  const [touched, setTouched] = React.useState(false);
+  const [confirmDiscard, setConfirmDiscard] = React.useState(false);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setTouched(true);
     setForm((f) => ({ ...f, [key]: value }));
+  };
+
+  const setSelectedAgenciesTouched = (next: Agency[]) => {
+    setTouched(true);
+    setSelectedAgencies(next);
+  };
+
+  const handleBack = () => {
+    if (touched) {
+      setConfirmDiscard(true);
+    } else {
+      navigate(-1);
+    }
   };
 
   const validateChildId = (value: string) => (/^\d{9}$/.test(value) ? null : "Child ID must be exactly 9 digits.");
@@ -110,7 +127,7 @@ export default function AddPatient() {
 
   return (
     <PushScreen>
-      <AppBar title="Add child" />
+      <AppBar title="Add child" onBack={handleBack} />
       <form onSubmit={handleSubmit} noValidate className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {serverError && <InlineErrorBanner message={serverError} />}
 
@@ -158,7 +175,7 @@ export default function AddPatient() {
         </Field>
 
         {isIndependentPractitioner && (
-          <AgencyMultiSelect value={selectedAgencies} onChange={setSelectedAgencies} agencies={agencies} onAgencyCreated={fetchAgencies} />
+          <AgencyMultiSelect value={selectedAgencies} onChange={setSelectedAgenciesTouched} agencies={agencies} onAgencyCreated={fetchAgencies} />
         )}
 
         <div className="pt-2">
@@ -167,6 +184,16 @@ export default function AddPatient() {
           </Button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title="Discard this child?"
+        description="You have unsaved details for this child. Leaving now will discard them."
+        confirmLabel="Discard"
+        destructive
+        onConfirm={() => navigate(-1)}
+      />
     </PushScreen>
   );
 }
