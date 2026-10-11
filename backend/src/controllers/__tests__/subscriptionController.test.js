@@ -61,3 +61,61 @@ describe('closePeriodInvoice free-month credit', () => {
     expect(decrementCall[0]).not.toContain('- 2');
   });
 });
+
+describe('stripeWebhook referrer reward', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('grants the referrer a free month on the referred practitioner\'s 2nd real paid invoice', async () => {
+    const stripe = {
+      webhooks: { constructEvent: jest.fn(() => ({
+        type: 'payment_intent.succeeded',
+        data: { object: { customer: 'cus_referred', id: 'pi_123', last_payment_error: null } },
+      })) },
+    };
+    getStripeClient.mockReturnValue(stripe);
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
+
+    platformPool.query
+      .mockResolvedValueOnce({ rows: [{ tenant_db_name: 'tenant_referred' }] }) // resolve tenant by stripe customer
+      .mockResolvedValueOnce({ rows: [{ id: 'referred-uuid' }] }) // resolve tenant_db_name -> companies.id (referred)
+      .mockResolvedValueOnce({ rows: [{ referrer_company_id: 'referrer-uuid', referrer_rewarded_at: null }] }) // referral_redemptions lookup
+      .mockResolvedValueOnce({ rows: [{ tenant_db_name: 'tenant_referrer', email: 'referrer@example.com', display_name: 'Referrer Co' }] }) // resolve referrer's tenant_db_name/email/display_name
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE referral_redemptions
+      .mockResolvedValueOnce({ rows: [{ display_name: 'Referred Co' }] }); // SELECT referred company's display_name for the email/notification copy
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE subscription_invoices status
+      .mockResolvedValueOnce({ rows: [{ count: '2' }] }) // COUNT paid non-waived invoices for this tenant -> this IS the 2nd
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE company_settings free_months_owed +1 (runs inside runWithTenant for referrer)
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'sig' } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis(), send: jest.fn() };
+    await stripeWebhook(req, res);
+
+    expect(writeNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'referral_reward_earned' }));
+    expect(sendReferralRewardEarnedEmail).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+  });
+
+  it('does not double-grant a reward if the webhook fires twice for the same event', async () => {
+    const stripe = { webhooks: { constructEvent: jest.fn(() => ({
+      type: 'payment_intent.succeeded',
+      data: { object: { customer: 'cus_referred', id: 'pi_123', last_payment_error: null } },
+    })) } };
+    getStripeClient.mockReturnValue(stripe);
+
+    platformPool.query
+      .mockResolvedValueOnce({ rows: [{ tenant_db_name: 'tenant_referred' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'referred-uuid' }] })
+      .mockResolvedValueOnce({ rows: [{ referrer_company_id: 'referrer-uuid', referrer_rewarded_at: '2026-10-01T00:00:00Z' }] }); // already rewarded
+
+    pool.query.mockResolvedValueOnce({ rows: [] }); // UPDATE subscription_invoices status
+
+    const req = { body: Buffer.from('{}'), headers: { 'stripe-signature': 'sig' } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis(), send: jest.fn() };
+    await stripeWebhook(req, res);
+
+    expect(writeNotification).not.toHaveBeenCalled();
+    expect(sendReferralRewardEarnedEmail).not.toHaveBeenCalled();
+  });
+});

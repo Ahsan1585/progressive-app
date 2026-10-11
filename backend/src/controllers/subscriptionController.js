@@ -8,6 +8,8 @@ const {
 } = require('../utils/subscriptionBilling');
 const { generateSubscriptionInvoicePdf } = require('../utils/subscriptionInvoicePdf');
 const { logAudit } = require('../utils/auditLog');
+const { writeNotification } = require('../utils/notifications');
+const { sendReferralRewardEarnedEmail } = require('../utils/emailClient');
 
 // What the frontend needs to decide which payment UI to render — never
 // exposes the secret key, only whether it's set and the publishable half.
@@ -565,6 +567,68 @@ const runOverdueSweep = async (req, res) => {
   }
 };
 
+// Called from inside the webhook's runWithTenant(tenantDbName, ...) context
+// for the tenant whose invoice JUST got marked 'paid' via a real Stripe
+// charge (never called for a waived invoice — closePeriodInvoice returns
+// early for a waived one without ever creating a PaymentIntent, so this
+// webhook branch is never reached off a waived invoice at all). Grants the
+// REFERRER (not this tenant) a free month once this is this tenant's
+// 2nd-ever paid, non-waived invoice — see
+// docs/superpowers/specs/2026-10-11-referral-program-and-price-change-design.md §2.5.
+async function maybeRewardReferrer(referredTenantDbName) {
+  const { rows: referredCompanyRows } = await platformPool.query(
+    'SELECT id FROM companies WHERE tenant_db_name = $1',
+    [referredTenantDbName]
+  );
+  const referredCompanyId = referredCompanyRows[0]?.id;
+  if (!referredCompanyId) return;
+
+  const { rows: redemptionRows } = await platformPool.query(
+    'SELECT referrer_company_id, referrer_rewarded_at FROM referral_redemptions WHERE referred_company_id = $1',
+    [referredCompanyId]
+  );
+  const redemption = redemptionRows[0];
+  if (!redemption || redemption.referrer_rewarded_at) return; // not a referred signup, or already rewarded
+
+  const { rows: paidCountRows } = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM subscription_invoices WHERE status = 'paid' AND waived_by_referral = false`
+  );
+  const paidNonWaivedCount = Number(paidCountRows[0]?.count || 0);
+  if (paidNonWaivedCount !== 2) return; // only fires on exactly the 2nd real paid invoice
+
+  const { rows: referrerCompanyRows } = await platformPool.query(
+    'SELECT tenant_db_name, email, display_name FROM companies WHERE id = $1',
+    [redemption.referrer_company_id]
+  );
+  const referrer = referrerCompanyRows[0];
+  if (!referrer) return;
+
+  await platformPool.query(
+    `UPDATE referral_redemptions SET referred_second_payment_at = now(), referrer_rewarded_at = now() WHERE referred_company_id = $1`,
+    [referredCompanyId]
+  );
+
+  const { rows: referredCompanyInfo } = await platformPool.query(
+    'SELECT display_name FROM companies WHERE id = $1', [referredCompanyId]
+  );
+  const referredDisplayName = referredCompanyInfo[0]?.display_name || 'Someone you referred';
+
+  await runWithTenant(referrer.tenant_db_name, async () => {
+    await pool.query('UPDATE company_settings SET free_months_owed = free_months_owed + 1 WHERE id = 1');
+    await writeNotification({
+      type: 'referral_reward_earned',
+      title: 'You earned a free month',
+      body: `${referredDisplayName} just earned you a free month.`,
+    });
+  });
+
+  try {
+    await sendReferralRewardEarnedEmail(referrer.email, referredDisplayName);
+  } catch (emailError) {
+    console.error('Failed to send referral reward email:', emailError);
+  }
+}
+
 // Stripe webhook — mounted with express.raw() BEFORE the global express.json()
 // parser (see index.js), since signature verification needs the exact raw
 // body bytes. No-ops (200, does nothing) if STRIPE_WEBHOOK_SECRET isn't set,
@@ -618,6 +682,9 @@ const stripeWebhook = async (req, res) => {
            WHERE stripe_payment_intent_id = $3`,
           [status, intent.last_payment_error?.message || null, intent.id]
         );
+        if (status === 'paid') {
+          await maybeRewardReferrer(tenantDbName);
+        }
       } else {
         const pm = event.data.object;
         const card = pm.card || {};
