@@ -284,7 +284,10 @@ async function closePeriodInvoice(periodStart, periodEnd, accountType) {
   // docs/superpowers/specs/2026-10-11-referral-program-and-price-change-design.md)
   // always take priority over a charge attempt, even with autopay active.
   // Checked before Stripe is touched at all, so a credited period never
-  // generates a real PaymentIntent.
+  // generates a real PaymentIntent. Deliberately checked BEFORE the
+  // "bill due soon" notification below — a waived invoice was never
+  // actually going to be charged, so telling the practitioner otherwise
+  // would be wrong.
   if (isIndependent) {
     const { rows: creditRows } = await pool.query('SELECT free_months_owed FROM company_settings WHERE id = 1');
     const freeMonthsOwed = Number(creditRows[0]?.free_months_owed || 0);
@@ -296,6 +299,16 @@ async function closePeriodInvoice(periodStart, periodEnd, accountType) {
       await pool.query('UPDATE company_settings SET free_months_owed = free_months_owed - 1 WHERE id = 1');
       return waived[0];
     }
+  }
+
+  // Not waived by a referral credit and has a real amount owed — let the
+  // practitioner know a bill is about to be charged.
+  if (isIndependent && Number(invoice.total_amount) > 0) {
+    await writeNotification({
+      type: 'bill_due_soon',
+      title: 'Your bill is ready',
+      body: `Your ${periodStart} to ${periodEnd} bill of $${Number(invoice.total_amount).toFixed(2)} will be charged to your card on file.`,
+    });
   }
 
   const stripe = getStripeClient();
@@ -324,6 +337,13 @@ async function closePeriodInvoice(periodStart, periodEnd, accountType) {
         [chargeError.message, invoice.id]
       );
       invoice = updated[0];
+      if (isIndependent) {
+        await writeNotification({
+          type: 'payment_failed',
+          title: 'Payment failed',
+          body: `We couldn't charge your card for your ${periodStart} to ${periodEnd} bill. Please update your payment method.`,
+        });
+      }
     }
   }
 

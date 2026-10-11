@@ -60,6 +60,42 @@ describe('closePeriodInvoice free-month credit', () => {
     expect(decrementCall).toBeDefined();
     expect(decrementCall[0]).not.toContain('- 2');
   });
+
+  it('writes a bill-due-soon notification when a real (non-waived) invoice is created', async () => {
+    const flatSettingsRow = { subscription_flat_price: '19.99', stripe_customer_id: null, stripe_default_payment_method_id: null };
+    // computeFlatRatePeriodSummary -> getFlatSubscriptionSettings's own query
+    pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
+    // no existing invoice for this period
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    // INSERT ... RETURNING * (pending invoice row)
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 3, total_amount: '19.99', status: 'pending' }] });
+    // SELECT free_months_owed -> 0, no credit to spend
+    pool.query.mockResolvedValueOnce({ rows: [{ free_months_owed: 0 }] });
+    // getFlatSubscriptionSettings() called again directly (no stripe customer/pm, so no charge attempted — still a real, non-waived invoice)
+    pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
+
+    await closePeriodInvoice('2026-10-01', '2026-10-31', 'independent');
+
+    expect(writeNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'bill_due_soon' }));
+  });
+
+  it('writes a payment-failed notification when the Stripe charge attempt errors', async () => {
+    const flatSettingsRow = { subscription_flat_price: '19.99', stripe_customer_id: 'cus_1', stripe_default_payment_method_id: 'pm_1' };
+    pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 4, total_amount: '19.99', status: 'pending' }] });
+    pool.query.mockResolvedValueOnce({ rows: [{ free_months_owed: 0 }] });
+    pool.query.mockResolvedValueOnce({ rows: [flatSettingsRow] });
+    // UPDATE subscription_invoices SET status = 'failed' ... RETURNING *
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 4, total_amount: '19.99', status: 'failed' }] });
+
+    const stripe = { paymentIntents: { create: jest.fn().mockRejectedValue(new Error('card declined')) } };
+    getStripeClient.mockReturnValue(stripe);
+
+    await closePeriodInvoice('2026-10-01', '2026-10-31', 'independent');
+
+    expect(writeNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'payment_failed' }));
+  });
 });
 
 describe('stripeWebhook referrer reward', () => {
