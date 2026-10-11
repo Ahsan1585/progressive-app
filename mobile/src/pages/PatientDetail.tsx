@@ -22,7 +22,7 @@ import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
 import { billingStatusConfig } from "@/constants/njeis";
 import { cn } from "@/lib/utils";
-import type { Assessment, ScheduledSession, SessionDraftListItem, LogNote } from "@/types";
+import type { Assessment, ScheduledSession, SessionDraftListItem } from "@/types";
 
 export default function PatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -123,28 +123,10 @@ export default function PatientDetail() {
 
   // "Enter in EIMS" on a session card — independent-practitioner-only (see
   // EnterInEimsDialog for why this is a copy-paste helper, not an API
-  // integration). Its EIMS field list comes straight from the session row
-  // itself (no extra fetch), but its comment thread is fetched lazily the
-  // moment the dialog opens (not prefetched for every card in the list),
-  // since most sessions have zero comments and this avoids N extra requests
-  // on a screen that can already list dozens of sessions.
+  // integration). Both its EIMS field list and its session_notes come
+  // straight from the session row already in `assessments` — no extra
+  // fetch needed to open the dialog.
   const [eimsTarget, setEimsTarget] = React.useState<Assessment | null>(null);
-  const [notes, setNotes] = React.useState<LogNote[]>([]);
-  const [notesLoading, setNotesLoading] = React.useState(false);
-
-  const handleOpenEimsDialog = async (item: Assessment) => {
-    setEimsTarget(item);
-    setNotesLoading(true);
-    setNotes([]);
-    try {
-      const res = await api.get<{ success: boolean; notes: LogNote[] }>(`/api/patients/logs/${item.id}/notes`);
-      setNotes(res.data.notes || []);
-    } catch {
-      showToast("Couldn't load notes. Please try again.");
-    } finally {
-      setNotesLoading(false);
-    }
-  };
 
   // "Completed" / "Mark not entered" inside EnterInEimsDialog — self-
   // reported, toggleable (see setEimsEntered). Updates the session in
@@ -727,15 +709,15 @@ export default function PatientDetail() {
                     </button>
                   )}
                   {/* Independent-practitioner-only sees "Enter in EIMS",
-                      which also carries this session's comment thread
-                      (folded in rather than a separate "View comments"
+                      which also shows this session's own session_notes
+                      (folded in rather than a separate "View notes"
                       button for this role). A tenant-company practitioner
                       has no EIMS concept at all, so they see a plain
-                      "View comments" button that opens the same dialog
+                      "View notes" button that opens the same dialog
                       with its EIMS section hidden. */}
                   <button
                     type="button"
-                    onClick={() => handleOpenEimsDialog(item)}
+                    onClick={() => setEimsTarget(item)}
                     className="press-scale flex items-center gap-1.5 text-sm font-semibold text-ink-muted"
                   >
                     {isIndependentPractitioner ? (
@@ -819,8 +801,6 @@ export default function PatientDetail() {
             ? groupSizeMap[eimsTarget.group_size_category] || eimsTarget.group_size_category
             : null
         }
-        notes={notes}
-        notesLoading={notesLoading}
         showEimsFields={isIndependentPractitioner}
         onMarkEntered={handleMarkEntered}
         markingEntered={markingEntered}

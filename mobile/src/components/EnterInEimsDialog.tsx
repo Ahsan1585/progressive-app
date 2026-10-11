@@ -1,11 +1,10 @@
 import { Check, Copy, FileText, MessageSquare, X } from "lucide-react";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { useToast } from "@/components/ui/toast";
 import { formatSafeDate, formatTime12h } from "@/utils/time";
-import type { Assessment, LogNote } from "@/types";
+import type { Assessment } from "@/types";
 
 interface EnterInEimsDialogProps {
   open: boolean;
@@ -15,11 +14,9 @@ interface EnterInEimsDialogProps {
   statusLabel: string;
   locationLabel: string;
   groupSizeLabel: string | null;
-  notes: LogNote[];
-  notesLoading: boolean;
   // false for a tenant-company practitioner — EIMS is an independent-
   // practitioner-only concept, so that role sees only the Notes section
-  // below, reusing this same dialog/fetch rather than a second component.
+  // below, reusing this same dialog rather than a second component.
   showEimsFields?: boolean;
   // Marks/unmarks session.eims_entered_at — see setEimsEntered's own
   // comment for why this is self-reported, not verified by this app.
@@ -63,12 +60,6 @@ function buildFields(
 
 const fieldsToPlainText = (fields: EimsField[]) => fields.map((f) => `${f.label}: ${f.value}`).join("\n");
 
-const authorLabel = (n: LogNote) => {
-  const name = [n.first_name, n.last_name].filter(Boolean).join(" ");
-  if (name) return name;
-  return n.author_role.charAt(0).toUpperCase() + n.author_role.slice(1);
-};
-
 // Independent-practitioner-only — "Enter in EIMS" (formerly "Export to
 // EIMS"). EIMS is the state's own data-entry portal; this app has no API
 // integration into it (and isn't meant to — EIMS is a state system this app
@@ -77,13 +68,13 @@ const authorLabel = (n: LogNote) => {
 // close) so the practitioner can paste it in while filling out the state
 // form themselves. "Completed" marks the session as entered (self-reported
 // — see setEimsEntered), which then shows permanently on the session card
-// in history. Also folds in the session's comment thread (formerly its own
-// separate "View comments" popup) — both are reference material for the
-// same task of entering/describing this session elsewhere, so they live
-// together now.
+// in history. Also folds in the session's own session_notes (formerly its
+// own separate "View comments" popup backed by the billing-review comment
+// thread) — both are reference material for the same task of entering/
+// describing this session elsewhere, so they live together now.
 export function EnterInEimsDialog({
   open, onOpenChange, session, serviceTypeLabel, statusLabel, locationLabel, groupSizeLabel,
-  notes, notesLoading, showEimsFields = true, onMarkEntered, markingEntered = false,
+  showEimsFields = true, onMarkEntered, markingEntered = false,
 }: EnterInEimsDialogProps) {
   const { showToast } = useToast();
   const fields = session ? buildFields(session, serviceTypeLabel, statusLabel, locationLabel, groupSizeLabel) : [];
@@ -163,25 +154,12 @@ export function EnterInEimsDialog({
 
         <div className={showEimsFields ? "mt-5 border-t border-border pt-4" : ""}>
           {showEimsFields && <p className="mb-2 text-[13px] font-semibold text-ink">Notes</p>}
-          {notesLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : notes.length === 0 ? (
-            <EmptyState icon={MessageSquare} heading="No notes" subtext="Nothing has been added to this session yet." />
+          {session?.session_notes ? (
+            <p className="whitespace-pre-wrap rounded-card border border-border bg-surface-sunken p-3 text-sm text-ink-body">
+              {session.session_notes}
+            </p>
           ) : (
-            <ul role="list" className="space-y-3">
-              {notes.map((n, i) => (
-                <li key={i} className="rounded-card border border-border bg-surface-sunken p-3">
-                  <div className="mb-1 flex items-baseline justify-between gap-2">
-                    <p className="text-sm font-semibold text-ink">{authorLabel(n)}</p>
-                    <p className="shrink-0 text-xs text-ink-faint">{formatSafeDate(n.created_at)}</p>
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm text-ink-body">{n.note}</p>
-                </li>
-              ))}
-            </ul>
+            <EmptyState icon={MessageSquare} heading="No notes" subtext="Nothing has been added to this session yet." />
           )}
         </div>
       </DialogContent>
