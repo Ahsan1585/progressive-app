@@ -13,4 +13,10 @@ const RESERVED_SLUGS = new Set([
 
 const TRIAL_DAYS = 15;
 
-module.exports = { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS };
+// Izaya One (independent-practitioner) signups get a longer free trial than
+// a tenant-company signup — see independentSignupController.js, the only
+// reader of this constant. signupController.js/platformProvisioningController.js
+// both still read the shorter TRIAL_DAYS above.
+const INDEPENDENT_TRIAL_DAYS = 30;
+
+module.exports = { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS, INDEPENDENT_TRIAL_DAYS };

@@ -37,7 +37,7 @@ const IndependentSignupConfirm = () => {
       {status === 'success' && (
         <div className="text-center space-y-6">
           <div className="bg-teal-50 border-l-4 border-teal-600 p-4 rounded-lg text-sm text-teal-800 font-medium text-left">
-            Your account is set up and your 15-day free trial has started. Download the practitioner app to log in.
+            Your account is set up and your 30-day free trial has started. Download the practitioner app to log in.
           </div>
           <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="inline-block font-semibold text-cyan-700 hover:underline">
             Get the Izaya One app

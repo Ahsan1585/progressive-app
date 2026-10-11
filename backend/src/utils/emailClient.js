@@ -243,12 +243,12 @@ const sendIndependentSignupConfirmationEmail = async (toEmail, { confirmUrl, pra
     return;
   }
   const bodyHtml = `
-    <p style="margin:0;">Thanks for signing up for Izaya One, <b style="color:${COLORS.navy};">${practitionerName}</b> — session logging, state matching, and SEVF generation, on your own account. Confirm your email to activate your account and start your 15-day free trial. No card required.</p>
+    <p style="margin:0;">Thanks for signing up for Izaya One, <b style="color:${COLORS.navy};">${practitionerName}</b> — session logging, state matching, and SEVF generation, on your own account. Confirm your email to activate your account and start your 30-day free trial. No card required.</p>
     ${ctaButton(confirmUrl, 'Confirm & Start My Trial')}
     ${linkFallback(confirmUrl)}
   `;
   const html = emailShell({
-    preheader: `One click and your 15-day trial begins — Izaya One for independent practitioners.`,
+    preheader: `One click and your 30-day trial begins — Izaya One for independent practitioners.`,
     eyebrow: 'Welcome to Izaya',
     heading: "You're one step from your trial",
     bodyHtml,
@@ -277,7 +277,7 @@ const sendIndependentWelcomeEmail = async (toEmail, { practitionerName, loginCod
     return;
   }
   const bodyHtml = `
-    <p style="margin:0;">Welcome to Izaya One, <b style="color:${COLORS.navy};">${practitionerName}</b> — your account is set up and your 15-day free trial has started. No card required.</p>
+    <p style="margin:0;">Welcome to Izaya One, <b style="color:${COLORS.navy};">${practitionerName}</b> — your account is set up and your 30-day free trial has started. No card required.</p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;">
       <tr>
         <td align="center" bgcolor="${COLORS.paper}" style="border:1px solid ${COLORS.line}; border-radius:10px; padding:16px;">

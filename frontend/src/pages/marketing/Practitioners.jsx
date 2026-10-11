@@ -13,6 +13,8 @@ const SLIDERS_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 const SHIELD_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5.5 3.4 9.7 8 11 4.6-1.3 8-5.5 8-11V5l-8-3Z" /><path d="m9 12 2 2 4-4" /></svg>;
 const SPARKLE_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>;
 const UNDERLINE_SVG = <svg viewBox="0 0 200 14" preserveAspectRatio="none" fill="none"><path d="M2 10c30-8 140-8 196 1" stroke="currentColor" strokeWidth="5" strokeLinecap="round" /></svg>;
+const TRIAL_CALENDAR_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 15l2 2 4-4" /></svg>;
+const TRIAL_ARROW_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="mk-warm-trial-arrow"><path d="M5 12h14M13 5l7 7-7 7" /></svg>;
 
 const BADGE_COLORS = [
   { tint: '#E7F1F8', ink: 'var(--mk-warm-blue)' },
@@ -57,7 +59,7 @@ const DAY_IN_LIFE = [
 ];
 
 const NUMBERS = [
-  { num: '15', label: 'days to try it free, no card needed to start', color: 'var(--mk-warm-blue)' },
+  { num: '30', label: 'days to try it free, no card needed to start', color: 'var(--mk-warm-blue)' },
   { num: '0', label: 'paperwork left over for you to chase down later', color: 'var(--mk-warm-green)' },
 ];
 
@@ -97,7 +99,7 @@ export default function Practitioners() {
                 </Link>
                 <a href={IZAYA_ONE_INSTALL_URL} target="_blank" rel="noopener noreferrer" className="mk-btn-text">Download the Izaya One app</a>
               </div>
-              <p className="mk-warm-hero-note">Free for 15 days. No card required to start.</p>
+              <p className="mk-warm-hero-note">Free for 30 days. No card required to start.</p>
             </div>
 
             <div className="mk-warm-hero-media">
@@ -130,6 +132,15 @@ export default function Practitioners() {
                   <div className="mk-warm-number-label">{s.label}</div>
                 </div>
               ))}
+            </Reveal>
+            <Reveal>
+              <Link to={signupHref} className="mk-warm-trial-banner">
+                <span className="mk-warm-trial-banner-icon">{TRIAL_CALENDAR_ICON}</span>
+                <span className="mk-warm-trial-banner-text">
+                  Start your free trial for <span className="mk-warm-trial-highlight">30 days</span>
+                </span>
+                {TRIAL_ARROW_ICON}
+              </Link>
             </Reveal>
           </div>
         </section>
@@ -194,7 +205,7 @@ export default function Practitioners() {
             <div className="mk-warm-cta">
               <div>
                 <h2>Give yourself a lighter week</h2>
-                <p>Try it free for 15 days. No card needed. You could log your first visit before your next appointment.</p>
+                <p>Try it free for 30 days. No card needed. You could log your first visit before your next appointment.</p>
               </div>
               <Link to={signupHref} className="mk-warm-btn-primary">Get started</Link>
             </div>

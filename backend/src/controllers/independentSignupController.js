@@ -16,7 +16,7 @@ const { platformPool } = require('../config/platformDb');
 const { getProvisioningPool } = require('../config/provisioningDb');
 const { evictTenantPool } = require('../config/tenantPoolRegistry');
 const { provisionTenantDatabase } = require('../utils/tenantProvisioning');
-const { SLUG_REGEX, RESERVED_SLUGS, TRIAL_DAYS } = require('../constants/signup');
+const { SLUG_REGEX, RESERVED_SLUGS, INDEPENDENT_TRIAL_DAYS } = require('../constants/signup');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { sendIndependentSignupConfirmationEmail, sendIndependentWelcomeEmail, sendReferralFirstMonthFreeEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
@@ -351,7 +351,7 @@ const confirmIndependentSignup = async (req, res) => {
       );
     }
 
-    const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const trialEndsAt = new Date(Date.now() + INDEPENDENT_TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
     await platformPool.query(
       `INSERT INTO companies
          (slug, display_name, email, tenant_db_name, status, trial_ends_at,

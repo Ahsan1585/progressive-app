@@ -28,7 +28,7 @@ export const MARKETING_META = {
   '/practitioners': {
     title: 'Izaya EIS for Independent Practitioners | NJ Early Intervention Billing',
     description:
-      'No company registered with Izaya? You can still log sessions, generate your own SEVF, and bill the early intervention agencies you work with — $19.99/month, 15-day free trial.',
+      'No company registered with Izaya? You can still log sessions, generate your own SEVF, and bill the early intervention agencies you work with — $19.99/month, 30-day free trial.',
     path: '/eis/practitioners',
   },
   '/download': {

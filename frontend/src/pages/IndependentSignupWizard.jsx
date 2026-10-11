@@ -783,7 +783,7 @@ const IndependentSignupWizard = () => {
               <Check className="mt-0.5 size-5 shrink-0 text-teal-600" aria-hidden="true" />
               <p className="text-sm font-medium text-teal-800">
                 Check your email to confirm your signup and finish setting up your account.
-                Your 15-day free trial starts once you confirm.
+                Your 30-day free trial starts once you confirm.
               </p>
             </div>
           </div>

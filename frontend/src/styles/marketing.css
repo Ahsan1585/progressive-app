@@ -457,6 +457,32 @@
 .mk-warm-number-label { margin-top: 8px; font-size: 13.5px; color: var(--mk-slate); line-height: 1.4; }
 @media (max-width: 700px) { .mk-warm-price-band { grid-template-columns: 1fr; } }
 
+/* Bold, impossible-to-miss trial callout — deliberately louder/higher-
+   contrast than the rest of this page's palette (crimson, not coral), so
+   it reads as an urgent offer banner rather than another content card. */
+.mk-warm-trial-banner {
+  position: relative; overflow: hidden; margin-top: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  background: linear-gradient(120deg, #9A1F2B 0%, #C0272F 55%, #9A1F2B 100%);
+  border-radius: 18px; padding: 18px 28px;
+  box-shadow: 0 14px 30px -12px rgba(122, 20, 28, 0.55);
+}
+.mk-warm-trial-banner-icon {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16); color: #fff;
+}
+.mk-warm-trial-banner-icon svg { width: 22px; height: 22px; }
+.mk-warm-trial-banner-text {
+  font-family: 'Sora Variable', sans-serif; font-weight: 800; letter-spacing: -0.2px;
+  font-size: clamp(17px, 2.2vw, 21px); color: #fff; line-height: 1.25;
+}
+.mk-warm-trial-banner-text .mk-warm-trial-highlight { color: #FFD23F; }
+.mk-warm-trial-banner svg.mk-warm-trial-arrow { width: 20px; height: 20px; color: #fff; flex-shrink: 0; }
+@media (max-width: 560px) {
+  .mk-warm-trial-banner { flex-wrap: wrap; text-align: center; padding: 18px 20px; }
+}
+
 /* day-in-the-life cards: softer radius, sand fill, rotating colored icon badges */
 .mk-warm .mk-feature-card { background: #fff; border: 1px solid var(--mk-warm-line); border-radius: 22px; }
 .mk-warm .mk-feature-card:hover { box-shadow: 0 18px 36px -22px rgba(199, 94, 56, 0.18); }
