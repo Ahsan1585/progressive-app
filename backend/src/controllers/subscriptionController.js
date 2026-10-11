@@ -278,6 +278,24 @@ async function closePeriodInvoice(periodStart, periodEnd, accountType) {
   );
   let invoice = rows[0];
 
+  // Free-month referral credits (independent practitioners only — see
+  // docs/superpowers/specs/2026-10-11-referral-program-and-price-change-design.md)
+  // always take priority over a charge attempt, even with autopay active.
+  // Checked before Stripe is touched at all, so a credited period never
+  // generates a real PaymentIntent.
+  if (isIndependent) {
+    const { rows: creditRows } = await pool.query('SELECT free_months_owed FROM company_settings WHERE id = 1');
+    const freeMonthsOwed = Number(creditRows[0]?.free_months_owed || 0);
+    if (freeMonthsOwed > 0) {
+      const { rows: waived } = await pool.query(
+        `UPDATE subscription_invoices SET status = 'paid', waived_by_referral = true, paid_at = now() WHERE id = $1 RETURNING *`,
+        [invoice.id]
+      );
+      await pool.query('UPDATE company_settings SET free_months_owed = free_months_owed - 1 WHERE id = 1');
+      return waived[0];
+    }
+  }
+
   const stripe = getStripeClient();
   const settings = isIndependent ? await getFlatSubscriptionSettings() : await getSubscriptionSettings();
   if (stripe && settings.stripeCustomerId && settings.defaultPaymentMethodId && Number(invoice.total_amount) > 0) {
@@ -714,4 +732,5 @@ module.exports = {
   runScheduledBilling,
   runOverdueSweep,
   stripeWebhook,
+  closePeriodInvoice,
 };
