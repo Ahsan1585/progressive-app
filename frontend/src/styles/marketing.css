@@ -450,20 +450,19 @@
 .lv-hero-price-caption { color: var(--lv-hero-muted); font-size: 12px; line-height: 1.6; max-width: 150px; }
 .lv-promo-badge { width: 260px; height: auto; flex-shrink: 0; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35)); }
 @media (max-width: 900px) { .lv-hero { min-height: 610px; } .lv-hero-title { max-width: 440px; font-size: 40px; } .lv-hero-lead { font-size: 15px; } }
-/* Below 700px the stacked content (title, lead, two full-width buttons,
-   notes, price badge) needs more room than a fixed min-height leaves,
-   which was squashing everything and clipping the badge below the fold.
-   Let the section grow to fit its content instead, and dim the photo
-   under an overlay so it reads as a background rather than needing to be
-   fully visible at a forced crop. */
+/* Below 700px, stop treating the photo as a full-bleed background behind
+   the stacked text — an absolutely-positioned photo stretched to cover a
+   tall, narrow stack of content (title, lead, two buttons, notes, badge)
+   forced a heavy crop/zoom to fill that height, and overlaid text read as
+   cluttered against it. Instead the photo becomes a plain banner image in
+   normal flow at a fixed, reasonable height — leads the section like a
+   photo strip — and the text content sits below it on the flat hero
+   background, no scrim needed since nothing overlaps the photo anymore. */
 @media (max-width: 700px) {
-  .lv-hero { min-height: 0; }
-  .lv-hero::after {
-    content: ''; position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(180deg, color-mix(in oklab, var(--lv-hero) 55%, transparent) 0%, var(--lv-hero) 75%);
-  }
-  .lv-hero-photo { position: absolute; object-position: 65% 65%; }
-  .lv-hero-content { padding-block: 32px 36px; }
+  .lv-hero { min-height: 0; display: flex; flex-direction: column; }
+  .lv-hero::before { display: none; }
+  .lv-hero-photo { position: static; width: 100%; height: 260px; object-position: 50% 30%; display: block; order: -1; }
+  .lv-hero-content { padding-block: 28px 36px; }
   .lv-hero-title { font-size: 32px; max-width: none; }
   .lv-hero-actions { flex-direction: column; align-items: stretch; }
   .lv-hero-actions .lv-btn { justify-content: center; }
