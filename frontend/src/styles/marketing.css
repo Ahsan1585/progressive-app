@@ -421,8 +421,8 @@
 @media (max-width: 700px) { .lv-section { padding: 55px 0; } .lv-section-title { font-size: 30px; } }
 
 /* hero */
-.lv-hero { background: var(--lv-hero); min-height: 660px; color: var(--lv-hero-foreground); position: relative; overflow: hidden; }
-.lv-hero-photo { object-fit: cover; object-position: 60% 35%; width: 100%; height: 100%; position: absolute; inset: 0; }
+.lv-hero { background: var(--lv-hero); min-height: 760px; color: var(--lv-hero-foreground); position: relative; overflow: hidden; }
+.lv-hero-photo { object-fit: cover; object-position: 55% 48%; width: 100%; height: 100%; position: absolute; inset: 0; }
 /* The practice photo doesn't have the old stock photo's built-in empty
    dark side to drop text onto — a busy, colorful room instead. A scrim
    does that job: dark enough on the left for the text to stay readable
