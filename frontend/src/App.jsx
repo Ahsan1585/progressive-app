@@ -82,9 +82,23 @@ function IdleLogout() {
 // scroll to that section instead of the top — checked after the new
 // page's content has rendered, since the target element doesn't exist yet
 // on the same tick the route changes.
+//
+// On the very first render, skip entirely: any #hash present on true page
+// load (a reload, a bookmark, a shared link) was already stripped and its
+// native browser fragment-jump pre-empted by the synchronous script at the
+// top of main.jsx, which runs before React mounts — that's what actually
+// wins the race against the browser's own scroll-to-fragment behavior. The
+// hash case below only ever fires from here on, i.e. for an in-app Link
+// click (like the Practitioners nav's "How it works" anchor).
+let hasMountedOnce = false;
+
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
+    if (!hasMountedOnce) {
+      hasMountedOnce = true;
+      return undefined;
+    }
     if (hash) {
       const id = hash.slice(1);
       const scrollToHash = () => {

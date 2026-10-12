@@ -10,16 +10,18 @@ const NAV_LINKS = [
   { to: '/contact', label: 'Contact' },
 ];
 
-// On /practitioners (Izaya One), "How it works" scrolls to that page's own
-// workflow section instead of leaving for the shared tenant-company page,
-// and "Contact" is dropped since Izaya One is self-serve with no sales
-// contact flow. The rest (Home/About/Practitioner app) still point at the
-// shared pages — there's no separate Izaya One version of those.
+// On /practitioners (Izaya One), "How it works" and "Practitioner app" both
+// scroll to that page's own sections (its workflow walkthrough and its own
+// Izaya One install/QR block) instead of leaving for the shared
+// tenant-company pages — /download installs the general Izaya app, not
+// Izaya One. "Contact" is dropped since Izaya One is self-serve with no
+// sales contact flow. "About" still points at the shared page — there's no
+// separate Izaya One version of it.
 const NAV_LINKS_ONE = [
   { to: '/', label: 'Home', end: true },
   { to: '/practitioners#how-it-works', label: 'How it works' },
   { to: '/about', label: 'About' },
-  { to: '/download', label: 'Practitioner app' },
+  { to: '/practitioners#download', label: 'Practitioner app' },
 ];
 
 export function MarketingNav({ isOne = false }) {
