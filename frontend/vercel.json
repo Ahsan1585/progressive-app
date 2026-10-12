@@ -28,7 +28,6 @@
     { "source": "/eis/download", "destination": "/download/index.html" },
     { "source": "/eis/contact", "destination": "/contact/index.html" },
     { "source": "/eis/about", "destination": "/about/index.html" },
-    { "source": "/eis/practitioners", "destination": "/practitioners/index.html" },
     { "source": "/(.*)", "destination": "/app.html" }
   ],
   "headers": [

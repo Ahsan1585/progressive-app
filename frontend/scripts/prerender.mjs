@@ -53,7 +53,6 @@ const { default: Home } = await vite.ssrLoadModule('/src/pages/marketing/Home.js
 const { default: HowItWorks } = await vite.ssrLoadModule('/src/pages/marketing/HowItWorks.jsx');
 const { default: PractitionerApp } = await vite.ssrLoadModule('/src/pages/marketing/PractitionerApp.jsx');
 const { default: Contact } = await vite.ssrLoadModule('/src/pages/marketing/Contact.jsx');
-const { default: Practitioners } = await vite.ssrLoadModule('/src/pages/marketing/Practitioners.jsx');
 const { default: About } = await vite.ssrLoadModule('/src/pages/marketing/About.jsx');
 
 const ROUTES = [
@@ -61,7 +60,6 @@ const ROUTES = [
   { routePath: '/how-it-works', Component: HowItWorks, outDir: 'how-it-works' },
   { routePath: '/download', Component: PractitionerApp, outDir: 'download' },
   { routePath: '/contact', Component: Contact, outDir: 'contact' },
-  { routePath: '/practitioners', Component: Practitioners, outDir: 'practitioners' },
   { routePath: '/about', Component: About, outDir: 'about' },
 ];
 
