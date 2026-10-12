@@ -422,7 +422,16 @@
 
 /* hero */
 .lv-hero { background: var(--lv-hero); min-height: 660px; color: var(--lv-hero-foreground); position: relative; overflow: hidden; }
-.lv-hero-photo { object-fit: cover; object-position: 70% center; width: 100%; height: 100%; position: absolute; inset: 0; }
+.lv-hero-photo { object-fit: cover; object-position: 60% 35%; width: 100%; height: 100%; position: absolute; inset: 0; }
+/* The practice photo doesn't have the old stock photo's built-in empty
+   dark side to drop text onto — a busy, colorful room instead. A scrim
+   does that job: dark enough on the left for the text to stay readable
+   over any part of the photo, fading out by the right so the photo still
+   reads clearly there. */
+.lv-hero::before {
+  content: ''; position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--lv-hero) 92%, transparent) 0%, color-mix(in oklab, var(--lv-hero) 78%, transparent) 38%, color-mix(in oklab, var(--lv-hero) 20%, transparent) 70%, transparent 100%);
+}
 .lv-hero-content { z-index: 2; padding-block: 60px 44px; position: relative; }
 .lv-eyebrow { display: inline-block; font-size: 13px; font-weight: 600; color: var(--lv-hero-muted); border: 1px solid color-mix(in oklab, var(--lv-hero-foreground) 30%, transparent); border-radius: 999px; padding: 6px 14px; }
 .lv-hero-title { max-width: 620px; margin-top: 20px; font-size: 54px; font-weight: 800; line-height: 1.06; }
@@ -453,7 +462,7 @@
     content: ''; position: absolute; inset: 0; z-index: 1;
     background: linear-gradient(180deg, color-mix(in oklab, var(--lv-hero) 55%, transparent) 0%, var(--lv-hero) 75%);
   }
-  .lv-hero-photo { position: absolute; object-position: 80% center; }
+  .lv-hero-photo { position: absolute; object-position: 65% 65%; }
   .lv-hero-content { padding-block: 32px 36px; }
   .lv-hero-title { font-size: 32px; max-width: none; }
   .lv-hero-actions { flex-direction: column; align-items: stretch; }
@@ -494,11 +503,17 @@
 .lv-workflow-step p { font-size: 14.5px; color: var(--lv-muted-foreground); line-height: 1.6; margin: 0; }
 @media (max-width: 900px) { .lv-workflow-grid { grid-template-columns: 1fr; } }
 
-.lv-dashboard-shot { margin-top: 44px; display: flex; justify-content: center; }
+.lv-dashboard-split { margin-top: 44px; display: grid; grid-template-columns: auto 1fr; gap: 56px; align-items: center; }
+.lv-dashboard-shot { display: flex; justify-content: center; }
 .lv-dashboard-shot img {
   width: 280px; border-radius: 22px; border: 8px solid var(--lv-foreground);
   box-shadow: var(--lv-shadow-floating); display: block;
 }
+.lv-dashboard-callouts { display: flex; flex-direction: column; gap: 28px; }
+.lv-dashboard-callout { display: flex; flex-direction: column; gap: 6px; padding-left: 18px; border-left: 3px solid var(--lv-teal); }
+.lv-dashboard-callout-num { font-family: var(--lv-font-display); font-weight: 800; font-size: 32px; color: var(--lv-foreground); line-height: 1; }
+.lv-dashboard-callout-label { font-size: 14px; color: var(--lv-muted-foreground); line-height: 1.5; max-width: 320px; }
+@media (max-width: 900px) { .lv-dashboard-split { grid-template-columns: 1fr; justify-items: center; text-align: center; } .lv-dashboard-callout { border-left: none; border-top: 3px solid var(--lv-teal); padding-left: 0; padding-top: 10px; align-items: center; } .lv-dashboard-callout-label { max-width: none; } }
 
 /* feature grid (also used for workflow icon badges) */
 .lv-feature-icon {

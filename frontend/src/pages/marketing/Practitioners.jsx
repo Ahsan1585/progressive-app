@@ -152,8 +152,8 @@ export default function Practitioners() {
         <section className="lv-hero">
           <img
             className="lv-hero-photo"
-            src={`${import.meta.env.BASE_URL}lovable-hero-photo.jpg`}
-            alt="An early intervention practitioner in scrubs, smiling at her phone while logging a session"
+            src={`${import.meta.env.BASE_URL}hero-practitioner-puppet.png`}
+            alt="A practitioner playing with a puppet toy during a session with a toddler, his mother sitting beside him in a bright therapy room"
           />
           <div className="lv-wrap lv-hero-content">
             <span className="lv-eyebrow">For independent practitioners</span>
@@ -223,12 +223,28 @@ export default function Practitioners() {
                 </Reveal>
               ))}
             </div>
-            <Reveal className="lv-dashboard-shot">
-              <img
-                src={`${import.meta.env.BASE_URL}lovable-dashboard.png`}
-                alt="The Izaya One home screen, showing sessions this month, hours, amount invoiced, and a quick button to log a session"
-              />
-            </Reveal>
+            <div className="lv-dashboard-split">
+              <Reveal className="lv-dashboard-shot">
+                <img
+                  src={`${import.meta.env.BASE_URL}lovable-dashboard.png`}
+                  alt="The Izaya One home screen, showing sessions this month, hours, amount invoiced, and a quick button to log a session"
+                />
+              </Reveal>
+              <Reveal className="lv-dashboard-callouts">
+                <div className="lv-dashboard-callout">
+                  <span className="lv-dashboard-callout-num">4</span>
+                  <span className="lv-dashboard-callout-label">sessions logged this month, right from the home screen</span>
+                </div>
+                <div className="lv-dashboard-callout">
+                  <span className="lv-dashboard-callout-num">$6,019</span>
+                  <span className="lv-dashboard-callout-label">ready to invoice, calculated for you the moment you log a session</span>
+                </div>
+                <div className="lv-dashboard-callout">
+                  <span className="lv-dashboard-callout-num">0</span>
+                  <span className="lv-dashboard-callout-label">spreadsheets, printed forms, or second copies to keep track of</span>
+                </div>
+              </Reveal>
+            </div>
           </div>
         </section>
 
