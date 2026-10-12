@@ -149,45 +149,41 @@ export default function Practitioners() {
     <MarketingLayout isOne>
       <div className="lv-page">
         {/* HERO */}
-        <section className="lv-hero lv-hero-split">
-          <div className="lv-wrap lv-hero-split-inner">
-            <div className="lv-hero-content">
-              <span className="lv-eyebrow">For independent practitioners</span>
-              <h1 className="lv-hero-title">
-                Your sessions.<br /><span>Not your paperwork.</span>
-              </h1>
-              <p className="lv-hero-lead">
-                One session log. Automatic SEVFs and invoices.<br />
-                Parent signatures. All from your phone.
-              </p>
-              <div className="lv-hero-actions">
-                <Link to={signupHref} className="lv-btn lv-btn-trial">
-                  Start my 30-day free trial
-                  <ArrowRight size={18} />
-                </Link>
-                <a href="#how-it-works" className="lv-btn lv-btn-outline">
-                  See how it works
-                  <ArrowRight size={18} />
-                </a>
-              </div>
-              <div className="lv-hero-notes">
-                <span><Check size={13} />30 days free</span>
-                <span><Check size={13} />No credit card</span>
-                <span><Check size={13} />Everything included</span>
-              </div>
-              <div className="lv-hero-value">
-                <PromoPriceBadge className="lv-promo-badge" />
-                <span className="lv-hero-price-caption">
-                  After your trial.<br />Every feature. Every agency. One price.
-                </span>
-              </div>
+        <section className="lv-hero">
+          <img
+            className="lv-hero-photo"
+            src={`${import.meta.env.BASE_URL}lovable-hero-photo.jpg`}
+            alt="An early intervention practitioner in scrubs, smiling at her phone while logging a session"
+          />
+          <div className="lv-wrap lv-hero-content">
+            <span className="lv-eyebrow">For independent practitioners</span>
+            <h1 className="lv-hero-title">
+              Your sessions.<br /><span>Not your paperwork.</span>
+            </h1>
+            <p className="lv-hero-lead">
+              One session log. Automatic SEVFs and invoices.<br />
+              Parent signatures. All from your phone.
+            </p>
+            <div className="lv-hero-actions">
+              <Link to={signupHref} className="lv-btn lv-btn-trial">
+                Start my 30-day free trial
+                <ArrowRight size={18} />
+              </Link>
+              <a href="#how-it-works" className="lv-btn lv-btn-outline">
+                See how it works
+                <ArrowRight size={18} />
+              </a>
             </div>
-            <div className="lv-hero-photo-frame">
-              <img
-                className="lv-hero-photo"
-                src={`${import.meta.env.BASE_URL}hero-practitioner-puppet.png`}
-                alt="A practitioner playing with a puppet toy during a session with a toddler, his mother sitting beside him in a bright therapy room"
-              />
+            <div className="lv-hero-notes">
+              <span><Check size={13} />30 days free</span>
+              <span><Check size={13} />No credit card</span>
+              <span><Check size={13} />Everything included</span>
+            </div>
+            <div className="lv-hero-value">
+              <PromoPriceBadge className="lv-promo-badge" />
+              <span className="lv-hero-price-caption">
+                After your trial.<br />Every feature. Every agency. One price.
+              </span>
             </div>
           </div>
         </section>
