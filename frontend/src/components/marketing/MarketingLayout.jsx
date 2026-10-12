@@ -34,7 +34,7 @@ export function MarketingLayout({ children, isOne = false }) {
       <PageMeta />
       <MarketingNav isOne={isOne} />
       <main>{children}</main>
-      <MarketingFooter />
+      <MarketingFooter isOne={isOne} />
 
       {showMobileInstallBanner && (
         <div className="mk-mobile-banner" role="dialog" aria-label="Install the Izaya app">
