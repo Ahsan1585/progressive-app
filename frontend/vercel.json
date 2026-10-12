@@ -18,6 +18,8 @@
     { "source": "/eis/practitioners-hero-banner.png", "destination": "/practitioners-hero-banner.png" },
     { "source": "/eis/lovable-hero-photo.jpg", "destination": "/lovable-hero-photo.jpg" },
     { "source": "/eis/lovable-dashboard.png", "destination": "/lovable-dashboard.png" },
+    { "source": "/eis/hero-practitioner-puppet.png", "destination": "/hero-practitioner-puppet.png" },
+    { "source": "/eis/hero-practitioner-book.png", "destination": "/hero-practitioner-book.png" },
     { "source": "/eis/message.mp3", "destination": "/message.mp3" },
     { "source": "/eis/robots.txt", "destination": "/robots.txt" },
     { "source": "/eis/sitemap.xml", "destination": "/sitemap.xml" },
