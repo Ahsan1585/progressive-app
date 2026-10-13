@@ -8,6 +8,7 @@ Allow: /eis
 Allow: /eis/how-it-works
 Allow: /eis/download
 Allow: /eis/contact
+Allow: /eis/about
 Disallow: /eis/login
 Disallow: /eis/dashboard
 Disallow: /eis/admin-dashboard
