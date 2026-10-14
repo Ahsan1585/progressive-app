@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Download, FileEdit, Loader2, X } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { AddPatientModal } from '@/components/AddPatientModal';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 
@@ -119,6 +121,160 @@ function PractitionerCombobox({ options, valueId, onSelect, disabled }) {
   );
 }
 
+// IDEA Part C (34 CFR 303.410-413) correction-request review flow — see
+// backend/src/controllers/correctionRequestController.js for the full
+// compliance rationale. A child's history of requests (pending and
+// decided), plus a form to log a new one. There's no unauthenticated
+// parent-facing form for this; staff record what a parent/guardian asked
+// for on their behalf, same as every other parent-rights flow in this app.
+function CorrectionRequestsDialog({ child, onClose }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newNote, setNewNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [decidingId, setDecidingId] = useState(null);
+  const [decisionNotes, setDecisionNotes] = useState({});
+
+  const load = () => {
+    setLoading(true);
+    api.get(`/api/patients/${child.id}/correction-requests`)
+      .then((res) => setRequests(res.data.requests || []))
+      .catch(() => showAlert('Failed to load correction requests.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [child.id]);
+
+  const handleCreate = async () => {
+    if (!newNote.trim()) {
+      showAlert('Describe what the parent/guardian asked to have corrected.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post(`/api/patients/${child.id}/correction-requests`, { requestNote: newNote.trim() });
+      setNewNote('');
+      load();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Failed to create correction request.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDecide = async (requestId, decision) => {
+    const note = decisionNotes[requestId] || '';
+    if (decision === 'denied' && !note.trim()) {
+      showAlert('A reason is required to deny a correction request.');
+      return;
+    }
+    setDecidingId(requestId);
+    try {
+      await api.post(`/api/patients/correction-requests/${requestId}/decide`, { decision, decisionNote: note.trim() || null });
+      load();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Failed to record decision.');
+    } finally {
+      setDecidingId(null);
+    }
+  };
+
+  const statusBadge = (status) => {
+    const styles = {
+      pending: 'bg-amber-50 text-amber-700 border-amber-200',
+      accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      denied: 'bg-rose-50 text-rose-700 border-rose-200',
+    };
+    return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>{status}</span>;
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Correction requests</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{child.first_name} {child.last_name}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 border-b border-slate-100 space-y-2">
+          <label className="text-xs font-semibold text-slate-600">Log a new request</label>
+          <Textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder="What did the parent/guardian ask to have corrected?"
+            rows={3}
+          />
+          <div className="flex justify-end">
+            <Button onClick={handleCreate} disabled={submitting} size="sm">
+              {submitting ? <Loader2 className="size-3.5 animate-spin" /> : 'Log request'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {loading ? (
+            <div className="text-center text-sm text-slate-400 py-6">Loading...</div>
+          ) : requests.length === 0 ? (
+            <div className="text-center text-sm text-slate-400 py-6">No correction requests for this child yet.</div>
+          ) : (
+            requests.map((r) => (
+              <div key={r.id} className="border border-slate-200 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    Requested {new Date(r.requested_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {r.requested_by_first_name ? ` by ${r.requested_by_first_name} ${r.requested_by_last_name}` : ''}
+                  </span>
+                  {statusBadge(r.status)}
+                </div>
+                <p className="text-sm text-slate-700">{r.request_note}</p>
+                {r.status === 'pending' ? (
+                  <div className="space-y-2 pt-1">
+                    <Textarea
+                      value={decisionNotes[r.id] || ''}
+                      onChange={(e) => setDecisionNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                      placeholder="Decision note (required if denying)"
+                      rows={2}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={decidingId === r.id}
+                        onClick={() => handleDecide(r.id, 'denied')}
+                      >
+                        Deny
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={decidingId === r.id}
+                        onClick={() => handleDecide(r.id, 'accepted')}
+                      >
+                        Accept
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 pt-1">
+                    {r.status === 'accepted' ? 'Accepted' : 'Denied'} {r.reviewed_at ? `on ${new Date(r.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                    {r.reviewed_by_first_name ? ` by ${r.reviewed_by_first_name} ${r.reviewed_by_last_name}` : ''}
+                    {r.decision_note ? ` — "${r.decision_note}"` : ''}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function StaffDirectoryChildren() {
   const [me, setMe] = useState(null);
   useEffect(() => {
@@ -127,6 +283,7 @@ export function StaffDirectoryChildren() {
       .catch(() => setMe({ isAdmin: false, permissions: [] }));
   }, []);
   const canEdit = !!me && (me.isAdmin || (me.permissions || []).includes('staff_directory_edit'));
+  const canManageRecordRights = !!me && (me.isAdmin || (me.permissions || []).includes('patient_record_rights'));
 
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +292,8 @@ export function StaffDirectoryChildren() {
   const [practitionerSearch, setPractitionerSearch] = useState('');
   const [editingChild, setEditingChild] = useState(null);
   const [reassigningId, setReassigningId] = useState(null);
+  const [correctionsChild, setCorrectionsChild] = useState(null);
+  const [exportingId, setExportingId] = useState(null);
 
   const loadChildren = () => {
     api.get('/api/patients/directory/all')
@@ -178,6 +337,30 @@ export function StaffDirectoryChildren() {
       showAlert('Failed to reassign practitioner.');
     } finally {
       setReassigningId(null);
+    }
+  };
+
+  // IDEA Part C 34 CFR 303.405(a) — a child's full early intervention
+  // record, generated fresh (not the stored multi-child billing batch
+  // files) so an office can respond to a parent/guardian access request.
+  // Same blob-download pattern used elsewhere (MasterReports.jsx,
+  // CompanySettings.jsx, SubscriptionBilling.jsx).
+  const handleExportRecord = async (child) => {
+    setExportingId(child.id);
+    try {
+      const response = await api.get(`/api/patients/${child.id}/record-export`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `record-export-${(child.last_name || 'child').replace(/\s+/g, '_')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      showAlert('Failed to export this child\'s record.');
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -264,7 +447,26 @@ export function StaffDirectoryChildren() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500">{formatDob(child.created_at)}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {canManageRecordRights && (
+                        <>
+                          <button
+                            onClick={() => handleExportRecord(child)}
+                            disabled={exportingId === child.id}
+                            className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                            title="Export full record (parent/guardian record request)"
+                          >
+                            {exportingId === child.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => setCorrectionsChild(child)}
+                            className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Correction requests"
+                          >
+                            <FileEdit className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                       {canEdit && (
                         <button
                           onClick={() => setEditingChild(child)}
@@ -293,6 +495,13 @@ export function StaffDirectoryChildren() {
           patient={editingChild}
           editUrl={(id) => `/api/patients/directory/${id}`}
           onPatientAdded={() => { setEditingChild(null); loadChildren(); }}
+        />
+      )}
+
+      {correctionsChild && (
+        <CorrectionRequestsDialog
+          child={correctionsChild}
+          onClose={() => setCorrectionsChild(null)}
         />
       )}
     </div>

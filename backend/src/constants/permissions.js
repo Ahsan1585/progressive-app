@@ -25,6 +25,12 @@ const PERMISSION_KEYS = [
   'company_info_dropdown_options',
   'audit_logs',
   'action_required_approve',
+  // Reviewing/deciding a parent's correction request (correction_requests
+  // table) and exporting a child's full record — both IDEA Part C/FERPA
+  // parent-rights actions (34 CFR 303.405/.410-413), kept as one key since
+  // they're both "handle a parent's record-rights request" actions a CEO
+  // would delegate to the same staff role.
+  'patient_record_rights',
 ];
 
 // The 4 prebuilt, freely-editable role labels seeded for every tenant

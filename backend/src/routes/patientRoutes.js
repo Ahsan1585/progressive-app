@@ -10,6 +10,8 @@ const { getCompanyName } = require('../utils/companyName');
 const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered, setHiddenFromHistory } = require('../controllers/patientController');
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
 const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
+const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest } = require('../controllers/correctionRequestController');
+const { exportPatientRecord } = require('../controllers/patientRecordExportController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
 
 // Staff Directory > All Children — office-wide (not ownership-scoped), placed
@@ -17,6 +19,17 @@ const { protect, loadPermissions, requirePermission, requireRole } = require('..
 router.get('/directory/all', protect, loadPermissions, requirePermission('staff_directory_view'), listDirectoryPatients);
 router.put('/directory/:id', protect, loadPermissions, requirePermission('staff_directory_edit'), updateDirectoryPatient);
 router.patch('/directory/:id/practitioner', protect, loadPermissions, requirePermission('staff_directory_edit'), reassignDirectoryPatientPractitioner);
+
+// Parent-rights actions (IDEA Part C 34 CFR 303.405/.410-413) — a child's
+// full early-intervention-record export and the correction-request review
+// workflow. Office-wide like the directory routes above, gated by the
+// dedicated patient_record_rights permission rather than
+// staff_directory_view/edit, since a CEO may want to delegate this
+// specifically without granting general roster-editing access.
+router.get('/:id/record-export', protect, loadPermissions, requirePermission('patient_record_rights'), exportPatientRecord);
+router.get('/:id/correction-requests', protect, loadPermissions, requirePermission('patient_record_rights'), listCorrectionRequestsForPatient);
+router.post('/:id/correction-requests', protect, loadPermissions, requirePermission('patient_record_rights'), createCorrectionRequest);
+router.post('/correction-requests/:requestId/decide', protect, loadPermissions, requirePermission('patient_record_rights'), decideCorrectionRequest);
 
 // Route to register a new patient
 router.post('/register', protect, registerPatient);

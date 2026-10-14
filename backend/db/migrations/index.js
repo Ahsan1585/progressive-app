@@ -35,6 +35,7 @@ const MIGRATIONS = [
   'add_practitioner_address_parts.sql',
   'add_referral_program.sql',
   'add_assessment_provider_notes.sql',
+  'add_correction_requests.sql',
 ];
 
 module.exports = { MIGRATIONS };

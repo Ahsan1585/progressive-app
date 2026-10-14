@@ -20,9 +20,11 @@ import { PractitionerAvatar } from '@/components/PractitionerAvatar';
 // used where one tab hosts several independently-grantable actions). Admin
 // always sees everything.
 const TAB_PERMISSION = {
-  // Any-of: staff_directory_view for the full directory, or practitioner_manage
-  // alone (e.g. Program Coordinator) just to reach the Practitioners tab.
-  practitioners: ['staff_directory_view', 'practitioner_manage'],
+  // Any-of: staff_directory_view for the full directory, practitioner_manage
+  // alone (e.g. Program Coordinator) just to reach the Practitioners tab, or
+  // patient_record_rights alone for a role that only handles child record
+  // export/correction requests without general roster access.
+  practitioners: ['staff_directory_view', 'practitioner_manage', 'patient_record_rights'],
   reports:       'master_reports',
   billing:       ['billing_pending', 'billing_completed', 'billing_invoice_status'],
   company:       ['company_info_compliance_doc', 'company_info_dropdown_options'],

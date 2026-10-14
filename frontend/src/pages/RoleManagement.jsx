@@ -19,7 +19,7 @@ const PERMISSION_GROUPS = [
   },
   {
     label: 'Reports & Compliance',
-    keys: ['master_reports', 'action_required_approve', 'audit_logs'],
+    keys: ['master_reports', 'action_required_approve', 'audit_logs', 'patient_record_rights'],
   },
   {
     label: 'Company Information',
@@ -43,6 +43,7 @@ const PERMISSION_LABELS = {
   master_reports: 'Master reports',
   action_required_approve: 'Approve flagged logs',
   audit_logs: 'Audit log',
+  patient_record_rights: 'Child record export & correction requests',
   company_info_compliance_doc: 'Compliance reference document',
   company_info_dropdown_options: 'Dropdown options',
   subscription_billing: 'Subscription & billing',
