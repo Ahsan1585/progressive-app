@@ -37,6 +37,45 @@ const CONTENT_WIDTH = PAGE.width - MARGIN * 2;
 
 const ts = () => new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
 
+// Plain-language labels for audit_logs.action — this export is handed to
+// parents/guardians under a 34 CFR 303.405 access request, so raw action
+// strings and internal row IDs (e.g. "patient_assessments_view" /
+// "patient 85") have no place in it. Mirrors frontend/src/components/
+// AuditLogViewer.jsx's ACTION_LABELS (kept separately since this runs
+// server-side, with no access to frontend code), plus labels for the
+// correction-request and record-export actions this feature itself adds.
+const ACTION_LABELS = {
+  login_success: 'Login',
+  login_failed: 'Login failed',
+  login_blocked_deactivated: 'Login blocked (deactivated)',
+  patient_create: 'Record created',
+  patient_update: 'Record updated',
+  patient_status_update: 'Status changed',
+  patient_delete: 'Record deleted',
+  patient_attach: 'Added to practitioner caseload',
+  patient_reassign: 'Practitioner reassigned',
+  patient_assessments_view: 'Record viewed',
+  patients_bulk_view: 'Roster viewed',
+  log_create: 'Session logged',
+  log_edit: 'Session log edited',
+  log_delete: 'Session log deleted',
+  log_void: 'Session log voided',
+  log_comment_add: 'Comment added to session log',
+  correction_request_create: 'Correction request logged',
+  correction_request_accepted: 'Correction request accepted',
+  correction_request_denied: 'Correction request denied',
+  patient_record_export: 'Full record exported',
+};
+
+const describeAction = (action) => ACTION_LABELS[action] || (action || '—').replace(/_/g, ' ');
+
+// A reader-facing label for what the row touched — never the raw
+// resource_type/resource_id pair (e.g. "patient 85" means nothing to a
+// parent). Every row in this table is already scoped to this one child, so
+// the distinction that matters is just "this child's record" vs. "one of
+// their session logs".
+const describeResource = (resourceType) => (resourceType === 'assessment' ? 'Session log' : "Child's record");
+
 async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
   const page = pdfDoc.addPage([PAGE.width, PAGE.height]);
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -275,8 +314,8 @@ const exportPatientRecord = async (req, res) => {
       rows: auditRows.map((r) => [
         new Date(r.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
         r.actor_email || r.actor_resolved_email || '—',
-        r.action || '—',
-        `${r.resource_type || ''} ${r.resource_id || ''}`.trim(),
+        describeAction(r.action),
+        describeResource(r.resource_type),
       ]),
     });
 
