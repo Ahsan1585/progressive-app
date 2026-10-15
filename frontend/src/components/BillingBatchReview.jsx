@@ -352,6 +352,15 @@ export const BillingBatchReview = ({
     // the specialist was reviewing.
     await fetchPeriodLogs(practitionerId, { silent: true });
     await fetchPeriodPractitioners({ silent: true });
+    // A practitioner who still has on_hold/returned sessions alongside the
+    // just-generated batch now splits into two cards (see the
+    // shouldSplit/reviewGroupKey/billedGroupKey logic below) — the new
+    // "Sent to billing" card has never been in expandedGroups before, so
+    // it defaults to collapsed. Without this, generating reads as "the
+    // batch closed and the still-open hold sessions disappeared," when in
+    // fact the hold sessions are still sitting in the (still-expanded)
+    // review card — it's the new billed card that silently starts closed.
+    setExpandedGroups((prev) => new Set(prev).add(`${practitionerId}-billed`));
   };
   const wrappedSendToCompleted = async (practitionerId) => {
     await handleSendToCompleted(practitionerId);
