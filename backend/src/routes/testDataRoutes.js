@@ -9,6 +9,8 @@ const {
   hardDeletePractitioner,
   randomizeSeedPractitionerDetails,
   randomizeSeedSignatures,
+  generateLiveSessions,
+  wipeGeneratedLiveSessions,
 } = require('../controllers/testDataController');
 
 // Test-data seeding is only wired up at all when ENABLE_TEST_SEED=true is
@@ -20,6 +22,8 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
   router.post('/hard-delete-practitioner', protect, requireRole(['ceo']), hardDeletePractitioner);
   router.post('/randomize-seed-practitioner-details', protect, requireRole(['ceo']), randomizeSeedPractitionerDetails);
   router.post('/randomize-seed-signatures', protect, requireRole(['ceo']), randomizeSeedSignatures);
+  router.post('/generate-live-sessions', protect, requireRole(['ceo']), generateLiveSessions);
+  router.post('/wipe-generated-live-sessions', protect, requireRole(['ceo']), wipeGeneratedLiveSessions);
 
   // Read-only diagnostic: shows exactly what's in compliance_state_logs for
   // a given child ID, to distinguish "row never parsed from the doc" from

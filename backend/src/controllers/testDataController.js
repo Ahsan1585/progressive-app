@@ -486,10 +486,346 @@ const randomizeSeedSignatures = async (req, res) => {
   }
 };
 
+// Tag written into assessments.session_notes for every row this endpoint
+// creates — the only marker distinguishing generated test sessions from
+// real ones on existing (non-seed-%) practitioners, since these are real
+// production practitioner/patient rows, not seed-% throwaway accounts.
+// wipeGeneratedLiveSessions matches on this exact prefix.
+const GEN_TAG = '[GENSEPT26]';
+
+const SERVICE_TYPE_CODES = ['DI', 'OT', 'PT', 'SLP', 'FT', 'NU', 'PSY', 'SW'];
+const LOCATION_CODES = ['1', '3', '5', '6', '8'];
+const GROUP_SIZE_CODES = ['individual', 'consultation'];
+const VISIT_STATUS_CLEAN = '1'; // Direct Child Service
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const addMinutes = (hhmm, mins) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = h * 60 + m + mins;
+  return `${pad2(Math.floor(total / 60) % 24)}:${pad2(total % 60)}`;
+};
+const randomStartTime = () => `${pad2(randInt(8, 15))}:${['00', '15', '30', '45'][randInt(0, 3)]}`;
+const pick = (arr) => arr[randInt(0, arr.length - 1)];
+
+/**
+ * POST /api/dev/generate-live-sessions
+ * CEO-only. Generates a month of realistic session logs for a random subset
+ * of the tenant's REAL, already-existing practitioners/patients (NOT seed-%
+ * throwaway accounts — this writes onto the actual Izayaedge roster), with
+ * a configurable fraction of sessions deliberately corrupted across 4 error
+ * categories so the billing/compliance pipeline has real failures to catch
+ * once a matching "EIMS export" spreadsheet is generated and uploaded
+ * against the CLEAN (pre-corruption) values this endpoint returns in its
+ * response manifest.
+ *
+ * Body: {
+ *   year, month,              // e.g. 2026, 9 (1-indexed)
+ *   activeFraction,           // 0..1, fraction of eligible practitioners to use (e.g. 230/393)
+ *   minSessionsPerPractitioner, maxSessionsPerPractitioner,
+ *   errorRate,                // 0..1, fraction of sessions to deliberately corrupt
+ * }
+ *
+ * Eligible practitioners: role IN ('practitioner','staff'... actually just
+ * 'practitioner'), is_active=true, is_platform_support=false — CEO/staff
+ * accounts never get session logs. Eligible patients: status='active'.
+ * Every chosen practitioner is linked (patient_practitioners) to a random
+ * 2-6 child subset before logging sessions for them, if not already linked.
+ *
+ * Returns a manifest: for every session, its "truth" (what the state EIMS
+ * export should say) and its "logged" (what actually got written to
+ * assessments) — identical for clean sessions, deliberately different for
+ * corrupted ones, labeled with which error category was applied. Build the
+ * comparison Excel from the manifest's `truth` rows, not from re-querying
+ * assessments, since the whole point is the two sources disagree.
+ */
+const generateLiveSessions = async (req, res) => {
+  const {
+    year = 2026,
+    month = 9,
+    activeFraction = 0.6,
+    minSessionsPerPractitioner = 50,
+    maxSessionsPerPractitioner = 100,
+    errorRate = 0.12,
+  } = req.body;
+
+  const client = await pool.connect();
+  try {
+    const { rows: practitioners } = await client.query(
+      `SELECT id, first_name, last_name, practitioner_discipline, pay_rate, service_types
+       FROM practitioners
+       WHERE role = 'practitioner' AND is_active = true AND is_platform_support = false
+       ORDER BY id`
+    );
+    const { rows: patients } = await client.query(
+      `SELECT id, first_name, last_name, dob, county, child_id FROM patients WHERE status = 'active' ORDER BY id`
+    );
+    if (practitioners.length === 0 || patients.length === 0) {
+      return res.status(400).json({ error: 'No eligible practitioners or patients found on this tenant.' });
+    }
+
+    const activeCount = Math.max(1, Math.round(practitioners.length * activeFraction));
+    const shuffled = [...practitioners].sort(() => Math.random() - 0.5);
+    const activePractitioners = shuffled.slice(0, activeCount);
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const manifest = [];
+    let sessionsCreated = 0;
+
+    await client.query('BEGIN');
+
+    for (const prac of activePractitioners) {
+      // Link this practitioner to 2-6 random children (reuse existing links
+      // if any already exist) so logging stays within real ownership rules.
+      const childCount = Math.min(patients.length, randInt(2, 6));
+      const assignedPatients = [...patients].sort(() => Math.random() - 0.5).slice(0, childCount);
+      for (const pt of assignedPatients) {
+        await client.query(
+          `INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [pt.id, prac.id]
+        );
+      }
+
+      const sessionCount = randInt(minSessionsPerPractitioner, maxSessionsPerPractitioner);
+      // Track (childId, date, startMinutes-endMinutes) to avoid generating
+      // genuinely-overlapping sessions for the SAME child on the SAME day
+      // under THIS practitioner, which assertNoConflictingSession-equivalent
+      // logic would reject — different practitioners treating the same
+      // child same day is fine (conflict scope is per-practitioner).
+      const usedWindows = new Map(); // childId -> [[startMin,endMin], ...]
+
+      for (let i = 0; i < sessionCount; i++) {
+        const day = randInt(1, daysInMonth);
+        const serviceDate = `${year}-${pad2(month)}-${pad2(day)}`;
+        const child = pick(assignedPatients);
+
+        const startTime = randomStartTime();
+        const durationMin = pick([30, 45, 60, 60, 60, 90]);
+        const endTime = addMinutes(startTime, durationMin);
+        const [sh, sm] = startTime.split(':').map(Number);
+        const startMin = sh * 60 + sm;
+        const endMin = startMin + durationMin;
+        const windowKey = `${child.id}:${serviceDate}`;
+        const windows = usedWindows.get(windowKey) || [];
+        const overlaps = windows.some(([s, e]) => startMin < e && endMin > s);
+        if (overlaps) continue; // skip this iteration rather than fight for a free slot
+        windows.push([startMin, endMin]);
+        usedWindows.set(windowKey, windows);
+
+        const serviceCode = pick(SERVICE_TYPE_CODES);
+        const locationCode = pick(LOCATION_CODES);
+        const groupSizeCode = pick(GROUP_SIZE_CODES);
+
+        // "Truth" — what the state EIMS export should say for this session.
+        const truth = {
+          child_id: child.child_id,
+          child_name: `${child.first_name} ${child.last_name}`,
+          practitioner_name: `${prac.first_name} ${prac.last_name}`,
+          service_date: serviceDate,
+          start_time: startTime,
+          end_time: endTime,
+          service_code: serviceCode,
+          location_code: locationCode,
+          group_size_code: groupSizeCode,
+          total_time: durationMin,
+          logged_date: serviceDate,
+        };
+
+        // "Logged" — what actually gets written to assessments. Starts as
+        // an exact copy of truth; error injection below mutates a copy.
+        let logged = { ...truth };
+        let errorType = null;
+        let cancelled = false;
+        let missingFromEims = false;
+        let duplicateOf = null;
+        let signatureIssue = null;
+        let zeroPayRate = false;
+
+        if (Math.random() < errorRate) {
+          const categories = [
+            'field_mismatch_time', 'field_mismatch_service', 'field_mismatch_location',
+            'missing_from_eims', 'duplicate_eims_row',
+            'signature_missing_practitioner', 'signature_missing_parent',
+            'cancelled_session', 'missing_child_link', 'zero_pay_rate',
+          ];
+          errorType = pick(categories);
+
+          switch (errorType) {
+            case 'field_mismatch_time': {
+              // Logged time drifts a few minutes from what the state has on
+              // file — exercises timeWithinTolerance at the active
+              // strictness profile.
+              const drift = pick([-20, -15, 12, 18, 25]);
+              logged.start_time = addMinutes(logged.start_time, drift);
+              logged.end_time = addMinutes(logged.end_time, drift);
+              break;
+            }
+            case 'field_mismatch_service': {
+              const others = SERVICE_TYPE_CODES.filter((c) => c !== serviceCode);
+              logged.service_code = pick(others);
+              break;
+            }
+            case 'field_mismatch_location': {
+              const others = LOCATION_CODES.filter((c) => c !== locationCode);
+              logged.location_code = pick(others);
+              break;
+            }
+            case 'missing_from_eims': {
+              // Session gets logged normally but will simply not appear as
+              // a row in the generated EIMS export — handled when building
+              // the Excel (we only skip adding a row for `truth`), not here.
+              missingFromEims = true;
+              break;
+            }
+            case 'duplicate_eims_row': {
+              // The EIMS export will carry this row TWICE under different
+              // (fabricated) child IDs — simulated at Excel-build time via
+              // the `duplicateOf` flag; the assessment itself is untouched.
+              duplicateOf = true;
+              break;
+            }
+            case 'signature_missing_practitioner':
+              signatureIssue = 'practitioner';
+              break;
+            case 'signature_missing_parent':
+              signatureIssue = 'parent';
+              break;
+            case 'cancelled_session':
+              cancelled = true;
+              logged.total_time = 0;
+              break;
+            case 'missing_child_link':
+              // Simulated purely in the manifest for downstream reporting —
+              // the real patients.child_id is never actually nulled out
+              // (would break UNIQUE/NOT NULL and every other session for
+              // this same child), so this category just marks the line
+              // item so a reviewer can look for "would show as missing
+              // child ID if it existed" — skip actual mutation.
+              break;
+            case 'zero_pay_rate':
+              zeroPayRate = true;
+              break;
+            default:
+              break;
+          }
+        }
+
+        // assertNoConflictingSession-equivalent collision guard already
+        // applied above via usedWindows; proceed to insert.
+        const practitionerSig = signatureIssue === 'practitioner' ? null : generateSignaturePng();
+        const parentSig = signatureIssue === 'parent' ? null : generateSignaturePng();
+        // assessments.parent_signature/practitioner_signature are NOT NULL —
+        // a "missing signature" error is simulated with a visibly blank 1x1
+        // transparent PNG rather than an actual NULL, which the DB would
+        // reject outright and which no real submission could ever produce
+        // anyway (the mobile app requires a signature before submit).
+        const practitionerSignature = practitionerSig || PLACEHOLDER_SIGNATURE;
+        const parentSignature = parentSig || PLACEHOLDER_SIGNATURE;
+
+        const noteParts = [GEN_TAG];
+        if (errorType) noteParts.push(`err:${errorType}`);
+        if (zeroPayRate) noteParts.push('zero_pay_rate');
+
+        const { rows: insertedRows } = await client.query(
+          `INSERT INTO assessments
+             (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
+              practitioner_first_name, practitioner_last_name, practitioner_discipline,
+              service_date, start_time, end_time, total_time, status, type, location, group_size_category,
+              parent_signature, practitioner_signature, form_data, session_notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+           RETURNING id`,
+          [
+            child.id, prac.id, child.first_name, child.last_name, child.dob, child.county,
+            prac.first_name, prac.last_name, prac.practitioner_discipline || null,
+            logged.service_date, cancelled ? null : logged.start_time, cancelled ? null : logged.end_time,
+            cancelled ? 0 : durationMin, VISIT_STATUS_CLEAN, logged.service_code, logged.location_code, groupSizeCode,
+            parentSignature, practitionerSignature, JSON.stringify({ custom_fields: {} }), noteParts.join(' '),
+          ]
+        );
+
+        sessionsCreated += 1;
+        manifest.push({
+          assessmentId: insertedRows[0].id,
+          practitionerId: prac.id,
+          patientId: child.id,
+          errorType,
+          missingFromEims,
+          duplicateOf,
+          truth,
+          logged,
+        });
+
+        if (zeroPayRate) {
+          await client.query(`UPDATE practitioners SET pay_rate = 0 WHERE id = $1`, [prac.id]);
+        }
+      }
+    }
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req,
+      action: 'generate_live_sessions',
+      resourceType: 'test_data',
+      details: { practitionersUsed: activePractitioners.length, sessionsCreated, year, month, errorRate },
+    });
+
+    res.json({
+      success: true,
+      practitionersUsed: activePractitioners.length,
+      totalPractitioners: practitioners.length,
+      sessionsCreated,
+      manifest,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to generate live sessions:', error);
+    res.status(500).json({ error: 'Failed to generate live sessions', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * POST /api/dev/wipe-generated-live-sessions
+ * CEO-only. Removes every assessment this endpoint created, identified by
+ * the GEN_TAG prefix in session_notes — leaves the real practitioner/
+ * patient rows themselves completely untouched (unlike wipeAllSeedData,
+ * which deletes seed-% practitioners entirely), since those are real
+ * existing tenant accounts, not throwaway seed accounts.
+ */
+const wipeGeneratedLiveSessions = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: targetRows } = await client.query(
+      `SELECT id FROM assessments WHERE session_notes LIKE $1`,
+      [`${GEN_TAG}%`]
+    );
+    const ids = targetRows.map((r) => r.id);
+    if (ids.length > 0) {
+      await client.query(`DELETE FROM assessment_notes WHERE assessment_id = ANY($1::int[])`, [ids]);
+      await client.query(`DELETE FROM compliance_field_acknowledgments WHERE assessment_id = ANY($1::int[])`, [ids]);
+      await client.query(`DELETE FROM assessments WHERE id = ANY($1::int[])`, [ids]);
+    }
+    await client.query('COMMIT');
+
+    logAudit({ req, action: 'wipe_generated_live_sessions', resourceType: 'test_data', details: { removed: ids.length } });
+    res.json({ success: true, removed: ids.length });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to wipe generated live sessions:', error);
+    res.status(500).json({ error: 'Failed to wipe generated sessions', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   seedComparisonTestData,
   wipeAllSeedData,
   hardDeletePractitioner,
   randomizeSeedPractitionerDetails,
   randomizeSeedSignatures,
+  generateLiveSessions,
+  wipeGeneratedLiveSessions,
 };
