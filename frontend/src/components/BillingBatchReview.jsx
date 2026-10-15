@@ -603,6 +603,24 @@ function PractitionerGroup({
     return acc;
   }, { billable: 0, heldReturned: 0, excluded: 0 });
 
+  // Widening the billing period (Biweekly -> Monthly) reruns this same
+  // query over a bigger date range of the same underlying sessions — a
+  // session already generated into an invoice/SEVF (njeis_review = sent
+  // to that batch, invoiced/completed = fully finalized) has nothing left
+  // to review here. Without separating it out it just blends into this
+  // same flat list alongside sessions still pending/approved-but-not-yet-
+  // sent, which reads as if the period switch merged or duplicated
+  // something, even though it only widened the date filter. Grouped into
+  // its own section at the end, with a divider, instead.
+  const isAlreadySentToBilling = (s) => ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
+  const sortedQueueSessions = [...sessions].sort((a, b) => {
+    const aDone = isAlreadySentToBilling(a) ? 1 : 0;
+    const bDone = isAlreadySentToBilling(b) ? 1 : 0;
+    return aDone - bDone;
+  });
+  const processedQueueCount = sortedQueueSessions.filter(isAlreadySentToBilling).length;
+  const firstProcessedQueueIndex = processedQueueCount > 0 ? sortedQueueSessions.length - processedQueueCount : -1;
+
   return (
     <div ref={containerRef} className="border-b border-slate-200">
       <button
@@ -661,7 +679,7 @@ function PractitionerGroup({
               <div className="p-4 text-center text-sm text-slate-500">Loading sessions...</div>
             ) : sessions.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">No individual logs found.</div>
-            ) : sessions.map(s => {
+            ) : sortedQueueSessions.map((s, idx) => {
               const isDeclined = s.billing_status === 'declined';
               const isReturned = s.billing_status === 'rejected';
               const isOnHold = s.billing_status === 'on_hold';
@@ -681,8 +699,17 @@ function PractitionerGroup({
               // it's whichever log was actually clicked. Never both at once.
               const isSelected = detailSessionId === s.id;
               return (
+                <React.Fragment key={s.id}>
+                  {idx === firstProcessedQueueIndex && (
+                    <div className="flex items-center gap-2 pl-3 pr-4 pt-3 pb-1 border-t border-slate-100">
+                      <div className="h-px flex-1 bg-slate-200" />
+                      <div className="text-xs font-bold uppercase tracking-wide text-slate-400 whitespace-nowrap">
+                        Already sent to billing &middot; {processedQueueCount}
+                      </div>
+                      <div className="h-px flex-1 bg-slate-200" />
+                    </div>
+                  )}
                 <div
-                  key={s.id}
                   ref={(el) => registerSessionRow?.(s.id, el)}
                   onClick={() => onSelectSession(s.id)}
                   className={`grid grid-cols-[minmax(0,1fr)_minmax(max-content,auto)_minmax(0,1fr)] items-center gap-3 pl-3 pr-4 py-3.5 border-t border-slate-100 border-l-4 cursor-pointer transition-colors ${
@@ -714,6 +741,7 @@ function PractitionerGroup({
                     {s.notes_count > 0 && <MessageSquareText className="size-3.5 text-slate-400" />}
                   </div>
                 </div>
+                </React.Fragment>
               );
             })
           )}
