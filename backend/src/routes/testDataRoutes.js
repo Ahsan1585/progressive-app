@@ -11,6 +11,7 @@ const {
   randomizeSeedSignatures,
   generateLiveSessions,
   wipeGeneratedLiveSessions,
+  refreshGeneratedSignatures,
 } = require('../controllers/testDataController');
 
 // Test-data seeding is only wired up at all when ENABLE_TEST_SEED=true is
@@ -24,6 +25,7 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
   router.post('/randomize-seed-signatures', protect, requireRole(['ceo']), randomizeSeedSignatures);
   router.post('/generate-live-sessions', protect, requireRole(['ceo']), generateLiveSessions);
   router.post('/wipe-generated-live-sessions', protect, requireRole(['ceo']), wipeGeneratedLiveSessions);
+  router.post('/refresh-generated-signatures', protect, requireRole(['ceo']), refreshGeneratedSignatures);
 
   // Read-only diagnostic: shows exactly what's in compliance_state_logs for
   // a given child ID, to distinguish "row never parsed from the doc" from

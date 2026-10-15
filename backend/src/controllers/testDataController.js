@@ -486,6 +486,47 @@ const randomizeSeedSignatures = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/dev/refresh-generated-signatures
+ * CEO-only. Re-draws parent_signature/practitioner_signature on every
+ * [GENSEPT26]-tagged assessment using the current generateSignaturePng()
+ * implementation — for re-running after that generator itself changes
+ * (e.g. a visual-quality improvement), without regenerating the sessions
+ * themselves. Skips any assessment whose error manifest deliberately left
+ * a signature as the blank placeholder (session_notes contains
+ * "err:signature_missing_practitioner" / "err:signature_missing_parent")
+ * so that error category stays intact — re-signing those would silently
+ * erase the deliberate test failure.
+ */
+const refreshGeneratedSignatures = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, session_notes FROM assessments WHERE session_notes LIKE '[GENSEPT26]%'`
+    );
+    let updated = 0;
+    for (const { id, session_notes } of rows) {
+      const skipPractitioner = (session_notes || '').includes('err:signature_missing_practitioner');
+      const skipParent = (session_notes || '').includes('err:signature_missing_parent');
+      if (skipPractitioner && skipParent) continue;
+
+      const sets = [];
+      const params = [];
+      if (!skipParent) { params.push(generateSignaturePng()); sets.push(`parent_signature = $${params.length}`); }
+      if (!skipPractitioner) { params.push(generateSignaturePng()); sets.push(`practitioner_signature = $${params.length}`); }
+      if (sets.length === 0) continue;
+      params.push(id);
+      await pool.query(`UPDATE assessments SET ${sets.join(', ')} WHERE id = $${params.length}`, params);
+      updated += 1;
+    }
+
+    logAudit({ req, action: 'refresh_generated_signatures', resourceType: 'test_data', details: { assessmentsUpdated: updated } });
+    res.json({ success: true, assessmentsUpdated: updated, totalChecked: rows.length });
+  } catch (error) {
+    console.error('Failed to refresh generated signatures:', error);
+    res.status(500).json({ error: 'Failed to refresh signatures', detail: error.message });
+  }
+};
+
 // Tag written into assessments.session_notes for every row this endpoint
 // creates — the only marker distinguishing generated test sessions from
 // real ones on existing (non-seed-%) practitioners, since these are real
@@ -833,4 +874,5 @@ module.exports = {
   randomizeSeedSignatures,
   generateLiveSessions,
   wipeGeneratedLiveSessions,
+  refreshGeneratedSignatures,
 };
