@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { generateSignaturePng } = require('../utils/fakeSignature');
+const { BILLING_INVOICES_BUCKET, NJEIS_FORMS_BUCKET, deleteAllTenantFiles, listFilesDetailed, removeFiles } = require('../config/storage');
 
 const SEED_PASSWORD = 'TestData@2026';
 
@@ -782,15 +783,33 @@ const wipeTenantRosterCompletely = async (req, res) => {
 
     await client.query('COMMIT');
 
+    // GCS cleanup runs AFTER the DB commit, not inside the transaction —
+    // a storage failure here must never roll back an already-successful
+    // DB wipe. Without this, every SEVF/invoice PDF ever generated for
+    // the deleted roster keeps sitting in the bucket and getting listed
+    // as "Completed Bills" history (getInvoiceHistory lists files by
+    // scanning storage, not by querying billing_batches), showing
+    // phantom rows for practitioners that no longer exist, with no real
+    // batch behind them to act on (ACTIONS column has nothing to show).
+    let filesDeleted = true;
+    try {
+      await deleteAllTenantFiles(BILLING_INVOICES_BUCKET);
+      await deleteAllTenantFiles(NJEIS_FORMS_BUCKET);
+    } catch (storageError) {
+      filesDeleted = false;
+      console.error('wipeTenantRosterCompletely: GCS cleanup failed (DB wipe already committed):', storageError.message);
+    }
+
     logAudit({
       req, action: 'wipe_tenant_roster_completely', resourceType: 'test_data',
-      details: { practitionersRemoved: practitionerIds.length, patientsRemoved: patientIds.length, assessmentsRemoved: deletedAssessments.length },
+      details: { practitionersRemoved: practitionerIds.length, patientsRemoved: patientIds.length, assessmentsRemoved: deletedAssessments.length, filesDeleted },
     });
     res.json({
       success: true,
       practitionersRemoved: practitionerIds.length,
       patientsRemoved: patientIds.length,
       assessmentsRemoved: deletedAssessments.length,
+      filesDeleted,
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -953,6 +972,61 @@ const fixGeneratorZeroedPayRates = async (req, res) => {
     res.status(500).json({ error: 'Failed to fix zeroed pay rates', detail: error.message });
   } finally {
     client.release();
+  }
+};
+
+/**
+ * POST /api/dev/cleanup-orphaned-billing-files
+ * CEO-only. getInvoiceHistory (the "Completed Bills" tab) lists SEVF/
+ * invoice history by scanning every PDF under this tenant's storage
+ * prefix — it has no DB cross-check. A full roster wipe (wipeTenantRoster
+ * Completely) deletes the billing_batches/assessments rows but, before
+ * this endpoint existed, left every previously-generated PDF sitting in
+ * storage, so old (now practitioner-less) batches kept showing up as
+ * phantom "Completed Bills" rows with working downloads but no real
+ * batch behind them (ACTIONS column has nothing to show for them).
+ *
+ * Surgical, not a full-bucket wipe (that's deleteAllTenantFiles, used by
+ * wipeTenantRosterCompletely itself, which is safe there because that
+ * endpoint also deletes every practitioner unconditionally — no survivor
+ * case to worry about). Here, practitioners already exist again after a
+ * rebuild, so this only deletes files whose path's practitioner-name
+ * folder segment (YYYY-MM/First_Last/...) doesn't match any
+ * CURRENTLY-active practitioner's own name — never touches a file that
+ * could belong to someone on the roster right now.
+ */
+const cleanupOrphanedBillingFiles = async (req, res) => {
+  try {
+    const { rows: practitioners } = await pool.query(
+      `SELECT first_name, last_name FROM practitioners WHERE role = 'practitioner'`
+    );
+    const validFolders = new Set(
+      practitioners.map((p) => `${p.first_name}_${p.last_name}`.replace(/\s+/g, '_'))
+    );
+
+    const deletedPaths = [];
+    for (const bucketName of [BILLING_INVOICES_BUCKET, NJEIS_FORMS_BUCKET]) {
+      const files = await listFilesDetailed(bucketName, '');
+      const orphaned = files
+        .map((f) => f.name)
+        .filter((name) => {
+          // Expected shape: YYYY-MM/Practitioner_Name/File.pdf
+          const parts = name.split('/');
+          if (parts.length < 2) return false; // not a recognized billing-doc path — leave alone
+          const folder = parts[1];
+          return !validFolders.has(folder);
+        });
+      if (orphaned.length > 0) {
+        await removeFiles(bucketName, orphaned);
+        deletedPaths.push(...orphaned.map((p) => `${bucketName}/${p}`));
+      }
+    }
+
+    logAudit({ req, action: 'cleanup_orphaned_billing_files', resourceType: 'test_data', details: { deleted: deletedPaths.length } });
+    res.json({ success: true, deleted: deletedPaths.length, samplePaths: deletedPaths.slice(0, 10) });
+  } catch (error) {
+    console.error('Failed to clean up orphaned billing files:', error);
+    res.status(500).json({ error: 'Failed to clean up orphaned billing files', detail: error.message });
   }
 };
 
@@ -1314,4 +1388,5 @@ module.exports = {
   wipeTenantRosterCompletely,
   createDummyRoster,
   fixGeneratorZeroedPayRates,
+  cleanupOrphanedBillingFiles,
 };
