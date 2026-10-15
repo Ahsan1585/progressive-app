@@ -734,6 +734,16 @@ const wipeTenantRosterCompletely = async (req, res) => {
       `DELETE FROM compliance_field_acknowledgments WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[])) OR allowed_by = ANY($1::int[])`,
       [practitionerIds]
     );
+    // telepractice_signature_requests.assessment_id/practitioner_id/
+    // patient_id all reference these rows with no ON DELETE cascade —
+    // must go before assessments/practitioners/patients or the delete
+    // below fails on an FK violation (found via a real failed wipe
+    // attempt, not present in hardDeletePractitioner's original
+    // checklist since this table was added after that function).
+    await client.query(
+      `DELETE FROM telepractice_signature_requests WHERE practitioner_id = ANY($1::int[]) OR patient_id = ANY($2::int[])`,
+      [practitionerIds, patientIds]
+    );
     const { rows: deletedAssessments } = await client.query(
       `DELETE FROM assessments WHERE practitioner_id = ANY($1::int[]) RETURNING id`,
       [practitionerIds]
@@ -749,6 +759,10 @@ const wipeTenantRosterCompletely = async (req, res) => {
     await client.query(`DELETE FROM session_drafts WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
     // agencies/patient_agencies cascade on practitioner_id/patient_id delete
     // (add_agencies.sql) — no manual cleanup needed for those two.
+    // bulk_import_batches.created_by has no cascade — SET NULL rather than
+    // block the wipe if a deleted practitioner ever ran a bulk import
+    // (unlikely in practice, but the FK is there).
+    await client.query(`UPDATE bulk_import_batches SET created_by = NULL WHERE created_by = ANY($1::int[])`, [practitionerIds]);
     await client.query(`UPDATE patients SET practitioner_id = NULL WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
     await client.query(`DELETE FROM patients WHERE id = ANY($1::int[])`, [patientIds]);
     await client.query(`DELETE FROM practitioners WHERE id = ANY($1::int[])`, [practitionerIds]);
