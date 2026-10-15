@@ -22,13 +22,16 @@ const getDayOverview = async (req, res) => {
        FROM assessments WHERE completed_at::date = CURRENT_DATE`
     );
 
+    // Oldest-first (ASC) — the queue's whole point is surfacing what's
+    // been waiting longest, not what was most recently flagged.
     const { rows: exceptionRows } = await pool.query(
       `SELECT a.id, a.billing_status, a.service_date, a.hold_note, a.rejection_note,
+              COALESCE(a.held_at, a.rejected_at) AS flagged_at,
               a.patient_first_name, a.patient_last_name,
               a.practitioner_first_name, a.practitioner_last_name
        FROM assessments a
        WHERE a.billing_status = ANY($1::text[])
-       ORDER BY a.held_at DESC NULLS LAST, a.rejected_at DESC NULLS LAST
+       ORDER BY COALESCE(a.held_at, a.rejected_at) ASC NULLS LAST
        LIMIT 10`,
       [OPEN_EXCEPTION_STATUSES]
     );
@@ -61,6 +64,7 @@ const getDayOverview = async (req, res) => {
         id: r.id,
         status: r.billing_status,
         serviceDate: r.service_date,
+        flaggedAt: r.flagged_at,
         note: r.hold_note || r.rejection_note || null,
         patientName: `${r.patient_first_name || ''} ${r.patient_last_name || ''}`.trim(),
         practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
@@ -132,6 +136,20 @@ const getMonthOverview = async (req, res) => {
       else if (r.billing_status in exceptions) exceptions[r.billing_status] = r.count;
     });
 
+    // Real "paid" count for the funnel's 4th stage — invoiced/completed
+    // only means "batched," not "actually paid" (billing_batches.paid_at
+    // is the authoritative signal, same join the AP endpoint uses).
+    const { rows: paidRows } = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM assessments a
+       JOIN billing_batches bb ON bb.id = a.billing_batch_id
+       WHERE a.service_date >= $1 AND a.service_date <= $2
+         AND a.billing_status IN ('invoiced', 'completed')
+         AND bb.paid_at IS NOT NULL`,
+      [start, end]
+    );
+    const paidCount = paidRows[0].count;
+
     // EIMS match rate for the month — bounded to sessions already past
     // pending (njeis_review/invoiced/completed/self_certified), reusing
     // the same loadComplianceForLines bounded-concurrency pattern the
@@ -197,6 +215,7 @@ const getMonthOverview = async (req, res) => {
       })),
       volumeVsPriorMonth: { current, prior: priorCount, pctChange },
       statusFunnel: funnel,
+      paidCount,
       exceptions,
       eimsMatchRate,
       practitionerTable,
