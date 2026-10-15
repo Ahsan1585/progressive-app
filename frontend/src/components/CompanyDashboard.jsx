@@ -130,35 +130,23 @@ function ActionQueue({ day }) {
   );
 }
 
-function BillingFunnel({ month }) {
-  if (!month) return null;
-  const { statusFunnel, paidCount, volumeVsPriorMonth } = month;
-  const logged = volumeVsPriorMonth?.current || 0;
-  // "Reviewed" = everything past the raw pending stage, including
-  // self_certified (an independent practitioner's own review step).
-  const reviewed = logged - (statusFunnel?.pending || 0) - (statusFunnel?.self_certified || 0);
-  // "Invoiced" = batched into a real invoice: njeis_review (batch
-  // generated, awaiting finalize), invoiced, and completed (the
-  // independent-practitioner equivalent of invoiced).
-  const invoicedTotal = (statusFunnel?.njeis_review || 0) + (statusFunnel?.invoiced || 0) + (statusFunnel?.completed || 0);
-  const paid = paidCount || 0;
+function BillingFunnel({ pipeline }) {
+  if (!pipeline) return null;
+  const { logged, reviewed, invoiced, paid } = pipeline;
 
   const stages = [
     { label: 'Logged', value: logged, gradient: 'linear-gradient(90deg, #60a5fa, #2563eb)' },
-    { label: 'Reviewed', value: Math.max(reviewed, 0), gradient: 'linear-gradient(90deg, #a78bfa, #7c3aed)' },
-    { label: 'Invoiced', value: invoicedTotal, gradient: 'linear-gradient(90deg, #2dd4bf, #0d9488)' },
+    { label: 'Reviewed', value: reviewed, gradient: 'linear-gradient(90deg, #a78bfa, #7c3aed)' },
+    { label: 'Invoiced', value: invoiced, gradient: 'linear-gradient(90deg, #2dd4bf, #0d9488)' },
     { label: 'Paid', value: paid, gradient: 'linear-gradient(90deg, #fbbf24, #d97706)' },
   ];
   const max = Math.max(logged, 1);
 
-  const monthLabel = new Date(`${month.year}-${String(month.month).padStart(2, '0')}-01T00:00:00`)
-    .toLocaleDateString('en-US', { month: 'long' });
-
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <div className="text-[15.5px] font-bold text-slate-900">Billing funnel &middot; {monthLabel}</div>
-        <div className="text-[11.5px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{logged.toLocaleString()} logged</div>
+        <div className="text-[15.5px] font-bold text-slate-900">Billing pipeline</div>
+        <div className="text-[11.5px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{logged.toLocaleString()} total</div>
       </div>
       {stages.map((s) => (
         <div key={s.label} className="flex items-center gap-3 mb-3 last:mb-0">
@@ -175,8 +163,8 @@ function BillingFunnel({ month }) {
       ))}
       <div className="text-xs text-slate-400 mt-3.5 pt-3 border-t border-dashed border-slate-200">
         {paid === 0
-          ? "Nothing from this month has been marked paid yet — expected if the billing cycle hasn't closed."
-          : `${Math.round((paid / Math.max(invoicedTotal, 1)) * 100)}% of invoiced sessions this month are confirmed paid.`}
+          ? "Nothing in the pipeline has been marked paid yet."
+          : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of invoiced sessions are confirmed paid, across all time.`}
       </div>
     </div>
   );
@@ -423,40 +411,22 @@ export function CompanyDashboard() {
   const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
   const [month, setMonth] = useState(null);
   const [trajectoryTab, setTrajectoryTab] = useState('day');
-  // Defaulting to the current calendar month reads as "broken" when
-  // there's no activity yet this month (e.g. a fresh tenant whose only
-  // data is a prior month's test/onboarding batch) — the funnel and
-  // trajectory just show honest zeros with no indication why. Tracked
-  // separately from monthValue so a manual date-picker change (the user
-  // deliberately picking an empty month) is never silently overridden.
-  const [autoFallbackChecked, setAutoFallbackChecked] = useState(false);
+  // The billing pipeline (Logged -> Reviewed -> Invoiced -> Paid) is
+  // deliberately NOT scoped to a calendar month — it's the current state
+  // of every session across all time, the actual operational backlog, so
+  // it fetches once and doesn't depend on monthValue below.
+  const [pipeline, setPipeline] = useState(null);
 
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
     api.get('/api/dashboard/ap').then((res) => setAp(res.data)).catch(() => setAp(null));
+    api.get('/api/dashboard/pipeline').then((res) => setPipeline(res.data)).catch(() => setPipeline(null));
   }, []);
 
   useEffect(() => {
     api.get('/api/dashboard/month', { params: { month: monthValue } })
-      .then((res) => {
-        setMonth(res.data);
-        if (!autoFallbackChecked && res.data.volumeVsPriorMonth?.current === 0) {
-          setAutoFallbackChecked(true);
-          api.get('/api/dashboard/year', { params: { year: new Date().getFullYear() } })
-            .then((yearRes) => {
-              const months = yearRes.data.monthlyVolume || [];
-              const lastActive = [...months].reverse().find((m) => m.count > 0);
-              if (lastActive) {
-                setMonthValue(String(lastActive.month).slice(0, 7));
-              }
-            })
-            .catch(() => {});
-        } else {
-          setAutoFallbackChecked(true);
-        }
-      })
+      .then((res) => setMonth(res.data))
       .catch(() => setMonth(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthValue]);
 
   return (
@@ -492,9 +462,9 @@ export function CompanyDashboard() {
 
       <div>
         <div className="text-lg font-bold text-slate-900 mb-1">From session to payment</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">How this month's work is moving through the pipeline, and what's stuck along the way.</p>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Everything currently in the pipeline, and what's stuck along the way.</p>
         <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start">
-          <BillingFunnel month={month} />
+          <BillingFunnel pipeline={pipeline} />
           <ActionQueue day={day} />
         </div>
       </div>

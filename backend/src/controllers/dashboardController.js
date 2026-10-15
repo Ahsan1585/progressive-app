@@ -92,6 +92,51 @@ function priorMonth(year, month) {
   return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 }
 
+// GET /api/dashboard/pipeline — the CURRENT state of every session in the
+// pipeline right now, across all time, not scoped to a calendar month.
+// "How much work is sitting at each stage" is an operational backlog
+// question, not a historical one — a session logged in August that's
+// still pending review is just as real a bottleneck today as one logged
+// yesterday, so this deliberately does NOT filter by service_date.
+const getPipelineOverview = async (req, res) => {
+  try {
+    const { rows: statusRows } = await pool.query(
+      `SELECT billing_status, COUNT(*)::int AS count FROM assessments GROUP BY billing_status`
+    );
+    const byStatus = { pending: 0, njeis_review: 0, invoiced: 0, self_certified: 0, completed: 0 };
+    const exceptions = { on_hold: 0, rejected: 0, declined: 0, voided: 0 };
+    statusRows.forEach((r) => {
+      if (r.billing_status in byStatus) byStatus[r.billing_status] = r.count;
+      else if (r.billing_status in exceptions) exceptions[r.billing_status] = r.count;
+    });
+
+    const totalInPipeline = Object.values(byStatus).reduce((a, b) => a + b, 0);
+    const reviewed = totalInPipeline - byStatus.pending - byStatus.self_certified;
+    const invoicedTotal = byStatus.njeis_review + byStatus.invoiced + byStatus.completed;
+
+    // Real "paid" count — billing_batches.paid_at is the authoritative
+    // signal, same join the AP endpoint and getMonthOverview use.
+    const { rows: paidRows } = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM assessments a
+       JOIN billing_batches bb ON bb.id = a.billing_batch_id
+       WHERE a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NOT NULL`
+    );
+
+    res.json({
+      success: true,
+      logged: totalInPipeline,
+      reviewed: Math.max(reviewed, 0),
+      invoiced: invoicedTotal,
+      paid: paidRows[0].count,
+      exceptions,
+    });
+  } catch (error) {
+    console.error('getPipelineOverview error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load pipeline overview' });
+  }
+};
+
 // GET /api/dashboard/month?month=YYYY-MM — trend + status funnel +
 // per-practitioner table for one calendar month.
 const getMonthOverview = async (req, res) => {
@@ -441,6 +486,7 @@ const getAccountsPayable = async (req, res) => {
 
 module.exports = {
   getDayOverview,
+  getPipelineOverview,
   getMonthOverview,
   getYearOverview,
   getAccountsPayable,
