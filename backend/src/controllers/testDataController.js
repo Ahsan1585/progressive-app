@@ -527,6 +527,32 @@ const refreshGeneratedSignatures = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/dev/backfill-generated-completed-at
+ * CEO-only. generateLiveSessions's INSERT never set completed_at, so it
+ * defaulted to now() — every [GENSEPT26]-tagged session ended up with the
+ * exact same "logged at" timestamp (whenever the generator script ran),
+ * instead of being spread across September the way real submissions
+ * would be. Backfills completed_at to service_date plus a random
+ * same-day time, so "logged today"/daily-volume dashboard views read
+ * realistically against this test dataset.
+ */
+const backfillGeneratedCompletedAt = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assessments
+       SET completed_at = service_date::timestamptz + (random() * interval '10 hours') + interval '8 hours'
+       WHERE session_notes LIKE '[GENSEPT26]%' AND service_date IS NOT NULL
+       RETURNING id`
+    );
+    logAudit({ req, action: 'backfill_generated_completed_at', resourceType: 'test_data', details: { updated: rows.length } });
+    res.json({ success: true, updated: rows.length });
+  } catch (error) {
+    console.error('Failed to backfill completed_at:', error);
+    res.status(500).json({ error: 'Failed to backfill completed_at', detail: error.message });
+  }
+};
+
 // Tag written into assessments.session_notes for every row this endpoint
 // creates — the only marker distinguishing generated test sessions from
 // real ones on existing (non-seed-%) practitioners, since these are real
@@ -875,4 +901,5 @@ module.exports = {
   generateLiveSessions,
   wipeGeneratedLiveSessions,
   refreshGeneratedSignatures,
+  backfillGeneratedCompletedAt,
 };

@@ -407,6 +407,10 @@ const getAccountsPayable = async (req, res) => {
         clearAmount: Math.round(r.clearAmount * 100) / 100,
         heldAmount: Math.round(r.heldAmount * 100) / 100,
       }))
+      // A $0 row (e.g. a cancelled/zero-duration session, or a $0 pay rate)
+      // has nothing to act on — "who to prioritize in the next pay run"
+      // shouldn't be cluttered by practitioners who are owed nothing.
+      .filter((r) => r.totalOwed > 0)
       .sort((a, b) => b.totalOwed - a.totalOwed);
 
     res.json({ success: true, totalOwed, totalClear, totalHeld, agingBuckets, perPractitionerTable });
