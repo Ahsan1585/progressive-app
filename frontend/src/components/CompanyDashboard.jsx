@@ -423,6 +423,13 @@ export function CompanyDashboard() {
   const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
   const [month, setMonth] = useState(null);
   const [trajectoryTab, setTrajectoryTab] = useState('day');
+  // Defaulting to the current calendar month reads as "broken" when
+  // there's no activity yet this month (e.g. a fresh tenant whose only
+  // data is a prior month's test/onboarding batch) — the funnel and
+  // trajectory just show honest zeros with no indication why. Tracked
+  // separately from monthValue so a manual date-picker change (the user
+  // deliberately picking an empty month) is never silently overridden.
+  const [autoFallbackChecked, setAutoFallbackChecked] = useState(false);
 
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
@@ -431,8 +438,25 @@ export function CompanyDashboard() {
 
   useEffect(() => {
     api.get('/api/dashboard/month', { params: { month: monthValue } })
-      .then((res) => setMonth(res.data))
+      .then((res) => {
+        setMonth(res.data);
+        if (!autoFallbackChecked && res.data.volumeVsPriorMonth?.current === 0) {
+          setAutoFallbackChecked(true);
+          api.get('/api/dashboard/year', { params: { year: new Date().getFullYear() } })
+            .then((yearRes) => {
+              const months = yearRes.data.monthlyVolume || [];
+              const lastActive = [...months].reverse().find((m) => m.count > 0);
+              if (lastActive) {
+                setMonthValue(String(lastActive.month).slice(0, 7));
+              }
+            })
+            .catch(() => {});
+        } else {
+          setAutoFallbackChecked(true);
+        }
+      })
       .catch(() => setMonth(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthValue]);
 
   return (
