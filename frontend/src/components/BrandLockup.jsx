@@ -13,12 +13,17 @@ const SIZES = {
   lg: { wordmarkClassName: 'h-9 w-auto', eisFontSize: 27, taglineFontSize: 11, gap: 3 },
 };
 
-export function BrandLockup({ size = 'sm', align = 'flex-start', className = '', isOne = false }) {
+// `dark` renders the mark for a dark/black surface (e.g. AdminDashboard's
+// sidebar footer) — swaps the wordmark's navy strokes to white and the
+// tagline's slate to a light gray, so neither disappears against black.
+// Every other caller omits this prop and gets the original light-surface
+// colors.
+export function BrandLockup({ size = 'sm', align = 'flex-start', className = '', isOne = false, dark = false }) {
   const s = SIZES[size];
   return (
     <div className={className} style={{ display: 'flex', flexDirection: 'column', alignItems: align, gap: s.gap }}>
-      <BrandWordmarkRow wordmarkClassName={s.wordmarkClassName} eisFontSize={s.eisFontSize} isOne={isOne} />
-      <span style={{ fontSize: s.taglineFontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#5C6B73', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+      <BrandWordmarkRow wordmarkClassName={s.wordmarkClassName} eisFontSize={s.eisFontSize} isOne={isOne} dark={dark} />
+      <span style={{ fontSize: s.taglineFontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: dark ? '#A8B0B8' : '#5C6B73', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
         Early Intervention Simplified
       </span>
     </div>

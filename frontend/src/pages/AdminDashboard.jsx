@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { MasterReports } from '@/components/MasterReports';
+import { CompanyDashboard } from '@/components/CompanyDashboard';
 import { BillingManager } from '@/components/BillingManager';
 import { RegisterPractitionerForm } from '@/components/RegisterPractitionerForm';
 import { CompanySettings } from '@/components/CompanySettings';
@@ -20,6 +21,10 @@ import { PractitionerAvatar } from '@/components/PractitionerAvatar';
 // used where one tab hosts several independently-grantable actions). Admin
 // always sees everything.
 const TAB_PERMISSION = {
+  // Reuses master_reports (same class of access as Master Reports — a
+  // company-wide view, not a single practitioner's own data) rather than
+  // adding a new key to the fixed permission catalog for this first pass.
+  overview:      'master_reports',
   // Any-of: staff_directory_view for the full directory, practitioner_manage
   // alone (e.g. Program Coordinator) just to reach the Practitioners tab, or
   // patient_record_rights alone for a role that only handles child record
@@ -34,6 +39,7 @@ const TAB_PERMISSION = {
 };
 
 const TAB_TITLES = {
+  overview:      'Overview',
   practitioners: 'Staff Directory',
   reports:       'Master Reports',
   billing:       'Billing & Invoices',
@@ -119,6 +125,12 @@ const AdminDashboard = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'overview':
+        return (
+          <div className="max-w-6xl mx-auto w-full">
+            <CompanyDashboard />
+          </div>
+        );
       case 'billing':
         return (
           <div className="max-w-6xl mx-auto w-full">
@@ -178,42 +190,62 @@ const AdminDashboard = () => {
 
       {/* SIDEBAR — fixed overlay on all breakpoints, opened only by clicking the hamburger button */}
       <aside
-        className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full shadow-lg transition-transform duration-200 ${
+        className={`print:hidden fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full shadow-lg transition-transform duration-200 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-6 border-b border-slate-100">
+        <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
             {companySettings?.logo && (
               // object-contain, not object-cover — a company logo is almost
               // always a wide wordmark, not a square icon, and cover crops a
               // wide image down to an unreadable vertical sliver of its middle.
+              // Logo keeps its own white backing chip regardless of sidebar
+              // theme — most uploaded logos assume a light background and
+              // would lose contrast/legibility sitting directly on black.
               <img
                 src={companySettings.logo}
                 alt=""
-                className="h-10 w-auto max-w-[110px] rounded-lg object-contain flex-shrink-0 border border-slate-200 bg-white p-1"
+                className="h-10 w-auto max-w-[110px] rounded-lg object-contain flex-shrink-0 border border-slate-700 bg-white p-1"
               />
             )}
-            <h1 className="min-w-0 text-lg font-bold text-slate-800 tracking-tight leading-tight">
+            <h1 className="min-w-0 text-lg font-bold text-white tracking-tight leading-tight">
               {/* Agency names vary a lot in length — this header has plenty of
                   vertical room, so let the name wrap freely across as many
                   lines as it needs rather than ellipsis-truncating it (a
-                  cut-off name reads as broken, not just long). */}
-              <div>{companySettings?.display_name || 'Progressive Steps'}</div>
-              <div className="truncate text-sm font-medium text-slate-500">Admin Portal</div>
+                  cut-off name reads as broken, not just long). Falls back to
+                  a generic label, never a real former customer's name. */}
+              <div>{companySettings?.display_name || 'Your Agency'}</div>
+              <div className="truncate text-sm font-medium text-slate-400">Admin Portal</div>
             </h1>
           </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto p-4 space-y-2">
 
+          {visibleTabs.includes('overview') && (
+            <button
+              onClick={() => { setActiveTab('overview'); setSidebarOpen(false); }}
+              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                activeTab === 'overview'
+                  ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Overview
+            </button>
+          )}
+
           {visibleTabs.includes('practitioners') && (
             <button
               onClick={() => { setActiveTab('practitioners'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'practitioners'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
               }`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -228,8 +260,8 @@ const AdminDashboard = () => {
               onClick={() => { setActiveTab('reports'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'reports'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
               }`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -244,8 +276,8 @@ const AdminDashboard = () => {
               onClick={() => { setActiveTab('billing'); setSidebarOpen(false); }}
               className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 activeTab === 'billing'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
               }`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -261,15 +293,15 @@ const AdminDashboard = () => {
             group used to be gated on the Company tab alone, which would now
             hide Audit Log / Roles from someone who has those but not Company. */}
         {['company', 'subscription', 'auditLog', 'roles'].some(t => visibleTabs.includes(t)) && (
-          <div className="p-4 border-t border-slate-100">
-            <p className="px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Useful Links</p>
+          <div className="p-4 border-t border-slate-800">
+            <p className="px-4 pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">Useful Links</p>
             {visibleTabs.includes('company') && (
               <button
                 onClick={() => { setActiveTab('company'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'company'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -283,8 +315,8 @@ const AdminDashboard = () => {
                 onClick={() => { setActiveTab('subscription'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'subscription'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -298,8 +330,8 @@ const AdminDashboard = () => {
                 onClick={() => { setActiveTab('auditLog'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'auditLog'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -313,8 +345,8 @@ const AdminDashboard = () => {
                 onClick={() => { setActiveTab('roles'); setSidebarOpen(false); }}
                 className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                   activeTab === 'roles'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -327,9 +359,9 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        <div className="p-4 border-t border-slate-100 flex flex-col items-center">
-          <BrandLockup size="sm" align="center" />
-          <p className="text-xs text-slate-700 text-center font-medium mt-1.5">Securely Powered by Izaya</p>
+        <div className="p-4 border-t border-slate-800 flex flex-col items-center">
+          <BrandLockup size="sm" align="center" dark />
+          <p className="text-xs text-slate-400 text-center font-medium mt-1.5">Securely Powered by Izaya</p>
         </div>
       </aside>
 

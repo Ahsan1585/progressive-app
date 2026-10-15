@@ -20,8 +20,13 @@ export const IZAYA_ONE_CORAL = '#FF6B5B';
 // without shipping a raster asset. Colors are inline (see above), so the
 // `.ilg-*` classNames below are kept only for any existing external
 // selectors that might target them — they're no longer load-bearing.
-export function IzayaWordmark({ className }) {
-  const navy = { fill: 'none', stroke: IZAYA_NAVY, strokeWidth: 13, strokeLinecap: 'round', strokeLinejoin: 'round' };
+// `dark` swaps the navy strokes to white, for use on a dark/black
+// background (e.g. AdminDashboard's sidebar) where the near-black navy
+// would otherwise be invisible — the mint accent stays the same in both
+// cases since it already reads fine on black. Every other caller omits
+// this prop and is unaffected.
+export function IzayaWordmark({ className, dark = false }) {
+  const navy = { fill: 'none', stroke: dark ? '#FFFFFF' : IZAYA_NAVY, strokeWidth: 13, strokeLinecap: 'round', strokeLinejoin: 'round' };
   const mint = { fill: 'none', stroke: IZAYA_MINT, strokeWidth: 13, strokeLinecap: 'round', strokeLinejoin: 'round' };
   return (
     <svg className={className} viewBox="0 0 460 130" role="img" aria-label="IZAYA">
@@ -57,10 +62,10 @@ export function IzayaWordmark({ className }) {
 // `isOne` appends a small coral "ONE" badge for the independent-practitioner
 // flow — only pass true where that role/context is actually certain (e.g.
 // the independent signup wizard), never on a page shared by every role.
-export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 23, eisClassName, isOne = false }) {
+export function BrandWordmarkRow({ wordmarkClassName, eisFontSize = 23, eisClassName, isOne = false, dark = false }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-      <IzayaWordmark className={wordmarkClassName} />
+      <IzayaWordmark className={wordmarkClassName} dark={dark} />
       <span
         className={eisClassName}
         style={{
