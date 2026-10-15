@@ -13,6 +13,7 @@ const {
   wipeGeneratedLiveSessions,
   refreshGeneratedSignatures,
   backfillGeneratedCompletedAt,
+  anonymizeTenantRoster,
 } = require('../controllers/testDataController');
 
 // Test-data seeding is only wired up at all when ENABLE_TEST_SEED=true is
@@ -28,6 +29,7 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
   router.post('/wipe-generated-live-sessions', protect, requireRole(['ceo']), wipeGeneratedLiveSessions);
   router.post('/refresh-generated-signatures', protect, requireRole(['ceo']), refreshGeneratedSignatures);
   router.post('/backfill-generated-completed-at', protect, requireRole(['ceo']), backfillGeneratedCompletedAt);
+  router.post('/anonymize-tenant-roster', protect, requireRole(['ceo']), anonymizeTenantRoster);
 
   // Read-only diagnostic: shows exactly what's in compliance_state_logs for
   // a given child ID, to distinguish "row never parsed from the doc" from

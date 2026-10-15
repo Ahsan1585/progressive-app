@@ -553,6 +553,152 @@ const backfillGeneratedCompletedAt = async (req, res) => {
   }
 };
 
+// Name pools for anonymizeTenantRoster — ordinary-sounding first/last
+// names, deliberately NOT drawn from or checked against any real roster
+// (this app has no way to do that anyway — each tenant is an isolated
+// database). Random pairing + a shuffled draw-without-replacement order
+// means no two people share a name and nothing looks sequential/
+// obviously-generated like "Practitioner 001".
+const DUMMY_FIRST_NAMES = [
+  'Olivia', 'Liam', 'Emma', 'Noah', 'Ava', 'Ethan', 'Sophia', 'Mason',
+  'Isabella', 'Lucas', 'Mia', 'Logan', 'Amelia', 'Jackson', 'Harper',
+  'Aiden', 'Evelyn', 'Elijah', 'Abigail', 'Grayson', 'Emily', 'Carter',
+  'Elizabeth', 'Wyatt', 'Sofia', 'Julian', 'Avery', 'Levi', 'Ella',
+  'Owen', 'Scarlett', 'Daniel', 'Grace', 'Matthew', 'Chloe', 'Henry',
+  'Victoria', 'Samuel', 'Riley', 'David', 'Aria', 'Joseph', 'Lily',
+  'Dylan', 'Zoey', 'Isaac', 'Hannah', 'Gabriel', 'Layla', 'Anthony',
+  'Nora', 'Christopher', 'Addison', 'Andrew', 'Eleanor', 'Joshua',
+  'Natalie', 'Ryan', 'Lucy', 'Nathan', 'Audrey', 'Caleb', 'Zoe',
+  'Leo', 'Leah', 'Hunter', 'Hazel', 'Jonathan', 'Violet', 'Eli',
+  'Aurora', 'Connor', 'Savannah', 'Aaron', 'Brooklyn', 'Jaxon',
+  'Bella', 'Cameron', 'Claire', 'Adrian', 'Skylar', 'Jordan', 'Lucy',
+];
+const DUMMY_LAST_NAMES = [
+  'Bennett', 'Coleman', 'Foster', 'Reyes', 'Hayes', 'Mitchell', 'Price',
+  'Barnes', 'Ross', 'Simmons', 'Harrison', 'Fisher', 'Henderson',
+  'Griffin', 'Wheeler', 'Hudson', 'Marsh', 'Barrett', 'Lambert',
+  'Pearson', 'Chapman', 'Dunn', 'Hart', 'Fleming', 'Stokes', 'Norris',
+  'Sutton', 'Mckenzie', 'Lane', 'Mccarthy', 'Day', 'Holt', 'Boone',
+  'Vance', 'Tate', 'Goodwin', 'Sharp', 'Chase', 'Hobbs', 'Pruitt',
+  'Flowers', 'Dawson', 'Bishop', 'Cross', 'Shepherd', 'Mercer',
+  'Pratt', 'Doyle', 'Osborn', 'Rhodes', 'Winters', 'Snyder', 'Case',
+  'Nolan', 'Beck', 'Weaver', 'Mcdaniel', 'Strickland', 'Fitzgerald',
+  'Buckley', 'Whitfield', 'Benton', 'Dillon', 'Calloway', 'Everson',
+  'Hargrove', 'Kessler', 'Lindgren', 'Morrow', 'Osgood', 'Redmond',
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * POST /api/dev/anonymize-tenant-roster
+ * CEO-only. Renames every practitioner (role='practitioner', excluding
+ * the caller's own CEO/staff accounts and is_platform_support rows) and
+ * every patient on this tenant to a random, ordinary-sounding dummy name
+ * — not drawn from or checked against any real data (impossible anyway,
+ * since each tenant is an isolated database), just an unremarkable name
+ * pool shuffled into non-sequential pairs so nothing looks generated.
+ *
+ * Also rewrites every DENORMALIZED name snapshot so historical records
+ * show the new names too, not just the master practitioners/patients
+ * rows: assessments.patient_first_name/patient_last_name/
+ * practitioner_first_name/practitioner_last_name,
+ * compliance_state_logs.child_name/practitioner_name (the uploaded EIMS
+ * export's own cached names), and master_reports.child_name. Without
+ * this, every session log and generated report would keep showing the
+ * old names even after the roster itself was renamed.
+ */
+const anonymizeTenantRoster = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: practitioners } = await client.query(
+      `SELECT id, first_name, last_name FROM practitioners
+       WHERE role = 'practitioner' AND is_platform_support = false`
+    );
+    const { rows: patients } = await client.query(`SELECT id, first_name, last_name FROM patients`);
+
+    const firstPool = shuffle(DUMMY_FIRST_NAMES);
+    const lastPool = shuffle(DUMMY_LAST_NAMES);
+    const needed = practitioners.length + patients.length;
+    // Cycle the shuffled pools if there are more people than names in the
+    // pool — still non-sequential since first/last are drawn from
+    // independently-shuffled, independently-cycling pools.
+    const nameAt = (pool, i) => pool[i % pool.length];
+
+    const practitionerRenames = practitioners.map((p, i) => ({
+      id: p.id,
+      oldFirst: p.first_name,
+      oldLast: p.last_name,
+      newFirst: nameAt(firstPool, i),
+      newLast: nameAt(lastPool, i),
+    }));
+    const patientRenames = patients.map((p, i) => ({
+      id: p.id,
+      oldFirst: p.first_name,
+      oldLast: p.last_name,
+      newFirst: nameAt(firstPool, practitioners.length + i),
+      newLast: nameAt(lastPool, practitioners.length + i),
+    }));
+
+    for (const r of practitionerRenames) {
+      await client.query('UPDATE practitioners SET first_name = $1, last_name = $2 WHERE id = $3', [r.newFirst, r.newLast, r.id]);
+      await client.query(
+        `UPDATE assessments SET practitioner_first_name = $1, practitioner_last_name = $2 WHERE practitioner_id = $3`,
+        [r.newFirst, r.newLast, r.id]
+      );
+    }
+    for (const r of patientRenames) {
+      await client.query('UPDATE patients SET first_name = $1, last_name = $2 WHERE id = $3', [r.newFirst, r.newLast, r.id]);
+      await client.query(
+        `UPDATE assessments SET patient_first_name = $1, patient_last_name = $2 WHERE patient_id = $3`,
+        [r.newFirst, r.newLast, r.id]
+      );
+    }
+
+    // compliance_state_logs and master_reports store names as free text
+    // (child_name/practitioner_name), not foreign keys — rewrite by
+    // matching the OLD full name string, since that's the only link back
+    // to who they belonged to.
+    for (const r of practitionerRenames) {
+      const oldFull = `${r.oldFirst} ${r.oldLast}`;
+      const newFull = `${r.newFirst} ${r.newLast}`;
+      await client.query(`UPDATE compliance_state_logs SET practitioner_name = $1 WHERE practitioner_name = $2`, [newFull, oldFull]);
+    }
+    for (const r of patientRenames) {
+      const oldFull = `${r.oldFirst} ${r.oldLast}`;
+      const newFull = `${r.newFirst} ${r.newLast}`;
+      await client.query(`UPDATE compliance_state_logs SET child_name = $1 WHERE child_name = $2`, [newFull, oldFull]);
+      await client.query(`UPDATE master_reports SET child_name = $1 WHERE child_name = $2`, [newFull, oldFull]);
+    }
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req, action: 'anonymize_tenant_roster', resourceType: 'test_data',
+      details: { practitionersRenamed: practitionerRenames.length, patientsRenamed: patientRenames.length },
+    });
+    res.json({
+      success: true,
+      practitionersRenamed: practitionerRenames.length,
+      patientsRenamed: patientRenames.length,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to anonymize tenant roster:', error);
+    res.status(500).json({ error: 'Failed to anonymize roster', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
 // Tag written into assessments.session_notes for every row this endpoint
 // creates — the only marker distinguishing generated test sessions from
 // real ones on existing (non-seed-%) practitioners, since these are real
@@ -902,4 +1048,5 @@ module.exports = {
   wipeGeneratedLiveSessions,
   refreshGeneratedSignatures,
   backfillGeneratedCompletedAt,
+  anonymizeTenantRoster,
 };
