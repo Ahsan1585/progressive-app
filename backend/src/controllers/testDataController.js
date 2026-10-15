@@ -494,6 +494,11 @@ const randomizeSeedSignatures = async (req, res) => {
 const GEN_TAG = '[GENSEPT26]';
 
 const SERVICE_TYPE_CODES = ['DI', 'OT', 'PT', 'SLP', 'FT', 'NU', 'PSY', 'SW'];
+const SERVICE_TYPE_DISCIPLINE_LABEL = {
+  DI: 'Developmental Intervention', OT: 'Occupational Therapy', PT: 'Physical Therapy',
+  SLP: 'Speech Language Therapy', FT: 'Family Training', NU: 'Nursing',
+  PSY: 'Psychological', SW: 'Social Work',
+};
 const LOCATION_CODES = ['1', '3', '5', '6', '8'];
 const GROUP_SIZE_CODES = ['individual', 'consultation'];
 const VISIT_STATUS_CLEAN = '1'; // Direct Child Service
@@ -551,7 +556,7 @@ const generateLiveSessions = async (req, res) => {
   const client = await pool.connect();
   try {
     const { rows: practitioners } = await client.query(
-      `SELECT id, first_name, last_name, practitioner_discipline, pay_rate, service_types
+      `SELECT id, first_name, last_name, position_title, pay_rate, service_types
        FROM practitioners
        WHERE role = 'practitioner' AND is_active = true AND is_platform_support = false
        ORDER BY id`
@@ -735,7 +740,7 @@ const generateLiveSessions = async (req, res) => {
            RETURNING id`,
           [
             child.id, prac.id, child.first_name, child.last_name, child.dob, child.county,
-            prac.first_name, prac.last_name, prac.practitioner_discipline || null,
+            prac.first_name, prac.last_name, SERVICE_TYPE_DISCIPLINE_LABEL[serviceCode] || null,
             logged.service_date, cancelled ? null : logged.start_time, cancelled ? null : logged.end_time,
             cancelled ? 0 : durationMin, VISIT_STATUS_CLEAN, logged.service_code, logged.location_code, groupSizeCode,
             parentSignature, practitionerSignature, JSON.stringify({ custom_fields: {} }), noteParts.join(' '),
