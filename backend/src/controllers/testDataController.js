@@ -764,12 +764,13 @@ const wipeTenantRosterCompletely = async (req, res) => {
     // (unlikely in practice, but the FK is there).
     await client.query(`UPDATE bulk_import_batches SET created_by = NULL WHERE created_by = ANY($1::int[])`, [practitionerIds]);
     await client.query(`UPDATE patients SET practitioner_id = NULL WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    // compliance_state_logs.patient_id references patients(id) with no
+    // cascade — must clear before deleting patients, not after (found via
+    // a real failed wipe attempt: deleting patients first throws an FK
+    // violation here).
+    await client.query(`DELETE FROM compliance_state_logs`);
     await client.query(`DELETE FROM patients WHERE id = ANY($1::int[])`, [patientIds]);
     await client.query(`DELETE FROM practitioners WHERE id = ANY($1::int[])`, [practitionerIds]);
-
-    // Fresh rebuild needs a fresh EIMS reference file, not stale state data
-    // describing a roster that no longer exists.
-    await client.query(`DELETE FROM compliance_state_logs`);
     await client.query(
       `UPDATE company_settings SET
          compliance_doc_path = NULL, compliance_doc_filename = NULL, compliance_doc_size = NULL,
