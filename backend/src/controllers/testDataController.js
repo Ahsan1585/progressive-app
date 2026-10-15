@@ -699,6 +699,193 @@ const anonymizeTenantRoster = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/dev/wipe-tenant-roster-completely
+ * CEO-only. Full clean-slate wipe: deletes EVERY practitioner with
+ * role='practitioner' (any role, any origin — not scoped to seed-% or
+ * [GENSEPT26]-tagged rows like the other wipe endpoints), every patient,
+ * every assessment, and every dependent record across the same FK chain
+ * hardDeletePractitioner already established per-practitioner, run here
+ * set-wide in one transaction. CEO/staff accounts (role IN ('ceo','staff'))
+ * are preserved so there's still a way to log in afterward. Also clears
+ * the uploaded compliance doc (company_settings' compliance_doc_* columns)
+ * and compliance_state_logs, since a from-scratch rebuild needs a fresh
+ * EIMS reference file, not a doc still describing the deleted roster.
+ *
+ * Irreversible — there is no soft-delete/undo here, by design (this is
+ * the "start over" endpoint, used once the existing data is deemed
+ * unusable rather than something to incrementally fix).
+ */
+const wipeTenantRosterCompletely = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: pracIdRows } = await client.query(`SELECT id FROM practitioners WHERE role = 'practitioner'`);
+    const practitionerIds = pracIdRows.map((r) => r.id);
+    const { rows: patientIdRows } = await client.query(`SELECT id FROM patients`);
+    const patientIds = patientIdRows.map((r) => r.id);
+
+    await client.query(
+      `DELETE FROM assessment_notes WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[])) OR author_id = ANY($1::int[])`,
+      [practitionerIds]
+    );
+    await client.query(
+      `DELETE FROM compliance_field_acknowledgments WHERE assessment_id IN (SELECT id FROM assessments WHERE practitioner_id = ANY($1::int[])) OR allowed_by = ANY($1::int[])`,
+      [practitionerIds]
+    );
+    const { rows: deletedAssessments } = await client.query(
+      `DELETE FROM assessments WHERE practitioner_id = ANY($1::int[]) RETURNING id`,
+      [practitionerIds]
+    );
+    await client.query(`DELETE FROM patient_practitioners WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM billing_locks WHERE practitioner_id = ANY($1::int[]) OR locked_by = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM billing_batches WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM pending_contact_updates WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM messages WHERE practitioner_id = ANY($1::int[]) OR sender_id = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM scheduled_sessions WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM master_reports WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM compliance_match_overrides WHERE created_by = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM session_drafts WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    // agencies/patient_agencies cascade on practitioner_id/patient_id delete
+    // (add_agencies.sql) — no manual cleanup needed for those two.
+    await client.query(`UPDATE patients SET practitioner_id = NULL WHERE practitioner_id = ANY($1::int[])`, [practitionerIds]);
+    await client.query(`DELETE FROM patients WHERE id = ANY($1::int[])`, [patientIds]);
+    await client.query(`DELETE FROM practitioners WHERE id = ANY($1::int[])`, [practitionerIds]);
+
+    // Fresh rebuild needs a fresh EIMS reference file, not stale state data
+    // describing a roster that no longer exists.
+    await client.query(`DELETE FROM compliance_state_logs`);
+    await client.query(
+      `UPDATE company_settings SET
+         compliance_doc_path = NULL, compliance_doc_filename = NULL, compliance_doc_size = NULL,
+         compliance_doc_uploaded_at = NULL, compliance_doc_column_mapping = NULL,
+         compliance_doc_custom_fields = '[]', compliance_doc_removed_fields = '[]',
+         compliance_doc_applied_path = NULL, compliance_doc_analysis = NULL
+       WHERE id = 1`
+    );
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req, action: 'wipe_tenant_roster_completely', resourceType: 'test_data',
+      details: { practitionersRemoved: practitionerIds.length, patientsRemoved: patientIds.length, assessmentsRemoved: deletedAssessments.length },
+    });
+    res.json({
+      success: true,
+      practitionersRemoved: practitionerIds.length,
+      patientsRemoved: patientIds.length,
+      assessmentsRemoved: deletedAssessments.length,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to wipe tenant roster completely:', error);
+    res.status(500).json({ error: 'Failed to wipe tenant roster', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+const NJ_COUNTIES = [
+  'Essex', 'Bergen', 'Hudson', 'Middlesex', 'Union', 'Mercer',
+  'Camden', 'Monmouth', 'Ocean', 'Passaic', 'Burlington', 'Morris',
+];
+const DISCIPLINE_POSITION_TITLES = {
+  DI: 'Developmental Interventionist', OT: 'Occupational Therapist', PT: 'Physical Therapist',
+  SLP: 'Speech Language Pathologist', FT: 'Family Trainer', NU: 'Nurse',
+  PSY: 'Psychologist', SW: 'Social Worker',
+};
+const PRACTITIONER_SERVICE_TYPES = ['DI', 'OT', 'PT', 'SLP', 'FT', 'NU', 'PSY', 'SW'];
+const PAY_RATE_BY_DISCIPLINE = { DI: 60, OT: 85, PT: 85, SLP: 90, FT: 55, NU: 70, PSY: 95, SW: 65 };
+const randomDob = () => {
+  const today = new Date();
+  const ageMonths = randInt(4, 35); // under-3 EI eligibility window
+  const d = new Date(today.getFullYear(), today.getMonth() - ageMonths, randInt(1, 28));
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * POST /api/dev/create-dummy-roster
+ * CEO-only. Creates N dummy practitioners and M dummy patients from
+ * scratch on this tenant — the counterpart to wipeTenantRosterCompletely,
+ * for rebuilding a roster after a full wipe rather than generating
+ * sessions against whatever already happens to exist (generateLiveSessions
+ * requires the roster to already be there; this is what creates it).
+ * Reuses the same dummy name pools as anonymizeTenantRoster so naming
+ * stays consistent across both tools.
+ *
+ * Body: { practitionerCount = 300, patientCount = 45 }
+ */
+const createDummyRoster = async (req, res) => {
+  const { practitionerCount = 300, patientCount = 45 } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const firstPool = shuffle(DUMMY_FIRST_NAMES);
+    const lastPool = shuffle(DUMMY_LAST_NAMES);
+    const nameAt = (pool, i) => pool[i % pool.length];
+    const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
+
+    const createdPractitioners = [];
+    for (let i = 0; i < practitionerCount; i++) {
+      const firstName = nameAt(firstPool, i);
+      const lastName = nameAt(lastPool, i);
+      const discipline = PRACTITIONER_SERVICE_TYPES[i % PRACTITIONER_SERVICE_TYPES.length];
+      const email = `dummy.practitioner.${i + 1}@izayaedge-demo.test`;
+      const { rows } = await client.query(
+        `INSERT INTO practitioners
+           (first_name, last_name, email, password_hash, requires_password_change, role, position_title, pay_rate, service_types, is_active, address, phone_number)
+         VALUES ($1,$2,$3,$4,false,'practitioner',$5,$6,$7,true,$8,$9)
+         RETURNING id`,
+        [
+          firstName, lastName, email, passwordHash,
+          DISCIPLINE_POSITION_TITLES[discipline], PAY_RATE_BY_DISCIPLINE[discipline], [discipline],
+          randomAddress(), randomPhone(),
+        ]
+      );
+      createdPractitioners.push({ id: rows[0].id, firstName, lastName, discipline });
+    }
+
+    const createdPatients = [];
+    // 10-digit-looking child IDs, prefixed distinctly from any prior
+    // dataset's 900000xxx/800000xxx range so a fresh rebuild's IDs never
+    // collide with anything a previous generation pass might have left
+    // behind (e.g. in compliance_state_logs rows from an earlier upload).
+    for (let i = 0; i < patientCount; i++) {
+      const firstName = nameAt(firstPool, practitionerCount + i);
+      const lastName = nameAt(lastPool, practitionerCount + i);
+      const childId = `70000${String(i + 1).padStart(4, '0')}`;
+      const { rows } = await client.query(
+        `INSERT INTO patients (first_name, last_name, dob, county, child_id, status)
+         VALUES ($1,$2,$3,$4,$5,'active')
+         RETURNING id`,
+        [firstName, lastName, randomDob(), NJ_COUNTIES[i % NJ_COUNTIES.length], childId]
+      );
+      createdPatients.push({ id: rows[0].id, firstName, lastName, childId });
+    }
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req, action: 'create_dummy_roster', resourceType: 'test_data',
+      details: { practitionersCreated: createdPractitioners.length, patientsCreated: createdPatients.length },
+    });
+    res.json({
+      success: true,
+      practitionersCreated: createdPractitioners.length,
+      patientsCreated: createdPatients.length,
+      credentials: { emailPattern: 'dummy.practitioner.<n>@izayaedge-demo.test', password: SEED_PASSWORD },
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to create dummy roster:', error);
+    res.status(500).json({ error: 'Failed to create dummy roster', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
 // Tag written into assessments.session_notes for every row this endpoint
 // creates — the only marker distinguishing generated test sessions from
 // real ones on existing (non-seed-%) practitioners, since these are real
@@ -1049,4 +1236,6 @@ module.exports = {
   refreshGeneratedSignatures,
   backfillGeneratedCompletedAt,
   anonymizeTenantRoster,
+  wipeTenantRosterCompletely,
+  createDummyRoster,
 };
