@@ -259,8 +259,14 @@ export const BillingBatchReview = ({
     if (willExpand && periodLogs[practitionerId] === undefined) fetchPeriodLogs(practitionerId);
   };
 
+  // groupKey is the review card's bare practitionerId, or
+  // "<practitionerId>-billed" for the billed card — derive the
+  // billing_locks scope ('review' | 'billed') from it so each card's
+  // Lock/Release only ever touches its own independent lock row.
+  const scopeFromGroupKey = (groupKey) => (String(groupKey).endsWith('-billed') ? 'billed' : 'review');
+
   const onLock = async (practitionerId, groupKey = practitionerId) => {
-    await handleLock(practitionerId);
+    await handleLock(practitionerId, scopeFromGroupKey(groupKey));
     // Only auto-expands the card that was actually clicked (groupKey) —
     // locking from the "Sent to billing" card must not also force open a
     // split practitioner's separate "Needs review" card, which shares the
@@ -288,7 +294,7 @@ export const BillingBatchReview = ({
   };
 
   const onRelease = async (practitionerId, groupKey = practitionerId) => {
-    await handleRelease(practitionerId);
+    await handleRelease(practitionerId, scopeFromGroupKey(groupKey));
     // The review panel on the right isn't gated by lock ownership on its
     // own — close it here so a released session can't keep sitting open
     // (and editable) after the biller no longer holds the lock on it.
@@ -662,8 +668,15 @@ function PractitionerGroup({
   detailSessionId, registerSessionRow, onSelectSession,
   processingId, handleGenerateAndIssue, handleSendToCompleted,
 }) {
-  const isLockedByMe = !!practitioner.locked_by_id && practitioner.locked_by_id === currentUserId;
-  const isLockedByOther = !!practitioner.locked_by_id && practitioner.locked_by_id !== currentUserId;
+  // The billed card reads its own independent lock fields
+  // (billed_locked_by_id/name) instead of the review-scope ones, so each
+  // card shows the correct "Locked to you" / "Locked by X" state for its
+  // own lock, not a shared value from the other scope.
+  const isBilledCard = !!subLabel?.startsWith('Sent');
+  const lockedById = isBilledCard ? practitioner.billed_locked_by_id : practitioner.locked_by_id;
+  const lockedByName = isBilledCard ? practitioner.billed_locked_by_name : practitioner.locked_by_name;
+  const isLockedByMe = !!lockedById && lockedById === currentUserId;
+  const isLockedByOther = !!lockedById && lockedById !== currentUserId;
   const readyToComplete = practitioner.sevf_documents?.length > 0 && practitioner.invoice_documents?.length > 0;
   const allLogsReviewed = sessions.length > 0 &&
     sessions.some(s => !['rejected', 'declined', 'on_hold'].includes(s.billing_status)) &&
@@ -720,7 +733,7 @@ function PractitionerGroup({
         )}
         {isLockedByOther && (
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 flex-shrink-0">
-            <Lock className="size-3.5" /> Locked by {practitioner.locked_by_name}
+            <Lock className="size-3.5" /> Locked by {lockedByName}
           </span>
         )}
         <ChevronDown className={`size-5 text-slate-500 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
@@ -732,7 +745,7 @@ function PractitionerGroup({
             {isLockedByOther ? (
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5">
-                  <Lock className="size-3.5" /> Locked by {practitioner.locked_by_name}
+                  <Lock className="size-3.5" /> Locked by {lockedByName}
                 </span>
                 {isAdmin && (
                   <button onClick={onRelease} className="text-sm font-semibold text-red-600 hover:underline cursor-pointer">Force Release</button>

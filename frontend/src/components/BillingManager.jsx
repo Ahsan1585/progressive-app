@@ -258,9 +258,13 @@ export const BillingManager = () => {
     return () => clearInterval(interval);
   }, [activeTab, searchTerm, dateRange]);
 
-  const handleLock = async (practitionerId) => {
+  // scope ('review' | 'billed', default 'review') — a practitioner split
+  // into "Needs review" / "Sent to billing" queue cards locks each
+  // independently (see add_billing_lock_scope.sql); every other caller
+  // omits it and gets the same 'review'-scope behavior as before.
+  const handleLock = async (practitionerId, scope) => {
     try {
-      const response = await api.post(`/api/billing/practitioner/${practitionerId}/lock`);
+      const response = await api.post(`/api/billing/practitioner/${practitionerId}/lock${scope ? `?scope=${scope}` : ''}`);
       if (response.data.success) {
         await handleToggleExpand(practitionerId);
       }
@@ -274,9 +278,9 @@ export const BillingManager = () => {
     }
   };
 
-  const handleRelease = async (practitionerId) => {
+  const handleRelease = async (practitionerId, scope) => {
     try {
-      await api.post(`/api/billing/practitioner/${practitionerId}/unlock`);
+      await api.post(`/api/billing/practitioner/${practitionerId}/unlock${scope ? `?scope=${scope}` : ''}`);
       setExpandedRows(prev => {
         const n = new Set(prev);
         n.delete(practitionerId);
@@ -574,7 +578,14 @@ export const BillingManager = () => {
         // generated but not yet actually sent. Best-effort: a hiccup here
         // shouldn't surface as a false "failed to complete" error after the
         // real completion already succeeded.
-        await api.post(`/api/billing/practitioner/${practitionerId}/unlock`).catch(() => {});
+        //
+        // scope=billed only — this practitioner may be split into a
+        // "Needs review" card and a "Sent to billing" card (see
+        // BillingBatchReview.jsx), each with its own independent lock.
+        // Completing the billed batch must only release ITS lock; an
+        // unscoped unlock here would also drop the review-scope lock out
+        // from under whoever's still actively working those sessions.
+        await api.post(`/api/billing/practitioner/${practitionerId}/unlock?scope=billed`).catch(() => {});
         pushToast('success', 'Moved to Completed Bills.');
         fetchLogs();
       }

@@ -80,15 +80,19 @@ const getPendingLogs = async (req, res) => {
     // Non-fatal: billing_locks may not exist yet on an environment that hasn't
     // run the migration — fall back to "nothing locked" rather than breaking
     // the whole Pending Bills list over it.
+    // Keyed by `${practitionerId}:${lock_scope}` — 'review' and 'billed'
+    // are independent locks (see add_billing_lock_scope.sql), so a
+    // practitioner split into two queue cards can show each card's own
+    // lock holder instead of one shared status.
     const lockMap = {};
     try {
       const { rows: lockRows } = await pool.query(`
-        SELECT bl.practitioner_id, bl.locked_by, p.first_name, p.last_name
+        SELECT bl.practitioner_id, bl.lock_scope, bl.locked_by, p.first_name, p.last_name
         FROM billing_locks bl
         JOIN practitioners p ON p.id = bl.locked_by
       `);
       lockRows.forEach(l => {
-        lockMap[l.practitioner_id] = { locked_by_id: l.locked_by, locked_by_name: `${l.first_name} ${l.last_name}` };
+        lockMap[`${l.practitioner_id}:${l.lock_scope}`] = { locked_by_id: l.locked_by, locked_by_name: `${l.first_name} ${l.last_name}` };
       });
     } catch (lockError) {
       console.warn('getPendingLogs: billing_locks lookup failed (continuing without lock info):', lockError.message);
@@ -116,14 +120,20 @@ const getPendingLogs = async (req, res) => {
           workflow_status: 'njeis_review',
           // Lets the frontend show this practitioner's still-reviewable
           // sessions and already-sent-to-billing sessions as two separate
-          // queue cards when both exist in the selected period, instead of
-          // one card whose counts/status silently represent a mix of two
-          // very different states (see billing_locks — locking is still
-          // per-practitioner, not per-group, so this is a display split
-          // only, not independent lockability).
+          // queue cards when both exist in the selected period, each with
+          // its own independent lock (billing_locks is now scoped by
+          // lock_scope — see add_billing_lock_scope.sql — so completing
+          // the billed card's batch no longer releases the review card's
+          // lock out from under whoever's working it).
           sent_to_billing_count: 0,
-          locked_by_id: lockMap[pId]?.locked_by_id || null,
-          locked_by_name: lockMap[pId]?.locked_by_name || null,
+          // Back-compat top-level fields mirror the 'review' scope, so any
+          // caller that doesn't yet know about scoped locks (or a
+          // practitioner who isn't split into two cards) behaves exactly
+          // as before.
+          locked_by_id: lockMap[`${pId}:review`]?.locked_by_id || null,
+          locked_by_name: lockMap[`${pId}:review`]?.locked_by_name || null,
+          billed_locked_by_id: lockMap[`${pId}:billed`]?.locked_by_id || null,
+          billed_locked_by_name: lockMap[`${pId}:billed`]?.locked_by_name || null,
         };
         batchIdsByPractitioner[pId] = new Set();
       }
@@ -2412,18 +2422,25 @@ const revertBillingBatch = async (req, res) => {
 };
 
 // --- 15. Lock a practitioner's Pending Bills row so only one billing specialist works it ---
+// scope ('review' | 'billed', default 'review') lets a practitioner split
+// into "Needs review" / "Sent to billing" queue cards be locked
+// independently — see add_billing_lock_scope.sql. Every pre-existing
+// caller that doesn't pass scope locks/unlocks 'review', so a
+// non-split practitioner behaves exactly as before.
+const VALID_LOCK_SCOPES = ['review', 'billed'];
 const lockPractitioner = async (req, res) => {
   const practitionerId = parseInt(req.params.id, 10);
   const lockerId = req.practitioner.practitionerId;
+  const scope = VALID_LOCK_SCOPES.includes(req.query.scope) ? req.query.scope : 'review';
   if (!practitionerId) return res.status(400).json({ success: false, error: 'Invalid practitioner id' });
 
   try {
     const { rows: insertedRows } = await pool.query(
-      `INSERT INTO billing_locks (practitioner_id, locked_by)
-       VALUES ($1, $2)
-       ON CONFLICT (practitioner_id) DO NOTHING
+      `INSERT INTO billing_locks (practitioner_id, lock_scope, locked_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (practitioner_id, lock_scope) DO NOTHING
        RETURNING practitioner_id`,
-      [practitionerId, lockerId]
+      [practitionerId, scope, lockerId]
     );
 
     if (insertedRows.length > 0) {
@@ -2436,8 +2453,8 @@ const lockPractitioner = async (req, res) => {
     const { rows: existingRows } = await pool.query(
       `SELECT bl.locked_by, p.first_name, p.last_name
        FROM billing_locks bl JOIN practitioners p ON p.id = bl.locked_by
-       WHERE bl.practitioner_id = $1`,
-      [practitionerId]
+       WHERE bl.practitioner_id = $1 AND bl.lock_scope = $2`,
+      [practitionerId, scope]
     );
     const existing = existingRows[0];
     const lockedByName = `${existing?.first_name || ''} ${existing?.last_name || ''}`.trim();
@@ -2459,10 +2476,14 @@ const unlockPractitioner = async (req, res) => {
   const practitionerId = parseInt(req.params.id, 10);
   const requesterId = req.practitioner.practitionerId;
   const requesterRole = req.practitioner.role;
+  const scope = VALID_LOCK_SCOPES.includes(req.query.scope) ? req.query.scope : 'review';
   if (!practitionerId) return res.status(400).json({ success: false, error: 'Invalid practitioner id' });
 
   try {
-    const { rows: existingRows } = await pool.query('SELECT locked_by FROM billing_locks WHERE practitioner_id = $1', [practitionerId]);
+    const { rows: existingRows } = await pool.query(
+      'SELECT locked_by FROM billing_locks WHERE practitioner_id = $1 AND lock_scope = $2',
+      [practitionerId, scope]
+    );
     const existing = existingRows[0];
     if (!existing) return res.json({ success: true }); // already unlocked
 
@@ -2470,7 +2491,7 @@ const unlockPractitioner = async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the billing specialist holding this lock (or an Admin) can release it' });
     }
 
-    await pool.query('DELETE FROM billing_locks WHERE practitioner_id = $1', [practitionerId]);
+    await pool.query('DELETE FROM billing_locks WHERE practitioner_id = $1 AND lock_scope = $2', [practitionerId, scope]);
     res.json({ success: true });
   } catch (error) {
     console.error('unlockPractitioner error:', error);

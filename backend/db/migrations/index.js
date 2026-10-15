@@ -36,6 +36,7 @@ const MIGRATIONS = [
   'add_referral_program.sql',
   'add_assessment_provider_notes.sql',
   'add_correction_requests.sql',
+  'add_billing_lock_scope.sql',
 ];
 
 module.exports = { MIGRATIONS };
