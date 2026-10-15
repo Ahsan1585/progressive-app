@@ -213,19 +213,25 @@ const updatePatientAgencies = async (req, res) => {
   }
 };
 
-// Case-insensitive name lookup — used by billingController.js to attach a
-// saved agency's email onto a freshly generated (or historical) SEVF/
-// invoice result, so "Email to Agency" can be pre-filled instead of always
-// starting blank. Returns null (not an error) when no matching agency
-// exists or it has no email on file — the caller falls back to today's
-// manual-entry flow in that case.
-async function resolveAgencyEmail(practitionerId, companyAffiliationName) {
+// Case-insensitive name lookup — the full agency row, used both to attach
+// a saved agency's email onto a freshly generated (or historical) SEVF/
+// invoice result (resolveAgencyEmail below, "Email to Agency" pre-fill)
+// and to supply an independent practitioner's invoice BILL-TO block
+// (invoice redesign — address/phone alongside the email in one query
+// instead of two). Returns null (not an error) when no matching agency
+// exists — callers fall back to their own default in that case.
+async function resolveAgency(practitionerId, companyAffiliationName) {
   if (!companyAffiliationName) return null;
   const { rows } = await pool.query(
-    `SELECT email FROM agencies WHERE practitioner_id = $1 AND lower(name) = lower($2) AND is_active = true LIMIT 1`,
+    `SELECT name, email, phone, address FROM agencies WHERE practitioner_id = $1 AND lower(name) = lower($2) AND is_active = true LIMIT 1`,
     [practitionerId, companyAffiliationName]
   );
-  return rows[0]?.email || null;
+  return rows[0] || null;
+}
+
+async function resolveAgencyEmail(practitionerId, companyAffiliationName) {
+  const agency = await resolveAgency(practitionerId, companyAffiliationName);
+  return agency?.email || null;
 }
 
 module.exports = {
@@ -235,5 +241,6 @@ module.exports = {
   deleteAgency,
   getPatientAgencies,
   updatePatientAgencies,
+  resolveAgency,
   resolveAgencyEmail,
 };

@@ -7,9 +7,13 @@ const {
 } = require('../config/storage');
 const { generateNjeisPDF } = require('../utils/njeisGenerator');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
-const { getCompanyName } = require('../utils/companyName');
+const { getCompanyName, getCompanySettingsForDocuments } = require('../utils/companyName');
+const {
+  formatInvoiceNumber, maskTaxId, formatPractitionerAddressLines, buildInvoiceLines, buildBrand,
+} = require('../utils/invoiceData');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const ExcelJS = require('exceljs');
+const crypto = require('crypto');
 const { logAudit } = require('../utils/auditLog');
 const { formatTime12h } = require('../utils/formatting');
 
@@ -882,7 +886,18 @@ const issueInvoiceOverride = async (req, res) => {
     return res.status(400).json({ error: 'assessmentIds array is required' });
   }
   try {
-    const companyName = await getCompanyName();
+    const companySettings = await getCompanySettingsForDocuments();
+
+    // Deciding admin's name, same pattern generateFinancialInvoice uses for
+    // its own "processed by" field — previously this was always left blank
+    // here since no query for it existed on this path.
+    const { rows: deciderRows } = await pool.query(
+      'SELECT first_name, last_name FROM practitioners WHERE id = $1',
+      [req.practitioner.practitionerId]
+    );
+    const processedBy = deciderRows[0]
+      ? `${deciderRows[0].first_name || ''} ${deciderRows[0].last_name || ''}`.trim()
+      : '';
 
     // Fetch full assessment + practitioner data
     const { rows: assessments } = await pool.query(
@@ -922,25 +937,44 @@ const issueInvoiceOverride = async (req, res) => {
         console.warn('issueInvoiceOverride: skipping batch — practitioner JOIN returned null for logs:', logs.map(l => l.id));
         continue;
       }
-      const rawPayRate = practitioner.pay_rate && parseFloat(practitioner.pay_rate) > 0 ? parseFloat(practitioner.pay_rate) : 0;
-      const formattedLineItems = logs.map(line => {
-        const hours = line.total_time ? line.total_time / 60 : 0;
-        return {
-          ...line,
-          date: line.service_date || '',
-          total_hours: hours > 0 ? hours.toFixed(2) : '',
-          child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim(),
-          child_id: line.patients?.child_id || '',
-          county: line.patient_county || '',
-          rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : '0.00',
-          line_total: rawPayRate && hours > 0 ? (hours * rawPayRate).toFixed(2) : '0.00',
-        };
+      const batchId = crypto.randomUUID();
+      const serviceDates = logs.map(a => a.service_date).filter(Boolean).sort();
+      const lines = buildInvoiceLines(logs, practitioner, { mode: 'override', complianceById: null });
+
+      const invoicePdfBuffer = await generateInvoicePDF({
+        mode: 'override',
+        invoice: {
+          number: formatInvoiceNumber(batchId),
+          batchId,
+          issuedAt: now,
+          periodStart: serviceDates[0],
+          periodEnd: serviceDates[serviceDates.length - 1],
+        },
+        brand: buildBrand(companySettings),
+        from: {
+          title: 'FROM',
+          name: `${practitioner.first_name || ''} ${practitioner.last_name || ''}`.trim(),
+          lines: [
+            ...formatPractitionerAddressLines(practitioner),
+            practitioner.phone_number || '',
+          ].filter(Boolean),
+        },
+        billTo: {
+          title: 'BILL TO',
+          name: companySettings?.legal_entity_name || companySettings?.display_name || '',
+          lines: [companySettings?.address, companySettings?.phone, companySettings?.billing_email].filter(Boolean),
+        },
+        details: {
+          discipline: (practitioner.service_types || [])[0] || '',
+          taxIdMasked: maskTaxId(practitioner.ssn),
+          processedBy,
+        },
+        certificationParty: companySettings?.legal_entity_name || companySettings?.display_name || '',
+        lines,
+        warnings: [],
       });
 
-      const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems, '', companyName);
-
       const practName = `${practitioner.first_name}_${practitioner.last_name}`.replace(/\s+/g, '_');
-      const serviceDates = logs.map(a => a.service_date).filter(Boolean).sort();
       const minDate = (serviceDates[0] || '').replace(/-/g, '');
       const maxDate = (serviceDates[serviceDates.length - 1] || '').replace(/-/g, '');
       const filePath = `${yearMonth}/${practName}/Override_Invoice_${minDate}_${maxDate}_${timeStamp}.pdf`;
@@ -953,12 +987,15 @@ const issueInvoiceOverride = async (req, res) => {
       // Create a billing_batches row so this override invoice can be tracked in Invoice Status
       // (printed/paid) the same way normal batches are — mirrors generateNJEISForms' insert→stamp order
       // so a failed insert/stamp here never leaves assessments pointing at a batch with no invoice.
+      // batchId generated upfront so the invoice number printed on the PDF
+      // matches the row it ends up stored under (see invoiceData.js's
+      // formatInvoiceNumber).
       try {
         const { rows: batchRows } = await pool.query(
-          `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path, invoice_path)
-           VALUES ($1, $2, $3, NULL, $4)
+          `INSERT INTO billing_batches (id, practitioner_id, start_date, end_date, njeis_path, invoice_path)
+           VALUES ($1, $2, $3, $4, NULL, $5)
            RETURNING id`,
-          [practitioner.id, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath]
+          [batchId, practitioner.id, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath]
         );
         const batchRow = batchRows[0];
         if (batchRow) {

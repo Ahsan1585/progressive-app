@@ -1,209 +1,496 @@
+// Draws the practitioner-to-agency billing invoice. Pure layout only — no
+// DB access, no decryption, no request-scoped label-cache reads. Every
+// value it draws arrives already resolved via invoiceData.js, which is
+// where that logic lives instead.
+//
+// Visual system reused from subscriptionInvoicePdf.js (Izaya's own
+// subscription-billing invoice) — same color tokens, same FROM/BILL-TO
+// block shape, same Letter page/margin conventions — so the two invoice
+// types read as part of one family instead of two unrelated designs.
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
-const { decryptField } = require('./fieldEncryption');
+const { summarizeInvoiceTotals } = require('./invoiceData');
 
-// Converts a "YYYY-MM-DD" service_date into "MM-DD-YYYY" for display on the invoice.
-const formatServiceDate = (dateStr) => {
-  if (!dateStr) return '';
-  const [y, m, d] = String(dateStr).split('-');
-  if (!y || !m || !d) return dateStr;
-  return `${m.padStart(2, '0')}-${d.padStart(2, '0')}-${y}`;
+const NAVY = rgb(0x13 / 255, 0x2A / 255, 0x3E / 255);
+const TEAL = rgb(0x0E / 255, 0x6E / 255, 0x67 / 255);
+const TEAL_BG = rgb(0xE7 / 255, 0xF7 / 255, 0xF3 / 255);
+const SLATE = rgb(0x5C / 255, 0x6B / 255, 0x73 / 255);
+const LINE = rgb(0xE2 / 255, 0xEA / 255, 0xE8 / 255);
+const PAPER = rgb(0xF7 / 255, 0xFA / 255, 0xF9 / 255);
+const AMBER = rgb(0xC8 / 255, 0x89 / 255, 0x0B / 255);
+const AMBER_BG = rgb(0xFD / 255, 0xF3 / 255, 0xDC / 255);
+const RED = rgb(0xB9 / 255, 0x1C / 255, 0x1C / 255);
+const RED_BG = rgb(0xFE / 255, 0xF2 / 255, 0xF2 / 255);
+
+const EIMS_TIER_STYLE = {
+  cleared: { fg: TEAL, bg: TEAL_BG },
+  pending: { fg: AMBER, bg: AMBER_BG },
+  exception: { fg: RED, bg: RED_BG },
+  unverified: { fg: SLATE, bg: PAPER },
 };
 
-const generateInvoicePDF = async (practitioner, encounters, processedBy = '', companyName = '') => {
+const PAGE = { width: 612, height: 792 }; // Letter
+const MARGIN = 40;
+const CONTENT_WIDTH = PAGE.width - MARGIN * 2;
+
+// Reserved for invoiceStamper.js's "PAID" corner box, computed from that
+// file's own math: boxX = width-40-90 = 482, boxY = height-40-22 = 730,
+// so the box spans x:482-572, y:730-752 on every page. Nothing in this
+// generator draws inside x >= 470, y >= 722 so the stamp never collides
+// with the invoice-number/date block in the header.
+const PAID_STAMP_CLEAR = { xMin: 470, yMin: 722 };
+
+const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+const formatDate = (d) => {
+  const date = d instanceof Date ? d : new Date(d);
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+};
+const formatShortDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const [y, m, d] = String(dateStr).split('-');
+  if (!y) return dateStr;
+  return `${parseInt(m, 10)}/${parseInt(d, 10)}/${y.slice(-2)}`;
+};
+const formatPeriod = (start, end) => {
+  if (!start || !end) return '';
+  return `${formatShortDate(start)} – ${formatShortDate(end)}`;
+};
+
+// pdf-lib's standard Helvetica can't encode characters outside WinAnsi
+// (e.g. certain accented Latin characters, or any non-Latin script) and
+// throws rather than silently dropping them — a single unusual name
+// anywhere on a 100-line invoice would otherwise fail the whole PDF.
+// Replaces anything outside the safe range with '?' rather than crashing.
+const safeText = (s) => String(s ?? '').replace(/[^\x20-\x7E]/g, '?');
+
+// Truncates with an ellipsis so a long name/label can't overflow its
+// column into the next one — the previous generator had no such guard.
+const fitText = (text, font, size, maxW) => {
+  const t = safeText(text);
+  if (font.widthOfTextAtSize(t, size) <= maxW) return t;
+  let truncated = t;
+  while (truncated.length > 1 && font.widthOfTextAtSize(`${truncated}…`, size) > maxW) {
+    truncated = truncated.slice(0, -1);
+  }
+  return `${truncated}…`;
+};
+
+// Embeds a company logo from its stored data: URL. Falls back to null
+// (caller draws the brand name as text instead) for any type pdf-lib
+// can't embed directly (svg, webp) or any decode failure — a malformed
+// logo must never fail invoice generation.
+async function embedLogo(pdfDoc, dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) return null;
+  try {
+    const isJpeg = dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg');
+    const isPng = dataUrl.startsWith('data:image/png');
+    if (!isJpeg && !isPng) return null;
+    const bytes = Buffer.from(dataUrl.split(',')[1], 'base64');
+    const image = isJpeg ? await pdfDoc.embedJpg(bytes) : await pdfDoc.embedPng(bytes);
+    const maxW = 140;
+    const maxH = 44;
+    const scale = Math.min(maxW / image.width, maxH / image.height, 1);
+    return { image, width: image.width * scale, height: image.height * scale };
+  } catch (err) {
+    console.error('invoiceGenerator: logo embed failed, falling back to text brand name:', err.message);
+    return null;
+  }
+}
+
+function drawPill(page, { x, y, text, fonts, fg, bg }) {
+  const { bold } = fonts;
+  const size = 7.5;
+  const padX = 7;
+  const textW = bold.widthOfTextAtSize(text.toUpperCase(), size);
+  const w = textW + padX * 2;
+  const h = 14;
+  page.drawRectangle({ x, y, width: w, height: h, color: bg });
+  page.drawText(text.toUpperCase(), { x: x + padX, y: y + 4, font: bold, size, color: fg });
+  return w;
+}
+
+// ctx shape — see invoiceData.js and the invoice redesign plan for how
+// each field is sourced:
+//   mode: 'agency' | 'independent' | 'override'
+//   invoice: { number, batchId, issuedAt, periodStart, periodEnd }
+//   brand:   { name, logoDataUrl, contactLine }
+//   from:    { title, name, lines: string[] }
+//   billTo:  { title, name, lines: string[] }
+//   details: { discipline, taxIdMasked, processedBy }
+//   certificationParty: string
+//   lines: InvoiceLine[]
+//   warnings: string[]
+async function generateInvoicePDF(ctx) {
+  const { mode, invoice, brand, from, billTo, details, certificationParty, lines, warnings = [] } = ctx;
+
   const pdfDoc = await PDFDocument.create();
-  let page = pdfDoc.addPage([612, 792]); // Letter size
-
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fonts = { regular, bold };
 
-  const { width, height } = page.getSize();
-  const margin = 40;
-  const contentWidth = width - margin * 2;
-  let y = height - margin;
+  const logo = await embedLogo(pdfDoc, brand.logoDataUrl);
 
-  // ── Title ──
-  const title = `BILLING INVOICE ${companyName || ''}`.trim().toUpperCase();
-  const titleW = bold.widthOfTextAtSize(title, 14);
-  page.drawText(title, { x: (width - titleW) / 2, y, font: bold, size: 14, color: rgb(0,0,0) });
-  y -= 30;
+  let page = pdfDoc.addPage([PAGE.width, PAGE.height]);
+  let y = PAGE.height - MARGIN;
 
-  // ── Info rows ──
-  const drawInfoRow = (label, value) => {
-    page.drawText(label, { x: margin, y, font: bold, size: 10, color: rgb(0,0,0) });
-    page.drawText(value || '', { x: margin + 130, y, font: regular, size: 10, color: rgb(0,0,0) });
-    page.drawLine({ start: { x: margin + 130, y: y - 2 }, end: { x: margin + contentWidth, y: y - 2 }, thickness: 0.5, color: rgb(0,0,0) });
-    y -= 22;
-  };
+  // ── Header: brand left, invoice identity right ──
+  const headerTopY = y;
+  if (logo) {
+    page.drawImage(logo.image, { x: MARGIN, y: headerTopY - logo.height, width: logo.width, height: logo.height });
+    page.drawText(fitText(brand.name, bold, 11, 220), { x: MARGIN, y: headerTopY - logo.height - 14, font: bold, size: 11, color: NAVY });
+  } else {
+    page.drawText(fitText(brand.name, bold, 16, 260), { x: MARGIN, y: headerTopY - 16, font: bold, size: 16, color: NAVY });
+  }
+  if (brand.contactLine) {
+    const contactY = logo ? headerTopY - logo.height - 28 : headerTopY - 30;
+    page.drawText(fitText(brand.contactLine, regular, 8, 300), { x: MARGIN, y: contactY, font: regular, size: 8, color: SLATE });
+  }
 
-  drawInfoRow('Company Name:', companyName);
-  drawInfoRow("Therapist's Name:", `${practitioner.first_name || ''} ${practitioner.last_name || ''}`);
-  drawInfoRow('Address:', practitioner.address || '');
-  drawInfoRow('Phone:', practitioner.phone_number || '');
-  drawInfoRow('EIN/SSN #:', decryptField(practitioner.ssn) || '');
-  drawInfoRow('Processed By:', processedBy);
-  y -= 8;
+  if (mode === 'override') {
+    const ribbonText = 'OVERRIDE INVOICE — declined/returned sessions approved by admin';
+    const ribbonY = headerTopY - (logo ? logo.height + 44 : 46);
+    page.drawRectangle({ x: MARGIN, y: ribbonY - 14, width: 330, height: 16, color: RED_BG });
+    page.drawText(ribbonText, { x: MARGIN + 6, y: ribbonY - 10, font: bold, size: 7, color: RED });
+  }
 
-  // ── Therapy types ──
-  const therapyLine = 'DI___    CDA___    OT___    PT___    ST___    SW___    IT___';
-  const therapyW = bold.widthOfTextAtSize(therapyLine, 10);
-  page.drawText(therapyLine, { x: (width - therapyW) / 2, y, font: bold, size: 10, color: rgb(0,0,0) });
-  y -= 20;
+  const titleText = 'INVOICE';
+  const titleW = bold.widthOfTextAtSize(titleText, 20);
+  page.drawText(titleText, { x: MARGIN + CONTENT_WIDTH - titleW, y: headerTopY - 16, font: bold, size: 20, color: NAVY });
 
-  // ── Table ──
-  const cols = [
-    { label: 'Child ID#',      w: 58  },
-    { label: 'County',         w: 68  },
-    { label: "Child's Name",   w: 155 },
-    { label: 'Service Date',   w: 72  },
-    { label: 'Hours',          w: 55  },
-    { label: 'Rate of Pay',    w: 62  },
-    { label: 'EIMS (Y/N)',     w: 62  },
+  const metaLines = [
+    `No. ${invoice.number}`,
+    `Issued ${formatDate(invoice.issuedAt)}`,
+    invoice.periodStart ? `Service period ${formatPeriod(invoice.periodStart, invoice.periodEnd)}` : null,
+  ].filter(Boolean);
+  let metaY = headerTopY - 30;
+  metaLines.forEach((line) => {
+    const w = regular.widthOfTextAtSize(line, 8.5);
+    page.drawText(line, { x: MARGIN + CONTENT_WIDTH - w, y: metaY, font: regular, size: 8.5, color: SLATE });
+    metaY -= 12;
+  });
+
+  const pillStyle = mode === 'override' ? { label: 'OVERRIDE', fg: RED, bg: RED_BG } : { label: 'ISSUED', fg: TEAL, bg: TEAL_BG };
+  const pillW = bold.widthOfTextAtSize(pillStyle.label, 8) + 20;
+  drawPill(page, { x: MARGIN + CONTENT_WIDTH - pillW, y: metaY - 2, text: pillStyle.label, fonts, fg: pillStyle.fg, bg: pillStyle.bg });
+
+  y = headerTopY - 82;
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 1, color: LINE });
+  y -= 24;
+
+  // ── FROM / BILL TO / DETAILS ──
+  const colW = CONTENT_WIDTH / 3;
+  const triCols = [
+    { x: MARGIN, title: from.title, name: from.name, lines: from.lines },
+    { x: MARGIN + colW, title: billTo.title, name: billTo.name, lines: billTo.lines },
+    {
+      x: MARGIN + colW * 2,
+      title: 'DETAILS',
+      name: null,
+      lines: [
+        details.discipline ? `Discipline: ${details.discipline}` : null,
+        details.taxIdMasked ? `Tax ID: ${details.taxIdMasked}` : null,
+        details.processedBy ? `Processed by: ${details.processedBy}` : null,
+      ].filter(Boolean),
+    },
   ];
 
-  const headerH = 24;
-  const rowH    = 20;
-
-  // Draws the column-header band at the current `y` and returns the y just
-  // below it — pulled out so it can be re-drawn at the top of each new page
-  // the data-row loop below spills onto.
-  const drawTableHeader = () => {
-    const tableTop = y;
-    page.drawRectangle({ x: margin, y: tableTop - headerH, width: contentWidth, height: headerH, color: rgb(0.95, 0.95, 0.95), borderColor: rgb(0,0,0), borderWidth: 0.5 });
-
-    let hx = margin;
-    cols.forEach(col => {
-      page.drawLine({ start: { x: hx, y: tableTop }, end: { x: hx, y: tableTop - headerH }, thickness: 0.5, color: rgb(0,0,0) });
-      page.drawText(col.label, { x: hx + 3, y: tableTop - headerH + 8, font: bold, size: 8, color: rgb(0,0,0) });
-      hx += col.w;
+  const triTopY = y;
+  triCols.forEach((col) => {
+    page.drawText(col.title, { x: col.x, y: triTopY, font: bold, size: 7.5, color: SLATE });
+  });
+  let triY = triTopY - 16;
+  const maxTriLines = Math.max(...triCols.map((c) => (c.name ? 1 : 0) + c.lines.length));
+  for (let i = 0; i < maxTriLines; i++) {
+    triCols.forEach((col) => {
+      const isNameRow = col.name && i === 0;
+      const text = isNameRow ? col.name : col.lines[col.name ? i - 1 : i];
+      if (text) {
+        page.drawText(fitText(text, isNameRow ? bold : regular, isNameRow ? 10.5 : 9, colW - 14), {
+          x: col.x, y: triY, font: isNameRow ? bold : regular, size: isNameRow ? 10.5 : 9, color: isNameRow ? NAVY : SLATE,
+        });
+      }
     });
-    page.drawLine({ start: { x: hx, y: tableTop }, end: { x: hx, y: tableTop - headerH }, thickness: 0.5, color: rgb(0,0,0) });
+    triY -= 14;
+  }
+  y = triY - 10;
 
-    y = tableTop - headerH;
+  // ── Summary tiles ──
+  const distinctChildren = new Set(lines.map((l) => l.childId || l.childName)).size;
+  const { totalHours, totalDue, totalHeld } = summarizeInvoiceTotals(lines);
+  const tiles = [
+    { label: 'Sessions', value: String(lines.length) },
+    { label: 'Children served', value: String(distinctChildren) },
+    { label: 'Total hours', value: totalHours.toFixed(2) },
+    { label: 'Due now (cleared)', value: money(totalDue) },
+  ];
+  const tileW = CONTENT_WIDTH / tiles.length;
+  const tileH = 38;
+  tiles.forEach((t, i) => {
+    const tx = MARGIN + tileW * i;
+    page.drawRectangle({ x: tx, y: y - tileH, width: tileW - 1, height: tileH, color: PAPER });
+    const valW = bold.widthOfTextAtSize(t.value, 15);
+    page.drawText(t.value, { x: tx + (tileW - 1 - valW) / 2, y: y - 20, font: bold, size: 15, color: NAVY });
+    const lblW = regular.widthOfTextAtSize(t.label.toUpperCase(), 6.5);
+    page.drawText(t.label.toUpperCase(), { x: tx + (tileW - 1 - lblW) / 2, y: y - tileH + 8, font: regular, size: 6.5, color: SLATE });
+  });
+  y -= tileH + 14;
+
+  // ── Exceptions callout ──
+  const exceptionLines = lines.filter((l) => l.eims.tier !== 'cleared' || l.anomalies.length > 0);
+  if (exceptionLines.length > 0 || warnings.length > 0) {
+    const shown = exceptionLines.slice(0, 5);
+    const extra = exceptionLines.length - shown.length;
+    const calloutLines = [
+      ...shown.map((l) => `${formatShortDate(l.serviceDate)} · ${fitText(l.childName, regular, 8, 160)} · ${l.eims.note || l.eims.label}`),
+      extra > 0 ? `+${extra} more, see EIMS column` : null,
+      ...warnings,
+    ].filter(Boolean);
+    const calloutH = 16 + calloutLines.length * 11;
+    page.drawRectangle({ x: MARGIN, y: y - calloutH, width: CONTENT_WIDTH, height: calloutH, color: AMBER_BG });
+    const headerText = exceptionLines.length > 0
+      ? `${exceptionLines.length} session${exceptionLines.length === 1 ? '' : 's'} held back (${money(totalHeld)}) — not included in Total Due until verified`
+      : 'Review before payment';
+    page.drawText(headerText, { x: MARGIN + 8, y: y - 13, font: bold, size: 8.5, color: rgb(0.4, 0.3, 0) });
+    let calloutY = y - 24;
+    calloutLines.forEach((line) => {
+      page.drawText(fitText(line, regular, 7.5, CONTENT_WIDTH - 16), { x: MARGIN + 8, y: calloutY, font: regular, size: 7.5, color: rgb(0.47, 0.35, 0) });
+      calloutY -= 11;
+    });
+    y -= calloutH + 12;
+  }
+
+  // ── Itemized table ──
+  const cols = [
+    { label: 'Date', w: 48 },
+    { label: 'Child', w: 112 },
+    { label: 'Service', w: 128 },
+    { label: 'Time', w: 76 },
+    { label: 'Hrs', w: 34, num: true },
+    { label: 'Rate', w: 42, num: true },
+    { label: 'Amount', w: 46, num: true },
+    { label: 'EIMS', w: 46 },
+  ];
+  const rowH = 26;
+  const headerH = 16;
+
+  const drawTableHeader = (pg, yy) => {
+    pg.drawRectangle({ x: MARGIN, y: yy - headerH, width: CONTENT_WIDTH, height: headerH, color: NAVY });
+    let cx = MARGIN;
+    cols.forEach((col) => {
+      pg.drawText(col.label.toUpperCase(), { x: cx + 4, y: yy - headerH + 5, font: bold, size: 7, color: rgb(1, 1, 1) });
+      cx += col.w;
+    });
+    return yy - headerH;
   };
 
-  drawTableHeader();
+  y = drawTableHeader(page, y);
 
-  // Data rows — a batch can span 100+ logs, far more than one Letter page
-  // holds. Start a fresh page (with the header repeated) whenever the next
-  // row wouldn't fully fit above the bottom margin, instead of drawing rows
-  // off the bottom of the page where they're generated but never visible.
-  encounters.forEach(enc => {
-    if (y - rowH < margin) {
-      page = pdfDoc.addPage([612, 792]);
-      y = height - margin;
-      drawTableHeader();
+  lines.forEach((line, i) => {
+    if (y - rowH < MARGIN + 40) {
+      page = pdfDoc.addPage([PAGE.width, PAGE.height]);
+      y = PAGE.height - MARGIN;
+      page.drawText(`${invoice.number} · ${from.name}`, { x: MARGIN, y, font: regular, size: 8, color: SLATE });
+      y -= 16;
+      y = drawTableHeader(page, y);
+    }
+    if (i % 2 === 1) {
+      page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_WIDTH, height: rowH, color: PAPER });
     }
 
-    const vals = [
-      String(enc.child_id   || ''),
-      String(enc.county     || ''),
-      String(enc.child_name || ''),
-      formatServiceDate(enc.date),
-      String(enc.total_hours || ''),
-      String(enc.rate_of_pay || ''),
-      'Y',
-    ];
+    const ln1Y = y - 10;
+    const ln2Y = y - 20;
+    let cx = MARGIN;
 
-    page.drawRectangle({ x: margin, y: y - rowH, width: contentWidth, height: rowH, borderColor: rgb(0,0,0), borderWidth: 0.5 });
+    // Date
+    page.drawText(formatShortDate(line.serviceDate), { x: cx + 4, y: ln1Y, font: regular, size: 8, color: NAVY });
+    page.drawText(`#${line.assessmentId}`, { x: cx + 4, y: ln2Y, font: regular, size: 6.8, color: SLATE });
+    cx += cols[0].w;
 
-    let cx = margin;
-    vals.forEach((val, i) => {
-      page.drawLine({ start: { x: cx, y }, end: { x: cx, y: y - rowH }, thickness: 0.5, color: rgb(0,0,0) });
-      page.drawText(val, { x: cx + 3, y: y - rowH + 6, font: regular, size: 9, color: rgb(0,0,0) });
-      cx += cols[i].w;
-    });
-    page.drawLine({ start: { x: cx, y }, end: { x: cx, y: y - rowH }, thickness: 0.5, color: rgb(0,0,0) });
+    // Child
+    page.drawText(fitText(line.childName, regular, 8, cols[1].w - 8), { x: cx + 4, y: ln1Y, font: regular, size: 8, color: NAVY });
+    page.drawText(fitText(`ID ${line.childId} · ${line.county}`, regular, 6.8, cols[1].w - 8), { x: cx + 4, y: ln2Y, font: regular, size: 6.8, color: SLATE });
+    cx += cols[1].w;
+
+    // Service
+    page.drawText(fitText(line.serviceLabel, regular, 8, cols[2].w - 8), { x: cx + 4, y: ln1Y, font: regular, size: 8, color: NAVY });
+    page.drawText(fitText(`${line.locationLabel} · ${line.groupSizeLabel}`, regular, 6.8, cols[2].w - 8), { x: cx + 4, y: ln2Y, font: regular, size: 6.8, color: SLATE });
+    cx += cols[2].w;
+
+    // Time + anomaly
+    page.drawText(fitText(line.timeLabel || '—', regular, 8, cols[3].w - 8), { x: cx + 4, y: ln1Y, font: regular, size: 8, color: NAVY });
+    if (line.anomalies.length > 0) {
+      page.drawText(fitText(line.anomalies[0], regular, 6.8, cols[3].w - 8), { x: cx + 4, y: ln2Y, font: regular, size: 6.8, color: RED });
+    }
+    cx += cols[3].w;
+
+    // Hrs (right-aligned)
+    const hrsText = line.hours.toFixed(2);
+    const hrsW = regular.widthOfTextAtSize(hrsText, 8);
+    page.drawText(hrsText, { x: cx + cols[4].w - 4 - hrsW, y: ln1Y, font: regular, size: 8, color: NAVY });
+    cx += cols[4].w;
+
+    // Rate (right-aligned)
+    const rateText = money(line.rate);
+    const rateW = regular.widthOfTextAtSize(rateText, 8);
+    page.drawText(rateText, { x: cx + cols[5].w - 4 - rateW, y: ln1Y, font: regular, size: 8, color: NAVY });
+    cx += cols[5].w;
+
+    // Amount (right-aligned, bold)
+    const amtText = money(line.lineTotal);
+    const amtW = bold.widthOfTextAtSize(amtText, 8);
+    page.drawText(amtText, { x: cx + cols[6].w - 4 - amtW, y: ln1Y, font: bold, size: 8, color: NAVY });
+    cx += cols[6].w;
+
+    // EIMS pill
+    const style = EIMS_TIER_STYLE[line.eims.tier] || EIMS_TIER_STYLE.unverified;
+    drawPill(page, { x: cx + 2, y: y - 18, text: line.eims.label, fonts, fg: style.fg, bg: style.bg });
 
     y -= rowH;
   });
 
-  y -= 20;
-
-  // ── Declaration box ──
-  const declLines = [
-    'I do solemnly declare and certify that all hours specified above have been previously',
-    `approved by the IF-SP and are hereby in compliance with the contractual Agreement between`,
-    `${companyName || 'the agency'} and the New Jersey Department of Health and Senior Services.`,
-    '',
-    'Furthermore, I fully Accept and Acknowledge that any hours which may exceed the time',
-    'allotted by said contractual agreement may not be presented for payment at the discretion',
-    `of ${companyName || 'the agency'}.`,
-  ];
-
-  const declBoxH = 145;
-  if (y - declBoxH < margin) {
-    // Same off-page problem as the data rows: a long invoice can leave too
-    // little room on the last table page for the declaration box to fit.
-    page = pdfDoc.addPage([612, 792]);
-    y = height - margin;
-  }
-  page.drawRectangle({ x: margin, y: y - declBoxH, width: contentWidth, height: declBoxH, borderColor: rgb(0,0,0), borderWidth: 2 });
-
-  const declTitle = "CLAIMANT'S CERTIFICATION AND DECLARATION";
-  const declTitleW = bold.widthOfTextAtSize(declTitle, 11);
-  page.drawText(declTitle, { x: (width - declTitleW) / 2, y: y - 16, font: bold, size: 11, color: rgb(0,0,0) });
-
-  let declY = y - 32;
-  declLines.forEach(line => {
-    if (line) page.drawText(line, { x: margin + 6, y: declY, font: regular, size: 9, color: rgb(0,0,0) });
-    declY -= 14;
-  });
-
-  page.drawText('Therapist Signature: _______________________', { x: margin + 6, y: y - declBoxH + 14, font: bold, size: 10, color: rgb(0,0,0) });
-  page.drawText('Date: _______________', { x: margin + contentWidth - 145, y: y - declBoxH + 14, font: bold, size: 10, color: rgb(0,0,0) });
-
-  // ── County hours / total amount summary ──
-  // One flat rate applies to the whole invoice (a batch is always scoped to a
-  // single practitioner), so the total is just total hours * that rate.
-  const declBottomY = y - declBoxH;
-
-  const countyTotals = {};
-  encounters.forEach(enc => {
-    // Uppercase for grouping — a county typed/stored as "Essex" on one
-    // patient and "ESSEX" on another must total together, not split into
-    // two separate summary lines over a capitalization difference.
-    const county = ((enc.county || '').trim() || 'Unspecified').toUpperCase();
-    const hours = parseFloat(enc.total_hours) || 0;
-    countyTotals[county] = (countyTotals[county] || 0) + hours;
-  });
-  const countyNames = Object.keys(countyTotals).sort();
-  const totalHours = countyNames.reduce((sum, c) => sum + countyTotals[c], 0);
-  const payRate = parseFloat(encounters[0]?.rate_of_pay) || 0;
-  const totalAmount = totalHours * payRate;
-
-  const summaryLineH = 16;
-  const summaryNeededH = 20 + Math.max(countyNames.length, 2) * summaryLineH;
-
-  let summaryPage = page;
-  let summaryY;
-  if (declBottomY - summaryNeededH < margin) {
-    // Long invoice — the declaration box already runs close to the page edge,
-    // so give the summary its own page instead of overlapping/overflowing.
-    summaryPage = pdfDoc.addPage([612, 792]);
-    summaryY = summaryPage.getSize().height - margin;
+  // ── Totals (2-column) — fit check before drawing totals + certification together ──
+  const neededBottomH = 295;
+  if (y - neededBottomH < MARGIN) {
+    page = pdfDoc.addPage([PAGE.width, PAGE.height]);
+    y = PAGE.height - MARGIN;
   } else {
-    summaryY = declBottomY - 26;
+    y -= 18;
   }
 
-  summaryPage.drawText('HOURS:', { x: margin, y: summaryY, font: bold, size: 10, color: rgb(0,0,0) });
-  summaryPage.drawText(`Total Hours: ${totalHours.toFixed(2)}`, { x: margin + 260, y: summaryY, font: bold, size: 10, color: rgb(0,0,0) });
-
-  let rowY = summaryY - summaryLineH;
-  countyNames.forEach((county, i) => {
-    summaryPage.drawText(`${county}: ${countyTotals[county].toFixed(2)}`, { x: margin, y: rowY, font: regular, size: 10, color: rgb(0,0,0) });
-    if (i === 0) {
-      summaryPage.drawText(`Total Amount: $${totalAmount.toFixed(2)}`, { x: margin + 260, y: rowY, font: bold, size: 10, color: rgb(0,0,0) });
-    }
-    rowY -= summaryLineH;
+  const hoursByService = {};
+  const hoursByCounty = {};
+  lines.forEach((l) => {
+    hoursByService[l.serviceLabel] = (hoursByService[l.serviceLabel] || 0) + l.hours;
+    const county = l.county || 'UNSPECIFIED';
+    hoursByCounty[county] = (hoursByCounty[county] || 0) + l.hours;
   });
-  // Only one county — the "Total Amount" line still needs to be drawn even
-  // though the loop above only writes it alongside the first county row.
-  if (countyNames.length === 0) {
-    summaryPage.drawText(`Total Amount: $${totalAmount.toFixed(2)}`, { x: margin + 260, y: rowY, font: bold, size: 10, color: rgb(0,0,0) });
+
+  const leftColW = 300;
+  const rightColX = MARGIN + leftColW + 16;
+  const rightColW = CONTENT_WIDTH - leftColW - 16;
+
+  let leftY = y;
+  page.drawText('HOURS BY SERVICE TYPE', { x: MARGIN, y: leftY, font: bold, size: 7.5, color: SLATE });
+  leftY -= 14;
+  Object.keys(hoursByService).sort().forEach((label) => {
+    page.drawText(fitText(label, regular, 8.5, leftColW - 60), { x: MARGIN, y: leftY, font: regular, size: 8.5, color: NAVY });
+    const hrsText = `${hoursByService[label].toFixed(2)} hrs`;
+    const hrsW = bold.widthOfTextAtSize(hrsText, 8.5);
+    page.drawText(hrsText, { x: MARGIN + leftColW - hrsW, y: leftY, font: bold, size: 8.5, color: NAVY });
+    leftY -= 13;
+  });
+  leftY -= 10;
+  page.drawText('HOURS BY COUNTY', { x: MARGIN, y: leftY, font: bold, size: 7.5, color: SLATE });
+  leftY -= 14;
+  Object.keys(hoursByCounty).sort().forEach((county) => {
+    page.drawText(county, { x: MARGIN, y: leftY, font: regular, size: 8.5, color: NAVY });
+    const hrsText = `${hoursByCounty[county].toFixed(2)} hrs`;
+    const hrsW = bold.widthOfTextAtSize(hrsText, 8.5);
+    page.drawText(hrsText, { x: MARGIN + leftColW - hrsW, y: leftY, font: bold, size: 8.5, color: NAVY });
+    leftY -= 13;
+  });
+
+  const tierOrder = ['cleared', 'pending', 'exception', 'unverified'];
+  const tierLabel = { cleared: 'Cleared for payment', pending: 'Pending verification', exception: 'Exceptions', unverified: 'Not verified' };
+  let rightY = y;
+  page.drawText('PAYMENT BREAKDOWN', { x: rightColX, y: rightY, font: bold, size: 7.5, color: SLATE });
+  rightY -= 16;
+  tierOrder.forEach((tier) => {
+    const tierLines = lines.filter((l) => l.eims.tier === tier);
+    if (tierLines.length === 0) return;
+    const tierSum = tierLines.reduce((sum, l) => sum + l.lineTotal, 0);
+    const style = EIMS_TIER_STYLE[tier];
+    page.drawRectangle({ x: rightColX, y: rightY - 3, width: 5, height: 5, color: style.fg });
+    page.drawText(`${tierLabel[tier]} (${tierLines.length})`, { x: rightColX + 10, y: rightY - 5, font: regular, size: 8.5, color: NAVY });
+    const amtText = money(tierSum);
+    const amtW = bold.widthOfTextAtSize(amtText, 8.5);
+    page.drawText(amtText, { x: rightColX + rightColW - amtW, y: rightY - 5, font: bold, size: 8.5, color: NAVY });
+    rightY -= 15;
+  });
+  rightY -= 4;
+  page.drawLine({ start: { x: rightColX, y: rightY }, end: { x: rightColX + rightColW, y: rightY }, thickness: 1.2, color: NAVY });
+  rightY -= 16;
+  page.drawText('Total hours (all sessions)', { x: rightColX, y: rightY, font: regular, size: 8.5, color: NAVY });
+  const totalHrsText = totalHours.toFixed(2);
+  const totalHrsW = regular.widthOfTextAtSize(totalHrsText, 8.5);
+  page.drawText(totalHrsText, { x: rightColX + rightColW - totalHrsW, y: rightY, font: regular, size: 8.5, color: NAVY });
+  rightY -= 13;
+  if (totalHeld > 0) {
+    page.drawText('Held pending verification', { x: rightColX, y: rightY, font: regular, size: 8.5, color: AMBER });
+    const heldText = money(totalHeld);
+    const heldW = regular.widthOfTextAtSize(heldText, 8.5);
+    page.drawText(heldText, { x: rightColX + rightColW - heldW, y: rightY, font: regular, size: 8.5, color: AMBER });
+    rightY -= 13;
   }
+  rightY -= 7;
+  page.drawText('TOTAL DUE NOW', { x: rightColX, y: rightY, font: bold, size: 10, color: NAVY });
+  const dueText = money(totalDue);
+  const dueW = bold.widthOfTextAtSize(dueText, 14);
+  page.drawText(dueText, { x: rightColX + rightColW - dueW, y: rightY - 1, font: bold, size: 14, color: TEAL });
+  if (totalHeld > 0) {
+    rightY -= 13;
+    const footnote = 'Excludes sessions not yet cleared — reissue once verified.';
+    page.drawText(footnote, { x: rightColX, y: rightY, font: regular, size: 6.8, color: SLATE });
+  }
+
+  y = Math.min(leftY, rightY) - 24;
+
+  // ── Certification ──
+  const certLines = [
+    `I certify that the services listed above were provided as authorized in each child's Individualized Family Service Plan (IFSP), that the dates and hours reported are true and accurate, and that they comply with the contractual agreement between ${certificationParty || 'the agency'} and the New Jersey Department of Health, Early Intervention System (NJEIS).`,
+    '',
+    `I acknowledge that hours exceeding those authorized under that agreement may be declined for payment at the discretion of ${certificationParty || 'the agency'}.`,
+  ];
+  // Wrap each paragraph to the box width manually (pdf-lib has no built-in wrap).
+  const certMaxW = CONTENT_WIDTH - 24;
+  const wrapLine = (text, font, size, maxW) => {
+    if (!text) return [''];
+    const words = text.split(' ');
+    const out = [];
+    let cur = '';
+    words.forEach((w) => {
+      const test = cur ? `${cur} ${w}` : w;
+      if (font.widthOfTextAtSize(test, size) > maxW && cur) {
+        out.push(cur);
+        cur = w;
+      } else {
+        cur = test;
+      }
+    });
+    if (cur) out.push(cur);
+    return out;
+  };
+  const wrappedCert = certLines.flatMap((l) => wrapLine(l, regular, 8.3, certMaxW));
+  const certBoxH = 40 + wrappedCert.length * 12 + 26;
+
+  if (y - certBoxH < MARGIN) {
+    page = pdfDoc.addPage([PAGE.width, PAGE.height]);
+    y = PAGE.height - MARGIN;
+  }
+
+  page.drawRectangle({ x: MARGIN, y: y - certBoxH, width: CONTENT_WIDTH, height: certBoxH, borderColor: NAVY, borderWidth: 1.4 });
+  const certTitle = "CLAIMANT'S CERTIFICATION";
+  const certTitleW = bold.widthOfTextAtSize(certTitle, 9);
+  page.drawText(certTitle, { x: MARGIN + (CONTENT_WIDTH - certTitleW) / 2, y: y - 16, font: bold, size: 9, color: NAVY });
+  let certY = y - 32;
+  wrappedCert.forEach((line) => {
+    if (line) page.drawText(line, { x: MARGIN + 12, y: certY, font: regular, size: 8.3, color: rgb(0.24, 0.29, 0.33) });
+    certY -= 12;
+  });
+  certY -= 8;
+  page.drawText('Signature _______________________', { x: MARGIN + 12, y: certY, font: bold, size: 8.3, color: NAVY });
+  page.drawText(`Printed name: ${safeText(from.name)}`, { x: MARGIN + 220, y: certY, font: bold, size: 8.3, color: NAVY });
+  page.drawText('Date __________', { x: MARGIN + CONTENT_WIDTH - 100, y: certY, font: bold, size: 8.3, color: NAVY });
+
+  // ── Footer: page numbers + batch ref (drawn last, once page count is known) ──
+  const pages = pdfDoc.getPages();
+  pages.forEach((pg, idx) => {
+    pg.drawText(`Page ${idx + 1} of ${pages.length} · Batch ref ${invoice.batchId || 'pending'} · Generated by Izaya EIS`, {
+      x: MARGIN, y: 24, font: regular, size: 6.5, color: SLATE,
+    });
+  });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
-};
+}
 
-module.exports = { generateInvoicePDF };
+module.exports = { generateInvoicePDF, PAID_STAMP_CLEAR };

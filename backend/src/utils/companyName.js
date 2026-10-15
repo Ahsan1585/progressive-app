@@ -11,4 +11,17 @@ async function getCompanyName() {
   return rows[0]?.legal_entity_name || rows[0]?.display_name || '';
 }
 
-module.exports = { getCompanyName };
+// Fuller read for documents that also need address/phone/logo (the
+// invoice redesign's branding header) — a narrow column list, not
+// companyController.getCompanySettings's SELECT *, which also pulls the
+// large compliance-mapping JSON blobs that have no place in a PDF
+// generator. Same narrow-select pattern subscriptionController.js already
+// uses for its own settings read.
+async function getCompanySettingsForDocuments() {
+  const { rows } = await pool.query(
+    'SELECT display_name, legal_entity_name, address, phone, billing_email, logo, state FROM company_settings WHERE id = 1'
+  );
+  return rows[0] || null;
+}
+
+module.exports = { getCompanyName, getCompanySettingsForDocuments };

@@ -9,12 +9,17 @@ const {
 } = require('../config/storage');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
 const { buildNjeisPdfForGroup } = require('../utils/njeisFormFiller');
-const { getCompanyName } = require('../utils/companyName');
+const { getCompanyName, getCompanySettingsForDocuments } = require('../utils/companyName');
 const { stampInvoicePaid } = require('../utils/invoiceStamper');
 const { getDisciplineCode, mapDisciplineToCode } = require('../utils/disciplineCodes');
 const { formatTime12h } = require('../utils/formatting');
+const {
+  formatInvoiceNumber, maskTaxId, formatPractitionerAddressLines,
+  loadComplianceForLines, buildInvoiceLines, buildBrand,
+} = require('../utils/invoiceData');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
+const crypto = require('crypto');
 const {
   serviceCodeLabel, locationCodeLabel, groupSizeCodeLabel, statusCodeLabel, codeLabel,
   mapServiceLabelToCode, mapLocationLabelToCode, mapGroupSizeLabelToCode, mapStatusLabelToCode, mapCategoryLabelToCode,
@@ -23,7 +28,7 @@ const {
 const { logAudit } = require('../utils/auditLog');
 const { normalizeForMatch, scoredNamesMatch } = require('../utils/textMatch');
 const { sendSevfToAgencyEmail } = require('../utils/emailClient');
-const { resolveAgencyEmail } = require('./agencyController');
+const { resolveAgency, resolveAgencyEmail } = require('./agencyController');
 const path = require('path');
 
 // --- 1. NEW Standardized Path Helper ---
@@ -478,32 +483,61 @@ const generateSelfCertifiedSEVF = async (req, res) => {
       // Invoices all operate on the same single batch per (patient,
       // affiliation, month) — there's no separate combine-into-one-invoice
       // step like the tenant flow's Generate & Issue has.
-      let totalHours = 0;
-      const rawPayRate = (practitioner.pay_rate && parseFloat(practitioner.pay_rate) > 0) ? parseFloat(practitioner.pay_rate) : 0;
-      const invoiceLineItems = groupRecords.map((line) => {
-        const hours = line.total_time ? (line.total_time / 60) : 0;
-        totalHours += hours;
-        return {
-          ...line,
-          date: line.service_date || '',
-          total_hours: hours > 0 ? hours.toFixed(2) : '',
-          child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim() || '',
-          child_id: line.patients?.child_id || '',
-          county: line.patient_county || '',
-          rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : '0.00',
-          line_total: (rawPayRate && hours > 0) ? (hours * rawPayRate).toFixed(2) : '0.00',
-        };
+      //
+      // batchId generated upfront (billing_batches.id defaults to
+      // gen_random_uuid() but accepts a supplied value) so the invoice
+      // number printed on the PDF matches the row it ends up stored under.
+      const batchId = crypto.randomUUID();
+      const agency = await resolveAgency(practitionerId, first.company_affiliation);
+      const companySettings = await getCompanySettingsForDocuments();
+      const lines = buildInvoiceLines(groupRecords, practitioner, { mode: 'independent', complianceById: null });
+      const warnings = [];
+      if (lines.some(l => l.rate === 0)) {
+        warnings.push('No pay rate is set for this practitioner — amounts shown as $0.00.');
+      }
+
+      const invoicePdfBuffer = await generateInvoicePDF({
+        mode: 'independent',
+        invoice: {
+          number: formatInvoiceNumber(batchId),
+          batchId,
+          issuedAt: now,
+          periodStart: serviceDates[0],
+          periodEnd: serviceDates[serviceDates.length - 1],
+        },
+        brand: buildBrand(companySettings),
+        from: {
+          title: 'FROM',
+          name: companySettings?.legal_entity_name || `${practitioner.first_name} ${practitioner.last_name}`.trim(),
+          lines: [
+            `Practitioner: ${practitioner.first_name || ''} ${practitioner.last_name || ''}`.trim(),
+            ...formatPractitionerAddressLines(practitioner),
+            practitioner.phone_number || '',
+          ].filter(Boolean),
+        },
+        billTo: {
+          title: 'BILL TO',
+          name: agency?.name || companyNameForGroup,
+          lines: [agency?.address, agency?.phone, agency?.email].filter(Boolean),
+        },
+        details: {
+          discipline: (practitioner.service_types || [])[0] || '',
+          taxIdMasked: maskTaxId(practitioner.ssn),
+          processedBy: `${practitioner.first_name} ${practitioner.last_name}`.trim(),
+        },
+        certificationParty: companyNameForGroup,
+        lines,
+        warnings,
       });
-      const invoicePdfBuffer = await generateInvoicePDF(practitioner, invoiceLineItems, `${practitioner.first_name} ${practitioner.last_name}`.trim(), companyNameForGroup);
       const invoiceFilePath = `${yearMonth}/${practName}/Invoice_${affiliationSlug}_${minDate}_${maxDate}_${timestamp}.pdf`;
       await uploadFile(BILLING_INVOICES_BUCKET, invoiceFilePath, invoicePdfBuffer, 'application/pdf');
       const invoiceSignedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, invoiceFilePath, 3600);
 
       const { rows: batchRows } = await pool.query(
-        `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path, invoice_path)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO billing_batches (id, practitioner_id, start_date, end_date, njeis_path, invoice_path)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
-        [practitionerId, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath, invoiceFilePath]
+        [batchId, practitionerId, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, filePath, invoiceFilePath]
       );
       const batchRow = batchRows[0];
 
@@ -517,7 +551,7 @@ const generateSelfCertifiedSEVF = async (req, res) => {
       // starting blank — null when no saved agency matches this group's
       // name (or it has no email on file), in which case the UI falls back
       // to today's manual-entry flow.
-      const agencyEmail = await resolveAgencyEmail(practitionerId, first.company_affiliation);
+      const agencyEmail = agency?.email || null;
 
       results.push({
         batchId: batchRow.id,
@@ -769,23 +803,11 @@ const generateFinancialInvoice = async (req, res) => {
     if (!assessments || assessments.length === 0) return res.status(400).json({ success: false, error: "No reviewed assessments found." });
 
     const practitioner = assessments[0].practitioners;
-    let totalHours = 0;
-    const rawPayRate = (practitioner.pay_rate && parseFloat(practitioner.pay_rate) > 0) ? parseFloat(practitioner.pay_rate) : 0;
 
-    const formattedLineItems = assessments.map(line => {
-      const hours = line.total_time ? (line.total_time / 60) : 0;
-      totalHours += hours;
-      return {
-        ...line,
-        date: line.service_date || "",
-        total_hours: hours > 0 ? hours.toFixed(2) : "",
-        child_name: `${line.patient_first_name || ''} ${line.patient_last_name || ''}`.trim() || "",
-        child_id: line.patients?.child_id || "",
-        county: line.patient_county || "",
-        rate_of_pay: rawPayRate ? rawPayRate.toFixed(2) : "0.00",
-        line_total: (rawPayRate && hours > 0) ? (hours * rawPayRate).toFixed(2) : "0.00"
-      };
-    });
+    // Moved above the PDF call (was resolved after it) so the real batch
+    // uuid can be used for the invoice number itself, not just the
+    // filename — see invoiceData.js's formatInvoiceNumber.
+    const batchId = assessments[0]?.billing_batch_id || crypto.randomUUID();
 
     const { rows: specialistRows } = await pool.query(
       'SELECT first_name, last_name FROM practitioners WHERE id = $1',
@@ -795,16 +817,58 @@ const generateFinancialInvoice = async (req, res) => {
       ? `${specialistRows[0].first_name || ''} ${specialistRows[0].last_name || ''}`.trim()
       : '';
 
-    const companyName = await getCompanyName();
+    const companySettings = await getCompanySettingsForDocuments();
 
-    const invoicePdfBuffer = await generateInvoicePDF(practitioner, formattedLineItems, processedBy, companyName);
+    const complianceById = await loadComplianceForLines(
+      assessments.map(a => a.id),
+      computeSessionCompliance
+    );
+    const lines = buildInvoiceLines(assessments, practitioner, { mode: 'agency', complianceById });
+    const warnings = [];
+    if (lines.some(l => l.rate === 0)) {
+      warnings.push('No pay rate is set for this practitioner — amounts shown as $0.00.');
+    }
+
+    const serviceDatesForCtx = assessments.map(a => a.service_date).filter(Boolean).sort();
+    const invoicePdfBuffer = await generateInvoicePDF({
+      mode: 'agency',
+      invoice: {
+        number: formatInvoiceNumber(batchId),
+        batchId,
+        issuedAt: new Date(),
+        periodStart: startDate || serviceDatesForCtx[0],
+        periodEnd: endDate || serviceDatesForCtx[serviceDatesForCtx.length - 1],
+      },
+      brand: buildBrand(companySettings),
+      from: {
+        title: 'FROM',
+        name: `${practitioner.first_name || ''} ${practitioner.last_name || ''}`.trim(),
+        lines: [
+          ...formatPractitionerAddressLines(practitioner),
+          practitioner.phone_number || '',
+          practitioner.email || '',
+        ].filter(Boolean),
+      },
+      billTo: {
+        title: 'BILL TO',
+        name: companySettings?.legal_entity_name || companySettings?.display_name || '',
+        lines: [companySettings?.address, companySettings?.phone, companySettings?.billing_email].filter(Boolean),
+      },
+      details: {
+        discipline: (practitioner.service_types || [])[0] || '',
+        taxIdMasked: maskTaxId(practitioner.ssn),
+        processedBy,
+      },
+      certificationParty: companySettings?.legal_entity_name || companySettings?.display_name || '',
+      lines,
+      warnings,
+    });
 
     const invNow = new Date();
     const invYearMonth = `${invNow.getFullYear()}-${String(invNow.getMonth() + 1).padStart(2, '0')}`;
     const invPractName = `${practitioner.first_name}_${practitioner.last_name}`.replace(/\s+/g, '_');
-    const invServiceDates = assessments.map(a => a.service_date).filter(Boolean).sort();
-    const invMinDate = (invServiceDates[0] || '').replace(/-/g, '');
-    const invMaxDate = (invServiceDates[invServiceDates.length - 1] || '').replace(/-/g, '');
+    const invMinDate = (serviceDatesForCtx[0] || '').replace(/-/g, '');
+    const invMaxDate = (serviceDatesForCtx[serviceDatesForCtx.length - 1] || '').replace(/-/g, '');
     const invTimestamp = `${String(invNow.getHours()).padStart(2,'0')}${String(invNow.getMinutes()).padStart(2,'0')}${String(invNow.getSeconds()).padStart(2,'0')}`;
     const filePath = `${invYearMonth}/${invPractName}/Invoice_${invMinDate}_${invMaxDate}_${invTimestamp}.pdf`;
 
@@ -813,8 +877,7 @@ const generateFinancialInvoice = async (req, res) => {
     const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, filePath, 3600);
 
     // Update the billing_batches record with the invoice path (batch ID comes from the assessments)
-    const batchId = assessments[0]?.billing_batch_id;
-    if (batchId) {
+    if (assessments[0]?.billing_batch_id) {
       await pool.query('UPDATE billing_batches SET invoice_path = $1 WHERE id = $2', [filePath, batchId]);
     }
 
