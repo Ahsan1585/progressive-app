@@ -1617,6 +1617,28 @@ function ComplianceAnalysisPreview({
     : statFilter === 'matched' ? sessions.filter(s => !isSessionFlagged(s) && !isSessionMissing(s))
     : sessions;
 
+  // Widening the date filter (e.g. Biweekly -> Monthly) reruns this same
+  // query over a bigger range of the SAME underlying assessments — a
+  // session already generated into an invoice/SEVF (njeis_review = sent
+  // to that batch, invoiced/completed = fully finalized) has nothing left
+  // for a biller to do here, but without separating it out it just looks
+  // like it silently merged into the same list as sessions still awaiting
+  // review, which reads as confusing/possibly-duplicated even though
+  // nothing was actually re-processed. Split into two groups so a
+  // finalized session keeps its own section regardless of which period
+  // filter happens to be selected.
+  const isAlreadyProcessed = (s) => ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
+  // Still-reviewable sessions first, already-processed ones grouped at the
+  // end (stable sort — doesn't disturb the service-date ordering within
+  // each group) — rendered with a section divider between them below.
+  const sortedVisibleSessions = [...visibleSessions].sort((a, b) => {
+    const aDone = isAlreadyProcessed(a) ? 1 : 0;
+    const bDone = isAlreadyProcessed(b) ? 1 : 0;
+    return aDone - bDone;
+  });
+  const processedCountInView = sortedVisibleSessions.filter(isAlreadyProcessed).length;
+  const firstProcessedIndex = processedCountInView > 0 ? sortedVisibleSessions.length - processedCountInView : -1;
+
   useEffect(() => {
     if (!onVisibleSessionChange || !scrollRootRef?.current) return;
     const observer = new IntersectionObserver(
@@ -1772,7 +1794,7 @@ function ComplianceAnalysisPreview({
           <div className="text-sm text-slate-500 text-center py-6">
             {statFilter === 'flagged' ? 'No flagged sessions.' : statFilter === 'matched' ? 'No matched sessions.' : statFilter === 'missing' ? 'No sessions missing in EIMS.' : 'No sessions to compare.'}
           </div>
-        ) : visibleSessions.map(s => {
+        ) : sortedVisibleSessions.map((s, idx) => {
           const sessionResult = analysis?.results?.[s.id];
           const compareFields = sessionResult?.fields || [];
           const isDuplicate = !!sessionResult?.duplicateOfSessionId;
@@ -1816,8 +1838,23 @@ function ComplianceAnalysisPreview({
             : 'bg-slate-50 border-slate-200';
 
           return (
+            <React.Fragment key={s.id}>
+              {idx === firstProcessedIndex && (
+                // Already generated into an invoice/SEVF batch — nothing
+                // left to review here. Kept its own section rather than
+                // blending into the live review queue above, so widening
+                // the period filter (e.g. Biweekly -> Monthly) never reads
+                // as if approvals got merged or duplicated: this group is
+                // just "already finished," full stop.
+                <div className="flex items-center gap-3 pt-2 pb-1">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400 whitespace-nowrap">
+                    Already sent to billing &middot; {processedCountInView} session{processedCountInView === 1 ? '' : 's'}
+                  </div>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+              )}
             <div
-              key={s.id}
               ref={(el) => { cardRefs.current[s.id] = el; }}
               data-session-id={s.id}
               className={`rounded-xl overflow-hidden ${cardBorderClass}`}
@@ -2093,6 +2130,7 @@ function ComplianceAnalysisPreview({
                 </div>
               )}
             </div>
+            </React.Fragment>
           );
         })}
       </div>
