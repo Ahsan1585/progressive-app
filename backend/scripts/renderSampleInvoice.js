@@ -16,6 +16,30 @@ function makeLine(i, overrides = {}) {
   const tiers = ['cleared', 'cleared', 'pending', 'exception', 'unverified'];
   const labels = { cleared: 'Matched', pending: 'Field mismatch', exception: 'Missing in EIMS', unverified: 'Not verified' };
   const tier = tiers[i % tiers.length];
+  if (i % 7 === 6) {
+    // Every 7th sample line is a cancelled/no-show visit — should read as
+    // "Cancelled — not billed" (cleared, $0), never show up in the
+    // exceptions callout, and carry no "No duration recorded" anomaly.
+    return {
+      assessmentId: 1000 + i,
+      serviceDate: `2026-01-${String((i % 28) + 1).padStart(2, '0')}`,
+      childName: 'Michael Smith',
+      childId: `C${100 + i}`,
+      county: 'ESSEX',
+      serviceCode: 'DI',
+      serviceLabel: 'Developmental Intervention',
+      locationLabel: "Child's home",
+      groupSizeLabel: 'Individual',
+      discipline: 'DI',
+      timeLabel: '',
+      hours: 0,
+      rate: 50,
+      lineTotal: 0,
+      eims: { tier: 'cleared', label: 'Cancelled — not billed' },
+      anomalies: [],
+      ...overrides,
+    };
+  }
   return {
     assessmentId: 1000 + i,
     serviceDate: `2026-01-${String((i % 28) + 1).padStart(2, '0')}`,

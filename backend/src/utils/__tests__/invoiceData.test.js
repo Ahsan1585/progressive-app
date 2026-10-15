@@ -76,7 +76,20 @@ describe('formatPractitionerAddressLines', () => {
 });
 
 describe('deriveEimsStatus', () => {
-  const base = { eims_missing_status: null, eims_entered_at: null, is_override: false };
+  const base = { eims_missing_status: null, eims_entered_at: null, is_override: false, total_time: 60 };
+
+  it('zero-duration (cancelled/no-show) sessions are cleared with a distinct label, not Matched', () => {
+    expect(
+      deriveEimsStatus({ ...base, total_time: 0 }, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: false } })
+    ).toEqual({ tier: 'cleared', label: 'Cancelled — not billed' });
+  });
+
+  it('zero-duration short-circuits ahead of independent-mode EIMS entry checks too', () => {
+    expect(deriveEimsStatus({ ...base, total_time: null }, { mode: 'independent', compliance: null })).toEqual({
+      tier: 'cleared',
+      label: 'Cancelled — not billed',
+    });
+  });
 
   it('override mode is cleared for payment (admin actively approved it)', () => {
     expect(deriveEimsStatus(base, { mode: 'override', compliance: null })).toEqual({
@@ -178,16 +191,16 @@ describe('deriveEimsStatus', () => {
 });
 
 describe('deriveLineAnomalies', () => {
-  it('flags zero/missing hours', () => {
-    expect(deriveLineAnomalies({ patients: { child_id: 'C1' } }, 0)).toEqual(['No duration recorded']);
+  it('does not flag zero hours — indistinguishable from a legitimate cancellation, handled by EIMS status instead', () => {
+    expect(deriveLineAnomalies({ patients: { child_id: 'C1' } }, 0)).toEqual([]);
   });
 
   it('flags missing child id', () => {
     expect(deriveLineAnomalies({ patients: {} }, 1.5)).toEqual(['Missing child ID']);
   });
 
-  it('returns both when both are missing', () => {
-    expect(deriveLineAnomalies({ patients: {} }, 0)).toEqual(['No duration recorded', 'Missing child ID']);
+  it('flags missing child id even when hours are also zero', () => {
+    expect(deriveLineAnomalies({ patients: {} }, 0)).toEqual(['Missing child ID']);
   });
 
   it('returns an empty array when nothing is wrong', () => {
@@ -273,6 +286,15 @@ describe('buildInvoiceLines', () => {
     const assessments = [{ id: 9, total_time: 60, patients: { child_id: 'C1' } }];
     const lines = buildInvoiceLines(assessments, practitioner, { mode: 'agency', complianceById });
     expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Matched' });
+  });
+
+  it('a cancelled (zero-duration) session reads as Cancelled, not Matched, and carries no anomaly', () => {
+    const complianceById = new Map([[9, { matched: true, flagged: false, documentOnFile: true }]]);
+    const assessments = [{ id: 9, total_time: 0, patients: { child_id: 'C1' } }];
+    const lines = buildInvoiceLines(assessments, practitioner, { mode: 'agency', complianceById });
+    expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Cancelled — not billed' });
+    expect(lines[0].lineTotal).toBe(0);
+    expect(lines[0].anomalies).toEqual([]);
   });
 });
 

@@ -87,6 +87,19 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
     return { tier: 'cleared', label: 'Admin override' };
   }
 
+  // A zero-duration log is a cancelled/no-show visit, never a billable
+  // session — computeSessionCompliance already treats it as auto-matched
+  // (nothing to reconcile a payment against, see the comment at its own
+  // zero-time short-circuit), but surfacing that as "Matched" here reads
+  // as a real $0 session that needs attention, and it was pulling these
+  // into the invoice's exceptions callout alongside actually-held-back
+  // sessions. Tier stays 'cleared' (a $0 line changes nothing about what's
+  // owed either way) but the distinct label/anomaly-free status keeps it
+  // out of that callout and reads correctly as "nothing to pay here."
+  if (!assessment.total_time) {
+    return { tier: 'cleared', label: 'Cancelled — not billed' };
+  }
+
   if (mode === 'independent') {
     return assessment.eims_entered_at
       ? { tier: 'cleared', label: 'Entered (self-reported)' }
@@ -120,10 +133,13 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
 
 // Anomalies are separate from EIMS tier — surfaced on the line's own
 // second text line and rolled into the exceptions callout, regardless of
-// what the reconciliation status says.
+// what the reconciliation status says. Zero duration is NOT flagged here
+// — it's indistinguishable from a legitimate cancelled/no-show visit (the
+// common case), which deriveEimsStatus already labels distinctly
+// ("Cancelled — not billed") and deliberately keeps out of the callout;
+// flagging it again here as an anomaly would put it right back in.
 function deriveLineAnomalies(assessment, hours) {
   const anomalies = [];
-  if (!hours || hours <= 0) anomalies.push('No duration recorded');
   if (!assessment.patients?.child_id) anomalies.push('Missing child ID');
   return anomalies;
 }
