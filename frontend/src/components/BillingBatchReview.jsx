@@ -244,19 +244,29 @@ export const BillingBatchReview = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod]);
 
-  const toggleGroup = (practitionerId) => {
-    const willExpand = !expandedGroups.has(practitionerId);
+  // groupKey lets a split practitioner's two cards (review/billed — see
+  // where PractitionerGroup is rendered) expand/collapse independently,
+  // even though they both fetch the SAME underlying session list keyed by
+  // the real practitionerId. Non-split cards pass groupKey === practitionerId,
+  // so this is a no-op change for every practitioner who isn't split.
+  const toggleGroup = (groupKey, practitionerId = groupKey) => {
+    const willExpand = !expandedGroups.has(groupKey);
     setExpandedGroups(prev => {
       const next = new Set(prev);
-      next.has(practitionerId) ? next.delete(practitionerId) : next.add(practitionerId);
+      next.has(groupKey) ? next.delete(groupKey) : next.add(groupKey);
       return next;
     });
     if (willExpand && periodLogs[practitionerId] === undefined) fetchPeriodLogs(practitionerId);
   };
 
-  const onLock = async (practitionerId) => {
+  const onLock = async (practitionerId, groupKey = practitionerId) => {
     await handleLock(practitionerId);
-    setExpandedGroups(prev => new Set(prev).add(practitionerId));
+    // Only auto-expands the card that was actually clicked (groupKey) —
+    // locking from the "Sent to billing" card must not also force open a
+    // split practitioner's separate "Needs review" card, which shares the
+    // same lock but is otherwise an unrelated, independently-collapsible
+    // view (see toggleGroup's groupKey param).
+    setExpandedGroups(prev => new Set(prev).add(groupKey));
     // handleLock only updates BillingManager's own (unscoped) practitioner
     // list — periodPractitioners is a separate local copy, so without this
     // the lock chip here never updates and Lock to Review looks like it did
@@ -277,7 +287,7 @@ export const BillingBatchReview = ({
     });
   };
 
-  const onRelease = async (practitionerId) => {
+  const onRelease = async (practitionerId, groupKey = practitionerId) => {
     await handleRelease(practitionerId);
     // The review panel on the right isn't gated by lock ownership on its
     // own — close it here so a released session can't keep sitting open
@@ -286,9 +296,11 @@ export const BillingBatchReview = ({
     // Mirror onLock's auto-expand: a released group should collapse back to
     // the minimized row, not linger open showing "Lock to Review" and the
     // Generate & Issue footer for a practitioner no one is actively reviewing.
+    // Only collapses the card that was actually released (groupKey) — same
+    // independence reasoning as onLock above.
     setExpandedGroups(prev => {
       const next = new Set(prev);
-      next.delete(practitionerId);
+      next.delete(groupKey);
       return next;
     });
     await fetchPeriodPractitioners();
@@ -474,20 +486,21 @@ export const BillingBatchReview = ({
             const reviewSessions = shouldSplit ? allSessions.filter((s) => !isAlreadyBilled(s)) : allSessions;
             const billedSessions = shouldSplit ? allSessions.filter(isAlreadyBilled) : [];
 
+            const reviewGroupKey = p.practitioner_id;
             const reviewCard = (
               <PractitionerGroup
                 key={`${p.practitioner_id}-review`}
                 containerRef={(el) => { groupRefs.current[p.practitioner_id] = el; }}
                 practitioner={p}
                 subLabel={shouldSplit ? `Needs review (${hasBilledInSummary ? p.total_interventions - p.sent_to_billing_count : p.total_interventions})` : null}
-                isExpanded={expandedGroups.has(p.practitioner_id)}
-                onToggle={() => toggleGroup(p.practitioner_id)}
+                isExpanded={expandedGroups.has(reviewGroupKey)}
+                onToggle={() => toggleGroup(reviewGroupKey, p.practitioner_id)}
                 sessions={reviewSessions}
                 isLoadingSessions={periodLoading.has(p.practitioner_id)}
                 currentUserId={currentUserId}
                 isAdmin={isAdmin}
-                onLock={() => onLock(p.practitioner_id)}
-                onRelease={() => onRelease(p.practitioner_id)}
+                onLock={() => onLock(p.practitioner_id, reviewGroupKey)}
+                onRelease={() => onRelease(p.practitioner_id, reviewGroupKey)}
                 logActions={logActions}
                 formatTime={formatTime}
                 detailSessionId={
@@ -513,20 +526,21 @@ export const BillingBatchReview = ({
             // can see and act on (Send to Completed, download documents)
             // this practitioner's already-billed work as its own entry,
             // without it being mixed into the review queue's counts.
+            const billedGroupKey = `${p.practitioner_id}-billed`;
             const billedCard = (
               <PractitionerGroup
                 key={`${p.practitioner_id}-billed`}
                 containerRef={() => {}}
                 practitioner={p}
                 subLabel={`Sent to billing (${p.sent_to_billing_count})`}
-                isExpanded={expandedGroups.has(p.practitioner_id)}
-                onToggle={() => toggleGroup(p.practitioner_id)}
+                isExpanded={expandedGroups.has(billedGroupKey)}
+                onToggle={() => toggleGroup(billedGroupKey, p.practitioner_id)}
                 sessions={billedSessions}
                 isLoadingSessions={periodLoading.has(p.practitioner_id)}
                 currentUserId={currentUserId}
                 isAdmin={isAdmin}
-                onLock={() => onLock(p.practitioner_id)}
-                onRelease={() => onRelease(p.practitioner_id)}
+                onLock={() => onLock(p.practitioner_id, billedGroupKey)}
+                onRelease={() => onRelease(p.practitioner_id, billedGroupKey)}
                 logActions={logActions}
                 formatTime={formatTime}
                 detailSessionId={
