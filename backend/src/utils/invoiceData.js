@@ -68,11 +68,23 @@ const EIMS_TIERS = {
 // lines — { matched, flagged, documentOnFile, duplicateOfSessionId? } — or
 // null for independent/override modes, which don't need it.
 function deriveEimsStatus(assessment, { mode, compliance }) {
-  if (mode === 'override' || assessment.is_override) {
-    return { tier: 'exception', label: 'Admin override' };
-  }
+  // Rejected-by-admin always wins, even over an override — a human
+  // explicitly said no, so this must never be paid regardless of what
+  // EIMS itself says or what billing_review/is_override happen to show.
+  // Checked first so it can't be shadowed by the override rule below.
   if (assessment.eims_missing_status === 'rejected') {
     return { tier: 'exception', label: 'Rejected by admin' };
+  }
+  // Override mode exists specifically for logs an admin is now actively
+  // approving for payment despite their earlier declined/rejected status
+  // (see reportController.js's issueInvoiceOverride, which flips
+  // billing_review to 'accept' before this is ever called) — tier must be
+  // 'cleared' so it actually gets paid, same as the "approved but no EIMS
+  // match" rule below. The "Admin override" label keeps this visible as
+  // having bypassed normal EIMS verification, just not held back from
+  // TOTAL DUE like a true exception.
+  if (mode === 'override' || assessment.is_override) {
+    return { tier: 'cleared', label: 'Admin override' };
   }
 
   if (mode === 'independent') {

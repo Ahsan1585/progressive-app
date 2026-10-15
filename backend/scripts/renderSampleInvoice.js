@@ -87,7 +87,7 @@ async function main() {
     billTo: { title: 'BILL TO', name: 'Izayaedge - Demo', lines: ['123 Main St, Trenton, NJ 08608'] },
     details: { discipline: 'Occupational Therapy', taxIdMasked: 'XXX-XX-6789', processedBy: 'Admin User' },
     certificationParty: 'Izayaedge - Demo',
-    lines: Array.from({ length: 20 }, (_, i) => makeLine(i, { eims: { tier: 'exception', label: 'Admin override' } })),
+    lines: Array.from({ length: 20 }, (_, i) => makeLine(i, { eims: { tier: 'cleared', label: 'Admin override' } })),
     warnings: ['These sessions were previously declined/rejected and are being approved for payment by admin override.'],
   });
 

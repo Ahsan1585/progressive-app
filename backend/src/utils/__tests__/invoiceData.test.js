@@ -78,25 +78,31 @@ describe('formatPractitionerAddressLines', () => {
 describe('deriveEimsStatus', () => {
   const base = { eims_missing_status: null, eims_entered_at: null, is_override: false };
 
-  it('override mode is always an exception', () => {
+  it('override mode is cleared for payment (admin actively approved it)', () => {
     expect(deriveEimsStatus(base, { mode: 'override', compliance: null })).toEqual({
-      tier: 'exception',
+      tier: 'cleared',
       label: 'Admin override',
     });
   });
 
-  it('assessment.is_override forces exception regardless of mode', () => {
+  it('assessment.is_override forces cleared regardless of mode', () => {
     expect(deriveEimsStatus({ ...base, is_override: true }, { mode: 'agency', compliance: null })).toEqual({
-      tier: 'exception',
+      tier: 'cleared',
       label: 'Admin override',
     });
   });
 
-  it('eims_missing_status rejected is always an exception', () => {
+  it('eims_missing_status rejected is always an exception, never paid', () => {
     expect(deriveEimsStatus({ ...base, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: {} })).toEqual({
       tier: 'exception',
       label: 'Rejected by admin',
     });
+  });
+
+  it('rejected takes priority over is_override — a later rejection still blocks payment', () => {
+    expect(
+      deriveEimsStatus({ ...base, is_override: true, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: null })
+    ).toEqual({ tier: 'exception', label: 'Rejected by admin' });
   });
 
   it('independent mode: entered self-reported is cleared', () => {
