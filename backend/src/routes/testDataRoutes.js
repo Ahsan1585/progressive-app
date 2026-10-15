@@ -47,6 +47,28 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
     );
     res.json({ count: rows.length, rows });
   });
+
+  // One-off verification helper for the roster-anonymization pass — checks
+  // whether any of a given list of old full names still appear anywhere in
+  // compliance_state_logs (not capped at 50, unlike the childId-scoped
+  // debug endpoint above).
+  router.post('/debug-check-names-remaining', protect, requireRole(['ceo']), async (req, res) => {
+    const { names = [] } = req.body;
+    const { rows: childRows } = await pool.query(
+      `SELECT DISTINCT child_name AS name FROM compliance_state_logs WHERE child_name = ANY($1::text[])`,
+      [names]
+    );
+    const { rows: pracRows } = await pool.query(
+      `SELECT DISTINCT practitioner_name AS name FROM compliance_state_logs WHERE practitioner_name = ANY($1::text[])`,
+      [names]
+    );
+    const { rows: totalRows } = await pool.query(`SELECT COUNT(*)::int AS count FROM compliance_state_logs`);
+    res.json({
+      totalRowsInTable: totalRows[0].count,
+      childNamesStillPresent: childRows.map((r) => r.name),
+      practitionerNamesStillPresent: pracRows.map((r) => r.name),
+    });
+  });
 }
 
 module.exports = router;
