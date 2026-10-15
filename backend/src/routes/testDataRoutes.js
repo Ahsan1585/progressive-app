@@ -16,6 +16,7 @@ const {
   anonymizeTenantRoster,
   wipeTenantRosterCompletely,
   createDummyRoster,
+  fixGeneratorZeroedPayRates,
 } = require('../controllers/testDataController');
 
 // Test-data seeding is only wired up at all when ENABLE_TEST_SEED=true is
@@ -34,6 +35,7 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
   router.post('/anonymize-tenant-roster', protect, requireRole(['ceo']), anonymizeTenantRoster);
   router.post('/wipe-tenant-roster-completely', protect, requireRole(['ceo']), wipeTenantRosterCompletely);
   router.post('/create-dummy-roster', protect, requireRole(['ceo']), createDummyRoster);
+  router.post('/fix-generator-zeroed-pay-rates', protect, requireRole(['ceo']), fixGeneratorZeroedPayRates);
 
   // Read-only diagnostic: shows exactly what's in compliance_state_logs for
   // a given child ID, to distinguish "row never parsed from the doc" from

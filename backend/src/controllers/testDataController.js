@@ -901,6 +901,61 @@ const createDummyRoster = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/dev/fix-generator-zeroed-pay-rates
+ * CEO-only, one-off repair tool for the generateLiveSessions bug where
+ * the zero_pay_rate error category re-rolled per SESSION instead of per
+ * practitioner, zeroing out ~48% of a roster's pay_rate instead of the
+ * intended ~5%. Restores every [service_types-tagged] practitioner
+ * currently at pay_rate = 0 to the discipline-based rate
+ * (PAY_RATE_BY_DISCIPLINE), using service_types[0] — untouched by the bug
+ * — to recover their real discipline, then re-rolls a fresh ~5% sample
+ * back down to 0 so the dataset still has a few genuine zero-rate cases
+ * to exercise the "no pay rate set" warning, same intent as the fixed
+ * generator now produces on a clean run.
+ */
+const fixGeneratorZeroedPayRates = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: zeroRateRows } = await client.query(
+      `SELECT id, service_types FROM practitioners WHERE role = 'practitioner' AND pay_rate = 0`
+    );
+
+    let restored = 0;
+    for (const p of zeroRateRows) {
+      const discipline = (p.service_types || [])[0];
+      const rate = PAY_RATE_BY_DISCIPLINE[discipline];
+      if (!rate) continue; // no recoverable discipline — leave as-is rather than guess
+      await client.query('UPDATE practitioners SET pay_rate = $1 WHERE id = $2', [rate, p.id]);
+      restored += 1;
+    }
+
+    // Re-roll a fresh ~5% sample back to zero, matching what a clean run
+    // of the fixed generator would have produced.
+    const { rows: allPracRows } = await client.query(`SELECT id FROM practitioners WHERE role = 'practitioner'`);
+    const reZeroed = allPracRows.filter(() => Math.random() < 0.05);
+    for (const p of reZeroed) {
+      await client.query('UPDATE practitioners SET pay_rate = 0 WHERE id = $1', [p.id]);
+    }
+
+    await client.query('COMMIT');
+
+    logAudit({
+      req, action: 'fix_generator_zeroed_pay_rates', resourceType: 'test_data',
+      details: { restored, reZeroed: reZeroed.length },
+    });
+    res.json({ success: true, restored, reZeroed: reZeroed.length });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to fix zeroed pay rates:', error);
+    res.status(500).json({ error: 'Failed to fix zeroed pay rates', detail: error.message });
+  } finally {
+    client.release();
+  }
+};
+
 // Tag written into assessments.session_notes for every row this endpoint
 // creates — the only marker distinguishing generated test sessions from
 // real ones on existing (non-seed-%) practitioners, since these are real
@@ -994,6 +1049,19 @@ const generateLiveSessions = async (req, res) => {
     await client.query('BEGIN');
 
     for (const prac of activePractitioners) {
+      // zero_pay_rate is a PRACTITIONER-level condition (a misconfigured
+      // rate), not a per-session one — decided once per practitioner here,
+      // not re-rolled on every session, which previously zeroed out the
+      // rate on ~48% of the roster (any practitioner with enough sessions
+      // had a near-certain chance of rolling it at least once, and each
+      // roll re-zeroed the same already-$0 row). ~5% of practitioners end
+      // up with a $0 rate — enough to exercise the dashboard's/invoice's
+      // "no pay rate set" warning without corrupting half the dataset.
+      const hasZeroPayRate = Math.random() < 0.05;
+      if (hasZeroPayRate) {
+        await client.query(`UPDATE practitioners SET pay_rate = 0 WHERE id = $1`, [prac.id]);
+      }
+
       // Link this practitioner to 2-6 random children (reuse existing links
       // if any already exist) so logging stays within real ownership rules.
       const childCount = Math.min(patients.length, randInt(2, 6));
@@ -1058,14 +1126,13 @@ const generateLiveSessions = async (req, res) => {
         let missingFromEims = false;
         let duplicateOf = null;
         let signatureIssue = null;
-        let zeroPayRate = false;
 
         if (Math.random() < errorRate) {
           const categories = [
             'field_mismatch_time', 'field_mismatch_service', 'field_mismatch_location',
             'missing_from_eims', 'duplicate_eims_row',
             'signature_missing_practitioner', 'signature_missing_parent',
-            'cancelled_session', 'missing_child_link', 'zero_pay_rate',
+            'cancelled_session', 'missing_child_link',
           ];
           errorType = pick(categories);
 
@@ -1121,9 +1188,6 @@ const generateLiveSessions = async (req, res) => {
               // item so a reviewer can look for "would show as missing
               // child ID if it existed" — skip actual mutation.
               break;
-            case 'zero_pay_rate':
-              zeroPayRate = true;
-              break;
             default:
               break;
           }
@@ -1143,7 +1207,7 @@ const generateLiveSessions = async (req, res) => {
 
         const noteParts = [GEN_TAG];
         if (errorType) noteParts.push(`err:${errorType}`);
-        if (zeroPayRate) noteParts.push('zero_pay_rate');
+        if (hasZeroPayRate) noteParts.push('zero_pay_rate');
 
         const { rows: insertedRows } = await client.query(
           `INSERT INTO assessments
@@ -1173,10 +1237,6 @@ const generateLiveSessions = async (req, res) => {
           truth,
           logged,
         });
-
-        if (zeroPayRate) {
-          await client.query(`UPDATE practitioners SET pay_rate = 0 WHERE id = $1`, [prac.id]);
-        }
       }
     }
 
@@ -1253,4 +1313,5 @@ module.exports = {
   anonymizeTenantRoster,
   wipeTenantRosterCompletely,
   createDummyRoster,
+  fixGeneratorZeroedPayRates,
 };
