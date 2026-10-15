@@ -18,7 +18,7 @@ function makeLine(i, overrides = {}) {
   const tier = tiers[i % tiers.length];
   if (i % 7 === 6) {
     // Every 7th sample line is a cancelled/no-show visit — should read as
-    // "Cancelled — not billed" (cleared, $0), never show up in the
+    // "Cancelled" (cleared, $0), never show up in the
     // exceptions callout, and carry no "No duration recorded" anomaly.
     return {
       assessmentId: 1000 + i,
@@ -35,7 +35,7 @@ function makeLine(i, overrides = {}) {
       hours: 0,
       rate: 50,
       lineTotal: 0,
-      eims: { tier: 'cleared', label: 'Cancelled — not billed' },
+      eims: { tier: 'cleared', label: 'Cancelled' },
       anomalies: [],
       ...overrides,
     };
@@ -111,7 +111,7 @@ async function main() {
     billTo: { title: 'BILL TO', name: 'Izayaedge - Demo', lines: ['123 Main St, Trenton, NJ 08608'] },
     details: { discipline: 'Occupational Therapy', taxIdMasked: 'XXX-XX-6789', processedBy: 'Admin User' },
     certificationParty: 'Izayaedge - Demo',
-    lines: Array.from({ length: 20 }, (_, i) => makeLine(i, { eims: { tier: 'cleared', label: 'Admin override' } })),
+    lines: Array.from({ length: 20 }, (_, i) => makeLine(i, { eims: { tier: 'cleared', label: 'Override' } })),
     warnings: ['These sessions were previously declined/rejected and are being approved for payment by admin override.'],
   });
 

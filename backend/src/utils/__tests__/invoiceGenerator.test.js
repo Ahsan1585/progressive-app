@@ -84,7 +84,7 @@ describe('generateInvoicePDF', () => {
   });
 
   it('renders an override-mode invoice with the override ribbon/pill without throwing', async () => {
-    const ctx = makeCtx({ mode: 'override', lines: [makeLine({ eims: { tier: 'cleared', label: 'Admin override' } })] });
+    const ctx = makeCtx({ mode: 'override', lines: [makeLine({ eims: { tier: 'cleared', label: 'Override' } })] });
     const buffer = await generateInvoicePDF(ctx);
     const doc = await PDFDocument.load(buffer);
     expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);

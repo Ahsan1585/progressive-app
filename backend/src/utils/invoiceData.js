@@ -73,7 +73,7 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
   // EIMS itself says or what billing_review/is_override happen to show.
   // Checked first so it can't be shadowed by the override rule below.
   if (assessment.eims_missing_status === 'rejected') {
-    return { tier: 'exception', label: 'Rejected by admin' };
+    return { tier: 'exception', label: 'Rejected' };
   }
   // Override mode exists specifically for logs an admin is now actively
   // approving for payment despite their earlier declined/rejected status
@@ -84,7 +84,7 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
   // having bypassed normal EIMS verification, just not held back from
   // TOTAL DUE like a true exception.
   if (mode === 'override' || assessment.is_override) {
-    return { tier: 'cleared', label: 'Admin override' };
+    return { tier: 'cleared', label: 'Override' };
   }
 
   // A zero-duration log is a cancelled/no-show visit, never a billable
@@ -97,38 +97,38 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
   // owed either way) but the distinct label/anomaly-free status keeps it
   // out of that callout and reads correctly as "nothing to pay here."
   if (!assessment.total_time) {
-    return { tier: 'cleared', label: 'Cancelled — not billed' };
+    return { tier: 'cleared', label: 'Cancelled' };
   }
 
   if (mode === 'independent') {
     return assessment.eims_entered_at
-      ? { tier: 'cleared', label: 'Entered (self-reported)' }
+      ? { tier: 'cleared', label: 'Self-rep.' }
       : { tier: 'pending', label: 'Not entered' };
   }
 
   // Agency mode from here — compliance is required to say anything more
   // specific than "not verified".
-  if (!compliance) return { tier: 'unverified', label: 'Not verified' };
+  if (!compliance) return { tier: 'unverified', label: 'Unverified' };
 
   if (compliance.duplicateOfSessionId) {
-    return { tier: 'exception', label: 'Possible duplicate', note: `Duplicate of #${compliance.duplicateOfSessionId}` };
+    return { tier: 'exception', label: 'Duplicate', note: `Duplicate of #${compliance.duplicateOfSessionId}` };
   }
   if (!compliance.documentOnFile) {
-    return { tier: 'unverified', label: 'Not verified', note: 'No state file uploaded' };
+    return { tier: 'unverified', label: 'Unverified', note: 'No state file uploaded' };
   }
   if (compliance.matched && !compliance.flagged) {
     return { tier: 'cleared', label: 'Matched' };
   }
   if (compliance.matched && compliance.flagged) {
-    return { tier: 'pending', label: 'Field mismatch' };
+    return { tier: 'pending', label: 'Mismatch' };
   }
   if (assessment.eims_missing_status === 'approved') {
-    return { tier: 'cleared', label: 'Admin-approved' };
+    return { tier: 'cleared', label: 'Approved' };
   }
   if (assessment.eims_missing_status === 'sent_to_admin') {
-    return { tier: 'pending', label: 'Awaiting admin' };
+    return { tier: 'pending', label: 'Awaiting' };
   }
-  return { tier: 'exception', label: 'Missing in EIMS' };
+  return { tier: 'exception', label: 'Missing' };
 }
 
 // Anomalies are separate from EIMS tier — surfaced on the line's own

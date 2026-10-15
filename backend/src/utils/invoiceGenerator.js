@@ -96,15 +96,33 @@ async function embedLogo(pdfDoc, dataUrl) {
   }
 }
 
-function drawPill(page, { x, y, text, fonts, fg, bg }) {
+// maxW caps how wide the pill is allowed to grow (e.g. the EIMS column's
+// available slack before the page's right margin) — a label too long for
+// that cap shrinks its font down to a floor, then truncates with an
+// ellipsis, rather than drawing past the cap and off the page edge the
+// way a label like "Cancelled — not billed" once did.
+function drawPill(page, { x, y, text, fonts, fg, bg, maxW }) {
   const { bold } = fonts;
-  const size = 7.5;
   const padX = 7;
-  const textW = bold.widthOfTextAtSize(text.toUpperCase(), size);
+  let size = 7.5;
+  let label = text.toUpperCase();
+  if (maxW) {
+    const floor = 5.5;
+    while (size > floor && bold.widthOfTextAtSize(label, size) + padX * 2 > maxW) {
+      size -= 0.5;
+    }
+    if (bold.widthOfTextAtSize(label, size) + padX * 2 > maxW) {
+      while (label.length > 1 && bold.widthOfTextAtSize(`${label}…`, size) + padX * 2 > maxW) {
+        label = label.slice(0, -1);
+      }
+      label = `${label}…`;
+    }
+  }
+  const textW = bold.widthOfTextAtSize(label, size);
   const w = textW + padX * 2;
   const h = 14;
   page.drawRectangle({ x, y, width: w, height: h, color: bg });
-  page.drawText(text.toUpperCase(), { x: x + padX, y: y + 4, font: bold, size, color: fg });
+  page.drawText(label, { x: x + padX, y: y + 4.5 - (7.5 - size) / 4, font: bold, size, color: fg });
   return w;
 }
 
@@ -259,15 +277,19 @@ async function generateInvoicePDF(ctx) {
   }
 
   // ── Itemized table ──
+  // EIMS column widened to 64pt to actually fit its short-word labels
+  // (verified against pdf-lib's own widthOfTextAtSize at 7.5pt bold — the
+  // longest, "Self-reported", needs ~62pt including pill padding); the
+  // extra 18pt is reclaimed from Service and Time, which had slack.
   const cols = [
     { label: 'Date', w: 48 },
     { label: 'Child', w: 112 },
-    { label: 'Service', w: 128 },
-    { label: 'Time', w: 76 },
+    { label: 'Service', w: 118 },
+    { label: 'Time', w: 68 },
     { label: 'Hrs', w: 34, num: true },
     { label: 'Rate', w: 42, num: true },
     { label: 'Amount', w: 46, num: true },
-    { label: 'EIMS', w: 46 },
+    { label: 'EIMS', w: 64 },
   ];
   const rowH = 26;
   const headerH = 16;
@@ -340,9 +362,12 @@ async function generateInvoicePDF(ctx) {
     page.drawText(amtText, { x: cx + cols[6].w - 4 - amtW, y: ln1Y, font: bold, size: 8, color: NAVY });
     cx += cols[6].w;
 
-    // EIMS pill
+    // EIMS pill — capped to the remaining space to the page's right
+    // margin (not just the nominal 46pt column) so a long label shrinks
+    // or truncates instead of running off the page edge.
     const style = EIMS_TIER_STYLE[line.eims.tier] || EIMS_TIER_STYLE.unverified;
-    drawPill(page, { x: cx + 2, y: y - 18, text: line.eims.label, fonts, fg: style.fg, bg: style.bg });
+    const eimsPillMaxW = MARGIN + CONTENT_WIDTH - (cx + 2) - 2;
+    drawPill(page, { x: cx + 2, y: y - 18, text: line.eims.label, fonts, fg: style.fg, bg: style.bg, maxW: eimsPillMaxW });
 
     y -= rowH;
   });

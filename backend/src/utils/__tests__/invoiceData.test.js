@@ -81,47 +81,47 @@ describe('deriveEimsStatus', () => {
   it('zero-duration (cancelled/no-show) sessions are cleared with a distinct label, not Matched', () => {
     expect(
       deriveEimsStatus({ ...base, total_time: 0 }, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: false } })
-    ).toEqual({ tier: 'cleared', label: 'Cancelled — not billed' });
+    ).toEqual({ tier: 'cleared', label: 'Cancelled' });
   });
 
   it('zero-duration short-circuits ahead of independent-mode EIMS entry checks too', () => {
     expect(deriveEimsStatus({ ...base, total_time: null }, { mode: 'independent', compliance: null })).toEqual({
       tier: 'cleared',
-      label: 'Cancelled — not billed',
+      label: 'Cancelled',
     });
   });
 
   it('override mode is cleared for payment (admin actively approved it)', () => {
     expect(deriveEimsStatus(base, { mode: 'override', compliance: null })).toEqual({
       tier: 'cleared',
-      label: 'Admin override',
+      label: 'Override',
     });
   });
 
   it('assessment.is_override forces cleared regardless of mode', () => {
     expect(deriveEimsStatus({ ...base, is_override: true }, { mode: 'agency', compliance: null })).toEqual({
       tier: 'cleared',
-      label: 'Admin override',
+      label: 'Override',
     });
   });
 
   it('eims_missing_status rejected is always an exception, never paid', () => {
     expect(deriveEimsStatus({ ...base, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: {} })).toEqual({
       tier: 'exception',
-      label: 'Rejected by admin',
+      label: 'Rejected',
     });
   });
 
   it('rejected takes priority over is_override — a later rejection still blocks payment', () => {
     expect(
       deriveEimsStatus({ ...base, is_override: true, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: null })
-    ).toEqual({ tier: 'exception', label: 'Rejected by admin' });
+    ).toEqual({ tier: 'exception', label: 'Rejected' });
   });
 
   it('independent mode: entered self-reported is cleared', () => {
     expect(deriveEimsStatus({ ...base, eims_entered_at: '2026-01-01' }, { mode: 'independent', compliance: null })).toEqual({
       tier: 'cleared',
-      label: 'Entered (self-reported)',
+      label: 'Self-rep.',
     });
   });
 
@@ -135,20 +135,20 @@ describe('deriveEimsStatus', () => {
   it('agency mode: no compliance object is unverified', () => {
     expect(deriveEimsStatus(base, { mode: 'agency', compliance: null })).toEqual({
       tier: 'unverified',
-      label: 'Not verified',
+      label: 'Unverified',
     });
   });
 
   it('agency mode: duplicateOfSessionId is an exception with a note', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { duplicateOfSessionId: 42, documentOnFile: true } })
-    ).toEqual({ tier: 'exception', label: 'Possible duplicate', note: 'Duplicate of #42' });
+    ).toEqual({ tier: 'exception', label: 'Duplicate', note: 'Duplicate of #42' });
   });
 
   it('agency mode: no document on file is unverified with a note', () => {
     expect(deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: false } })).toEqual({
       tier: 'unverified',
-      label: 'Not verified',
+      label: 'Unverified',
       note: 'No state file uploaded',
     });
   });
@@ -162,7 +162,7 @@ describe('deriveEimsStatus', () => {
   it('agency mode: matched and flagged is pending (field mismatch)', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: true } })
-    ).toEqual({ tier: 'pending', label: 'Field mismatch' });
+    ).toEqual({ tier: 'pending', label: 'Mismatch' });
   });
 
   it('agency mode: not matched but admin-approved is cleared', () => {
@@ -171,7 +171,7 @@ describe('deriveEimsStatus', () => {
         { ...base, eims_missing_status: 'approved' },
         { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } }
       )
-    ).toEqual({ tier: 'cleared', label: 'Admin-approved' });
+    ).toEqual({ tier: 'cleared', label: 'Approved' });
   });
 
   it('agency mode: not matched but sent to admin is pending', () => {
@@ -180,13 +180,13 @@ describe('deriveEimsStatus', () => {
         { ...base, eims_missing_status: 'sent_to_admin' },
         { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } }
       )
-    ).toEqual({ tier: 'pending', label: 'Awaiting admin' });
+    ).toEqual({ tier: 'pending', label: 'Awaiting' });
   });
 
   it('agency mode: not matched with no other signal is an exception', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } })
-    ).toEqual({ tier: 'exception', label: 'Missing in EIMS' });
+    ).toEqual({ tier: 'exception', label: 'Missing' });
   });
 });
 
@@ -263,7 +263,7 @@ describe('buildInvoiceLines', () => {
     expect(line.rate).toBe(40);
     expect(line.lineTotal).toBe(60);
     expect(line.timeLabel).toBe('T09:00–T10:30');
-    expect(line.eims).toEqual({ tier: 'unverified', label: 'Not verified' });
+    expect(line.eims).toEqual({ tier: 'unverified', label: 'Unverified' });
     expect(line.anomalies).toEqual([]);
   });
 
@@ -292,7 +292,7 @@ describe('buildInvoiceLines', () => {
     const complianceById = new Map([[9, { matched: true, flagged: false, documentOnFile: true }]]);
     const assessments = [{ id: 9, total_time: 0, patients: { child_id: 'C1' } }];
     const lines = buildInvoiceLines(assessments, practitioner, { mode: 'agency', complianceById });
-    expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Cancelled — not billed' });
+    expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Cancelled' });
     expect(lines[0].lineTotal).toBe(0);
     expect(lines[0].anomalies).toEqual([]);
   });
