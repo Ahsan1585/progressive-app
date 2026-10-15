@@ -458,33 +458,91 @@ export const BillingBatchReview = ({
             <div className="p-6 text-center text-base text-slate-400">
               {periodPractitioners.length === 0 ? 'No pending logs in this period.' : 'No practitioner matches your search.'}
             </div>
-          ) : filteredPractitioners.map(p => (
-            <PractitionerGroup
-              key={p.practitioner_id}
-              containerRef={(el) => { groupRefs.current[p.practitioner_id] = el; }}
-              practitioner={p}
-              isExpanded={expandedGroups.has(p.practitioner_id)}
-              onToggle={() => toggleGroup(p.practitioner_id)}
-              sessions={periodLogs[p.practitioner_id] || []}
-              isLoadingSessions={periodLoading.has(p.practitioner_id)}
-              currentUserId={currentUserId}
-              isAdmin={isAdmin}
-              onLock={() => onLock(p.practitioner_id)}
-              onRelease={() => onRelease(p.practitioner_id)}
-              logActions={logActions}
-              formatTime={formatTime}
-              detailSessionId={
-                detail?.practitionerId === p.practitioner_id
-                  ? (detailTab === 'analysis' ? scrollSyncSessionId : detail.sessionId)
-                  : null
-              }
-              registerSessionRow={registerSessionRow}
-              onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
-              processingId={processingId}
-              handleGenerateAndIssue={wrappedGenerateAndIssue}
-              handleSendToCompleted={wrappedSendToCompleted}
-            />
-          ))}
+          ) : filteredPractitioners.flatMap(p => {
+            const allSessions = periodLogs[p.practitioner_id] || [];
+            const isAlreadyBilled = (s) => ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
+            // Only actually split once sessions are loaded (card expanded)
+            // and both a reviewable and an already-billed session genuinely
+            // exist — sent_to_billing_count (from /pending-logs) decides
+            // whether a second, collapsed "Sent to billing" card should
+            // exist at all, even before this practitioner's own card has
+            // been expanded and its sessions fetched.
+            const hasBilledInSummary = (p.sent_to_billing_count || 0) > 0;
+            const hasReviewableInSummary = (p.total_interventions || 0) - (p.sent_to_billing_count || 0) > 0;
+            const shouldSplit = hasBilledInSummary && hasReviewableInSummary;
+
+            const reviewSessions = shouldSplit ? allSessions.filter((s) => !isAlreadyBilled(s)) : allSessions;
+            const billedSessions = shouldSplit ? allSessions.filter(isAlreadyBilled) : [];
+
+            const reviewCard = (
+              <PractitionerGroup
+                key={`${p.practitioner_id}-review`}
+                containerRef={(el) => { groupRefs.current[p.practitioner_id] = el; }}
+                practitioner={p}
+                subLabel={shouldSplit ? `Needs review (${hasBilledInSummary ? p.total_interventions - p.sent_to_billing_count : p.total_interventions})` : null}
+                isExpanded={expandedGroups.has(p.practitioner_id)}
+                onToggle={() => toggleGroup(p.practitioner_id)}
+                sessions={reviewSessions}
+                isLoadingSessions={periodLoading.has(p.practitioner_id)}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                onLock={() => onLock(p.practitioner_id)}
+                onRelease={() => onRelease(p.practitioner_id)}
+                logActions={logActions}
+                formatTime={formatTime}
+                detailSessionId={
+                  detail?.practitionerId === p.practitioner_id
+                    ? (detailTab === 'analysis' ? scrollSyncSessionId : detail.sessionId)
+                    : null
+                }
+                registerSessionRow={registerSessionRow}
+                onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
+                processingId={processingId}
+                handleGenerateAndIssue={wrappedGenerateAndIssue}
+                handleSendToCompleted={wrappedSendToCompleted}
+              />
+            );
+
+            if (!shouldSplit) return [reviewCard];
+
+            // The "already sent to billing" card shares the SAME
+            // practitioner_id for locking purposes (billing_locks is keyed
+            // by practitioner_id alone — there's no independent lock
+            // granularity today), so Lock/Release here affects the same
+            // lock as the review card above. It exists so a biller/admin
+            // can see and act on (Send to Completed, download documents)
+            // this practitioner's already-billed work as its own entry,
+            // without it being mixed into the review queue's counts.
+            const billedCard = (
+              <PractitionerGroup
+                key={`${p.practitioner_id}-billed`}
+                containerRef={() => {}}
+                practitioner={p}
+                subLabel={`Sent to billing (${p.sent_to_billing_count})`}
+                isExpanded={expandedGroups.has(p.practitioner_id)}
+                onToggle={() => toggleGroup(p.practitioner_id)}
+                sessions={billedSessions}
+                isLoadingSessions={periodLoading.has(p.practitioner_id)}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                onLock={() => onLock(p.practitioner_id)}
+                onRelease={() => onRelease(p.practitioner_id)}
+                logActions={logActions}
+                formatTime={formatTime}
+                detailSessionId={
+                  detail?.practitionerId === p.practitioner_id
+                    ? (detailTab === 'analysis' ? scrollSyncSessionId : detail.sessionId)
+                    : null
+                }
+                registerSessionRow={registerSessionRow}
+                onSelectSession={(sessionId) => selectSession(p.practitioner_id, sessionId)}
+                processingId={processingId}
+                handleGenerateAndIssue={wrappedGenerateAndIssue}
+                handleSendToCompleted={wrappedSendToCompleted}
+              />
+            );
+            return [reviewCard, billedCard];
+          })}
         </div>
       </div>
 
@@ -585,7 +643,7 @@ export const BillingBatchReview = ({
 // plus a per-practitioner Generate & Issue / Send to Completed Bills bar,
 // mirroring the legacy table's per-row action column. ---
 function PractitionerGroup({
-  containerRef, practitioner, isExpanded, onToggle, sessions, isLoadingSessions,
+  containerRef, practitioner, subLabel, isExpanded, onToggle, sessions, isLoadingSessions,
   currentUserId, isAdmin, onLock, onRelease, logActions, formatTime,
   detailSessionId, registerSessionRow, onSelectSession,
   processingId, handleGenerateAndIssue, handleSendToCompleted,
@@ -633,7 +691,13 @@ function PractitionerGroup({
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-bold text-base text-slate-900 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
-          <div className="text-sm text-slate-500">{practitioner.total_interventions} sessions</div>
+          <div className="text-sm text-slate-500 flex items-center gap-1.5">
+            {subLabel ? (
+              <span className={`font-semibold ${subLabel.startsWith('Sent') ? 'text-slate-400' : 'text-blue-600'}`}>{subLabel}</span>
+            ) : (
+              <span>{practitioner.total_interventions} sessions</span>
+            )}
+          </div>
         </div>
         {isLockedByMe && (
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5 flex-shrink-0">
@@ -751,8 +815,11 @@ function PractitionerGroup({
               lock auto-releases right after a successful generate (so the
               row doesn't stay checked out), and "Send to Completed Bills"
               must stay available afterward even though nothing is locked
-              anymore, matching the legacy table's always-visible columns. */}
-          {(practitioner.sevf_documents?.length > 0 || practitioner.invoice_documents?.length > 0) && (
+              anymore, matching the legacy table's always-visible columns.
+              When this practitioner is split into two cards, these only
+              belong on the "Sent to billing" one — the "Needs review" card
+              has nothing generated yet by definition. */}
+          {(!subLabel || subLabel.startsWith('Sent')) && (practitioner.sevf_documents?.length > 0 || practitioner.invoice_documents?.length > 0) && (
             <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Generated documents</div>
               <div className="flex flex-wrap gap-2">
@@ -788,7 +855,33 @@ function PractitionerGroup({
               <span><b className="text-white">{routingCounts.heldReturned}</b> held/returned</span>
               <span><b className="text-white">{routingCounts.excluded}</b> excluded</span>
             </div>
-            {readyToComplete ? (
+            {/* Generate & Issue only makes sense on the "Needs review" card
+                (not-yet-batched sessions); Send to Completed only makes
+                sense on the "Sent to billing" card (already generated,
+                waiting to finalize). When not split, both still only show
+                one at a time based on readyToComplete, same as before. */}
+            {subLabel?.startsWith('Sent') ? (
+              readyToComplete && (
+                <Button
+                  size="sm"
+                  onClick={() => handleSendToCompleted(practitioner.practitioner_id)}
+                  disabled={processingId === practitioner.practitioner_id}
+                  className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
+                >
+                  <CheckCircle2 className="size-4" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
+                </Button>
+              )
+            ) : subLabel?.startsWith('Needs') ? (
+              <Button
+                size="sm"
+                onClick={() => handleGenerateAndIssue(practitioner.practitioner_id)}
+                disabled={!isLockedByMe || !allLogsReviewed || processingId === practitioner.practitioner_id}
+                title={!isLockedByMe ? 'Lock this practitioner to review logs first' : ''}
+                className={`cursor-pointer gap-1.5 text-sm ${isLockedByMe && allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
+              >
+                {processingId === practitioner.practitioner_id ? 'Generating...' : 'Generate & Issue'}
+              </Button>
+            ) : readyToComplete ? (
               <Button
                 size="sm"
                 onClick={() => handleSendToCompleted(practitioner.practitioner_id)}

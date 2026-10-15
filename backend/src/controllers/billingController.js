@@ -114,6 +114,14 @@ const getPendingLogs = async (req, res) => {
           total_hours: 0,
           on_hold_count: 0,
           workflow_status: 'njeis_review',
+          // Lets the frontend show this practitioner's still-reviewable
+          // sessions and already-sent-to-billing sessions as two separate
+          // queue cards when both exist in the selected period, instead of
+          // one card whose counts/status silently represent a mix of two
+          // very different states (see billing_locks — locking is still
+          // per-practitioner, not per-group, so this is a display split
+          // only, not independent lockability).
+          sent_to_billing_count: 0,
           locked_by_id: lockMap[pId]?.locked_by_id || null,
           locked_by_name: lockMap[pId]?.locked_by_name || null,
         };
@@ -130,6 +138,9 @@ const getPendingLogs = async (req, res) => {
       // their batch(es) are what "Send to Completed Bills" cares about.
       if (record.billing_status === 'njeis_review' && record.billing_batch_id) {
         batchIdsByPractitioner[pId].add(record.billing_batch_id);
+      }
+      if (record.billing_status === 'njeis_review') {
+        practitionerMap[pId].sent_to_billing_count += 1;
       }
 
       practitionerMap[pId].total_interventions += 1;
