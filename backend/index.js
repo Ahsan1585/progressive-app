@@ -36,6 +36,7 @@ const agencyRoutes = require('./src/routes/agencyRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const referralRoutes = require('./src/routes/referralRoutes');
 const practitionerDashboardRoutes = require('./src/routes/practitionerDashboardRoutes');
+const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const signupRoutes = require('./src/routes/signupRoutes');
 const independentSignupRoutes = require('./src/routes/independentSignupRoutes');
 const platformAdminRoutes = require('./src/routes/platformAdminRoutes');
@@ -114,6 +115,7 @@ app.use('/api/agencies', agencyRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/practitioner-dashboard', practitionerDashboardRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/signup', signupRoutes);
 app.use('/api/independent-signup', independentSignupRoutes);
 // /auth must be mounted before the plain /api/platform prefix — both
