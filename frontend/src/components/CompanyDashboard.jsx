@@ -54,7 +54,7 @@ function SessionDetailDialog({ assessmentId, onClose }) {
 
   return (
     <Dialog open={!!assessmentId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl bg-white max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl bg-white max-h-[85vh] overflow-y-auto" overlayClassName="bg-black/50 backdrop-blur-none">
         <DialogHeader>
           <DialogTitle>
             {session ? `${session.patientName} · ${session.practitionerName}` : 'Session detail'}
