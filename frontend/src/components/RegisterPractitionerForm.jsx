@@ -96,53 +96,37 @@ function StatusFilterPills({ value, onChange }) {
   );
 }
 
-// Summary stat chips above the Staff Roster table — same visual pattern
-// as BillingManager.jsx's Invoice Status/Completed Bills stat chips (3-up
-// grid, icon tile + bold count + uppercase label), computed from the same
-// roster data already fetched. Replaces the old bare "N members" text.
-// Gradient icon tiles, matching the Overview dashboard's stat card
-// treatment (CompanyDashboard.jsx's StatCard) — teal/violet/rose gradient
-// icon chips instead of flat slate/emerald, same bold tracking-tight
-// number, same uppercase label underneath.
-function StaffStatCards({ staff }) {
-  const total = staff.length;
-  const active = staff.filter(m => m.is_active !== false).length;
-  const deactivated = staff.filter(m => m.is_active === false).length;
+// Summary stat chips above a roster table — same visual pattern as
+// BillingManager.jsx's Invoice Status/Completed Bills stat chips and the
+// Overview dashboard's StatCard (3-up grid, gradient icon tile + bold
+// mono tabular number + uppercase label), computed from whichever
+// unfiltered list the caller passes. Shared by Staff Roster and
+// Practitioners so both tabs get the same treatment instead of two
+// hand-duplicated copies.
+function RosterStatCards({ list, totalLabel, totalIconPath }) {
+  const total = list.length;
+  const active = list.filter(m => m.is_active !== false).length;
+  const deactivated = list.filter(m => m.is_active === false).length;
+  const tiles = [
+    { count: total, label: totalLabel, gradient: 'linear-gradient(135deg, #a78bfa, #7c3aed)', path: totalIconPath },
+    { count: active, label: 'Active', gradient: 'linear-gradient(135deg, #2dd4bf, #0d9488)', path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { count: deactivated, label: 'Deactivated', gradient: 'linear-gradient(135deg, #fb7185, #e11d48)', path: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' },
+  ];
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
-        <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #a78bfa, #7c3aed)' }}>
-          <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+      {tiles.map((t) => (
+        <div key={t.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
+          <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: t.gradient }}>
+            <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={t.path} />
+            </svg>
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{t.count}</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t.label}</div>
+          </div>
         </div>
-        <div>
-          <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{total}</div>
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Staff</div>
-        </div>
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
-        <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #2dd4bf, #0d9488)' }}>
-          <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <div>
-          <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{active}</div>
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active</div>
-        </div>
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
-        <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #fb7185, #e11d48)' }}>
-          <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
-        </div>
-        <div>
-          <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{deactivated}</div>
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Deactivated</div>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
@@ -930,6 +914,7 @@ export const RegisterPractitionerForm = () => {
   // so "Active"/"Deactivated" counts stay accurate regardless of which
   // status the table itself is currently filtered to show.
   const allOfficeStaff = staffList.filter(s => s.role !== 'practitioner');
+  const allPractitioners = staffList.filter(s => s.role === 'practitioner');
   // A practitioner's own deactivate/reactivate needs either the broad
   // staff_directory_edit_role or the narrower practitioner_manage; an
   // office-staff/Admin target still needs the broad one only (mirrors
@@ -1293,7 +1278,11 @@ export const RegisterPractitionerForm = () => {
       {/* ── SECTION 1: STAFF ROSTER ── */}
       {activeTab === 'roster' && (
       <div>
-        <StaffStatCards staff={allOfficeStaff} />
+        <RosterStatCards
+          list={allOfficeStaff}
+          totalLabel="Total Staff"
+          totalIconPath="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+        />
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
@@ -1342,8 +1331,14 @@ export const RegisterPractitionerForm = () => {
 
       {/* ── SECTION 1B: PRACTITIONERS ── */}
       {activeTab === 'practitioners' && (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 space-y-3">
+      <div>
+        <RosterStatCards
+          list={allPractitioners}
+          totalLabel="Total Practitioners"
+          totalIconPath="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76zM16 8L2 22M17.5 15H9"
+        />
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-7 py-5 border-b border-slate-200 bg-teal-50/60 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76z" />
@@ -1376,6 +1371,7 @@ export const RegisterPractitionerForm = () => {
             : statusFilter === 'deactivated' ? 'No deactivated practitioners.' : statusFilter === 'active' ? 'No active practitioners.' : 'No practitioners registered yet.',
           { selectable: true }
         )}
+        </div>
       </div>
       )}
 

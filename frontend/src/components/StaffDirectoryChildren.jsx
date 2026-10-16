@@ -24,6 +24,37 @@ const matchesChildSearch = (child, term) => {
 const activePractitioner = (child) =>
   (child.practitioners || []).find((p) => p.status === 'active') || null;
 
+// Same gradient icon-tile stat card pattern as RegisterPractitionerForm.jsx's
+// RosterStatCards, duplicated here since this component doesn't share a
+// module with it — covers Total/Assigned/Unassigned for the children roster.
+function ChildrenStatCards({ children }) {
+  const total = children.length;
+  const assigned = children.filter((c) => activePractitioner(c)).length;
+  const unassigned = total - assigned;
+  const tiles = [
+    { count: total, label: 'Total Children', gradient: 'linear-gradient(135deg, #60a5fa, #2563eb)', path: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+    { count: assigned, label: 'Assigned', gradient: 'linear-gradient(135deg, #2dd4bf, #0d9488)', path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { count: unassigned, label: 'Unassigned', gradient: 'linear-gradient(135deg, #fbbf24, #d97706)', path: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+  ];
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+      {tiles.map((t) => (
+        <div key={t.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
+          <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: t.gradient }}>
+            <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={t.path} />
+            </svg>
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{t.count}</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t.label}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const matchesPractitionerSearch = (child, term) => {
   if (!term.trim()) return true;
   const t = norm(term);
@@ -369,8 +400,10 @@ export function StaffDirectoryChildren() {
   );
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 space-y-3">
+    <div>
+      <ChildrenStatCards children={children} />
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 bg-blue-50/60 space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -427,7 +460,10 @@ export function StaffDirectoryChildren() {
               {visibleChildren.map((child) => {
                 const active = activePractitioner(child);
                 return (
-                  <tr key={child.id} className="hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={child.id}
+                    className={`hover:bg-slate-50 transition-colors ${active ? '' : 'border-l-4 border-l-amber-400'}`}
+                  >
                     <td className="px-6 py-3 font-medium text-slate-800">
                       {child.first_name} {child.middle_name ? `${child.middle_name} ` : ''}{child.last_name}
                     </td>
@@ -504,6 +540,7 @@ export function StaffDirectoryChildren() {
           onClose={() => setCorrectionsChild(null)}
         />
       )}
+      </div>
     </div>
   );
 }
