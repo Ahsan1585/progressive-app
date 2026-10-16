@@ -217,7 +217,7 @@ function ActionQueue({ day, onSelectSession }) {
                     {s.patientName} &middot; {s.practitionerName}
                   </div>
                   <div className="text-[11.5px] text-slate-500 truncate">
-                    {s.note || (s.status === 'on_hold' ? 'On hold, no note on file' : 'Returned, awaiting resubmission')}
+                    {s.note || 'On hold, no note on file'}
                   </div>
                 </div>
                 {age !== null && (

@@ -8,10 +8,11 @@ const { pool } = require('../config/db');
 const { computeSessionCompliance } = require('./billingController');
 const { buildInvoiceLines, deriveEimsStatus, loadComplianceForLines } = require('../utils/invoiceData');
 
-// Sessions logged today's "action needed" statuses — on_hold/rejected stay
-// in the worklist regardless of service_date (they're open exceptions,
-// not day-scoped), matching how Billing & Invoices itself treats them.
-const OPEN_EXCEPTION_STATUSES = ['on_hold', 'rejected'];
+// "What needs you" worklist — on_hold only. Returned (rejected) logs have
+// their own dedicated "Returned logs" panel elsewhere on the dashboard;
+// mixing them in here duplicated that list and muddied what this card is
+// actually for (what's sitting in a billing specialist's hold queue).
+const OPEN_EXCEPTION_STATUSES = ['on_hold'];
 
 // GET /api/dashboard/day — worklist, not a trend. "What needs a human
 // today."
