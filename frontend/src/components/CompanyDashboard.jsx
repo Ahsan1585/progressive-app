@@ -88,8 +88,6 @@ function StatCard({ icon: Icon, tone, label, value, deltaText, deltaTone }) {
 function ActionQueue({ day }) {
   const sessions = day?.flaggedSessions || [];
   const total = day?.flaggedCount || 0;
-  const shown = sessions.slice(0, 4);
-  const extra = Math.max(0, total - shown.length);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -97,11 +95,11 @@ function ActionQueue({ day }) {
         <div className="text-[15.5px] font-bold text-slate-900">What needs you</div>
         <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{total} open</div>
       </div>
-      {shown.length === 0 ? (
+      {sessions.length === 0 ? (
         <div className="text-sm text-slate-400 text-center py-8">No open holds or returns. Nice.</div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {shown.map((s) => {
+        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
+          {sessions.map((s) => {
             const age = daysAgo(s.flaggedAt || s.serviceDate);
             const isCritical = age !== null && age > 30;
             return (
@@ -123,7 +121,6 @@ function ActionQueue({ day }) {
               </div>
             );
           })}
-          {extra > 0 && <div className="text-center text-xs text-slate-400 py-1.5">+ {extra} more</div>}
         </div>
       )}
     </div>

@@ -32,7 +32,7 @@ const getDayOverview = async (req, res) => {
        FROM assessments a
        WHERE a.billing_status = ANY($1::text[])
        ORDER BY COALESCE(a.held_at, a.rejected_at) ASC NULLS LAST
-       LIMIT 10`,
+       LIMIT 200`,
       [OPEN_EXCEPTION_STATUSES]
     );
     const { rows: exceptionCountRows } = await pool.query(
