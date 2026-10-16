@@ -237,10 +237,11 @@ function ActionQueue({ day, onSelectSession }) {
 function BillingFunnel({ pipeline }) {
   if (!pipeline) return null;
   const { logged, reviewed, invoiced, paid } = pipeline;
+  const held = (pipeline.exceptions?.on_hold || 0) + (pipeline.exceptions?.rejected || 0);
 
   const stages = [
     { label: 'Logged', value: logged, gradient: 'linear-gradient(90deg, #60a5fa, #2563eb)' },
-    { label: 'Reviewed', value: reviewed, gradient: 'linear-gradient(90deg, #a78bfa, #7c3aed)' },
+    { label: 'Reviewed', value: reviewed, gradient: 'linear-gradient(90deg, #a78bfa, #7c3aed)', sub: held > 0 ? `${held.toLocaleString()} held back` : null },
     { label: 'Invoiced', value: invoiced, gradient: 'linear-gradient(90deg, #2dd4bf, #0d9488)' },
     { label: 'Paid', value: paid, gradient: 'linear-gradient(90deg, #fbbf24, #d97706)' },
   ];
@@ -254,7 +255,10 @@ function BillingFunnel({ pipeline }) {
       </div>
       {stages.map((s) => (
         <div key={s.label} className="flex items-center gap-3 mb-3 last:mb-0">
-          <div className="w-[88px] flex-shrink-0 text-xs font-semibold text-slate-500">{s.label}</div>
+          <div className="w-[88px] flex-shrink-0">
+            <div className="text-xs font-semibold text-slate-500">{s.label}</div>
+            {s.sub && <div className="text-[10px] font-semibold text-rose-600 mt-0.5">{s.sub}</div>}
+          </div>
           <div className="flex-1 h-[30px] bg-slate-50 rounded-lg overflow-hidden">
             <div
               className="h-full rounded-lg flex items-center justify-end px-2.5 text-xs font-bold text-white font-mono"

@@ -212,11 +212,13 @@ const getPipelineOverview = async (req, res) => {
     // "Reviewed" must count every session that has passed the pending
     // stage, invoiced ones included (a session doesn't stop being
     // "reviewed" once it's also invoiced) — it's a cumulative funnel
-    // stage, not a disjoint bucket. The earlier version summed the exact
-    // same three statuses (njeis_review + invoiced + completed) as
-    // invoicedTotal, which made Reviewed and Invoiced mathematically
-    // identical on every tenant, every time.
-    const reviewed = byStatus.njeis_review + invoicedTotal;
+    // stage, not a disjoint bucket. It also has to include on_hold/
+    // rejected: billing set those aside only AFTER reviewing them (that's
+    // why they're flagged, not pending), so leaving them out of this
+    // stage hid the entire held-back backlog from the funnel, making a
+    // real 7%-held tenant look like 100% of reviewed work sailed straight
+    // through to Invoiced.
+    const reviewed = byStatus.njeis_review + invoicedTotal + exceptions.on_hold + exceptions.rejected;
 
     // Real "paid" count — billing_batches.paid_at is the authoritative
     // signal, same join the AP endpoint and getMonthOverview use.
