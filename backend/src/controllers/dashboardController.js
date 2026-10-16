@@ -402,6 +402,44 @@ const getMonthOverview = async (req, res) => {
       [start, end]
     );
 
+    // "Ready to pay" for this month — same clear-vs-held split as
+    // getAccountsPayable, scoped to this month's service_date instead of
+    // all-time, so the top stat row can show a month that isn't "right
+    // now." Owed-but-unpaid (invoiced/completed not yet paid) plus
+    // on_hold/rejected (held back, same as the all-time AP view), with
+    // the same human-hold-overrides-EIMS-tier rule.
+    const { rows: apSessions } = await pool.query(
+      `SELECT a.id, a.total_time, a.billing_status,
+              a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id,
+              p.pay_rate, p.role
+       FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
+       LEFT JOIN billing_batches bb ON bb.id = a.billing_batch_id
+       WHERE a.service_date >= $1 AND a.service_date <= $2
+         AND (
+           (a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NULL)
+           OR a.billing_status IN ('on_hold', 'rejected')
+         )`,
+      [start, end]
+    );
+    const apComplianceById = await loadComplianceForLines(
+      apSessions.filter((s) => s.role !== 'independent_practitioner').map((s) => s.id),
+      computeSessionCompliance
+    );
+    let apTotalOwed = 0, apTotalClear = 0, apTotalHeld = 0;
+    apSessions.forEach((s) => {
+      const hours = s.total_time ? s.total_time / 60 : 0;
+      const lineTotal = Math.round(hours * parseFloat(s.pay_rate || 0) * 100) / 100;
+      const mode = s.role === 'independent_practitioner' ? 'independent' : 'agency';
+      const compliance = apComplianceById.get(s.id) || null;
+      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected')
+        ? 'exception'
+        : deriveEimsStatus(s, { mode, compliance }).tier;
+      apTotalOwed += lineTotal;
+      if (tier === 'cleared') apTotalClear += lineTotal;
+      else apTotalHeld += lineTotal;
+    });
+
     res.json({
       success: true,
       year, month, start, end,
@@ -417,6 +455,11 @@ const getMonthOverview = async (req, res) => {
       eimsMatchRate,
       practitionerTable,
       patientRosterCount: rosterRows[0].count,
+      ap: {
+        totalOwed: Math.round(apTotalOwed * 100) / 100,
+        totalClear: Math.round(apTotalClear * 100) / 100,
+        totalHeld: Math.round(apTotalHeld * 100) / 100,
+      },
     });
   } catch (error) {
     console.error('getMonthOverview error:', error);

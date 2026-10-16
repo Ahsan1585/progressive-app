@@ -22,6 +22,44 @@ function daysAgo(dateStr) {
   return Math.max(0, Math.floor((Date.now() - then) / 86400000));
 }
 
+// Explicit year + month dropdowns (rather than a bare native
+// <input type="month">) for the top stat row's "viewing" control — lets a
+// CEO jump straight to any month/year combo, not just scrub one at a time.
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function MonthYearPicker({ value, onChange }) {
+  const [yearStr, monthStr] = (value || '').split('-');
+  const year = parseInt(yearStr, 10) || new Date().getFullYear();
+  const month = parseInt(monthStr, 10) || new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
+  const setMonth = (m) => onChange(`${year}-${String(m).padStart(2, '0')}`);
+  const setYear = (y) => onChange(`${y}-${String(month).padStart(2, '0')}`);
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={month}
+        onChange={(e) => setMonth(Number(e.target.value))}
+        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-700 bg-white cursor-pointer"
+      >
+        {MONTH_NAMES.map((name, i) => (
+          <option key={name} value={i + 1}>{name}</option>
+        ))}
+      </select>
+      <select
+        value={year}
+        onChange={(e) => setYear(Number(e.target.value))}
+        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-700 bg-white cursor-pointer"
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 // Inline detail dialog for a flagged/returned session, opened by clicking a
 // row in ActionQueue or ReturnedLogsPanel. Fetches the same field-by-field
 // "our log" vs "EIMS record" comparison the Billing & Invoices Compliance
@@ -588,31 +626,37 @@ export function CompanyDashboard() {
     <div className="space-y-6">
       <VerdictBanner day={day} ap={ap} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <StatCard
-          icon={Tag} tone="teal" label="Ready to pay"
-          value={ap ? money(ap.totalClear) : '—'}
-          deltaText={ap && ap.totalOwed > 0 ? `${Math.round((ap.totalClear / ap.totalOwed) * 100)}% cleared · ${Math.round((ap.totalHeld / ap.totalOwed) * 100)}% held` : 'Nothing currently owed'}
-          deltaTone="up"
-        />
-        <StatCard
-          icon={Activity} tone="violet" label="Sessions this month"
-          value={month ? month.volumeVsPriorMonth.current.toLocaleString() : '—'}
-          deltaText="across the active roster"
-          deltaTone="flat"
-        />
-        <StatCard
-          icon={AlertTriangle} tone="amber" label="Needs a decision"
-          value={day ? String(day.flaggedCount) : '—'}
-          deltaText={day && day.flaggedCount > 0 ? 'see the queue below' : 'nothing flagged'}
-          deltaTone={day && day.flaggedCount > 0 ? 'down' : 'flat'}
-        />
-        <StatCard
-          icon={CalendarClock} tone="rose" label="Logged today"
-          value={day ? String(day.sessionsLoggedToday) : '—'}
-          deltaText={day && day.sessionsLoggedToday === 0 ? 'quiet so far' : 'active today'}
-          deltaTone="flat"
-        />
+      <div>
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <div className="text-sm font-semibold text-slate-500">Viewing</div>
+          <MonthYearPicker value={monthValue} onChange={setMonthValue} />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <StatCard
+            icon={Tag} tone="teal" label="Ready to pay"
+            value={month ? money(month.ap.totalClear) : '—'}
+            deltaText={month && month.ap.totalOwed > 0 ? `${Math.round((month.ap.totalClear / month.ap.totalOwed) * 100)}% cleared · ${Math.round((month.ap.totalHeld / month.ap.totalOwed) * 100)}% held` : 'Nothing owed this month'}
+            deltaTone="up"
+          />
+          <StatCard
+            icon={Activity} tone="violet" label="Sessions this month"
+            value={month ? month.volumeVsPriorMonth.current.toLocaleString() : '—'}
+            deltaText="across the active roster"
+            deltaTone="flat"
+          />
+          <StatCard
+            icon={AlertTriangle} tone="amber" label="Needs a decision"
+            value={month ? String(month.exceptions.on_hold) : '—'}
+            deltaText={month && month.exceptions.on_hold > 0 ? 'see the queue below' : 'nothing flagged'}
+            deltaTone={month && month.exceptions.on_hold > 0 ? 'down' : 'flat'}
+          />
+          <StatCard
+            icon={CalendarClock} tone="rose" label="Paid this month"
+            value={month ? String(month.paidCount) : '—'}
+            deltaText={month && month.paidCount === 0 ? 'nothing paid yet' : 'sessions marked paid'}
+            deltaTone="flat"
+          />
+        </div>
       </div>
 
       <div>
