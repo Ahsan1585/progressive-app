@@ -26,7 +26,7 @@ function daysAgo(dateStr) {
 function VerdictBanner({ day, ap }) {
   if (!day || !ap) {
     return (
-      <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)' }}>
+      <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #4c3a8f 0%, #1e3a6e 100%)' }}>
         <div className="text-sm text-white/80">Loading today's picture...</div>
       </section>
     );
@@ -46,9 +46,9 @@ function VerdictBanner({ day, ap }) {
       : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held pending verification.`;
 
   return (
-    <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)' }}>
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: '#fde68a' }}>
-        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fde68a' }} />
+    <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #4c3a8f 0%, #1e3a6e 100%)' }}>
+      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: '#fcd34d' }}>
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
         {isHealthy ? 'All clear' : 'Needs a look today'}
       </div>
       <h1 className="text-2xl sm:text-[26px] font-bold leading-snug mb-2.5" style={{ textWrap: 'balance' }}>{headline}</h1>
