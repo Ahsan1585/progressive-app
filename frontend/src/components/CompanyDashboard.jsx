@@ -243,38 +243,71 @@ function TrajectoryTabs({ active, onChange }) {
   );
 }
 
-function DayTrajectory({ day, month }) {
-  const daily = month?.dailyVolume || [];
-  const last14 = daily.slice(-14);
-  const todayCount = day?.sessionsLoggedToday || 0;
+// Replaces the old "sessions today" sparkline tile — that duplicated
+// ActionQueue's holds/returns summary without adding detail. This shows
+// every returned/declined log (all-time), scrollable, each with its
+// status and full comment thread so a CEO can see exactly why a log
+// bounced back to a practitioner without leaving the dashboard.
+function ReturnedLogsPanel({ returnedLogs }) {
+  const logs = returnedLogs?.logs || [];
+  const count = returnedLogs?.count || 0;
+  const [expandedId, setExpandedId] = useState(null);
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-      <div className="text-2xl font-bold tracking-tight font-mono">
-        {todayCount} <span className="text-sm text-slate-400 font-sans font-medium">sessions today</span>
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-[15.5px] font-bold text-slate-900">Returned logs</div>
+        <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{count} total</div>
       </div>
-      <div className="text-xs text-slate-400 mt-1 mb-3">
-        {todayCount === 0 ? 'Quiet so far — check back later if it stays empty.' : 'Logging is active today.'}
-      </div>
-      {last14.length > 0 && (
-        <div style={{ height: 160 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={last14}>
-              <defs>
-                <linearGradient id="dayArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="#7c3aed" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
-              <XAxis dataKey="date" tickFormatter={(d) => new Date(d + 'T00:00:00').getDate()} tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-              <Area type="monotone" dataKey="count" stroke="#7c3aed" strokeWidth={2.5} fill="url(#dayArea)" />
-            </AreaChart>
-          </ResponsiveContainer>
+      <div className="text-xs text-slate-400 mb-3">Everything billing has sent back, oldest first.</div>
+
+      {logs.length === 0 ? (
+        <div className="text-sm text-slate-400 text-center py-8">No returned or declined logs. Nice.</div>
+      ) : (
+        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
+          {logs.map((log) => {
+            const age = daysAgo(log.rejectedAt || log.serviceDate);
+            const isDeclined = log.status === 'declined';
+            const isOpen = expandedId === log.id;
+            return (
+              <div key={log.id} className="bg-slate-50 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isOpen ? null : log.id)}
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left cursor-pointer"
+                >
+                  <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isDeclined ? 'bg-rose-600' : 'bg-amber-600'}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] font-semibold text-slate-900 truncate">
+                      {log.patientName} &middot; {log.practitionerName}
+                    </div>
+                    <div className="text-[11.5px] text-slate-500 truncate">
+                      {isDeclined ? 'Declined' : 'Returned'}{log.rejectionCount > 1 ? ` &middot; sent back ${log.rejectionCount}x` : ''}
+                      {log.note ? ` — ${log.note}` : ''}
+                    </div>
+                  </div>
+                  {age !== null && (
+                    <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${isDeclined ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {age}d
+                    </span>
+                  )}
+                </button>
+                {isOpen && log.comments.length > 0 && (
+                  <div className="border-t border-slate-200 bg-white px-3.5 py-3 space-y-2.5">
+                    {log.comments.map((c, i) => (
+                      <div key={i} className="text-xs">
+                        <div className="font-semibold text-slate-700 mb-0.5 capitalize">{c.authorRole || 'Staff'}</div>
+                        <div className="text-slate-600">{c.note}</div>
+                        <div className="text-[10.5px] text-slate-400 mt-0.5">{new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
-      <div className="text-[11.5px] text-slate-400 mt-2.5">Last 14 days of session volume.</div>
     </div>
   );
 }
@@ -413,11 +446,15 @@ export function CompanyDashboard() {
   // of every session across all time, the actual operational backlog, so
   // it fetches once and doesn't depend on monthValue below.
   const [pipeline, setPipeline] = useState(null);
+  // Same all-time framing as pipeline — "what's been returned" is a
+  // standing backlog question, not a today-only one, so it fetches once.
+  const [returnedLogs, setReturnedLogs] = useState(null);
 
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
     api.get('/api/dashboard/ap').then((res) => setAp(res.data)).catch(() => setAp(null));
     api.get('/api/dashboard/pipeline').then((res) => setPipeline(res.data)).catch(() => setPipeline(null));
+    api.get('/api/dashboard/returned-logs').then((res) => setReturnedLogs(res.data)).catch(() => setReturnedLogs(null));
   }, []);
 
   useEffect(() => {
@@ -473,7 +510,7 @@ export function CompanyDashboard() {
         </div>
         <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same work, three distances — the volume trend, and how it's reconciling against the state.</p>
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 items-start">
-          {trajectoryTab === 'day' && <DayTrajectory day={day} month={month} />}
+          {trajectoryTab === 'day' && <ReturnedLogsPanel returnedLogs={returnedLogs} />}
           {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
           {trajectoryTab === 'year' && <YearTrajectory />}
           <EimsDonut pipeline={pipeline} />

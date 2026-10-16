@@ -77,6 +77,61 @@ const getDayOverview = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/returned-logs — all-time list of logs billing has
+// returned or declined (billing_status 'rejected'/'declined', set via
+// rejectLog's type='return'/'reject'), oldest-first so the longest-waiting
+// ones surface first, same convention as the day worklist's exception
+// queue. Distinct from "What needs you" (which also includes on_hold):
+// this view is specifically "what did we hand back to a practitioner,"
+// with the full note/comment thread so the reason is visible inline.
+const getReturnedLogs = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.id, a.billing_status, a.service_date, a.rejection_note, a.rejected_at, a.rejection_count,
+              a.patient_first_name, a.patient_last_name,
+              a.practitioner_first_name, a.practitioner_last_name
+       FROM assessments a
+       WHERE a.billing_status IN ('rejected', 'declined')
+       ORDER BY a.rejected_at ASC NULLS LAST
+       LIMIT 200`
+    );
+    const assessmentIds = rows.map((r) => r.id);
+    const { rows: noteRows } = assessmentIds.length
+      ? await pool.query(
+          `SELECT assessment_id, author_role, note, created_at
+           FROM assessment_notes
+           WHERE assessment_id = ANY($1::int[])
+           ORDER BY created_at ASC`,
+          [assessmentIds]
+        )
+      : { rows: [] };
+    const notesByAssessment = new Map();
+    noteRows.forEach((n) => {
+      if (!notesByAssessment.has(n.assessment_id)) notesByAssessment.set(n.assessment_id, []);
+      notesByAssessment.get(n.assessment_id).push({ authorRole: n.author_role, note: n.note, createdAt: n.created_at });
+    });
+
+    res.json({
+      success: true,
+      count: rows.length,
+      logs: rows.map((r) => ({
+        id: r.id,
+        status: r.billing_status,
+        serviceDate: r.service_date,
+        rejectedAt: r.rejected_at,
+        rejectionCount: r.rejection_count,
+        note: r.rejection_note || null,
+        patientName: `${r.patient_first_name || ''} ${r.patient_last_name || ''}`.trim(),
+        practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
+        comments: notesByAssessment.get(r.id) || [],
+      })),
+    });
+  } catch (error) {
+    console.error('getReturnedLogs error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load returned logs' });
+  }
+};
+
 function parseMonthParam(monthStr) {
   const now = new Date();
   const [yearStr, monthNumStr] = (monthStr || '').split('-');
@@ -521,6 +576,7 @@ const getAccountsPayable = async (req, res) => {
 module.exports = {
   getDayOverview,
   getPipelineOverview,
+  getReturnedLogs,
   getMonthOverview,
   getYearOverview,
   getAccountsPayable,
