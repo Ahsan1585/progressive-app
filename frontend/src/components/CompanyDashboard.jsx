@@ -90,7 +90,7 @@ function ActionQueue({ day }) {
   const total = day?.flaggedCount || 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
       <div className="flex items-center justify-between mb-4">
         <div className="text-[15.5px] font-bold text-slate-900">What needs you</div>
         <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{total} open</div>
@@ -103,7 +103,7 @@ function ActionQueue({ day }) {
             const age = daysAgo(s.flaggedAt || s.serviceDate);
             const isCritical = age !== null && age > 30;
             return (
-              <div key={s.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-3.5 py-2.5">
+              <div key={s.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-3.5 py-2.5 min-w-0">
                 <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isCritical ? 'bg-rose-600' : 'bg-amber-600'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-[13.5px] font-semibold text-slate-900 truncate">
@@ -140,10 +140,10 @@ function BillingFunnel({ pipeline }) {
   const max = Math.max(logged, 1);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+      <div className="flex items-center justify-between gap-3 mb-4">
         <div className="text-[15.5px] font-bold text-slate-900">Billing pipeline</div>
-        <div className="text-[11.5px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{logged.toLocaleString()} total</div>
+        <div className="text-[11.5px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} total</div>
       </div>
       {stages.map((s) => (
         <div key={s.label} className="flex items-center gap-3 mb-3 last:mb-0">
@@ -254,10 +254,10 @@ function ReturnedLogsPanel({ returnedLogs }) {
   const [expandedId, setExpandedId] = useState(null);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-1">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+      <div className="flex items-center justify-between gap-3 mb-1">
         <div className="text-[15.5px] font-bold text-slate-900">Returned logs</div>
-        <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{count} total</div>
+        <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">{count} total</div>
       </div>
       <div className="text-xs text-slate-400 mb-3">Everything billing has sent back, oldest first.</div>
 
@@ -270,11 +270,11 @@ function ReturnedLogsPanel({ returnedLogs }) {
             const isDeclined = log.status === 'declined';
             const isOpen = expandedId === log.id;
             return (
-              <div key={log.id} className="bg-slate-50 rounded-xl overflow-hidden">
+              <div key={log.id} className="bg-slate-50 rounded-xl overflow-hidden min-w-0">
                 <button
                   type="button"
                   onClick={() => setExpandedId(isOpen ? null : log.id)}
-                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left cursor-pointer"
+                  className="w-full min-w-0 flex items-center gap-3 px-3.5 py-2.5 text-left cursor-pointer"
                 >
                   <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isDeclined ? 'bg-rose-600' : 'bg-amber-600'}`} />
                   <div className="flex-1 min-w-0">
