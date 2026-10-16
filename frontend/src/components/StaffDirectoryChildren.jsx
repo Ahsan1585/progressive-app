@@ -443,16 +443,16 @@ export function StaffDirectoryChildren() {
           {childSearch.trim() || practitionerSearch.trim() ? 'No children match your search.' : 'No children registered yet.'}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-460px)]">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Child</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Child ID</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">DOB</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">County</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Assigned Practitioner</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Registered</th>
+                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-6 py-3">Child</th>
+                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Child ID</th>
+                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">DOB</th>
+                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">County</th>
+                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Assigned Practitioner</th>
+                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Registered</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>

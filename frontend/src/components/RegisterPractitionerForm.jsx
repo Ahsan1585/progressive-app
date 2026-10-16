@@ -937,9 +937,9 @@ export const RegisterPractitionerForm = () => {
     ) : rows.length === 0 ? (
       <div className="p-8 text-center text-sm text-slate-400">{emptyMessage}</div>
     ) : (
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[calc(100vh-420px)]">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-slate-50">
             <tr className="bg-slate-50 border-b border-slate-100">
               {selectable && (
                 <th className="px-4 py-3 w-10">
@@ -953,10 +953,10 @@ export const RegisterPractitionerForm = () => {
                   />
                 </th>
               )}
-              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
-              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
-              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
-              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
+              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
+              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
+              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
+              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
               {/* Actions column — anyone who can reach this screen is office
                   staff (it needs staff_directory_view), so the column always
                   renders; each button inside is permission-gated on its own. */}
