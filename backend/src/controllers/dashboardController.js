@@ -123,6 +123,39 @@ const getPipelineOverview = async (req, res) => {
        WHERE a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NOT NULL`
     );
 
+    // All-time EIMS match status — unlike the month/year views, this runs
+    // the real per-session compliance check (computeSessionCompliance),
+    // not a cheap approximation, because a match rate that silently
+    // undercounts "matched" isn't trustworthy. Capped to the most recent
+    // 2000 billed sessions (most-recent-first) to keep the cost bounded
+    // on a large all-time backlog while staying representative.
+    const { rows: billedSessions } = await pool.query(
+      `SELECT a.id, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
+       FROM assessments a
+       WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified')
+       ORDER BY a.service_date DESC
+       LIMIT 2000`
+    );
+    const { rows: practitionerRoleRows } = await pool.query(
+      `SELECT id, role FROM practitioners WHERE id = ANY($1::int[])`,
+      [[...new Set(billedSessions.map((s) => s.practitioner_id))]]
+    );
+    const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
+    const complianceById = await loadComplianceForLines(
+      billedSessions.filter((s) => roleById.get(s.practitioner_id) !== 'independent_practitioner').map((s) => s.id),
+      computeSessionCompliance
+    );
+    const eimsMatchRate = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
+    billedSessions.forEach((s) => {
+      const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
+      const compliance = complianceById.get(s.id) || null;
+      const { tier } = deriveEimsStatus(s, { mode, compliance });
+      if (tier === 'cleared') eimsMatchRate.matched += 1;
+      else if (tier === 'pending') eimsMatchRate.flagged += 1;
+      else if (tier === 'exception') eimsMatchRate.flagged += 1;
+      else eimsMatchRate.unverified += 1;
+    });
+
     res.json({
       success: true,
       logged: totalInPipeline,
@@ -130,6 +163,7 @@ const getPipelineOverview = async (req, res) => {
       invoiced: invoicedTotal,
       paid: paidRows[0].count,
       exceptions,
+      eimsMatchRate,
     });
   } catch (error) {
     console.error('getPipelineOverview error:', error);

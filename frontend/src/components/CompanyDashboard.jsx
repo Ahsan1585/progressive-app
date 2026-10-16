@@ -167,15 +167,15 @@ function BillingFunnel({ pipeline }) {
   );
 }
 
-function EimsDonut({ month }) {
-  const rate = month?.eimsMatchRate;
+function EimsDonut({ pipeline }) {
+  const rate = pipeline?.eimsMatchRate;
   if (!rate) return null;
   const total = rate.matched + rate.flagged + rate.missing + rate.unverified;
   if (total === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col items-center">
         <div className="text-[15.5px] font-bold text-slate-900 self-start mb-4">EIMS match status</div>
-        <div className="text-sm text-slate-400 py-8">No billed sessions yet this month.</div>
+        <div className="text-sm text-slate-400 py-8">No billed sessions yet.</div>
       </div>
     );
   }
@@ -476,7 +476,7 @@ export function CompanyDashboard() {
           {trajectoryTab === 'day' && <DayTrajectory day={day} month={month} />}
           {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
           {trajectoryTab === 'year' && <YearTrajectory />}
-          <EimsDonut month={month} />
+          <EimsDonut pipeline={pipeline} />
         </div>
       </div>
     </div>
