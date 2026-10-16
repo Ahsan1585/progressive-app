@@ -100,42 +100,46 @@ function StatusFilterPills({ value, onChange }) {
 // as BillingManager.jsx's Invoice Status/Completed Bills stat chips (3-up
 // grid, icon tile + bold count + uppercase label), computed from the same
 // roster data already fetched. Replaces the old bare "N members" text.
+// Gradient icon tiles, matching the Overview dashboard's stat card
+// treatment (CompanyDashboard.jsx's StatCard) — teal/violet/rose gradient
+// icon chips instead of flat slate/emerald, same bold tracking-tight
+// number, same uppercase label underneath.
 function StaffStatCards({ staff }) {
   const total = staff.length;
   const active = staff.filter(m => m.is_active !== false).length;
   const deactivated = staff.filter(m => m.is_active === false).length;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-        <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
-          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
+        <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #a78bfa, #7c3aed)' }}>
+          <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
         <div>
-          <div className="text-xl font-bold text-slate-800 leading-tight">{total}</div>
+          <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{total}</div>
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Staff</div>
         </div>
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-        <div className="size-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
-          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
+        <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #2dd4bf, #0d9488)' }}>
+          <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
         <div>
-          <div className="text-xl font-bold text-slate-800 leading-tight">{active}</div>
+          <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{active}</div>
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active</div>
         </div>
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-        <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
-          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
+        <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #fb7185, #e11d48)' }}>
+          <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
         </div>
         <div>
-          <div className="text-xl font-bold text-slate-800 leading-tight">{deactivated}</div>
+          <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{deactivated}</div>
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Deactivated</div>
         </div>
       </div>
