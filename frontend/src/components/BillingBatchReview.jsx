@@ -1209,9 +1209,9 @@ function SessionDetailPanel({
             onClick={() => setPendingAction(prev => prev === 'reject' ? null : 'reject')}
           />
           <ActionButton
-            label="Hold" active={false} tone="orange"
+            label="Hold" active={pendingAction === 'hold'} tone="orange"
             icon={<Clock className="size-4" />}
-            onClick={() => handleHold(session, practitionerId)}
+            onClick={() => setPendingAction(prev => prev === 'hold' ? null : 'hold')}
           />
         </div>
         </>
@@ -1225,6 +1225,7 @@ function SessionDetailPanel({
         pendingAction={pendingAction}
         setPendingAction={setPendingAction}
         handleInlineReturnReject={handleInlineReturnReject}
+        handleHold={handleHold}
       />
     </div>
   );
@@ -1234,12 +1235,13 @@ function SessionDetailPanel({
 // Always visible for the selected session — shows the full note history
 // (assessment_notes, same data the legacy table's notes-history Dialog
 // used) and lets billing add a plain comment at any time via the new
-// /api/billing/log-comment endpoint. When a Return/Reject action is
+// /api/billing/log-comment endpoint. When a Return/Reject/Hold action is
 // pending (set by the buttons above), the same input instead requires a
 // note and submits through /api/billing/reject-log via
-// handleInlineReturnReject — so the required "why" for a status change
-// and a free-form comment share one inline box instead of a popup. ---
-function CommentThread({ session, practitionerId, practitionerName, pendingAction, setPendingAction, handleInlineReturnReject }) {
+// handleInlineReturnReject (return/reject) or handleHold (hold) — so the
+// required "why" for a status change and a free-form comment share one
+// inline box instead of a popup. ---
+function CommentThread({ session, practitionerId, practitionerName, pendingAction, setPendingAction, handleInlineReturnReject, handleHold }) {
   const [notes, setNotes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [text, setText] = useState('');
@@ -1263,7 +1265,10 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
     if (!text.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      if (pendingAction) {
+      if (pendingAction === 'hold') {
+        await handleHold(session, practitionerId, text);
+        setPendingAction(null);
+      } else if (pendingAction) {
         await handleInlineReturnReject(session, practitionerId, pendingAction, text);
         setPendingAction(null);
       } else {
@@ -1314,9 +1319,15 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
 
       {pendingAction && (
         <div className={`flex items-center justify-between gap-2 px-4 py-2 text-xs font-semibold ${
-          pendingAction === 'return' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'
+          pendingAction === 'return' ? 'bg-blue-50 text-blue-700'
+          : pendingAction === 'hold' ? 'bg-amber-50 text-amber-700'
+          : 'bg-red-50 text-red-700'
         }`}>
-          <span>{pendingAction === 'return' ? 'Returning this log — describe what needs to be corrected below.' : 'Rejecting this log — explain why below.'}</span>
+          <span>
+            {pendingAction === 'return' ? 'Returning this log — describe what needs to be corrected below.'
+              : pendingAction === 'hold' ? 'Placing this log on hold — explain why below.'
+              : 'Rejecting this log — explain why below.'}
+          </span>
           <button type="button" onClick={() => setPendingAction(null)} className="underline cursor-pointer">Cancel</button>
         </div>
       )}
@@ -1327,18 +1338,29 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-          placeholder={pendingAction === 'return' ? 'Describe what needs to be corrected...' : pendingAction === 'reject' ? 'Explain the reason for rejection...' : 'Add a note for the practitioner...'}
+          placeholder={
+            pendingAction === 'return' ? 'Describe what needs to be corrected...'
+            : pendingAction === 'reject' ? 'Explain the reason for rejection...'
+            : pendingAction === 'hold' ? 'Why is this on hold...'
+            : 'Add a note for the practitioner...'
+          }
           className={`flex-1 text-sm rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
-            pendingAction ? 'border-red-300 focus:ring-red-500/30' : 'border-slate-300 focus:ring-blue-500/30'
+            pendingAction === 'hold' ? 'border-amber-300 focus:ring-amber-500/30'
+            : pendingAction ? 'border-red-300 focus:ring-red-500/30'
+            : 'border-slate-300 focus:ring-blue-500/30'
           }`}
         />
         <Button
           size="sm"
           onClick={handleSend}
           disabled={!text.trim() || isSubmitting}
-          className={`cursor-pointer text-sm ${pendingAction ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'} text-white`}
+          className={`cursor-pointer text-sm text-white ${
+            pendingAction === 'hold' ? 'bg-amber-600 hover:bg-amber-700'
+            : pendingAction ? 'bg-red-600 hover:bg-red-700'
+            : 'bg-slate-800 hover:bg-slate-900'
+          }`}
         >
-          {isSubmitting ? 'Sending...' : pendingAction === 'return' ? 'Confirm Return' : pendingAction === 'reject' ? 'Confirm Reject' : 'Send'}
+          {isSubmitting ? 'Sending...' : pendingAction === 'return' ? 'Confirm Return' : pendingAction === 'reject' ? 'Confirm Reject' : pendingAction === 'hold' ? 'Confirm Hold' : 'Send'}
         </Button>
       </div>
     </div>
@@ -1719,7 +1741,7 @@ function ComplianceAnalysisPreview({
         : "This log has no matching record in EIMS — click \"Send to Admin for Approval\" before it can be approved.");
       return;
     }
-    if (value === 'return' || value === 'reject') {
+    if (value === 'return' || value === 'reject' || value === 'hold') {
       setPendingNoteAction({ session, practitionerId, type: value });
       setNoteText('');
       return;
@@ -1731,7 +1753,7 @@ function ComplianceAnalysisPreview({
         const isApproved = logActions?.[session.id] === 'accept' || session.billing_review === 'accept';
         if (isApproved) await handleResetToPending(session, practitionerId);
         else await handleReleaseHold(session, practitionerId);
-      } else if (value === 'hold') await handleHold(session, practitionerId);
+      }
     } finally {
       setStatusChangingId(null);
     }
@@ -1741,7 +1763,11 @@ function ComplianceAnalysisPreview({
     if (!pendingNoteAction || !noteText.trim()) return;
     setIsSubmittingNote(true);
     try {
-      await handleInlineReturnReject(pendingNoteAction.session, pendingNoteAction.practitionerId, pendingNoteAction.type, noteText.trim());
+      if (pendingNoteAction.type === 'hold') {
+        await handleHold(pendingNoteAction.session, pendingNoteAction.practitionerId, noteText.trim());
+      } else {
+        await handleInlineReturnReject(pendingNoteAction.session, pendingNoteAction.practitionerId, pendingNoteAction.type, noteText.trim());
+      }
       setPendingNoteAction(null);
       setNoteText('');
     } finally {
@@ -2218,15 +2244,25 @@ function ComplianceAnalysisPreview({
               </table>
 
               {pendingNoteAction?.session?.id === s.id && (
-                <div className={`border-t px-4 py-3 space-y-2 ${pendingNoteAction.type === 'reject' ? 'bg-red-50/60 border-red-200' : 'bg-amber-50/60 border-amber-200'}`}>
-                  <p className={`text-xs font-semibold ${pendingNoteAction.type === 'reject' ? 'text-red-700' : 'text-amber-700'}`}>
+                <div className={`border-t px-4 py-3 space-y-2 ${
+                  pendingNoteAction.type === 'reject' ? 'bg-red-50/60 border-red-200'
+                  : pendingNoteAction.type === 'hold' ? 'bg-violet-50/60 border-violet-200'
+                  : 'bg-amber-50/60 border-amber-200'
+                }`}>
+                  <p className={`text-xs font-semibold ${
+                    pendingNoteAction.type === 'reject' ? 'text-red-700'
+                    : pendingNoteAction.type === 'hold' ? 'text-violet-700'
+                    : 'text-amber-700'
+                  }`}>
                     {pendingNoteAction.type === 'reject'
                       ? 'Rejecting this log — it will be permanently excluded from billing. Explain why below.'
+                      : pendingNoteAction.type === 'hold'
+                      ? 'Placing this log on hold — explain why, so whoever picks it back up knows what to check.'
                       : 'Returning this log — describe what needs to be corrected below.'}
                   </p>
                   <Textarea
                     autoFocus
-                    placeholder="Explain what needs to change..."
+                    placeholder={pendingNoteAction.type === 'hold' ? 'Why is this on hold...' : 'Explain what needs to change...'}
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     className="bg-white min-h-[80px]"
@@ -2240,9 +2276,13 @@ function ComplianceAnalysisPreview({
                       size="sm"
                       onClick={submitNoteAction}
                       disabled={!noteText.trim() || isSubmittingNote}
-                      className={`cursor-pointer text-white ${pendingNoteAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                      className={`cursor-pointer text-white ${
+                        pendingNoteAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700'
+                        : pendingNoteAction.type === 'hold' ? 'bg-violet-600 hover:bg-violet-700'
+                        : 'bg-amber-600 hover:bg-amber-700'
+                      }`}
                     >
-                      {isSubmittingNote ? 'Sending...' : pendingNoteAction.type === 'reject' ? 'Confirm Reject' : 'Confirm Return'}
+                      {isSubmittingNote ? 'Sending...' : pendingNoteAction.type === 'reject' ? 'Confirm Reject' : pendingNoteAction.type === 'hold' ? 'Confirm Hold' : 'Confirm Return'}
                     </Button>
                   </div>
                 </div>

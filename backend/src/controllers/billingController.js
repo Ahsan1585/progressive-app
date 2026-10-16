@@ -1119,10 +1119,12 @@ const rejectLog = async (req, res) => {
   if (!['return', 'reject', 'hold'].includes(type)) {
     return res.status(400).json({ error: 'type must be return, reject, or hold' });
   }
-  // Hold is a one-click "set this log aside for now" action — no note
-  // required. Return/Reject still need one so the practitioner knows what
-  // to fix (or why it was rejected).
-  if (!assessmentId || (type !== 'hold' && !note?.trim())) {
+  // A note is required for every action here, hold included — whoever
+  // picks this log back up (another billing specialist, or the same one
+  // weeks later) needs to know WHY it was set aside, not just that it
+  // was. Previously hold was a one-click no-note action; that silently
+  // produced holds with nothing explaining them.
+  if (!assessmentId || !note?.trim()) {
     return res.status(400).json({ error: 'assessmentId and a note are required' });
   }
   try {
@@ -1131,7 +1133,7 @@ const rejectLog = async (req, res) => {
         `UPDATE assessments
          SET billing_status = 'on_hold', billing_review = 'hold', hold_note = $1, held_at = $2
          WHERE id = $3`,
-        [note?.trim() || null, new Date().toISOString(), assessmentId]
+        [note.trim(), new Date().toISOString(), assessmentId]
       );
       return res.json({ success: true });
     }

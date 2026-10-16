@@ -361,10 +361,11 @@ export const BillingManager = () => {
   // where it is in the practitioner's log list, just marked "On Hold" and
   // excluded from SEVF/invoice generation (those queries only ever select
   // pending/njeis_review) until it's released back for review.
-  const handleHold = async (session, practitionerId) => {
+  const handleHold = async (session, practitionerId, note) => {
+    if (!note?.trim()) return;
     setProcessingLogId(session.id);
     try {
-      await api.post('/api/billing/reject-log', { assessmentId: session.id, type: 'hold' });
+      await api.post('/api/billing/reject-log', { assessmentId: session.id, type: 'hold', note: note.trim() });
       setExpandedLogs(prev => ({
         ...prev,
         [practitionerId]: (prev[practitionerId] || []).map(l =>
