@@ -467,9 +467,9 @@ export function StaffDirectoryChildren() {
                     <td className="px-6 py-3 font-medium text-slate-800">
                       {child.first_name} {child.middle_name ? `${child.middle_name} ` : ''}{child.last_name}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 font-mono text-xs">{child.child_id}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatDob(child.dob)}</td>
-                    <td className="px-4 py-3 text-slate-500">{child.county}</td>
+                    <td className="px-4 py-3 text-slate-600 font-mono text-xs">{child.child_id}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatDob(child.dob)}</td>
+                    <td className="px-4 py-3 text-slate-600">{child.county}</td>
                     <td className="px-4 py-3">
                       {canEdit ? (
                         <PractitionerCombobox
@@ -482,7 +482,7 @@ export function StaffDirectoryChildren() {
                         <span className="text-slate-600">{active ? `${active.first_name} ${active.last_name}` : '—'}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{formatDob(child.created_at)}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatDob(child.created_at)}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       {canManageRecordRights && (
                         <>

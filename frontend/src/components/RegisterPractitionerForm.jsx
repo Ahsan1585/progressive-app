@@ -1033,8 +1033,8 @@ export const RegisterPractitionerForm = () => {
                     )}
                   </div>
                 </td>
-                <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.email}</td>
-                <td className={`px-4 py-3 text-slate-500 ${isDeactivated ? 'opacity-60' : ''}`}>{member.position_title || '—'}</td>
+                <td className={`px-4 py-3 text-slate-600 ${isDeactivated ? 'opacity-60' : ''}`}>{member.email}</td>
+                <td className={`px-4 py-3 text-slate-600 ${isDeactivated ? 'opacity-60' : ''}`}>{member.position_title || '—'}</td>
                 <td className={`px-4 py-3 ${isDeactivated ? 'opacity-60' : ''}`}>
                   {canManageRoles && member.role !== 'practitioner' ? (
                     <select
