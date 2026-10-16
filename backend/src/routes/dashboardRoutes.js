@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
-const { getDayOverview, getPipelineOverview, getReturnedLogs, getMonthOverview, getYearOverview, getAccountsPayable } = require('../controllers/dashboardController');
+const { getDayOverview, getPipelineOverview, getReturnedLogs, getSessionDetail, getMonthOverview, getYearOverview, getAccountsPayable } = require('../controllers/dashboardController');
 
 // Reuses the existing master_reports permission — same class of access as
 // Master Reports (company-wide view, not a single practitioner's own
@@ -12,6 +12,7 @@ const dashboardGuard = [protect, loadPermissions, requirePermission('master_repo
 router.get('/day', ...dashboardGuard, getDayOverview);
 router.get('/pipeline', ...dashboardGuard, getPipelineOverview);
 router.get('/returned-logs', ...dashboardGuard, getReturnedLogs);
+router.get('/session-detail', ...dashboardGuard, getSessionDetail);
 router.get('/month', ...dashboardGuard, getMonthOverview);
 router.get('/year', ...dashboardGuard, getYearOverview);
 router.get('/ap', ...dashboardGuard, getAccountsPayable);

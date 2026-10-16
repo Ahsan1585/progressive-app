@@ -132,6 +132,48 @@ const getReturnedLogs = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/session-detail?assessmentId=123 — field-by-field
+// "our log" vs "EIMS record" comparison for one session, so a flagged or
+// returned row in the Overview dashboard can be inspected inline (a dialog)
+// without navigating away to Billing & Invoices' Compliance Analysis tab.
+// Reuses computeSessionCompliance directly — same comparison logic and
+// field shape ({key, label, ours, state, match}) that tab already renders.
+const getSessionDetail = async (req, res) => {
+  const assessmentId = parseInt(req.query.assessmentId, 10);
+  if (!assessmentId) return res.status(400).json({ success: false, error: 'assessmentId is required' });
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.id, a.billing_status, a.service_date, a.hold_note, a.rejection_note, a.rejection_count,
+              a.patient_first_name, a.patient_last_name,
+              a.practitioner_first_name, a.practitioner_last_name
+       FROM assessments a WHERE a.id = $1`,
+      [assessmentId]
+    );
+    const session = rows[0];
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+
+    const compliance = await computeSessionCompliance(assessmentId);
+
+    res.json({
+      success: true,
+      session: {
+        id: session.id,
+        status: session.billing_status,
+        serviceDate: session.service_date,
+        note: session.hold_note || session.rejection_note || null,
+        rejectionCount: session.rejection_count,
+        patientName: `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim(),
+        practitionerName: `${session.practitioner_first_name || ''} ${session.practitioner_last_name || ''}`.trim(),
+      },
+      compliance,
+    });
+  } catch (error) {
+    console.error('getSessionDetail error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load session detail' });
+  }
+};
+
 function parseMonthParam(monthStr) {
   const now = new Date();
   const [yearStr, monthNumStr] = (monthStr || '').split('-');
@@ -184,10 +226,16 @@ const getPipelineOverview = async (req, res) => {
     // undercounts "matched" isn't trustworthy. Capped to the most recent
     // 2000 billed sessions (most-recent-first) to keep the cost bounded
     // on a large all-time backlog while staying representative.
+    //
+    // Includes on_hold/rejected — a session billing set aside precisely
+    // because it DIDN'T clear EIMS is the whole reason this chart exists;
+    // excluding them (as an earlier version did) silently hid every held
+    // or returned log from the match rate and could show a false 100%
+    // even with a real backlog of flagged sessions sitting in the queue.
     const { rows: billedSessions } = await pool.query(
-      `SELECT a.id, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
        FROM assessments a
-       WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified')
+       WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected')
        ORDER BY a.service_date DESC
        LIMIT 2000`
     );
@@ -204,7 +252,12 @@ const getPipelineOverview = async (req, res) => {
     billedSessions.forEach((s) => {
       const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
-      const { tier } = deriveEimsStatus(s, { mode, compliance });
+      // Same override as getAccountsPayable: a human hold/return always
+      // counts as unresolved here, regardless of what the EIMS tier alone
+      // would derive to.
+      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected')
+        ? 'exception'
+        : deriveEimsStatus(s, { mode, compliance }).tier;
       if (tier === 'cleared') eimsMatchRate.matched += 1;
       else if (tier === 'pending') eimsMatchRate.flagged += 1;
       else if (tier === 'exception') eimsMatchRate.flagged += 1;
@@ -471,15 +524,23 @@ const getYearOverview = async (req, res) => {
 // from TOTAL DUE NOW is held here too, for the same reason.
 const getAccountsPayable = async (req, res) => {
   try {
+    // Includes on_hold/rejected, not just invoiced/completed — a session
+    // billing set aside is still a session the practitioner performed and
+    // is still owed for, it just isn't cleared to pay yet. Excluding it
+    // (as an earlier version did) made "Ready to pay" show a false
+    // 100% cleared / 0% held whenever the real holdback was sitting
+    // entirely in on_hold/rejected logs that this query never looked at.
     const { rows: unpaidSessions } = await pool.query(
-      `SELECT a.id, a.practitioner_id, a.service_date, a.total_time,
+      `SELECT a.id, a.practitioner_id, a.service_date, a.total_time, a.billing_status,
               a.eims_missing_status, a.eims_entered_at, a.is_override,
               p.first_name, p.last_name, p.pay_rate, p.role
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
        LEFT JOIN billing_batches bb ON bb.id = a.billing_batch_id
-       WHERE a.billing_status IN ('invoiced', 'completed')
-         AND (bb.paid_at IS NULL)`
+       WHERE (
+         (a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NULL)
+         OR a.billing_status IN ('on_hold', 'rejected')
+       )`
     );
 
     if (unpaidSessions.length === 0) {
@@ -500,7 +561,14 @@ const getAccountsPayable = async (req, res) => {
       const lineTotal = Math.round(hours * parseFloat(s.pay_rate || 0) * 100) / 100;
       const mode = s.role === 'independent_practitioner' ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
-      const { tier } = deriveEimsStatus(s, { mode, compliance });
+      // A human explicitly set this log aside (on_hold/rejected) — that
+      // overrides whatever EIMS tier the data would otherwise derive to.
+      // Billing didn't flag it as "not safe to pay" because EIMS disagreed
+      // necessarily; it could be a manual hold for any reason. Either way,
+      // "held back by a human" must never show as "clear and safe to pay."
+      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected')
+        ? 'exception'
+        : deriveEimsStatus(s, { mode, compliance }).tier;
       const ageDays = s.service_date ? Math.floor((Date.now() - new Date(s.service_date).getTime()) / 86400000) : 0;
       return {
         practitionerId: s.practitioner_id,
@@ -577,6 +645,7 @@ module.exports = {
   getDayOverview,
   getPipelineOverview,
   getReturnedLogs,
+  getSessionDetail,
   getMonthOverview,
   getYearOverview,
   getAccountsPayable,

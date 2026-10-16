@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import api from '@/api/axiosInstance';
 import {
   Tag, Activity, AlertTriangle, CalendarClock, TrendingUp, TrendingDown,
-  CalendarDays, CalendarRange, Calendar,
+  CalendarDays, CalendarRange, Calendar, X, Check,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const compactMoney = (n) => `$${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -19,6 +20,107 @@ function daysAgo(dateStr) {
   const then = new Date(dateStr).getTime();
   if (Number.isNaN(then)) return null;
   return Math.max(0, Math.floor((Date.now() - then) / 86400000));
+}
+
+// Inline detail dialog for a flagged/returned session, opened by clicking a
+// row in ActionQueue or ReturnedLogsPanel. Fetches the same field-by-field
+// "our log" vs "EIMS record" comparison the Billing & Invoices Compliance
+// Analysis tab renders (GET /api/dashboard/session-detail reuses
+// computeSessionCompliance directly), so a CEO can see exactly what
+// mismatched without leaving the Overview dashboard.
+function SessionDetailDialog({ assessmentId, onClose }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!assessmentId) return;
+    setLoading(true);
+    setError(null);
+    api.get('/api/dashboard/session-detail', { params: { assessmentId } })
+      .then((res) => setData(res.data))
+      .catch((err) => setError(err.response?.data?.error || 'Failed to load session detail.'))
+      .finally(() => setLoading(false));
+  }, [assessmentId]);
+
+  const session = data?.session;
+  const compliance = data?.compliance;
+  const fields = compliance?.fields || [];
+
+  const statusLabel = session?.status === 'on_hold' ? 'On hold'
+    : session?.status === 'rejected' ? 'Returned'
+    : session?.status === 'declined' ? 'Declined'
+    : session?.status || '';
+
+  return (
+    <Dialog open={!!assessmentId} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl bg-white max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {session ? `${session.patientName} · ${session.practitionerName}` : 'Session detail'}
+          </DialogTitle>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="text-sm text-slate-400 text-center py-10">Loading…</div>
+        ) : error ? (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 flex-wrap text-xs">
+              <span className="font-bold uppercase px-2 py-1 rounded-full bg-amber-50 text-amber-700">{statusLabel}</span>
+              <span className="text-slate-500">Service date {session?.serviceDate}</span>
+              {session?.rejectionCount > 1 && <span className="text-slate-500">Sent back {session.rejectionCount}x</span>}
+            </div>
+
+            {session?.note && (
+              <div className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1">Note on file</div>
+                <div className="text-slate-700">{session.note}</div>
+              </div>
+            )}
+
+            {!compliance?.documentOnFile ? (
+              <div className="text-sm text-slate-500 text-center py-6">No compliance reference document on file to compare against.</div>
+            ) : fields.length === 0 ? (
+              <div className="text-sm text-slate-500 text-center py-6">Nothing to compare for this session.</div>
+            ) : (
+              <table className="w-full table-fixed text-sm">
+                <thead>
+                  <tr className="text-[11px] font-bold uppercase text-slate-500">
+                    <th className="text-left px-3 py-2 w-[28%]"></th>
+                    <th className="px-3 py-2 w-[36%]"><span className="text-sky-700 bg-sky-50 rounded px-2 py-0.5">Our Log</span></th>
+                    <th className="px-3 py-2 w-[36%]"><span className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">EIMS Record</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!compliance.matched && (
+                    <tr>
+                      <td className="px-3 py-2 text-center text-orange-600 text-xs font-semibold" colSpan={3}>
+                        No matching record found in EIMS for this session — showing our own logged values below.
+                      </td>
+                    </tr>
+                  )}
+                  {fields.map((f) => (
+                    <tr key={f.key} className={f.match === false ? 'bg-red-50/60' : ''}>
+                      <td className="px-3 py-2 font-semibold text-slate-700 align-top">
+                        <div className="flex items-center gap-1.5">
+                          {f.match === false ? <X className="size-3.5 text-red-500 flex-shrink-0" /> : f.match === true ? <Check className="size-3.5 text-emerald-500 flex-shrink-0" /> : null}
+                          {f.label}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-slate-800 align-top break-words">{f.ours ?? '—'}</td>
+                      <td className={`px-3 py-2 align-top break-words ${f.match === false ? 'text-red-700 font-semibold' : 'text-slate-800'}`}>{f.state ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // --- Verdict banner: a plain-language judgment, not a stat tile, with
@@ -85,7 +187,7 @@ function StatCard({ icon: Icon, tone, label, value, deltaText, deltaTone }) {
   );
 }
 
-function ActionQueue({ day }) {
+function ActionQueue({ day, onSelectSession }) {
   const sessions = day?.flaggedSessions || [];
   const total = day?.flaggedCount || 0;
 
@@ -103,7 +205,12 @@ function ActionQueue({ day }) {
             const age = daysAgo(s.flaggedAt || s.serviceDate);
             const isCritical = age !== null && age > 30;
             return (
-              <div key={s.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-3.5 py-2.5 min-w-0">
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => onSelectSession(s.id)}
+                className="w-full flex items-center gap-3 bg-slate-50 hover:bg-slate-100 transition-colors rounded-xl px-3.5 py-2.5 min-w-0 text-left cursor-pointer"
+              >
                 <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isCritical ? 'bg-rose-600' : 'bg-amber-600'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-[13.5px] font-semibold text-slate-900 truncate">
@@ -118,7 +225,7 @@ function ActionQueue({ day }) {
                     {age}d
                   </span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -248,7 +355,7 @@ function TrajectoryTabs({ active, onChange }) {
 // every returned/declined log (all-time), scrollable, each with its
 // status and full comment thread so a CEO can see exactly why a log
 // bounced back to a practitioner without leaving the dashboard.
-function ReturnedLogsPanel({ returnedLogs }) {
+function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
   const logs = returnedLogs?.logs || [];
   const count = returnedLogs?.count || 0;
   const [expandedId, setExpandedId] = useState(null);
@@ -271,27 +378,36 @@ function ReturnedLogsPanel({ returnedLogs }) {
             const isOpen = expandedId === log.id;
             return (
               <div key={log.id} className="bg-slate-50 rounded-xl overflow-hidden min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(isOpen ? null : log.id)}
-                  className="w-full min-w-0 flex items-center gap-3 px-3.5 py-2.5 text-left cursor-pointer"
-                >
-                  <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isDeclined ? 'bg-rose-600' : 'bg-amber-600'}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13.5px] font-semibold text-slate-900 truncate">
-                      {log.patientName} &middot; {log.practitionerName}
+                <div className="w-full min-w-0 flex items-center gap-3 px-3.5 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isOpen ? null : log.id)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
+                  >
+                    <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isDeclined ? 'bg-rose-600' : 'bg-amber-600'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13.5px] font-semibold text-slate-900 truncate">
+                        {log.patientName} &middot; {log.practitionerName}
+                      </div>
+                      <div className="text-[11.5px] text-slate-500 truncate">
+                        {isDeclined ? 'Declined' : 'Returned'}{log.rejectionCount > 1 ? ` &middot; sent back ${log.rejectionCount}x` : ''}
+                        {log.note ? ` — ${log.note}` : ''}
+                      </div>
                     </div>
-                    <div className="text-[11.5px] text-slate-500 truncate">
-                      {isDeclined ? 'Declined' : 'Returned'}{log.rejectionCount > 1 ? ` &middot; sent back ${log.rejectionCount}x` : ''}
-                      {log.note ? ` — ${log.note}` : ''}
-                    </div>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectSession(log.id)}
+                    className="text-[10.5px] font-semibold text-slate-500 hover:text-slate-800 underline flex-shrink-0 cursor-pointer"
+                  >
+                    Details
+                  </button>
                   {age !== null && (
                     <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${isDeclined ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
                       {age}d
                     </span>
                   )}
-                </button>
+                </div>
                 {isOpen && log.comments.length > 0 && (
                   <div className="border-t border-slate-200 bg-white px-3.5 py-3 space-y-2.5">
                     {log.comments.map((c, i) => (
@@ -449,6 +565,7 @@ export function CompanyDashboard() {
   // Same all-time framing as pipeline — "what's been returned" is a
   // standing backlog question, not a today-only one, so it fetches once.
   const [returnedLogs, setReturnedLogs] = useState(null);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
 
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
@@ -499,7 +616,7 @@ export function CompanyDashboard() {
         <p className="text-sm text-slate-500 mb-4 max-w-2xl">Everything currently in the pipeline, and what's stuck along the way.</p>
         <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start">
           <BillingFunnel pipeline={pipeline} />
-          <ActionQueue day={day} />
+          <ActionQueue day={day} onSelectSession={setSelectedSessionId} />
         </div>
       </div>
 
@@ -510,12 +627,14 @@ export function CompanyDashboard() {
         </div>
         <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same work, three distances — the volume trend, and how it's reconciling against the state.</p>
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 items-start">
-          {trajectoryTab === 'day' && <ReturnedLogsPanel returnedLogs={returnedLogs} />}
+          {trajectoryTab === 'day' && <ReturnedLogsPanel returnedLogs={returnedLogs} onSelectSession={setSelectedSessionId} />}
           {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
           {trajectoryTab === 'year' && <YearTrajectory />}
           <EimsDonut pipeline={pipeline} />
         </div>
       </div>
+
+      <SessionDetailDialog assessmentId={selectedSessionId} onClose={() => setSelectedSessionId(null)} />
     </div>
   );
 }
