@@ -1091,9 +1091,21 @@ const generateLiveSessions = async (req, res) => {
   const {
     year = 2026,
     month = 9,
-    activeFraction = 0.6,
-    minSessionsPerPractitioner = 50,
-    maxSessionsPerPractitioner = 100,
+    // With a realistic 1-4-practitioner care-team cap per child (see
+    // CHILD_CARE_TEAM_CAP below) and a small patient pool, only so many
+    // practitioners can realistically have an active caseload at once —
+    // a high activeFraction here just starves later practitioners of any
+    // available children. 0.15 keeps the "active roster" a plausible size
+    // relative to the patient pool instead of maximizing headcount.
+    activeFraction = 0.15,
+    // A real EI practitioner's monthly caseload is nowhere near 50-100
+    // sessions (that's 2-5+ visits every single workday) — 12-30/month is
+    // realistic for a typical part-time-to-full-time caseload across a
+    // handful of children seen 1-4x/week each. The old 50-100 default,
+    // combined with a large active-practitioner count, is what produced
+    // 15,000+ sessions in a single month on a 45-patient tenant.
+    minSessionsPerPractitioner = 12,
+    maxSessionsPerPractitioner = 30,
     errorRate = 0.12,
   } = req.body;
 
@@ -1120,6 +1132,17 @@ const generateLiveSessions = async (req, res) => {
     const manifest = [];
     let sessionsCreated = 0;
 
+    // Real EI care: a child has a small, fixed care team (typically 1-4
+    // practitioners across disciplines), never dozens. Picking children
+    // independently and uniformly at random per practitioner (as this used
+    // to do) produces birthday-paradox clustering — with ~300 practitioners
+    // drawing from a small patient pool, a handful of children end up
+    // linked to dozens of practitioners purely by chance. Each child gets a
+    // realistic cap (1-4) fixed once up front, and the per-practitioner
+    // picker below only draws from children still under their own cap.
+    const CHILD_CARE_TEAM_CAP = new Map(patients.map((p) => [p.id, randInt(1, 4)]));
+    const childAssignmentCount = new Map(patients.map((p) => [p.id, 0]));
+
     await client.query('BEGIN');
 
     for (const prac of activePractitioners) {
@@ -1136,15 +1159,52 @@ const generateLiveSessions = async (req, res) => {
         await client.query(`UPDATE practitioners SET pay_rate = 0 WHERE id = $1`, [prac.id]);
       }
 
-      // Link this practitioner to 2-6 random children (reuse existing links
-      // if any already exist) so logging stays within real ownership rules.
-      const childCount = Math.min(patients.length, randInt(2, 6));
-      const assignedPatients = [...patients].sort(() => Math.random() - 0.5).slice(0, childCount);
+      // Per-practitioner error-proneness multiplier applied to the base
+      // errorRate below — without this, every session rolls the exact same
+      // flat probability, and with enough sessions per practitioner the law
+      // of large numbers converges everyone to nearly the same error count
+      // (e.g. "3 flagged / 1 missing" across the whole roster), which reads
+      // as obviously fake/repetitive rather than real-world variance. Real
+      // agencies have a skewed distribution: most practitioners are careful
+      // (well below the base rate), a meaningful minority are average, and
+      // a small tail is genuinely sloppy (multiple times the base rate) —
+      // approximated here with a log-normal-ish draw (squaring a uniform
+      // random skews the mass toward the low end, with an occasional spike).
+      const practitionerErrorMultiplier = 0.15 + 2.5 * Math.pow(Math.random(), 2);
+
+      // Which error categories THIS practitioner tends toward — real
+      // sloppiness clusters (one practitioner is consistently weak on
+      // documenting location, another always has signature issues), it
+      // doesn't roll uniformly across every category every time. 2-4
+      // categories picked per practitioner, weighted 3x over the full set
+      // when an error does occur, so most of their errors come from their
+      // own "weak spots" with an occasional category outside that set.
+      const ALL_ERROR_CATEGORIES = [
+        'field_mismatch_time', 'field_mismatch_service', 'field_mismatch_location',
+        'missing_from_eims', 'duplicate_eims_row',
+        'signature_missing_practitioner', 'signature_missing_parent',
+        'cancelled_session', 'missing_child_link',
+      ];
+      const weakSpotCount = randInt(2, 4);
+      const practitionerWeakSpots = [...ALL_ERROR_CATEGORIES].sort(() => Math.random() - 0.5).slice(0, weakSpotCount);
+      const weightedCategoryPool = [
+        ...practitionerWeakSpots, ...practitionerWeakSpots, ...practitionerWeakSpots,
+        ...ALL_ERROR_CATEGORIES,
+      ];
+
+      // Link this practitioner to 2-6 children, drawn only from children
+      // who haven't yet hit their fixed care-team cap (CHILD_CARE_TEAM_CAP
+      // above) — keeps every child's total practitioner count realistic
+      // instead of a handful of children ending up linked to dozens.
+      const availableChildren = patients.filter((p) => childAssignmentCount.get(p.id) < CHILD_CARE_TEAM_CAP.get(p.id));
+      const childCount = Math.min(availableChildren.length, randInt(2, 6));
+      const assignedPatients = [...availableChildren].sort(() => Math.random() - 0.5).slice(0, childCount);
       for (const pt of assignedPatients) {
         await client.query(
           `INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
           [pt.id, prac.id]
         );
+        childAssignmentCount.set(pt.id, childAssignmentCount.get(pt.id) + 1);
       }
 
       const sessionCount = randInt(minSessionsPerPractitioner, maxSessionsPerPractitioner);
@@ -1201,14 +1261,8 @@ const generateLiveSessions = async (req, res) => {
         let duplicateOf = null;
         let signatureIssue = null;
 
-        if (Math.random() < errorRate) {
-          const categories = [
-            'field_mismatch_time', 'field_mismatch_service', 'field_mismatch_location',
-            'missing_from_eims', 'duplicate_eims_row',
-            'signature_missing_practitioner', 'signature_missing_parent',
-            'cancelled_session', 'missing_child_link',
-          ];
-          errorType = pick(categories);
+        if (Math.random() < errorRate * practitionerErrorMultiplier) {
+          errorType = pick(weightedCategoryPool);
 
           switch (errorType) {
             case 'field_mismatch_time': {
