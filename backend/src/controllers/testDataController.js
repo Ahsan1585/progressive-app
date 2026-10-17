@@ -1192,13 +1192,20 @@ const generateLiveSessions = async (req, res) => {
         ...ALL_ERROR_CATEGORIES,
       ];
 
-      // Link this practitioner to 2-6 children, drawn only from children
-      // who haven't yet hit their fixed care-team cap (CHILD_CARE_TEAM_CAP
+      // Link this practitioner to 2-6 children, preferring children who
+      // haven't yet hit their fixed care-team cap (CHILD_CARE_TEAM_CAP
       // above) — keeps every child's total practitioner count realistic
-      // instead of a handful of children ending up linked to dozens.
-      const availableChildren = patients.filter((p) => childAssignmentCount.get(p.id) < CHILD_CARE_TEAM_CAP.get(p.id));
-      const childCount = Math.min(availableChildren.length, randInt(2, 6));
-      const assignedPatients = [...availableChildren].sort(() => Math.random() - 0.5).slice(0, childCount);
+      // instead of a handful of children ending up linked to dozens. Falls
+      // back to the full patient pool if every child is already at cap
+      // (a small patient pool + many active practitioners can exhaust
+      // under-cap children before everyone's been assigned) — a
+      // practitioner left with zero children entirely would crash the
+      // session loop below, which is worse than occasionally exceeding
+      // the soft cap by one practitioner.
+      const underCapChildren = patients.filter((p) => childAssignmentCount.get(p.id) < CHILD_CARE_TEAM_CAP.get(p.id));
+      const childPool = underCapChildren.length > 0 ? underCapChildren : patients;
+      const childCount = Math.min(childPool.length, randInt(2, 6));
+      const assignedPatients = [...childPool].sort(() => Math.random() - 0.5).slice(0, childCount);
       for (const pt of assignedPatients) {
         await client.query(
           `INSERT INTO patient_practitioners (patient_id, practitioner_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
