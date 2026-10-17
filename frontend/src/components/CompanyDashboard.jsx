@@ -161,6 +161,95 @@ function SessionDetailDialog({ assessmentId, onClose }) {
   );
 }
 
+// Leadership-visible scorecard: who's consistently submitting clean,
+// EIMS-matching session logs vs. who's generating mismatches/holds/
+// returns, for the selected month. Sorted worst-first by the backend
+// (practitionerAccuracy) so the practitioners most worth a conversation
+// surface at the top without the viewer having to sort for it. Excludes
+// independent practitioners — their "match" is self-reported, not a real
+// cross-reference, so mixing them in would compare two different things.
+function PractitionerAccuracyTable({ month }) {
+  const rows = month?.practitionerAccuracy || [];
+  const [sortBy, setSortBy] = useState('accuracyPct'); // 'accuracyPct' | 'sessionsChecked' | 'heldOrReturned'
+  const [sortDir, setSortDir] = useState('asc');
+
+  const sorted = [...rows].sort((a, b) => {
+    const av = a[sortBy] ?? (sortBy === 'accuracyPct' ? 101 : 0);
+    const bv = b[sortBy] ?? (sortBy === 'accuracyPct' ? 101 : 0);
+    return sortDir === 'asc' ? av - bv : bv - av;
+  });
+
+  const toggleSort = (key) => {
+    if (sortBy === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortBy(key); setSortDir(key === 'accuracyPct' ? 'asc' : 'desc'); }
+  };
+
+  const tierTone = (pct) => {
+    if (pct == null) return { text: 'text-slate-400', bg: 'bg-slate-50', bar: '#cbd5e1' };
+    if (pct >= 90) return { text: 'text-teal-700', bg: 'bg-teal-50', bar: '#0d9488' };
+    if (pct >= 70) return { text: 'text-amber-700', bg: 'bg-amber-50', bar: '#d97706' };
+    return { text: 'text-rose-700', bg: 'bg-rose-50', bar: '#e11d48' };
+  };
+
+  const SortHeader = ({ label, sortKey, className }) => (
+    <th className={`text-xs font-bold uppercase text-slate-500 px-3 py-2.5 cursor-pointer select-none ${className || ''}`} onClick={() => toggleSort(sortKey)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortBy === sortKey && <span className="text-[10px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
+      </span>
+    </th>
+  );
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100">
+        <div className="text-[15.5px] font-bold text-slate-900">Practitioner accuracy</div>
+        <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+          How cleanly each practitioner's logged sessions matched EIMS this month — holds and returns count against the score. Independent practitioners (self-reported, not cross-checked) aren't included.
+        </p>
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-sm text-slate-400 text-center py-10">No agency practitioner sessions checked against EIMS this month yet.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="text-left text-xs font-bold uppercase text-slate-500 px-5 py-2.5">Practitioner</th>
+                <SortHeader label="Accuracy" sortKey="accuracyPct" />
+                <SortHeader label="Checked" sortKey="sessionsChecked" />
+                <SortHeader label="Held / Returned" sortKey="heldOrReturned" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sorted.map((r) => {
+                const tone = tierTone(r.accuracyPct);
+                return (
+                  <tr key={r.practitionerId} className="hover:bg-slate-50">
+                    <td className="px-5 py-3 font-semibold text-slate-800">{r.name}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-20 h-2 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
+                          <div className="h-full rounded-full" style={{ width: `${r.accuracyPct ?? 0}%`, background: tone.bar }} />
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tone.bg} ${tone.text}`}>
+                          {r.accuracyPct != null ? `${r.accuracyPct}%` : '—'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-slate-600 font-mono tabular-nums">{r.sessionsChecked}</td>
+                    <td className="px-3 py-3 text-slate-600 font-mono tabular-nums">{r.heldOrReturned}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Verdict banner: a plain-language judgment, not a stat tile, with
 // the supporting numbers underneath it rather than standing alone. ---
 function VerdictBanner({ day, ap }) {
@@ -666,6 +755,12 @@ export function CompanyDashboard() {
           <BillingFunnel pipeline={pipeline} />
           <ActionQueue day={day} onSelectSession={setSelectedSessionId} />
         </div>
+      </div>
+
+      <div>
+        <div className="text-lg font-bold text-slate-900 mb-1">Who's submitting clean logs</div>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same month as above — sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
+        <PractitionerAccuracyTable month={month} />
       </div>
 
       <div>

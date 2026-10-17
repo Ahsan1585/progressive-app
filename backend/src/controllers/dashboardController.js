@@ -348,18 +348,23 @@ const getMonthOverview = async (req, res) => {
     const paidCount = paidRows[0].count;
 
     // EIMS match rate for the month — bounded to sessions already past
-    // pending (njeis_review/invoiced/completed/self_certified), reusing
-    // the same loadComplianceForLines bounded-concurrency pattern the
-    // invoice generator uses. Capped window (one month), not all-time.
+    // pending (njeis_review/invoiced/completed/self_certified/on_hold/
+    // rejected), reusing the same loadComplianceForLines bounded-
+    // concurrency pattern the invoice generator uses. Capped window (one
+    // month), not all-time. on_hold/rejected included (same fix as
+    // getPipelineOverview/getAccountsPayable) so a held-back session
+    // doesn't silently vanish from the rate instead of counting against
+    // it — their tier is force-set to 'exception' below regardless of
+    // what EIMS alone says, since a human hold overrides that.
     const { rows: billedSessions } = await pool.query(
-      `SELECT a.id, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
        FROM assessments a
        WHERE a.service_date >= $1 AND a.service_date <= $2
-         AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified')`,
+         AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected')`,
       [start, end]
     );
     const { rows: practitionerRoleRows } = await pool.query(
-      `SELECT id, role FROM practitioners WHERE id = ANY($1::int[])`,
+      `SELECT id, role, first_name, last_name FROM practitioners WHERE id = ANY($1::int[])`,
       [[...new Set(billedSessions.map((s) => s.practitioner_id))]]
     );
     const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
@@ -368,15 +373,49 @@ const getMonthOverview = async (req, res) => {
       computeSessionCompliance
     );
     const eimsMatchRate = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
+    // Per-practitioner accuracy scorecard — same tier computation as the
+    // aggregate rate above, just bucketed by practitioner_id too. "Clean"
+    // means matched cleanly, EVERYTHING else (mismatch, missing, held,
+    // returned, unverified) counts against the score, since all of those
+    // represent a log leadership had to question or chase down.
+    const accuracyByPractitioner = new Map();
     billedSessions.forEach((s) => {
-      const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
+      const isIndependent = roleById.get(s.practitioner_id) === 'independent_practitioner';
+      const mode = isIndependent ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
-      const { tier } = deriveEimsStatus(s, { mode, compliance });
+      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected')
+        ? 'exception'
+        : deriveEimsStatus(s, { mode, compliance }).tier;
       if (tier === 'cleared') eimsMatchRate.matched += 1;
       else if (tier === 'pending') eimsMatchRate.flagged += 1;
       else if (tier === 'exception') eimsMatchRate.flagged += 1;
       else eimsMatchRate.unverified += 1;
+
+      // Independent practitioners self-report into EIMS — their "cleared"
+      // tier means "said they entered it," not a real cross-referenced
+      // match, so they're excluded from this scorecard entirely rather
+      // than diluted into the same number as agency practitioners' actual
+      // match rate.
+      if (isIndependent) return;
+      if (!accuracyByPractitioner.has(s.practitioner_id)) {
+        accuracyByPractitioner.set(s.practitioner_id, { total: 0, clean: 0, held: 0 });
+      }
+      const acc = accuracyByPractitioner.get(s.practitioner_id);
+      acc.total += 1;
+      if (tier === 'cleared') acc.clean += 1;
+      if (s.billing_status === 'on_hold' || s.billing_status === 'rejected') acc.held += 1;
     });
+    const practitionerAccuracy = [...accuracyByPractitioner.entries()].map(([practitionerId, acc]) => {
+      const p = practitionerRoleRows.find((r) => r.id === practitionerId);
+      return {
+        practitionerId,
+        name: p ? `${p.first_name} ${p.last_name}` : 'Unknown',
+        sessionsChecked: acc.total,
+        cleanMatches: acc.clean,
+        heldOrReturned: acc.held,
+        accuracyPct: acc.total > 0 ? Math.round((acc.clean / acc.total) * 1000) / 10 : null,
+      };
+    }).sort((a, b) => (a.accuracyPct ?? 101) - (b.accuracyPct ?? 101));
 
     const { rows: practitionerTableRows } = await pool.query(
       `SELECT a.practitioner_id, p.first_name, p.last_name, p.pay_rate,
@@ -454,6 +493,7 @@ const getMonthOverview = async (req, res) => {
       exceptions,
       eimsMatchRate,
       practitionerTable,
+      practitionerAccuracy,
       patientRosterCount: rosterRows[0].count,
       ap: {
         totalOwed: Math.round(apTotalOwed * 100) / 100,
