@@ -330,7 +330,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
   // without starting over completely.
   const handleDeleteMonthData = async (row) => {
     const label = new Date(`${row.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    if (!(await showConfirm(`Delete all ${row.record_count} record${row.record_count === 1 ? '' : 's'} on file for ${label}? This can't be undone — you'd need to re-upload a file covering that month to get it back.`))) {
+    if (!(await showConfirm(`Delete all ${row.record_count} record${row.record_count === 1 ? '' : 's'} on file for ${label}? This only removes ${label}'s parsed data — the reference file attached above stays and still appears on screen. This can't be undone — you'd need to re-upload a file covering that month to get the data back.`))) {
       return;
     }
     setDeletingMonth(row.month);
@@ -568,7 +568,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
               <div>
                 <h3 className="text-sm font-bold text-slate-800">Data currently on file</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  From the last confirmed upload — updates the next time a file is applied, or when refreshed.
+                  From the last confirmed upload — updates the next time a file is applied, or when refreshed. Deleting a month here only removes that month's parsed records, not the reference file attached above.
                 </p>
               </div>
               <div className="flex items-center gap-3 flex-shrink-0">
