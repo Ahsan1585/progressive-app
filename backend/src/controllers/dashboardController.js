@@ -214,12 +214,13 @@ const getPipelineOverview = async (req, res) => {
     // stage, invoiced ones included (a session doesn't stop being
     // "reviewed" once it's also invoiced) — it's a cumulative funnel
     // stage, not a disjoint bucket. It also has to include on_hold/
-    // rejected: billing set those aside only AFTER reviewing them (that's
-    // why they're flagged, not pending), so leaving them out of this
-    // stage hid the entire held-back backlog from the funnel, making a
-    // real 7%-held tenant look like 100% of reviewed work sailed straight
-    // through to Invoiced.
-    const reviewed = byStatus.njeis_review + invoicedTotal + exceptions.on_hold + exceptions.rejected;
+    // rejected/declined: billing set those aside (or finally declined
+    // them) only AFTER reviewing them, so leaving them out of this stage
+    // hid the entire held-back/declined backlog from the funnel, making a
+    // real held-or-declined tenant look like 100% of reviewed work sailed
+    // straight through to Invoiced. (declined was missed in an earlier
+    // pass of this same fix — same gap, one more status.)
+    const reviewed = byStatus.njeis_review + invoicedTotal + exceptions.on_hold + exceptions.rejected + exceptions.declined;
 
     // Real "paid" count — billing_batches.paid_at is the authoritative
     // signal, same join the AP endpoint and getMonthOverview use.
@@ -237,15 +238,16 @@ const getPipelineOverview = async (req, res) => {
     // 2000 billed sessions (most-recent-first) to keep the cost bounded
     // on a large all-time backlog while staying representative.
     //
-    // Includes on_hold/rejected — a session billing set aside precisely
-    // because it DIDN'T clear EIMS is the whole reason this chart exists;
-    // excluding them (as an earlier version did) silently hid every held
-    // or returned log from the match rate and could show a false 100%
-    // even with a real backlog of flagged sessions sitting in the queue.
+    // Includes on_hold/rejected/declined — a session billing set aside
+    // (or permanently declined) precisely because it DIDN'T clear EIMS is
+    // the whole reason this chart exists; excluding any of them (as an
+    // earlier pass of this fix still did for 'declined') silently hides
+    // that session from the match rate and can show a false 100% even
+    // with a real backlog of flagged/declined sessions in the queue.
     const { rows: billedSessions } = await pool.query(
       `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
        FROM assessments a
-       WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected')
+       WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')
        ORDER BY a.service_date DESC
        LIMIT 2000`
     );
@@ -262,10 +264,10 @@ const getPipelineOverview = async (req, res) => {
     billedSessions.forEach((s) => {
       const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
-      // Same override as getAccountsPayable: a human hold/return always
-      // counts as unresolved here, regardless of what the EIMS tier alone
-      // would derive to.
-      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected')
+      // Same override as getAccountsPayable: a human hold/return/decline
+      // always counts as unresolved here, regardless of what the EIMS
+      // tier alone would derive to.
+      const tier = ['on_hold', 'rejected', 'declined'].includes(s.billing_status)
         ? 'exception'
         : deriveEimsStatus(s, { mode, compliance }).tier;
       if (tier === 'cleared') eimsMatchRate.matched += 1;
@@ -349,18 +351,20 @@ const getMonthOverview = async (req, res) => {
 
     // EIMS match rate for the month — bounded to sessions already past
     // pending (njeis_review/invoiced/completed/self_certified/on_hold/
-    // rejected), reusing the same loadComplianceForLines bounded-
+    // rejected/declined), reusing the same loadComplianceForLines bounded-
     // concurrency pattern the invoice generator uses. Capped window (one
-    // month), not all-time. on_hold/rejected included (same fix as
-    // getPipelineOverview/getAccountsPayable) so a held-back session
-    // doesn't silently vanish from the rate instead of counting against
-    // it — their tier is force-set to 'exception' below regardless of
-    // what EIMS alone says, since a human hold overrides that.
+    // month), not all-time. on_hold/rejected/declined included (same fix
+    // as getPipelineOverview/getAccountsPayable — declined was missed in
+    // an earlier pass) so a held-back or declined session doesn't silently
+    // vanish from the rate instead of counting against it — their tier is
+    // force-set to 'exception' below regardless of what EIMS alone says,
+    // since a human decision overrides that.
+    const EXCEPTION_STATUSES = ['on_hold', 'rejected', 'declined'];
     const { rows: billedSessions } = await pool.query(
       `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
        FROM assessments a
        WHERE a.service_date >= $1 AND a.service_date <= $2
-         AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected')`,
+         AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')`,
       [start, end]
     );
     const { rows: practitionerRoleRows } = await pool.query(
@@ -376,14 +380,14 @@ const getMonthOverview = async (req, res) => {
     // Per-practitioner accuracy scorecard — same tier computation as the
     // aggregate rate above, just bucketed by practitioner_id too. "Clean"
     // means matched cleanly, EVERYTHING else (mismatch, missing, held,
-    // returned, unverified) counts against the score, since all of those
-    // represent a log leadership had to question or chase down.
+    // returned, declined, unverified) counts against the score, since all
+    // of those represent a log leadership had to question or chase down.
     const accuracyByPractitioner = new Map();
     billedSessions.forEach((s) => {
       const isIndependent = roleById.get(s.practitioner_id) === 'independent_practitioner';
       const mode = isIndependent ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
-      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected')
+      const tier = EXCEPTION_STATUSES.includes(s.billing_status)
         ? 'exception'
         : deriveEimsStatus(s, { mode, compliance }).tier;
       if (tier === 'cleared') eimsMatchRate.matched += 1;
@@ -403,7 +407,7 @@ const getMonthOverview = async (req, res) => {
       const acc = accuracyByPractitioner.get(s.practitioner_id);
       acc.total += 1;
       if (tier === 'cleared') acc.clean += 1;
-      if (s.billing_status === 'on_hold' || s.billing_status === 'rejected') acc.held += 1;
+      if (EXCEPTION_STATUSES.includes(s.billing_status)) acc.held += 1;
     });
     const practitionerAccuracy = [...accuracyByPractitioner.entries()].map(([practitionerId, acc]) => {
       const p = practitionerRoleRows.find((r) => r.id === practitionerId);
