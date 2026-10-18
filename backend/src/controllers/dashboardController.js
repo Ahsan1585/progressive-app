@@ -147,7 +147,7 @@ const getSessionDetail = async (req, res) => {
     const { rows } = await pool.query(
       `SELECT a.id, a.billing_status, a.service_date, a.hold_note, a.rejection_note, a.rejection_count,
               a.patient_first_name, a.patient_last_name,
-              a.practitioner_first_name, a.practitioner_last_name
+              a.practitioner_id, a.practitioner_first_name, a.practitioner_last_name
        FROM assessments a WHERE a.id = $1`,
       [assessmentId]
     );
@@ -165,6 +165,7 @@ const getSessionDetail = async (req, res) => {
         note: session.hold_note || session.rejection_note || null,
         rejectionCount: session.rejection_count,
         patientName: `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim(),
+        practitionerId: session.practitioner_id,
         practitionerName: `${session.practitioner_first_name || ''} ${session.practitioner_last_name || ''}`.trim(),
       },
       compliance,

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import api from '@/api/axiosInstance';
 import {
   Tag, Activity, AlertTriangle, CalendarClock, TrendingUp, TrendingDown,
-  CalendarDays, CalendarRange, Calendar, X, Check,
+  CalendarDays, CalendarRange, Calendar, X, Check, MessageCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useMessaging } from '@/context/useMessaging';
 
 const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const compactMoney = (n) => `$${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -67,6 +68,7 @@ function MonthYearPicker({ value, onChange }) {
 // computeSessionCompliance directly), so a CEO can see exactly what
 // mismatched without leaving the Overview dashboard.
 function SessionDetailDialog({ assessmentId, onClose }) {
+  const { openThread } = useMessaging();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -105,10 +107,22 @@ function SessionDetailDialog({ assessmentId, onClose }) {
           <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 flex-wrap text-xs">
-              <span className="font-bold uppercase px-2 py-1 rounded-full bg-amber-50 text-amber-700">{statusLabel}</span>
-              <span className="text-slate-500">Service date {session?.serviceDate}</span>
-              {session?.rejectionCount > 1 && <span className="text-slate-500">Sent back {session.rejectionCount}x</span>}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap text-xs">
+                <span className="font-bold uppercase px-2 py-1 rounded-full bg-amber-50 text-amber-700">{statusLabel}</span>
+                <span className="text-slate-500">Service date {session?.serviceDate}</span>
+                {session?.rejectionCount > 1 && <span className="text-slate-500">Sent back {session.rejectionCount}x</span>}
+              </div>
+              {session?.practitionerId && (
+                <button
+                  type="button"
+                  onClick={() => { openThread(session.practitionerId); onClose(); }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg px-2.5 py-1.5 cursor-pointer flex-shrink-0"
+                >
+                  <MessageCircle className="size-3.5" />
+                  Message {session.practitionerName}
+                </button>
+              )}
             </div>
 
             {session?.note && (
