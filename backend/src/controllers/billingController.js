@@ -214,6 +214,179 @@ const getPendingLogs = async (req, res) => {
   }
 };
 
+// Bulk-compliance-run's auto-generate path: SEVF then invoice, for one
+// practitioner's already-confirmed-clean period, in one atomic internal
+// call rather than the two separate HTTP round-trips the manual flow uses.
+// Copies (does not call into) generateNJEISForms/generateFinancialInvoice's
+// query/PDF-building logic — those two HTTP handlers stay exactly as they
+// are, since generateFinancialInvoice's HTTP path legitimately needs to
+// re-query assessments fresh (it can run any amount of time after
+// generateNJEISForms as a separate request), which this single-call path
+// doesn't need to reproduce. Reuses the SEVF step's own in-memory
+// assessment list for the invoice step instead of re-querying, since this
+// is one unbroken function call, not two requests. Throws on any failure —
+// never catches-and-returns-partial-success, so the caller (bulkComplianceRun)
+// can tell "fully succeeded" from "failed partway" and act accordingly.
+async function runAutoGenerateForPractitioner(practitionerId, startDate, endDate, processedByPractitionerId) {
+  // --- SEVF generation (mirrors generateNJEISForms) ---
+  const sevfParams = [practitionerId, ['pending']];
+  let sevfSql = `
+    SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
+    FROM assessments a
+    JOIN practitioners p ON p.id = a.practitioner_id
+    LEFT JOIN patients pt ON pt.id = a.patient_id
+    WHERE a.practitioner_id = $1 AND a.billing_status = ANY($2::text[])
+  `;
+  if (startDate) { sevfParams.push(startDate); sevfSql += ` AND a.service_date >= $${sevfParams.length}`; }
+  if (endDate) { sevfParams.push(endDate); sevfSql += ` AND a.service_date <= $${sevfParams.length}`; }
+  sevfSql += ' ORDER BY a.service_date ASC';
+
+  const { rows: assessments } = await pool.query(sevfSql, sevfParams);
+  if (!assessments || assessments.length === 0) {
+    throw new Error('No pending assessments found for this practitioner in this period.');
+  }
+
+  const companyName = await getCompanyName();
+  const practitioner = assessments[0].practitioners;
+  const allAssessmentIds = assessments.map((a) => a.id);
+  const groupedByPatient = assessments.reduce((acc, record) => {
+    if (!acc[record.patient_id]) acc[record.patient_id] = [];
+    acc[record.patient_id].push(record);
+    return acc;
+  }, {});
+
+  const templatePath = path.join(__dirname, '..', '..', 'templates', 'NJEIS-020.pdf');
+  const templateBytes = fs.readFileSync(templatePath);
+  const finalNjeisPdf = await PDFDocument.create();
+  for (const patientId of Object.keys(groupedByPatient)) {
+    const patientRecords = groupedByPatient[patientId];
+    const groupDoc = await buildNjeisPdfForGroup(templateBytes, patientRecords, companyName, practitioner);
+    const groupPageIndices = groupDoc.getPageIndices();
+    const copiedPages = await finalNjeisPdf.copyPages(groupDoc, groupPageIndices);
+    copiedPages.forEach((p) => finalNjeisPdf.addPage(p));
+  }
+  const njeisPdfBuffer = await finalNjeisPdf.save();
+
+  const now = new Date();
+  const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const practName = `${practitioner.first_name}_${practitioner.last_name}`.replace(/\s+/g, '_');
+  const folderPath = `${yearMonth}/${practName}`;
+  const serviceDates = assessments.map((a) => a.service_date).filter(Boolean).sort();
+  const minDate = (serviceDates[0] || '').replace(/-/g, '');
+  const maxDate = (serviceDates[serviceDates.length - 1] || '').replace(/-/g, '');
+  const timestamp = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  const sevfFileName = `NJEIS_${minDate}_${maxDate}_${timestamp}.pdf`;
+  const sevfPath = `${folderPath}/${sevfFileName}`;
+
+  await uploadFile(BILLING_INVOICES_BUCKET, sevfPath, njeisPdfBuffer, 'application/pdf');
+
+  let batchRow = null;
+  try {
+    const { rows: batchRows } = await pool.query(
+      `INSERT INTO billing_batches (practitioner_id, start_date, end_date, njeis_path)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [practitionerId, serviceDates[0] || null, serviceDates[serviceDates.length - 1] || null, sevfPath]
+    );
+    batchRow = batchRows[0];
+  } catch (batchInsertError) {
+    console.warn('billing_batches insert failed (non-fatal):', batchInsertError.message);
+  }
+  if (batchRow) {
+    await pool.query('UPDATE assessments SET billing_batch_id = $1 WHERE id = ANY($2::int[])', [batchRow.id, allAssessmentIds]);
+  }
+  // The bulk path only ever reaches here for a fully-clean period (no
+  // held/rejected sessions mixed in — see bulkComplianceRun's isClean
+  // check), so every assessment advances; unlike generateNJEISForms's HTTP
+  // path there's no `!== 'rejected'` filter needed here.
+  await pool.query("UPDATE assessments SET billing_status = 'njeis_review' WHERE id = ANY($1::int[])", [allAssessmentIds]);
+
+  logAudit({
+    actorId: processedByPractitionerId, action: 'njeis_pdf_generate', resourceType: 'billing_batch', resourceId: batchRow?.id || null,
+    details: { practitionerId, assessmentCount: allAssessmentIds.length, source: 'bulk_compliance_run' },
+  });
+
+  const batchId = batchRow?.id || crypto.randomUUID();
+
+  // --- Invoice generation (mirrors generateFinancialInvoice), reusing the
+  // same in-memory assessment list rather than re-querying — this is one
+  // atomic call, not two HTTP requests. ---
+  const { rows: specialistRows } = await pool.query(
+    'SELECT first_name, last_name FROM practitioners WHERE id = $1',
+    [processedByPractitionerId]
+  );
+  const processedBy = specialistRows[0]
+    ? `${specialistRows[0].first_name || ''} ${specialistRows[0].last_name || ''}`.trim()
+    : '';
+
+  const companySettings = await getCompanySettingsForDocuments();
+  const complianceById = await loadComplianceForLines(
+    assessments.map((a) => a.id),
+    computeSessionCompliance
+  );
+  const lines = buildInvoiceLines(assessments, practitioner, { mode: 'agency', complianceById });
+  const warnings = [];
+  if (lines.some((l) => l.rate === 0)) {
+    warnings.push('No pay rate is set for this practitioner — amounts shown as $0.00.');
+  }
+
+  const serviceDatesForCtx = assessments.map((a) => a.service_date).filter(Boolean).sort();
+  const invoicePdfBuffer = await generateInvoicePDF({
+    mode: 'agency',
+    invoice: {
+      number: formatInvoiceNumber(batchId),
+      batchId,
+      issuedAt: new Date(),
+      periodStart: startDate || serviceDatesForCtx[0],
+      periodEnd: endDate || serviceDatesForCtx[serviceDatesForCtx.length - 1],
+    },
+    brand: buildBrand(companySettings),
+    from: {
+      title: 'FROM',
+      name: `${practitioner.first_name || ''} ${practitioner.last_name || ''}`.trim(),
+      lines: [
+        ...formatPractitionerAddressLines(practitioner),
+        practitioner.phone_number || '',
+        practitioner.email || '',
+      ].filter(Boolean),
+    },
+    billTo: {
+      title: 'BILL TO',
+      name: companySettings?.legal_entity_name || companySettings?.display_name || '',
+      lines: [companySettings?.address, companySettings?.phone, companySettings?.billing_email].filter(Boolean),
+    },
+    details: {
+      discipline: (practitioner.service_types || [])[0] || '',
+      taxIdMasked: maskTaxId(practitioner.ssn),
+      processedBy,
+    },
+    certificationParty: companySettings?.legal_entity_name || companySettings?.display_name || '',
+    lines,
+    warnings,
+  });
+
+  const invNow = new Date();
+  const invYearMonth = `${invNow.getFullYear()}-${String(invNow.getMonth() + 1).padStart(2, '0')}`;
+  const invPractName = `${practitioner.first_name}_${practitioner.last_name}`.replace(/\s+/g, '_');
+  const invMinDate = (serviceDatesForCtx[0] || '').replace(/-/g, '');
+  const invMaxDate = (serviceDatesForCtx[serviceDatesForCtx.length - 1] || '').replace(/-/g, '');
+  const invTimestamp = `${String(invNow.getHours()).padStart(2, '0')}${String(invNow.getMinutes()).padStart(2, '0')}${String(invNow.getSeconds()).padStart(2, '0')}`;
+  const invoicePath = `${invYearMonth}/${invPractName}/Invoice_${invMinDate}_${invMaxDate}_${invTimestamp}.pdf`;
+
+  await uploadFile(BILLING_INVOICES_BUCKET, invoicePath, invoicePdfBuffer, 'application/pdf');
+
+  if (batchRow) {
+    await pool.query('UPDATE billing_batches SET invoice_path = $1 WHERE id = $2', [invoicePath, batchId]);
+  }
+
+  logAudit({
+    actorId: processedByPractitionerId, action: 'invoice_pdf_generate', resourceType: 'billing_batch', resourceId: batchId || null,
+    details: { practitionerId, assessmentCount: assessments.length, source: 'bulk_compliance_run' },
+  });
+
+  return { success: true, batchId, sevfPath, invoicePath };
+}
+
 // --- 3. STEP 1: Generate Master NJEIS Forms ---
 const generateNJEISForms = async (req, res) => {
   const { practitionerId, startDate, endDate, excludedIds = [] } = req.body;
@@ -2704,6 +2877,7 @@ module.exports = {
   runComplianceAnalysisForPractitioner,
   acquireLock,
   releaseLock,
+  runAutoGenerateForPractitioner,
   updateLogStatus,
   rejectLog,
   reconcileLog,

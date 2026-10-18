@@ -1,4 +1,38 @@
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn() } }));
+jest.mock('../../config/storage', () => ({
+  BILLING_INVOICES_BUCKET: 'test-bucket',
+  uploadFile: jest.fn().mockResolvedValue(),
+  downloadFile: jest.fn(),
+  getSignedUrl: jest.fn().mockResolvedValue('https://signed.example/file'),
+  removeFiles: jest.fn(),
+  listFilesDetailed: jest.fn(),
+}));
+jest.mock('../../utils/invoiceGenerator', () => ({
+  generateInvoicePDF: jest.fn().mockResolvedValue(Buffer.from('fake-invoice-pdf')),
+}));
+jest.mock('../../utils/njeisFormFiller', () => ({
+  buildNjeisPdfForGroup: jest.fn().mockResolvedValue({
+    getPageIndices: () => [0],
+  }),
+}));
+jest.mock('../../utils/companyName', () => ({
+  getCompanyName: jest.fn().mockResolvedValue('Test Agency'),
+  getCompanySettingsForDocuments: jest.fn().mockResolvedValue({ legal_entity_name: 'Test Agency', address: '123 Main St' }),
+}));
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+  readFileSync: jest.fn(() => Buffer.from('fake-template')),
+}));
+jest.mock('pdf-lib', () => ({
+  ...jest.requireActual('pdf-lib'),
+  PDFDocument: {
+    create: jest.fn().mockResolvedValue({
+      copyPages: jest.fn().mockResolvedValue([{}]),
+      addPage: jest.fn(),
+      save: jest.fn().mockResolvedValue(Buffer.from('fake-sevf-pdf')),
+    }),
+  },
+}));
 // buildFieldsForSession resolves service/location/group-size labels through
 // the tenant-scoped dropdown cache (njeis.js's codeLabel ->
 // getDropdownOptionsCache -> getCurrentTenantDb) — outside any real request's
@@ -94,5 +128,44 @@ describe('updateLogStatus duplicate gate', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: expect.stringContaining('duplicate'),
     }));
+  });
+});
+
+describe('runAutoGenerateForPractitioner', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  test('throws if no pending sessions exist in the period', async () => {
+    const { runAutoGenerateForPractitioner } = require('../billingController');
+    pool.query.mockResolvedValueOnce({ rows: [] }); // SEVF's own assessments query returns none
+    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7))
+      .rejects.toThrow(/no pending/i);
+  });
+
+  test('full success returns batchId, sevfPath, and invoicePath all populated', async () => {
+    const { runAutoGenerateForPractitioner } = require('../billingController');
+
+    const fakeAssessment = {
+      id: 1, patient_id: 10, service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+      total_time: 30, type: 'OT', location: '1', group_size_category: 'individual', billing_status: 'pending',
+      patient_first_name: 'A', patient_last_name: 'B', patient_county: 'Essex',
+      practitioner_discipline: 'OT',
+      practitioners: { id: 42, first_name: 'C', last_name: 'D', pay_rate: '50', service_types: ['OT'], ssn: null },
+      patients: { child_id: '700000001' },
+    };
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [fakeAssessment] }) // SEVF assessments query
+      .mockResolvedValueOnce({ rows: [{ id: 'batch-uuid-1' }] }) // billing_batches INSERT
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE assessments SET billing_batch_id
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE assessments SET billing_status = 'njeis_review'
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Sam', last_name: 'Specialist' }] }) // specialist name lookup
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE billing_batches SET invoice_path
+
+    const result = await runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7);
+
+    expect(result.success).toBe(true);
+    expect(result.batchId).toBe('batch-uuid-1');
+    expect(result.sevfPath).toEqual(expect.stringContaining('NJEIS_'));
+    expect(result.invoicePath).toEqual(expect.stringContaining('Invoice_'));
   });
 });
