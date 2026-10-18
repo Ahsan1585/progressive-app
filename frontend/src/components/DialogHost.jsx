@@ -9,10 +9,10 @@ import { CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
 // operations, etc.) renders through this instead of a hand-formatted text
 // blob, so they all read the same way.
 const SECTION_TONES = {
-  success: { icon: CheckCircle2, iconClass: 'text-emerald-600', barClass: 'bg-emerald-500', headingClass: 'text-emerald-900', bgClass: 'bg-emerald-50/60' },
-  warning: { icon: AlertTriangle, iconClass: 'text-amber-600', barClass: 'bg-amber-500', headingClass: 'text-amber-900', bgClass: 'bg-amber-50/60' },
-  danger: { icon: XCircle, iconClass: 'text-red-600', barClass: 'bg-red-500', headingClass: 'text-red-900', bgClass: 'bg-red-50/60' },
-  neutral: { icon: Info, iconClass: 'text-slate-500', barClass: 'bg-slate-300', headingClass: 'text-slate-700', bgClass: 'bg-slate-50' },
+  success: { icon: CheckCircle2, iconClass: 'text-emerald-700', barClass: 'bg-emerald-500', headingClass: 'text-emerald-900', bgClass: 'bg-emerald-50' },
+  warning: { icon: AlertTriangle, iconClass: 'text-amber-700', barClass: 'bg-amber-500', headingClass: 'text-amber-900', bgClass: 'bg-amber-50' },
+  danger: { icon: XCircle, iconClass: 'text-red-700', barClass: 'bg-red-500', headingClass: 'text-red-900', bgClass: 'bg-red-50' },
+  neutral: { icon: Info, iconClass: 'text-slate-600', barClass: 'bg-slate-300', headingClass: 'text-slate-800', bgClass: 'bg-slate-50' },
 };
 
 const ResultSection = ({ tone = 'neutral', heading, description, items }) => {
@@ -25,13 +25,13 @@ const ResultSection = ({ tone = 'neutral', heading, description, items }) => {
           <Icon className={`size-4 shrink-0 ${iconClass}`} />
           <span className={`text-sm font-bold ${headingClass}`}>{heading}</span>
         </div>
-        {description && <p className="mt-1 text-xs text-slate-600">{description}</p>}
+        {description && <p className="mt-1 text-xs text-slate-700">{description}</p>}
         {items?.length > 0 && (
           <ul className="mt-2 space-y-1.5">
             {items.map((item, i) => (
-              <li key={i} className="text-sm text-slate-700 leading-snug">
-                <span className="font-semibold text-slate-800">{item.primary}</span>
-                {item.secondary && <span className="text-slate-500"> — {item.secondary}</span>}
+              <li key={i} className="text-sm text-slate-900 leading-snug">
+                <span className="font-semibold">{item.primary}</span>
+                {item.secondary && <span className="text-slate-700"> — {item.secondary}</span>}
               </li>
             ))}
           </ul>
