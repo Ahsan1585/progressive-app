@@ -1706,7 +1706,7 @@ const FIELD_TO_MAPPING_KEY = {
   child_id: 'child_id', child_name: 'child_name', practitioner_name: 'practitioner_name',
   service_date: 'service_date', start_time: 'start_time', end_time: 'end_time',
   service_type: 'service_label', location: 'location_label', group_size: 'group_size_label',
-  logged_date: 'logged_date', ifsp_event_id: 'ifsp_event_id',
+  service_status: 'service_status_label', ifsp_event_id: 'ifsp_event_id',
 };
 
 // Pairwise cost between one of our sessions and one state-log candidate for
@@ -1921,18 +1921,13 @@ function buildFieldsForSession(session, match, ctx) {
       { key: 'service_type', label: 'Service Type', ours: session.type ? serviceCodeLabel(session.type) : null, state: null, match: null },
       { key: 'location', label: 'Location', ours: session.location ? locationCodeLabel(session.location) : null, state: null, match: null },
       { key: 'group_size', label: 'Group Size Category', ours: session.group_size_category ? groupSizeCodeLabel(session.group_size_category) : null, state: null, match: null },
+      { key: 'service_status', label: 'Service Status', ours: session.status ? statusCodeLabel(session.status) : null, state: null, match: null },
     ].filter((f) => mappedKeys.has(FIELD_TO_MAPPING_KEY[f.key]));
   }
 
   const ourPractitionerName = [session.practitioner_first_name, session.practitioner_last_name].filter(Boolean).join(' ');
   const statePractitionerName = match.practitioner_name || '';
   const ourChildName = `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim();
-
-  // completed_at is a timestamptz (real JS Date from pg), logged_date is a
-  // plain date column (already a 'YYYY-MM-DD' string per the DATE type
-  // parser override in config/db.js).
-  const ourLoggedDate = session.completed_at ? new Date(session.completed_at).toISOString().slice(0, 10) : null;
-  const stateLoggedDate = match.logged_date || null;
 
   const startTimeResult = timeWithinTolerance(session.start_time, match.start_time, matchParams.timeToleranceMinutes);
   const endTimeResult = timeWithinTolerance(session.end_time, match.end_time, matchParams.timeToleranceMinutes);
@@ -2001,9 +1996,11 @@ function buildFieldsForSession(session, match, ctx) {
       _learn: { ourValue: session.group_size_category, stateValueRaw: match.group_size_label },
     },
     {
-      key: 'logged_date', label: 'Logged Date',
-      ours: ourLoggedDate, state: stateLoggedDate,
-      match: !!ourLoggedDate && !!stateLoggedDate && ourLoggedDate === stateLoggedDate,
+      key: 'service_status', label: 'Service Status',
+      ours: session.status ? statusCodeLabel(session.status) : null,
+      state: match.service_status_label,
+      match: !!session.status && session.status === mapStatusLabelToCode(match.service_status_label, matchParams.wordOverlapThreshold),
+      _learn: { ourValue: session.status, stateValueRaw: match.service_status_label },
     },
     {
       key: 'ifsp_event_id', label: 'IFSP Event ID',
@@ -2257,11 +2254,11 @@ async function runComplianceAnalysisForPractitioner(practitionerId, startDate, e
              (patient_id, child_id, child_name, practitioner_name, service_label, service_type_label,
               group_size_label, location_label, service_date, start_time, end_time, service_minutes,
               logged_date, ifsp_event_id, mapped_service_code, mapped_location_code, mapped_group_size_code,
-              period_start, period_end, extra_fields)
+              period_start, period_end, extra_fields, service_status_label)
            SELECT $1, child_id, child_name, practitioner_name, service_label, service_type_label,
               group_size_label, location_label, service_date, start_time, end_time, service_minutes,
               logged_date, ifsp_event_id, mapped_service_code, mapped_location_code, mapped_group_size_code,
-              period_start, period_end, extra_fields
+              period_start, period_end, extra_fields, service_status_label
            FROM compliance_state_logs WHERE id = $2`,
           [patientId, stateLogId]
         );
@@ -2331,7 +2328,7 @@ async function runComplianceAnalysisForPractitioner(practitionerId, startDate, e
         stateLog: match ? {
           child_name: match.child_name,
           practitioner_name: match.practitioner_name,
-          logged_date: match.logged_date,
+          service_status_label: match.service_status_label,
           ifsp_event_id: match.ifsp_event_id,
         } : null,
         fields,

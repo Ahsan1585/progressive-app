@@ -416,6 +416,7 @@ const applyComplianceDocMapping = async (req, res) => {
       const serviceLabel = cellToText(get('service_label'));
       const locationLabel = cellToText(get('location_label'));
       const groupSizeLabel = cellToText(get('group_size_label'));
+      const serviceStatusLabel = cellToText(get('service_status_label'));
 
       let extraFields = null;
       if (customColIndex.length > 0) {
@@ -447,7 +448,7 @@ const applyComplianceDocMapping = async (req, res) => {
         excelTimeToHHMM(get('start_time')),
         excelTimeToHHMM(get('end_time')),
         null, // service_minutes — derivable from start/end, not separately stored today
-        colIndex.logged_date ? excelDateToISO(get('logged_date')) : null,
+        null, // logged_date — removed from the mapping screen; column kept, unused
         cellToText(get('ifsp_event_id')),
         mapServiceLabelToCode(serviceLabel),
         mapLocationLabelToCode(locationLabel),
@@ -455,6 +456,7 @@ const applyComplianceDocMapping = async (req, res) => {
         periodStart,
         periodEnd,
         extraFields ? JSON.stringify(extraFields) : null,
+        serviceStatusLabel,
       ];
       // One row per matching patient — see patientIdsByChildId above.
       for (const patientId of matchingPatientIds) {
@@ -485,8 +487,8 @@ const applyComplianceDocMapping = async (req, res) => {
              (patient_id, child_id, child_name, practitioner_name, service_label, service_type_label,
               group_size_label, location_label, service_date, start_time, end_time, service_minutes,
               logged_date, ifsp_event_id, mapped_service_code, mapped_location_code, mapped_group_size_code,
-              period_start, period_end, extra_fields)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+              period_start, period_end, extra_fields, service_status_label)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
           row
         );
       }
@@ -646,7 +648,7 @@ const downloadComplianceMonthData = async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT child_id, child_name, practitioner_name, service_date, start_time, end_time,
-              service_label, location_label, group_size_label, logged_date, ifsp_event_id
+              service_label, location_label, group_size_label, service_status_label, ifsp_event_id
        FROM compliance_state_logs
        WHERE to_char(service_date, 'YYYY-MM') = $1
        ORDER BY service_date ASC, child_name ASC`,
@@ -665,7 +667,7 @@ const downloadComplianceMonthData = async (req, res) => {
       { header: 'Service', key: 'service_label', width: 26 },
       { header: 'Location', key: 'location_label', width: 22 },
       { header: 'Group Size', key: 'group_size_label', width: 26 },
-      { header: 'Logged Date', key: 'logged_date', width: 14 },
+      { header: 'Service Status', key: 'service_status_label', width: 20 },
       { header: 'IFSP Event ID', key: 'ifsp_event_id', width: 16 },
     ];
     sheet.getRow(1).font = { bold: true };

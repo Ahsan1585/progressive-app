@@ -42,6 +42,18 @@ jest.mock('pdf-lib', () => ({
 jest.mock('../../config/tenantContext', () => ({
   getCurrentTenantDb: jest.fn(() => 'test-tenant'),
 }));
+// Real option set only for service_status — lets the service_status field
+// comparison test below exercise genuine match/mismatch via
+// mapStatusLabelToCode/statusCodeLabel instead of the universal null that
+// an empty cache would produce for every category.
+jest.mock('../../constants/dropdownOptionsCache', () => ({
+  getDropdownOptionsCache: jest.fn(() => ({
+    service_status: [
+      { code: 'done', label: 'Service Delivered', is_active: true },
+      { code: 'cancelled', label: 'Cancelled', is_active: true },
+    ],
+  })),
+}));
 const { pool } = require('../../config/db');
 
 const { runComplianceAnalysisForPractitioner } = require('../billingController');
@@ -88,6 +100,76 @@ describe('runComplianceAnalysisForPractitioner', () => {
     expect(result.documentOnFile).toBe(true);
     expect(result.results[1].matched).toBe(true);
     expect(result.results[1].flagged).toBe(false);
+  });
+
+  // service_status replaced logged_date as a built-in mapped/compared field
+  // (same tier as Service/Location/Group Size) — when mapped, a session
+  // whose status agrees with the state's Service Status column is clean...
+  test('service_status field matches when mapped and the state label agrees with our status', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{
+        compliance_doc_filename: 'eims.xlsx', compliance_doc_uploaded_at: new Date(),
+        compliance_doc_column_mapping: { child_id: 'Child ID', service_date: 'Service Date', service_status_label: 'Service Status' },
+        compliance_doc_path: 'p1', compliance_doc_applied_path: 'p1',
+        compliance_doc_custom_fields: [], compliance_strictness: 'moderate',
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 1, patient_id: 10, service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+        total_time: 30, type: 'OT', location: '1', group_size_category: 'individual',
+        patient_first_name: 'A', patient_last_name: 'B', practitioner_first_name: 'C', practitioner_last_name: 'D',
+        completed_at: new Date(), child_id: '700000001', status: 'done', billing_status: 'pending',
+        practitioner_discipline: 'OT', patient_dob: '2024-01-01', patient_county: 'Essex',
+        eims_missing_status: null, form_data: {},
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 900, patient_id: 10, child_id: '700000001', child_name: 'A B', practitioner_name: 'C D',
+        service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+        ifsp_event_id: null, service_label: 'OT', location_label: 'Home', group_size_label: 'Direct Child Service - Individual',
+        service_status_label: 'Service Delivered',
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await runComplianceAnalysisForPractitioner(42, '2026-10-01', '2026-10-15');
+    const statusField = result.results[1].fields.find((f) => f.key === 'service_status');
+    expect(statusField.match).toBe(true);
+    expect(result.results[1].flagged).toBe(false);
+  });
+
+  // ...and is flagged when the state's Service Status disagrees.
+  test('service_status field flags when mapped and the state label disagrees with our status', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{
+        compliance_doc_filename: 'eims.xlsx', compliance_doc_uploaded_at: new Date(),
+        compliance_doc_column_mapping: { child_id: 'Child ID', service_date: 'Service Date', service_status_label: 'Service Status' },
+        compliance_doc_path: 'p1', compliance_doc_applied_path: 'p1',
+        compliance_doc_custom_fields: [], compliance_strictness: 'moderate',
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 1, patient_id: 10, service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+        total_time: 30, type: 'OT', location: '1', group_size_category: 'individual',
+        patient_first_name: 'A', patient_last_name: 'B', practitioner_first_name: 'C', practitioner_last_name: 'D',
+        completed_at: new Date(), child_id: '700000001', status: 'done', billing_status: 'pending',
+        practitioner_discipline: 'OT', patient_dob: '2024-01-01', patient_county: 'Essex',
+        eims_missing_status: null, form_data: {},
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 900, patient_id: 10, child_id: '700000001', child_name: 'A B', practitioner_name: 'C D',
+        service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+        ifsp_event_id: null, service_label: 'OT', location_label: 'Home', group_size_label: 'Direct Child Service - Individual',
+        service_status_label: 'Cancelled',
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await runComplianceAnalysisForPractitioner(42, '2026-10-01', '2026-10-15');
+    const statusField = result.results[1].fields.find((f) => f.key === 'service_status');
+    expect(statusField.match).toBe(false);
+    expect(result.results[1].flagged).toBe(true);
   });
 });
 

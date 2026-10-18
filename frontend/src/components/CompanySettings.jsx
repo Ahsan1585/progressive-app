@@ -739,7 +739,6 @@ export const CompanySettings = ({ onSettingsChange }) => {
                                 <option value="service_type">Service Type</option>
                                 <option value="location">Location</option>
                                 <option value="group_size">Group Size Category</option>
-                                <option value="service_status">Service Status</option>
                                 <option value="total_time">Total Time</option>
                                 <option value="practitioner_discipline">Practitioner Discipline</option>
                                 <option value="patient_dob">Patient DOB</option>

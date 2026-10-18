@@ -410,6 +410,7 @@ CREATE TABLE compliance_state_logs (
   end_time text,
   service_minutes integer,
   logged_date date,
+  service_status_label text,
   ifsp_event_id text,
   mapped_service_code text,
   mapped_location_code text,

@@ -17,7 +17,7 @@ const TARGET_FIELDS = [
   { key: 'service_label', label: 'Service (Service Type code)', required: false, candidates: ['Service'] },
   { key: 'location_label', label: 'Location', required: false, candidates: ['Location'] },
   { key: 'group_size_label', label: 'Group Size', required: false, candidates: ['Group Size'] },
-  { key: 'logged_date', label: 'Logged Date', required: false, candidates: ['Logged Date'] },
+  { key: 'service_status_label', label: 'Service Status', required: false, candidates: ['Service Status', 'Status'] },
   { key: 'ifsp_event_id', label: 'IFSP Event ID', required: false, candidates: ['IFSP Event ID'] },
 ];
 
