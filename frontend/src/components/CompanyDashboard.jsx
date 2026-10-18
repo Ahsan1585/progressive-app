@@ -5,7 +5,7 @@ import {
   CalendarDays, CalendarRange, Calendar, X, Check, MessageCircle,
 } from 'lucide-react';
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useMessaging } from '@/context/useMessaging';
@@ -601,25 +601,39 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
             <div className="text-lg font-bold font-mono">{month.patientRosterCount}</div>
           </div>
         </div>
-        {month.dailyVolume.length > 0 && (
-          <div style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={month.dailyVolume}>
-                <defs>
-                  <linearGradient id="monthArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563eb" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
-                <XAxis dataKey="date" tickFormatter={(d) => new Date(d + 'T00:00:00').getDate()} tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                <Area type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2.5} fill="url(#monthArea)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        {month.dailyVolume.length > 0 && (() => {
+          // Each bar colored by where its count falls in this month's own
+          // range — low-volume days read cool (teal), high-volume days
+          // read warm (rose), so the chart itself highlights the busiest
+          // days at a glance instead of one flat color for every bar.
+          const BAR_COLORS = ['#2dd4bf', '#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#fb7185'];
+          const counts = month.dailyVolume.map((d) => d.count);
+          const min = Math.min(...counts);
+          const max = Math.max(...counts);
+          const colorFor = (count) => {
+            if (max === min) return BAR_COLORS[0];
+            const t = (count - min) / (max - min);
+            const idx = Math.min(BAR_COLORS.length - 1, Math.floor(t * BAR_COLORS.length));
+            return BAR_COLORS[idx];
+          };
+          return (
+            <div style={{ height: 200 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={month.dailyVolume}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
+                  <XAxis dataKey="date" tickFormatter={(d) => new Date(d + 'T00:00:00').getDate()} tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} cursor={{ fill: '#f6f7fb' }} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {month.dailyVolume.map((d, i) => (
+                      <Cell key={`cell-${i}`} fill={colorFor(d.count)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
