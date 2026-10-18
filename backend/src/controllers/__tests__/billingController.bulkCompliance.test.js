@@ -56,3 +56,24 @@ describe('runComplianceAnalysisForPractitioner', () => {
     expect(result.results[1].flagged).toBe(false);
   });
 });
+
+describe('acquireLock / releaseLock', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  test('acquireLock returns acquired:true on a fresh lock', async () => {
+    const { acquireLock } = require('../billingController');
+    pool.query.mockResolvedValueOnce({ rows: [{ practitioner_id: 42 }] }); // INSERT ... ON CONFLICT DO NOTHING RETURNING
+    const result = await acquireLock(42, 7, 'review');
+    expect(result.acquired).toBe(true);
+  });
+
+  test('acquireLock returns acquired:false with the holder name when held by someone else', async () => {
+    const { acquireLock } = require('../billingController');
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // INSERT did nothing (conflict)
+      .mockResolvedValueOnce({ rows: [{ locked_by: 99, first_name: 'Jane', last_name: 'Doe' }] }); // who holds it
+    const result = await acquireLock(42, 7, 'review');
+    expect(result.acquired).toBe(false);
+    expect(result.lockedByName).toBe('Jane Doe');
+  });
+});

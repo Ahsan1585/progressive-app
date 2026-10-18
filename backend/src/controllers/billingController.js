@@ -2441,6 +2441,40 @@ const revertBillingBatch = async (req, res) => {
 // caller that doesn't pass scope locks/unlocks 'review', so a
 // non-split practitioner behaves exactly as before.
 const VALID_LOCK_SCOPES = ['review', 'billed'];
+
+// Core lock acquire/release — extracted so the bulk-compliance-run endpoint
+// can acquire/release a practitioner's review lock per-practitioner during
+// its loop without an HTTP round-trip against this same server. Unlike
+// unlockPractitioner (the HTTP endpoint), releaseLock has no requester-
+// identity check: the bulk run only ever releases a lock it just acquired
+// itself, immediately after using it, so there's no "someone else's lock"
+// case to guard against here.
+async function acquireLock(practitionerId, lockerId, scope = 'review') {
+  const { rows: insertedRows } = await pool.query(
+    `INSERT INTO billing_locks (practitioner_id, lock_scope, locked_by)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (practitioner_id, lock_scope) DO NOTHING
+     RETURNING practitioner_id`,
+    [practitionerId, scope, lockerId]
+  );
+  if (insertedRows.length > 0) return { acquired: true };
+
+  const { rows: existingRows } = await pool.query(
+    `SELECT bl.locked_by, p.first_name, p.last_name
+     FROM billing_locks bl JOIN practitioners p ON p.id = bl.locked_by
+     WHERE bl.practitioner_id = $1 AND bl.lock_scope = $2`,
+    [practitionerId, scope]
+  );
+  const existing = existingRows[0];
+  if (existing?.locked_by === lockerId) return { acquired: true, alreadyMine: true };
+  const lockedByName = `${existing?.first_name || ''} ${existing?.last_name || ''}`.trim();
+  return { acquired: false, lockedByName };
+}
+
+async function releaseLock(practitionerId, scope = 'review') {
+  await pool.query('DELETE FROM billing_locks WHERE practitioner_id = $1 AND lock_scope = $2', [practitionerId, scope]);
+}
+
 const lockPractitioner = async (req, res) => {
   const practitionerId = parseInt(req.params.id, 10);
   const lockerId = req.practitioner.practitionerId;
@@ -2448,36 +2482,15 @@ const lockPractitioner = async (req, res) => {
   if (!practitionerId) return res.status(400).json({ success: false, error: 'Invalid practitioner id' });
 
   try {
-    const { rows: insertedRows } = await pool.query(
-      `INSERT INTO billing_locks (practitioner_id, lock_scope, locked_by)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (practitioner_id, lock_scope) DO NOTHING
-       RETURNING practitioner_id`,
-      [practitionerId, scope, lockerId]
-    );
+    const result = await acquireLock(practitionerId, lockerId, scope);
 
-    if (insertedRows.length > 0) {
+    if (result.acquired) {
       const { rows: lockerRows } = await pool.query('SELECT first_name, last_name FROM practitioners WHERE id = $1', [lockerId]);
       const locker = lockerRows[0];
       return res.json({ success: true, locked_by_id: lockerId, locked_by_name: `${locker?.first_name || ''} ${locker?.last_name || ''}`.trim() });
     }
 
-    // Already locked — find out by whom.
-    const { rows: existingRows } = await pool.query(
-      `SELECT bl.locked_by, p.first_name, p.last_name
-       FROM billing_locks bl JOIN practitioners p ON p.id = bl.locked_by
-       WHERE bl.practitioner_id = $1 AND bl.lock_scope = $2`,
-      [practitionerId, scope]
-    );
-    const existing = existingRows[0];
-    const lockedByName = `${existing?.first_name || ''} ${existing?.last_name || ''}`.trim();
-
-    if (existing?.locked_by === lockerId) {
-      // Idempotent — already yours.
-      return res.json({ success: true, locked_by_id: lockerId, locked_by_name: lockedByName });
-    }
-
-    return res.status(409).json({ success: false, error: 'Already locked by another billing specialist', locked_by_name: lockedByName });
+    return res.status(409).json({ success: false, error: 'Already locked by another billing specialist', locked_by_name: result.lockedByName });
   } catch (error) {
     console.error('lockPractitioner error:', error);
     res.status(500).json({ success: false, error: 'Failed to lock practitioner' });
@@ -2681,6 +2694,8 @@ module.exports = {
   getLogNotes,
   getComplianceAnalysis,
   runComplianceAnalysisForPractitioner,
+  acquireLock,
+  releaseLock,
   updateLogStatus,
   rejectLog,
   reconcileLog,
