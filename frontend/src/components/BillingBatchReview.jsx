@@ -886,10 +886,17 @@ function PractitionerGroup({
               const isDeclined = s.billing_status === 'declined';
               const isReturned = s.billing_status === 'rejected';
               const isOnHold = s.billing_status === 'on_hold';
-              const isApproved = logActions[s.id] === 'accept' || s.billing_review === 'accept';
+              // A session already sent to billing (bulk auto-generate, or a
+              // manual Generate & Issue from an earlier visit) never goes
+              // through this browser's own Approve click, so logActions/
+              // billing_review alone under-detected it — the status itself
+              // already says so once billing_status advances past 'pending'.
+              const isSentToBilling = ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
+              const isApproved = isSentToBilling || logActions[s.id] === 'accept' || s.billing_review === 'accept';
               const dotColor = isDeclined ? 'bg-red-400' : isReturned ? 'bg-amber-400' : isOnHold ? 'bg-violet-400'
                 : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
-              const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
+              const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold'
+                : isSentToBilling ? 'Sent to billing' : isApproved ? 'Approved' : 'Pending';
               const statusLabelClasses = isDeclined ? 'bg-red-50 text-red-600'
                 : isReturned ? 'bg-amber-50 text-amber-600'
                 : isOnHold ? 'bg-violet-50 text-violet-600'
@@ -1074,6 +1081,13 @@ function SessionDetailPanel({
   // renders as unselected until the FIRST click merely catches logActions up
   // to reality (a redundant re-approve) and only the second click actually toggles it.
   const isApproved = logActions[session.id] === 'accept' || session.billing_review === 'accept';
+  // A session already sent to billing (bulk auto-generate, or an earlier
+  // manual Generate & Issue) never went through THIS browser's Approve
+  // click, so logActions/billing_review alone would show it as a plain
+  // clickable "Approve" button — worse, clicking it would call
+  // handleResetToPending, incorrectly trying to un-approve a session
+  // that's already part of a generated batch. Locked out entirely instead.
+  const isSentToBilling = ['njeis_review', 'invoiced', 'completed'].includes(session.billing_status);
 
   const [pendingAction, setPendingAction] = useState(null); // 'return' | 'reject' | null
   useEffect(() => { setPendingAction(null); }, [session.id]);
@@ -1285,7 +1299,8 @@ function SessionDetailPanel({
         )}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <ActionButton
-            label={isApproved ? 'Approved' : 'Approve'} active={isApproved} tone="emerald"
+            label={isSentToBilling ? 'Sent to billing' : isApproved ? 'Approved' : 'Approve'}
+            active={isSentToBilling || isApproved} tone="emerald" disabled={isSentToBilling}
             icon={<Check className="size-4" />}
             onClick={() => {
               if (isApproved) {
@@ -1470,7 +1485,7 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
   );
 }
 
-function ActionButton({ label, icon, onClick, active, tone }) {
+function ActionButton({ label, icon, onClick, active, tone, disabled }) {
   const toneClasses = {
     emerald: active ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50',
     blue: active ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 text-blue-600 hover:border-blue-300 hover:bg-blue-50',
@@ -1481,8 +1496,9 @@ function ActionButton({ label, icon, onClick, active, tone }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-2.5 py-7 px-4 rounded-2xl border-2 bg-white cursor-pointer transition-colors shadow-sm ${toneClasses}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`flex flex-col items-center justify-center gap-2.5 py-7 px-4 rounded-2xl border-2 bg-white transition-colors shadow-sm ${toneClasses} ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {icon}
       <span className="text-sm font-bold">{label}</span>
@@ -2094,9 +2110,16 @@ function ComplianceAnalysisPreview({
           const isDeclined = s.billing_status === 'declined';
           const isReturned = s.billing_status === 'rejected';
           const isOnHold = s.billing_status === 'on_hold';
-          const isLockedStatus = s.billing_status === 'njeis_review';
-          const isApproved = logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
-          const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold' : isApproved ? 'Approved' : 'Pending';
+          // isLockedStatus covers njeis_review AND invoiced/completed — a
+          // session already sent to billing (bulk auto-generate, or an
+          // earlier manual Generate & Issue) never goes through this
+          // browser's own Approve click, so logActions/billing_review alone
+          // previously under-detected it and this badge silently fell
+          // through to "Pending" even though it was already billed.
+          const isLockedStatus = ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
+          const isApproved = isLockedStatus || logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
+          const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold'
+            : isLockedStatus ? 'Sent to billing' : isApproved ? 'Approved' : 'Pending';
           const statusBadgeClasses = isDeclined ? 'text-red-600'
             : isReturned ? 'text-amber-600'
             : isOnHold ? 'text-violet-600'
