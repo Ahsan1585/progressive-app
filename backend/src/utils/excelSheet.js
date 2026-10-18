@@ -8,8 +8,23 @@ const { normalizeForMatch } = require('./textMatch');
 // header-row detection instead of duplicating it per feature.
 async function readWorkbookFromBuffer(buffer) {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
-  return workbook.worksheets[0];
+  try {
+    await workbook.xlsx.load(buffer);
+  } catch {
+    // ExcelJS throws an unhelpful internal error (e.g. "Cannot read
+    // properties of undefined (reading 'sheets')") when the buffer isn't a
+    // real .xlsx — a legacy binary .xls renamed to .xlsx, a corrupted
+    // download, or an HTML/CSV export saved with the wrong extension. Give
+    // callers a message they can actually act on and surface to the user,
+    // instead of letting ExcelJS's internal exception bubble up as a bare
+    // 500.
+    throw new Error('Could not read this file as an Excel workbook. Make sure it\'s a real .xlsx file (not a renamed .xls, .csv, or HTML export) and isn\'t corrupted.');
+  }
+  const sheet = workbook.worksheets[0];
+  if (!sheet) {
+    throw new Error('This Excel file has no worksheets.');
+  }
+  return sheet;
 }
 
 // Real-world exports (state systems, HR spreadsheets) often have a few

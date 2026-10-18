@@ -237,7 +237,16 @@ const uploadComplianceDoc = async (req, res) => {
     const previousMapping = existingBeforeUpload[0]?.compliance_doc_column_mapping || null;
     const previousCustomFields = existingBeforeUpload[0]?.compliance_doc_custom_fields || [];
 
-    const mappingInfo = await buildMappingResponse(buffer, previousMapping, previousCustomFields);
+    let mappingInfo;
+    try {
+      mappingInfo = await buildMappingResponse(buffer, previousMapping, previousCustomFields);
+    } catch (parseError) {
+      // readWorkbookFromBuffer throws a real, user-facing message when the
+      // buffer isn't a valid Excel file — surface it as a 400, not the
+      // generic 500 below, so the user knows to check the file itself
+      // rather than seeing an opaque "failed to upload" with no cause.
+      return res.status(400).json({ error: parseError.message });
+    }
     if (mappingInfo.error) return res.status(400).json(mappingInfo);
 
     const path = `${COMPLIANCE_DOC_PREFIX}${Date.now()}-${filename}`;
