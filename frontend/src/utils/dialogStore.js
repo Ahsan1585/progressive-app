@@ -15,10 +15,20 @@ export function registerDialogListener(fn) {
   return () => { if (listener === fn) listener = null; };
 }
 
+// opts.sections, when given, renders a structured, consistently-styled
+// result list instead of a plain text blob — each section is
+// { tone: 'success'|'warning'|'danger'|'neutral', heading, description?,
+// items: [{ primary, secondary? }] }. Used for any "here's what happened,
+// broken down by outcome" result (e.g. a bulk operation's per-item
+// results) so every such dialog across the app looks and reads the same
+// way, instead of each call site hand-formatting its own text dump.
 export function showAlert(message, opts = {}) {
   return new Promise((resolve) => {
     if (!listener) { window.alert(message); resolve(); return; }
-    listener({ type: 'alert', message, title: opts.title, confirmLabel: opts.confirmLabel, onResolve: () => resolve() });
+    listener({
+      type: 'alert', message, title: opts.title, confirmLabel: opts.confirmLabel,
+      sections: opts.sections, onResolve: () => resolve(),
+    });
   });
 }
 
