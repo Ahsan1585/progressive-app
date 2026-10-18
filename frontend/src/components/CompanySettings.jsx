@@ -304,8 +304,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
   };
 
   // Downloads what's currently on file for one month bucket (compliance_state_logs),
-  // not the raw uploaded file — a month can span more than one upload once older
-  // files age out of the rolling 120-day window.
+  // not the raw uploaded file — a month can span more than one upload.
   const handleDownloadMonthData = async (month) => {
     setDownloadingMonth(month);
     try {
@@ -353,9 +352,9 @@ export const CompanySettings = ({ onSettingsChange }) => {
   };
 
   // Each row is one calendar-month bucket, so earliest/latest always share a
-  // month and year — this makes the 120-day retention window visible at a
-  // glance (e.g. a partial "May 21-31, 2026" immediately shows only the
-  // last part of May is still on file, vs. a full "Jun 1-30, 2026").
+  // month and year — a partial "May 21-31, 2026" shows only part of that
+  // month was actually covered by the upload(s) on file, vs. a full
+  // "Jun 1-30, 2026".
   const formatMonthRange = (earliest, latest) => {
     if (!earliest || !latest) return '—';
     const e = new Date(`${earliest}T00:00:00`);
@@ -547,7 +546,7 @@ export const CompanySettings = ({ onSettingsChange }) => {
           <div className="flex items-start gap-2.5 bg-sky-50 border border-sky-200 rounded-xl px-3.5 py-3 text-xs text-sky-700">
             <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
             <span>
-              <span className="font-bold">Each month, use Add files</span> to attach the new EIMS records file — it keeps everything from the last 120 days on file and only adds this file's data, so nothing needs to be cleared out first. Compliance data older than 120 days (by service date) drops off automatically.
+              <span className="font-bold">Each month, use Add files</span> to attach the new EIMS records file — it keeps everything already on file and only adds this file's data, so nothing needs to be cleared out first. There's no limit on how far back compliance data is kept — every month ever uploaded stays available for analysis.
             </span>
           </div>
         )}

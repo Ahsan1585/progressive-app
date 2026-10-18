@@ -1837,11 +1837,6 @@ const getComplianceAnalysis = async (req, res) => {
       return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, strictness: doc?.compliance_strictness || 'moderate', results: {} });
     }
 
-    // Lazy sweep: state reference data older than 120 days ages out on its
-    // own even if no new file has been uploaded since. Scoped strictly to
-    // compliance_state_logs — never touches assessments/patients/billing data.
-    await pool.query("DELETE FROM compliance_state_logs WHERE service_date < CURRENT_DATE - INTERVAL '120 days'");
-
     // Lazy backfill: Child ID -> patient_id is normally resolved once, at
     // upload-confirm time (companyController.applyComplianceDocMapping). A
     // patient added AFTER that point has no link yet — their state rows sit
