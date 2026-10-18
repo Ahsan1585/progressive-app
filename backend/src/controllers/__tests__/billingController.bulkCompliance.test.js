@@ -594,12 +594,13 @@ describe('bulkComplianceRun', () => {
     expect(response.needsReview).toEqual([]);
   });
 
-  // needsReview entries must say WHY, so the specialist knows what to do
-  // next instead of just "needs review" — a mixed clean/flagged period
-  // leaves every pending session untouched (all-or-nothing per practitioner),
-  // so the message must say that explicitly rather than implying only the
-  // flagged ones were held back.
-  test('needsReview reason explains a mixed clean/flagged period left everything pending', async () => {
+  // A mixed clean/flagged period can't auto-generate SEVF+invoice as a
+  // whole batch, but the sessions that DID clear EIMS cleanly on their own
+  // should still be approved individually (billing_review='accept'),
+  // exactly like a manual per-session Approve click — only the flagged
+  // ones are left untouched for the specialist to resolve. The needsReview
+  // reason must say so, with the real approved count.
+  test('approves the clean subset of a mixed clean/flagged period and reports the count', async () => {
     const billingController = require('../billingController');
     const req = { body: { practitionerIds: [42], startDate: '2026-10-01', endDate: '2026-10-15' }, practitioner: { practitionerId: 7 } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
@@ -616,18 +617,24 @@ describe('bulkComplianceRun', () => {
 
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 42, first_name: 'Sam', last_name: 'Lee' }] }) // name lookup
-      .mockResolvedValueOnce({ rows: [{ id: 100 }, { id: 101 }] }); // pending-ids query
+      .mockResolvedValueOnce({ rows: [{ id: 100 }, { id: 101 }] }) // pending-ids query
+      .mockResolvedValueOnce({ rows: [{ id: 100 }] }); // approve-clean-subset UPDATE ... RETURNING id
 
     await billingController.bulkComplianceRun(req, res);
 
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("SET billing_review = 'accept'"),
+      [[100]]
+    );
     const response = res.json.mock.calls[0][0];
     expect(response.needsReview).toEqual([
       expect.objectContaining({
         practitionerId: 42,
+        approvedCount: 1,
         reason: expect.stringContaining('1 of 2 sessions'),
       }),
     ]);
-    expect(response.needsReview[0].reason).toContain('stayed pending');
+    expect(response.needsReview[0].reason).toContain('1 clean one was approved');
   });
 
   // No document on file at all gets a distinct, specific reason rather
