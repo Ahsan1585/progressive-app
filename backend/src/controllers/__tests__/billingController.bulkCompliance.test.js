@@ -77,3 +77,22 @@ describe('acquireLock / releaseLock', () => {
     expect(result.lockedByName).toBe('Jane Doe');
   });
 });
+
+describe('updateLogStatus duplicate gate', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  test('rejects Approve when computeSessionCompliance reports a duplicate, even if flagged is false', async () => {
+    jest.spyOn(require('../billingController'), 'computeSessionCompliance')
+      .mockResolvedValue({ matched: true, flagged: false, documentOnFile: true, duplicateOfSessionId: 55, duplicateOfInvoiced: false });
+
+    const req = { body: { assessmentId: 1, status: 'pending', review: 'accept' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const { updateLogStatus } = require('../billingController');
+    await updateLogStatus(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.stringContaining('duplicate'),
+    }));
+  });
+});

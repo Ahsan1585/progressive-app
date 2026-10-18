@@ -1064,9 +1064,17 @@ const updateLogStatus = async (req, res) => {
     // whatever the client last saw, since a learned rule or another
     // biller's Allow could have changed things since the client's last fetch.
     if (status === 'pending' && review === 'accept') {
-      const compliance = await computeSessionCompliance(assessmentId);
+      // Routed through module.exports (not a bare local call) so tests can
+      // jest.spyOn this same exported function and have it actually
+      // intercept this call — a bare `computeSessionCompliance(...)` call
+      // in CommonJS does not go through module.exports and a spy on the
+      // export silently never fires.
+      const compliance = await module.exports.computeSessionCompliance(assessmentId);
       if (compliance.flagged) {
         return res.status(400).json({ error: 'This log still has unresolved compliance mismatches — allow each flagged field before approving.' });
+      }
+      if (compliance.duplicateOfSessionId) {
+        return res.status(400).json({ error: 'This log duplicates another session on file — resolve the duplicate before approving.' });
       }
       // "Missing in EIMS" (no matching state record at all) is a distinct,
       // higher-stakes gap than a field-level mismatch — there's nothing to
