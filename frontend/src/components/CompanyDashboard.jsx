@@ -601,32 +601,29 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
             <div className="text-lg font-bold font-mono">{month.patientRosterCount}</div>
           </div>
         </div>
-        {month.dailyVolume.length > 0 && (() => {
-          // Each bar colored by where its count falls in this month's own
-          // range — low-volume days read cool (teal), high-volume days
-          // read warm (rose), so the chart itself highlights the busiest
-          // days at a glance instead of one flat color for every bar.
-          const BAR_COLORS = ['#2dd4bf', '#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#fb7185'];
-          const counts = month.dailyVolume.map((d) => d.count);
-          const min = Math.min(...counts);
-          const max = Math.max(...counts);
-          const colorFor = (count) => {
-            if (max === min) return BAR_COLORS[0];
-            const t = (count - min) / (max - min);
-            const idx = Math.min(BAR_COLORS.length - 1, Math.floor(t * BAR_COLORS.length));
-            return BAR_COLORS[idx];
-          };
+        {(() => {
+          // Two bars, not a daily trend: this month's total so far vs. last
+          // month's total — the comparison the stat line above already
+          // states in words, shown as a simple colorful bar pair instead
+          // of a 30-point daily series.
+          const priorDate = new Date(month.year, month.month - 2, 1);
+          const priorLabel = priorDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          const currentLabel = new Date(month.year, month.month - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          const data = [
+            { label: priorLabel, count: month.volumeVsPriorMonth.prior, fill: '#818cf8' },
+            { label: currentLabel, count: month.volumeVsPriorMonth.current, fill: '#2dd4bf' },
+          ];
           return (
             <div style={{ height: 200 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={month.dailyVolume}>
+                <BarChart data={data} barCategoryGap="35%">
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
-                  <XAxis dataKey="date" tickFormatter={(d) => new Date(d + 'T00:00:00').getDate()} tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} cursor={{ fill: '#f6f7fb' }} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {month.dailyVolume.map((d, i) => (
-                      <Cell key={`cell-${i}`} fill={colorFor(d.count)} />
+                  <Tooltip cursor={{ fill: '#f6f7fb' }} formatter={(v) => [v.toLocaleString(), 'Sessions']} />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={90}>
+                    {data.map((d, i) => (
+                      <Cell key={`cell-${i}`} fill={d.fill} />
                     ))}
                   </Bar>
                 </BarChart>
