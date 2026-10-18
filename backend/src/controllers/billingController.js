@@ -1785,11 +1785,14 @@ function buildFieldsForSession(session, match, ctx) {
 // Child ID at upload time) + same service_date, then closest start_time
 // when a patient has more than one session that day — see
 // companyController.applyComplianceDocMapping for how state rows get here.
-const getComplianceAnalysis = async (req, res) => {
-  const { practitionerId, startDate, endDate } = req.query;
-  if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
-
-  try {
+// Core compliance-matching logic for one practitioner — extracted so both
+// the HTTP handler (getComplianceAnalysis, below) and the bulk-compliance-run
+// endpoint can reuse the exact same matching behavior instead of duplicating
+// it. Throws on unexpected failure; callers decide how to translate that
+// (an HTTP 500 for the single-practitioner tab, a per-practitioner
+// needsReview outcome for the bulk run).
+async function runComplianceAnalysisForPractitioner(practitionerId, startDate, endDate) {
+  {
     const { rows: docRows } = await pool.query(
       'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path, compliance_doc_custom_fields, compliance_strictness FROM company_settings WHERE id = 1'
     );
@@ -1834,7 +1837,7 @@ const getComplianceAnalysis = async (req, res) => {
     const { rows: sessions } = await pool.query(sql, params);
 
     if (!documentOnFile || sessions.length === 0) {
-      return res.json({ success: true, documentOnFile, documentFilename: doc?.compliance_doc_filename || null, strictness: doc?.compliance_strictness || 'moderate', results: {} });
+      return { documentOnFile, documentFilename: doc?.compliance_doc_filename || null, strictness: doc?.compliance_strictness || 'moderate', results: {} };
     }
 
     // Lazy backfill: Child ID -> patient_id is normally resolved once, at
@@ -2079,7 +2082,20 @@ const getComplianceAnalysis = async (req, res) => {
       }
     }
 
-    res.json({ success: true, documentOnFile, documentFilename: doc.compliance_doc_filename, strictness: doc.compliance_strictness || 'moderate', results });
+    return { documentOnFile, documentFilename: doc.compliance_doc_filename, strictness: doc.compliance_strictness || 'moderate', results };
+  }
+}
+
+// GET /api/billing/compliance-analysis — HTTP wrapper around
+// runComplianceAnalysisForPractitioner above, unchanged in behavior/response
+// shape from before the extraction.
+const getComplianceAnalysis = async (req, res) => {
+  const { practitionerId, startDate, endDate } = req.query;
+  if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
+
+  try {
+    const result = await runComplianceAnalysisForPractitioner(practitionerId, startDate, endDate);
+    res.json({ success: true, ...result });
   } catch (error) {
     console.error('Error running compliance analysis:', error);
     res.status(500).json({ error: 'Failed to run compliance analysis' });
@@ -2664,6 +2680,7 @@ module.exports = {
   getPractitionerLogs,
   getLogNotes,
   getComplianceAnalysis,
+  runComplianceAnalysisForPractitioner,
   updateLogStatus,
   rejectLog,
   reconcileLog,
