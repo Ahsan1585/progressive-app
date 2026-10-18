@@ -193,13 +193,31 @@ describe('runAutoGenerateForPractitioner', () => {
       patients: { child_id: '700000001' },
     };
 
-    pool.query
-      .mockResolvedValueOnce({ rows: [fakeAssessment] }) // SEVF assessments query, scoped to validated ids + status re-check
-      .mockResolvedValueOnce({ rows: [{ id: 'batch-uuid-1' }] }) // billing_batches INSERT
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE assessments SET billing_batch_id ... AND billing_status='pending'
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // UPDATE assessments SET billing_status='njeis_review' ... RETURNING id
-      .mockResolvedValueOnce({ rows: [{ first_name: 'Sam', last_name: 'Specialist' }] }) // specialist name lookup
-      .mockResolvedValueOnce({ rows: [] }); // UPDATE billing_batches SET invoice_path
+    // This test runs runAutoGenerateForPractitioner through its ENTIRE
+    // real flow (SEVF, batch bookkeeping, invoice, auto-complete), which
+    // also fires logAudit's own fire-and-forget pool.query INSERTs and
+    // calls getCompanyName/getCompanySettingsForDocuments — a positional
+    // mockResolvedValueOnce chain is too brittle against that real call
+    // count/order (confirmed empirically: it's 10 real pool.query calls,
+    // not the 6-8 a naive reading of the source suggests). Dispatching by
+    // matching each SQL statement's own text is robust to that — it
+    // doesn't care how many calls happen or in what order, only what each
+    // one actually is.
+    pool.query.mockImplementation((sql) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      if (s.startsWith('SELECT a.*, to_jsonb(p) AS practitioners')) return Promise.resolve({ rows: [fakeAssessment] });
+      if (s.startsWith('INSERT INTO billing_batches')) return Promise.resolve({ rows: [{ id: 'batch-uuid-1' }] });
+      if (s.startsWith("UPDATE assessments SET billing_status = 'njeis_review'")) return Promise.resolve({ rows: [{ id: 1 }] });
+      if (s.startsWith("UPDATE assessments SET billing_status = 'invoiced'")) return Promise.resolve({ rows: [{ id: 1 }] });
+      if (s.startsWith('SELECT first_name, last_name FROM practitioners')) return Promise.resolve({ rows: [{ first_name: 'Sam', last_name: 'Specialist' }] });
+      // Everything else (billing_batch_id UPDATE, invoice_path UPDATE,
+      // audit_logs INSERTs, company_settings/compliance lookups inside
+      // getCompanyName/getCompanySettingsForDocuments/computeSessionCompliance)
+      // is irrelevant to this test's assertions — an empty row set lets
+      // each of those degrade/no-op exactly as it would on a real tenant
+      // with no data, without this test needing to track its position.
+      return Promise.resolve({ rows: [] });
+    });
 
     const result = await runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, [1]);
 
@@ -207,11 +225,17 @@ describe('runAutoGenerateForPractitioner', () => {
     expect(result.batchId).toBe('batch-uuid-1');
     expect(result.sevfPath).toEqual(expect.stringContaining('NJEIS_'));
     expect(result.invoicePath).toEqual(expect.stringContaining('Invoice_'));
+    expect(result.completedCount).toBe(1);
 
     // Confirm the SEVF query was scoped to the validated ids, not a bare
     // billing_status='pending' re-derivation.
-    const sevfCall = pool.query.mock.calls[0];
+    const sevfCall = pool.query.mock.calls.find(([sql]) => sql.includes('to_jsonb(p) AS practitioners'));
     expect(sevfCall[1]).toEqual([42, [1], 'pending']);
+
+    // Confirm the final auto-complete UPDATE actually ran, scoped to the
+    // same validated id set.
+    const completeCall = pool.query.mock.calls.find(([sql]) => sql.includes("billing_status = 'invoiced'"));
+    expect(completeCall[1]).toEqual([[1]]);
   });
 
   test('throws (without silently advancing a partial set) if the njeis_review UPDATE affects fewer rows than validated', async () => {
@@ -232,6 +256,41 @@ describe('runAutoGenerateForPractitioner', () => {
 
     await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, [1]))
       .rejects.toThrow(/concurrent change was detected/i);
+  });
+
+  // A clean period auto-generates AND auto-completes in one call (per
+  // explicit user request: "send to completed should have also happened
+  // automatically") — this proves the final invoiced-status UPDATE
+  // actually runs and is itself guarded the same way every other status
+  // transition in this function is (throws rather than silently
+  // completing a partial set if something changed mid-flight).
+  test('throws if the final invoiced-status UPDATE affects fewer rows than expected', async () => {
+    const { runAutoGenerateForPractitioner } = require('../billingController');
+    const fakeAssessment = {
+      id: 1, patient_id: 10, service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+      total_time: 30, type: 'OT', location: '1', group_size_category: 'individual', billing_status: 'pending',
+      patient_first_name: 'A', patient_last_name: 'B', patient_county: 'Essex',
+      practitioner_discipline: 'OT',
+      practitioners: { id: 42, first_name: 'C', last_name: 'D', pay_rate: '50', service_types: ['OT'], ssn: null },
+      patients: { child_id: '700000001' },
+    };
+    // Same content-matching approach as the full-success test above — this
+    // test must also run the whole function up to the final guard, so a
+    // positional mock chain is equally brittle here.
+    pool.query.mockImplementation((sql) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      if (s.startsWith('SELECT a.*, to_jsonb(p) AS practitioners')) return Promise.resolve({ rows: [fakeAssessment] });
+      if (s.startsWith('INSERT INTO billing_batches')) return Promise.resolve({ rows: [{ id: 'batch-uuid-1' }] });
+      if (s.startsWith("UPDATE assessments SET billing_status = 'njeis_review'")) return Promise.resolve({ rows: [{ id: 1 }] });
+      // The one query this test deliberately makes return fewer rows than
+      // expected, to trigger the final guard.
+      if (s.startsWith("UPDATE assessments SET billing_status = 'invoiced'")) return Promise.resolve({ rows: [] });
+      if (s.startsWith('SELECT first_name, last_name FROM practitioners')) return Promise.resolve({ rows: [{ first_name: 'Sam', last_name: 'Specialist' }] });
+      return Promise.resolve({ rows: [] });
+    });
+
+    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, [1]))
+      .rejects.toThrow(/could be moved to Completed Bills/i);
   });
 });
 
