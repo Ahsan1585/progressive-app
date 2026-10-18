@@ -227,23 +227,47 @@ const getPendingLogs = async (req, res) => {
 // is one unbroken function call, not two requests. Throws on any failure —
 // never catches-and-returns-partial-success, so the caller (bulkComplianceRun)
 // can tell "fully succeeded" from "failed partway" and act accordingly.
-async function runAutoGenerateForPractitioner(practitionerId, startDate, endDate, processedByPractitionerId) {
-  // --- SEVF generation (mirrors generateNJEISForms) ---
-  const sevfParams = [practitionerId, ['pending']];
-  let sevfSql = `
+//
+// validatedAssessmentIds MUST be the exact id set bulkComplianceRun's
+// compliance check just validated as clean — NOT re-derived from a fresh
+// billing_status='pending' query here. A fresh query would pick up ANY
+// session that became pending in the window between the compliance check
+// and this call (a practitioner submitting a new log, a Returned log being
+// resubmitted, a Hold being released by someone else) and bill it without
+// it ever having been checked against EIMS. Scoping strictly to
+// `id = ANY($validatedAssessmentIds) AND billing_status = 'pending'` means
+// anything that drifted out of 'pending' in that window is silently
+// excluded (and the id count is verified below) rather than silently
+// included.
+async function runAutoGenerateForPractitioner(practitionerId, startDate, endDate, processedByPractitionerId, validatedAssessmentIds) {
+  if (!Array.isArray(validatedAssessmentIds) || validatedAssessmentIds.length === 0) {
+    throw new Error('runAutoGenerateForPractitioner requires the validated assessment ids from the compliance check — refusing to bill an independently-derived session set.');
+  }
+
+  // --- SEVF generation (mirrors generateNJEISForms), scoped to exactly the
+  // validated ids, re-checking billing_status so anything that changed
+  // status since the compliance check is excluded rather than silently
+  // billed anyway. ---
+  const sevfParams = [practitionerId, validatedAssessmentIds, 'pending'];
+  const sevfSql = `
     SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
     FROM assessments a
     JOIN practitioners p ON p.id = a.practitioner_id
     LEFT JOIN patients pt ON pt.id = a.patient_id
-    WHERE a.practitioner_id = $1 AND a.billing_status = ANY($2::text[])
+    WHERE a.practitioner_id = $1 AND a.id = ANY($2::int[]) AND a.billing_status = $3
+    ORDER BY a.service_date ASC
   `;
-  if (startDate) { sevfParams.push(startDate); sevfSql += ` AND a.service_date >= $${sevfParams.length}`; }
-  if (endDate) { sevfParams.push(endDate); sevfSql += ` AND a.service_date <= $${sevfParams.length}`; }
-  sevfSql += ' ORDER BY a.service_date ASC';
 
   const { rows: assessments } = await pool.query(sevfSql, sevfParams);
   if (!assessments || assessments.length === 0) {
     throw new Error('No pending assessments found for this practitioner in this period.');
+  }
+  if (assessments.length !== validatedAssessmentIds.length) {
+    // At least one previously-clean session changed status (or was
+    // deleted) between the compliance check and here — the validated set
+    // is no longer trustworthy as "this practitioner's whole period is
+    // clean." Refuse rather than bill a different, unvalidated subset.
+    throw new Error(`Session set changed since the compliance check (expected ${validatedAssessmentIds.length} pending sessions, found ${assessments.length}) — re-run compliance analysis for this practitioner before generating.`);
   }
 
   const companyName = await getCompanyName();
@@ -293,13 +317,22 @@ async function runAutoGenerateForPractitioner(practitionerId, startDate, endDate
     console.warn('billing_batches insert failed (non-fatal):', batchInsertError.message);
   }
   if (batchRow) {
-    await pool.query('UPDATE assessments SET billing_batch_id = $1 WHERE id = ANY($2::int[])', [batchRow.id, allAssessmentIds]);
+    await pool.query(
+      "UPDATE assessments SET billing_batch_id = $1 WHERE id = ANY($2::int[]) AND billing_status = 'pending'",
+      [batchRow.id, allAssessmentIds]
+    );
   }
-  // The bulk path only ever reaches here for a fully-clean period (no
-  // held/rejected sessions mixed in — see bulkComplianceRun's isClean
-  // check), so every assessment advances; unlike generateNJEISForms's HTTP
-  // path there's no `!== 'rejected'` filter needed here.
-  await pool.query("UPDATE assessments SET billing_status = 'njeis_review' WHERE id = ANY($1::int[])", [allAssessmentIds]);
+  // Guarded by billing_status = 'pending' (not just id IN (...)) as a
+  // second check against the same race the SELECT above already narrowed
+  // for — a row that changed status in the gap between that SELECT and
+  // this UPDATE is left alone rather than silently advanced anyway.
+  const { rows: advancedRows } = await pool.query(
+    "UPDATE assessments SET billing_status = 'njeis_review' WHERE id = ANY($1::int[]) AND billing_status = 'pending' RETURNING id",
+    [allAssessmentIds]
+  );
+  if (advancedRows.length !== allAssessmentIds.length) {
+    throw new Error(`Only ${advancedRows.length} of ${allAssessmentIds.length} validated sessions were still pending at generation time — a concurrent change was detected mid-generation. The SEVF PDF for this practitioner may need to be discarded and generation re-run.`);
+  }
 
   logAudit({
     actorId: processedByPractitionerId, action: 'njeis_pdf_generate', resourceType: 'billing_batch', resourceId: batchRow?.id || null,
@@ -1091,7 +1124,6 @@ const generateFinancialInvoice = async (req, res) => {
   }
 };
 
-// --- 4b. STEP 3: Move a practitioner's fully-generated logs to Completed Bills ---
 // POST /api/billing/bulk-compliance-run — runs compliance analysis across
 // many practitioners (or every practitioner with pending logs in the
 // period, via practitionerIds:'all') in one action. A practitioner whose
@@ -1130,39 +1162,62 @@ const bulkComplianceRun = async (req, res) => {
     const needsReview = [];
     const skippedLocked = [];
     const noSessions = [];
+    const callerId = req.practitioner.practitionerId;
 
+    // One practitioner's whole try/catch/finally, including the name
+    // lookup and lock acquire — a bad/stale id or a DB hiccup on any one
+    // practitioner must not abort the rest of the batch and discard every
+    // result already accumulated for practitioners already processed.
     for (const practitionerId of targetIds) {
-      const { rows: nameRows } = await pool.query(
-        'SELECT first_name, last_name FROM practitioners WHERE id = $1', [practitionerId]
-      );
-      const name = nameRows[0] ? `${nameRows[0].first_name} ${nameRows[0].last_name}`.trim() : 'Unknown';
-
-      const lockResult = await module.exports.acquireLock(practitionerId, req.practitioner.practitionerId, 'review');
-      if (!lockResult.acquired) {
-        skippedLocked.push({ practitionerId, name, lockedByName: lockResult.lockedByName });
-        continue;
-      }
-
+      let lockResult = null;
+      let name = 'Unknown';
       try {
-        const { rows: pendingCountRows } = await pool.query(
-          `SELECT COUNT(*)::int AS count FROM assessments
+        const { rows: nameRows } = await pool.query(
+          'SELECT first_name, last_name FROM practitioners WHERE id = $1', [practitionerId]
+        );
+        name = nameRows[0] ? `${nameRows[0].first_name} ${nameRows[0].last_name}`.trim() : 'Unknown';
+
+        lockResult = await module.exports.acquireLock(practitionerId, callerId, 'review');
+        if (!lockResult.acquired) {
+          skippedLocked.push({ practitionerId, name, lockedByName: lockResult.lockedByName });
+          continue;
+        }
+
+        // Exactly the sessions generation will bill — 'pending' only. A
+        // held/returned/declined/already-sent session in the same period
+        // is a separate, already-handled state and is deliberately NOT
+        // required to be "clean" for THIS practitioner's pending work to
+        // auto-generate (nor does it block it) — see bulkComplianceRun's
+        // module header comment and the plan's Review Focus #2.
+        const { rows: pendingRows } = await pool.query(
+          `SELECT id FROM assessments
            WHERE practitioner_id = $1 AND billing_status = 'pending'
              AND service_date >= $2 AND service_date <= $3`,
           [practitionerId, startDate, endDate]
         );
-        if (pendingCountRows[0].count === 0) {
+        if (pendingRows.length === 0) {
           noSessions.push({ practitionerId, name });
           continue;
         }
+        const pendingIds = new Set(pendingRows.map((r) => r.id));
 
         const analysis = await module.exports.runComplianceAnalysisForPractitioner(practitionerId, startDate, endDate);
-        const resultValues = Object.values(analysis.results);
+        // Only validate the pending sessions themselves — analysis.results
+        // can include non-pending sessions in the same period (already
+        // njeis_review/invoiced/held/etc from earlier activity); those are
+        // irrelevant to whether THIS batch of still-pending work is safe
+        // to auto-generate.
+        const pendingResults = Object.entries(analysis.results)
+          .filter(([sessionId]) => pendingIds.has(Number(sessionId)))
+          .map(([, result]) => result);
         const isClean = analysis.documentOnFile
-          && resultValues.length > 0
-          && resultValues.every((r) => r.matched === true && r.flagged === false && !r.duplicateOfSessionId);
+          && pendingResults.length === pendingIds.size
+          && pendingResults.every((r) => r.matched === true && r.flagged === false && !r.duplicateOfSessionId);
 
         if (isClean) {
-          const generated = await module.exports.runAutoGenerateForPractitioner(practitionerId, startDate, endDate, req.practitioner.practitionerId);
+          const generated = await module.exports.runAutoGenerateForPractitioner(
+            practitionerId, startDate, endDate, callerId, [...pendingIds]
+          );
           autoGenerated.push({ practitionerId, name, batchId: generated.batchId });
         } else {
           needsReview.push({ practitionerId, name });
@@ -1171,7 +1226,13 @@ const bulkComplianceRun = async (req, res) => {
         console.error(`bulkComplianceRun: failed for practitioner ${practitionerId}:`, perPractitionerError);
         needsReview.push({ practitionerId, name });
       } finally {
-        await module.exports.releaseLock(practitionerId, 'review');
+        // Only release if THIS run actually acquired a fresh lock —
+        // acquired:true with alreadyMine:true means the caller already
+        // held this lock before the run started (e.g. a manual review in
+        // progress), and that lock was never this run's to let go of.
+        if (lockResult?.acquired && !lockResult.alreadyMine) {
+          await module.exports.releaseLock(practitionerId, callerId, 'review');
+        }
       }
     }
 
@@ -2719,11 +2780,18 @@ const VALID_LOCK_SCOPES = ['review', 'billed'];
 
 // Core lock acquire/release — extracted so the bulk-compliance-run endpoint
 // can acquire/release a practitioner's review lock per-practitioner during
-// its loop without an HTTP round-trip against this same server. Unlike
-// unlockPractitioner (the HTTP endpoint), releaseLock has no requester-
-// identity check: the bulk run only ever releases a lock it just acquired
-// itself, immediately after using it, so there's no "someone else's lock"
-// case to guard against here.
+// its loop without an HTTP round-trip against this same server.
+//
+// releaseLock REQUIRES the owner's id and only deletes a lock that id
+// actually holds — this matters specifically because acquireLock can
+// return { acquired: true, alreadyMine: true } when the caller already
+// held the lock before this call (e.g. a billing specialist manually
+// locked a practitioner for review, then a bulk run that includes them
+// runs). An earlier version released unconditionally in that case, which
+// deleted the specialist's own pre-existing manual lock out from under
+// them the moment the bulk run finished with that practitioner — callers
+// (bulkComplianceRun) must skip releasing when alreadyMine is true instead
+// of calling releaseLock at all, since that lock was never theirs to let go.
 async function acquireLock(practitionerId, lockerId, scope = 'review') {
   const { rows: insertedRows } = await pool.query(
     `INSERT INTO billing_locks (practitioner_id, lock_scope, locked_by)
@@ -2746,8 +2814,11 @@ async function acquireLock(practitionerId, lockerId, scope = 'review') {
   return { acquired: false, lockedByName };
 }
 
-async function releaseLock(practitionerId, scope = 'review') {
-  await pool.query('DELETE FROM billing_locks WHERE practitioner_id = $1 AND lock_scope = $2', [practitionerId, scope]);
+async function releaseLock(practitionerId, ownerId, scope = 'review') {
+  await pool.query(
+    'DELETE FROM billing_locks WHERE practitioner_id = $1 AND lock_scope = $2 AND locked_by = $3',
+    [practitionerId, scope, ownerId]
+  );
 }
 
 const lockPractitioner = async (req, res) => {

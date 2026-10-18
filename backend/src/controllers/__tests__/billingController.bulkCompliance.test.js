@@ -134,14 +134,54 @@ describe('updateLogStatus duplicate gate', () => {
 describe('runAutoGenerateForPractitioner', () => {
   afterEach(() => jest.clearAllMocks());
 
-  test('throws if no pending sessions exist in the period', async () => {
+  // Regression test for a Critical finding from the whole-branch review:
+  // runAutoGenerateForPractitioner originally re-queried billing_status=
+  // 'pending' sessions independently of whatever the caller's compliance
+  // check had validated, so a session that became pending in the gap
+  // between the check and this call (a new log submitted, a Returned log
+  // resubmitted, a Hold released) could get billed without ever being
+  // checked against EIMS. It now REQUIRES the exact validated id set and
+  // refuses to run without it.
+  test('throws if called without the validated assessment ids (refuses to derive its own session set)', async () => {
     const { runAutoGenerateForPractitioner } = require('../billingController');
-    pool.query.mockResolvedValueOnce({ rows: [] }); // SEVF's own assessments query returns none
-    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7))
+    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, []))
+      .rejects.toThrow(/validated assessment ids/i);
+    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, undefined))
+      .rejects.toThrow(/validated assessment ids/i);
+  });
+
+  test('throws if none of the validated ids are still pending', async () => {
+    const { runAutoGenerateForPractitioner } = require('../billingController');
+    pool.query.mockResolvedValueOnce({ rows: [] }); // SEVF query, scoped to id=ANY([1]) AND status='pending', finds nothing
+    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, [1]))
       .rejects.toThrow(/no pending/i);
   });
 
-  test('full success returns batchId, sevfPath, and invoicePath all populated', async () => {
+  // Regression test: if the validated set was 2 sessions but only 1 is
+  // still actually pending by the time this runs (the other's status
+  // changed in the gap), the old code would have silently billed just
+  // the 1 that matched — this must refuse instead, since "this
+  // practitioner's period is entirely clean" is no longer a true
+  // statement about what's about to be billed.
+  test('throws if the pending session count no longer matches the validated set (mid-run drift)', async () => {
+    const { runAutoGenerateForPractitioner } = require('../billingController');
+    const fakeAssessment = {
+      id: 1, patient_id: 10, service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+      total_time: 30, type: 'OT', location: '1', group_size_category: 'individual', billing_status: 'pending',
+      patient_first_name: 'A', patient_last_name: 'B', patient_county: 'Essex',
+      practitioner_discipline: 'OT',
+      practitioners: { id: 42, first_name: 'C', last_name: 'D', pay_rate: '50', service_types: ['OT'], ssn: null },
+      patients: { child_id: '700000001' },
+    };
+    // Validated set was [1, 2], but the re-check query (scoped to those
+    // ids AND billing_status='pending') only finds id 1 still pending —
+    // id 2 must have changed status in the gap.
+    pool.query.mockResolvedValueOnce({ rows: [fakeAssessment] });
+    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, [1, 2]))
+      .rejects.toThrow(/session set changed/i);
+  });
+
+  test('full success returns batchId, sevfPath, and invoicePath all populated, billing exactly the validated ids', async () => {
     const { runAutoGenerateForPractitioner } = require('../billingController');
 
     const fakeAssessment = {
@@ -154,19 +194,44 @@ describe('runAutoGenerateForPractitioner', () => {
     };
 
     pool.query
-      .mockResolvedValueOnce({ rows: [fakeAssessment] }) // SEVF assessments query
+      .mockResolvedValueOnce({ rows: [fakeAssessment] }) // SEVF assessments query, scoped to validated ids + status re-check
       .mockResolvedValueOnce({ rows: [{ id: 'batch-uuid-1' }] }) // billing_batches INSERT
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE assessments SET billing_batch_id
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE assessments SET billing_status = 'njeis_review'
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE assessments SET billing_batch_id ... AND billing_status='pending'
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // UPDATE assessments SET billing_status='njeis_review' ... RETURNING id
       .mockResolvedValueOnce({ rows: [{ first_name: 'Sam', last_name: 'Specialist' }] }) // specialist name lookup
       .mockResolvedValueOnce({ rows: [] }); // UPDATE billing_batches SET invoice_path
 
-    const result = await runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7);
+    const result = await runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, [1]);
 
     expect(result.success).toBe(true);
     expect(result.batchId).toBe('batch-uuid-1');
     expect(result.sevfPath).toEqual(expect.stringContaining('NJEIS_'));
     expect(result.invoicePath).toEqual(expect.stringContaining('Invoice_'));
+
+    // Confirm the SEVF query was scoped to the validated ids, not a bare
+    // billing_status='pending' re-derivation.
+    const sevfCall = pool.query.mock.calls[0];
+    expect(sevfCall[1]).toEqual([42, [1], 'pending']);
+  });
+
+  test('throws (without silently advancing a partial set) if the njeis_review UPDATE affects fewer rows than validated', async () => {
+    const { runAutoGenerateForPractitioner } = require('../billingController');
+    const fakeAssessment = {
+      id: 1, patient_id: 10, service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+      total_time: 30, type: 'OT', location: '1', group_size_category: 'individual', billing_status: 'pending',
+      patient_first_name: 'A', patient_last_name: 'B', patient_county: 'Essex',
+      practitioner_discipline: 'OT',
+      practitioners: { id: 42, first_name: 'C', last_name: 'D', pay_rate: '50', service_types: ['OT'], ssn: null },
+      patients: { child_id: '700000001' },
+    };
+    pool.query
+      .mockResolvedValueOnce({ rows: [fakeAssessment] }) // SEVF assessments query
+      .mockResolvedValueOnce({ rows: [{ id: 'batch-uuid-1' }] }) // billing_batches INSERT
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE billing_batch_id
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE billing_status='njeis_review' RETURNING id — returns ZERO rows, a race was detected here
+
+    await expect(runAutoGenerateForPractitioner(42, '2026-10-01', '2026-10-15', 7, [1]))
+      .rejects.toThrow(/concurrent change was detected/i);
   });
 });
 
@@ -207,7 +272,7 @@ describe('bulkComplianceRun', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 42, first_name: 'Sam', last_name: 'Lee' }] }) // name lookup
       .mockResolvedValueOnce({ rows: [{ practitioner_id: 42 }] }) // acquireLock INSERT succeeds
-      .mockResolvedValueOnce({ rows: [{ count: 0 }] }) // pending-count query returns 0
+      .mockResolvedValueOnce({ rows: [] }) // pending-ids query returns no rows
       .mockResolvedValueOnce({ rows: [] }); // releaseLock DELETE
 
     await billingController.bulkComplianceRun(req, res);
@@ -243,7 +308,9 @@ describe('bulkComplianceRun', () => {
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
 
     // Practitioner 1: clean, but runAutoGenerateForPractitioner throws (simulates invoice PDF failure).
-    // Practitioner 2: clean, succeeds normally.
+    // Practitioner 2: clean, succeeds normally. Both practitioners' sole
+    // pending session has id 100 (mirrored in the pendingIds query below),
+    // so pendingResults lines up with the mocked compliance analysis result.
     jest.spyOn(billingController, 'runComplianceAnalysisForPractitioner').mockResolvedValue({
       documentOnFile: true, results: { 100: { matched: true, flagged: false } },
     });
@@ -253,17 +320,107 @@ describe('bulkComplianceRun', () => {
       .mockRejectedValueOnce(new Error('GCS upload failed'))
       .mockResolvedValueOnce({ success: true, batchId: 'batch-2' });
 
-    // Name lookups + pending-count checks for both practitioners:
+    // Name lookups + pending-ids queries for both practitioners:
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 1, first_name: 'A', last_name: 'One' }] })
-      .mockResolvedValueOnce({ rows: [{ count: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 100 }] })
       .mockResolvedValueOnce({ rows: [{ id: 2, first_name: 'B', last_name: 'Two' }] })
-      .mockResolvedValueOnce({ rows: [{ count: 1 }] });
+      .mockResolvedValueOnce({ rows: [{ id: 100 }] });
 
     await billingController.bulkComplianceRun(req, res);
 
     const response = res.json.mock.calls[0][0];
     expect(response.autoGenerated).toEqual([expect.objectContaining({ practitionerId: 2 })]);
     expect(response.needsReview).toEqual([expect.objectContaining({ practitionerId: 1 })]);
+  });
+
+  // Regression test for a Critical finding: releaseLock used to run
+  // unconditionally in the per-practitioner finally block, including when
+  // acquireLock reported alreadyMine:true (the caller already held this
+  // lock before the bulk run started — e.g. a manual review in progress).
+  // That silently deleted the caller's own pre-existing lock the moment
+  // this run finished with that practitioner. releaseLock must only be
+  // called when this run itself acquired a fresh lock.
+  test('does not release a lock the caller already held before the run (alreadyMine)', async () => {
+    const billingController = require('../billingController');
+    const req = { body: { practitionerIds: [42], startDate: '2026-10-01', endDate: '2026-10-15' }, practitioner: { practitionerId: 7 } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    jest.spyOn(billingController, 'acquireLock').mockResolvedValue({ acquired: true, alreadyMine: true });
+    const releaseLockSpy = jest.spyOn(billingController, 'releaseLock').mockResolvedValue();
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 42, first_name: 'Sam', last_name: 'Lee' }] }) // name lookup
+      .mockResolvedValueOnce({ rows: [] }); // pending-ids query returns no rows -> noSessions, early continue
+
+    await billingController.bulkComplianceRun(req, res);
+
+    expect(releaseLockSpy).not.toHaveBeenCalled();
+  });
+
+  // Regression test for an Important finding: a bad/stale practitioner id
+  // (or any DB error on one practitioner) used to be outside the
+  // per-practitioner try/catch for the name lookup and lock acquire,
+  // aborting the whole request with a 500 and discarding every result
+  // already accumulated for practitioners processed earlier in the loop.
+  test('one practitioner whose name lookup throws does not abort the rest of the batch', async () => {
+    const billingController = require('../billingController');
+    const req = {
+      body: { practitionerIds: [1, 2], startDate: '2026-10-01', endDate: '2026-10-15' },
+      practitioner: { practitionerId: 7 },
+    };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    jest.spyOn(billingController, 'acquireLock').mockResolvedValue({ acquired: true });
+    jest.spyOn(billingController, 'releaseLock').mockResolvedValue();
+
+    pool.query
+      .mockRejectedValueOnce(new Error('connection reset')) // practitioner 1's name lookup throws
+      .mockResolvedValueOnce({ rows: [{ id: 2, first_name: 'B', last_name: 'Two' }] }) // practitioner 2's name lookup
+      .mockResolvedValueOnce({ rows: [] }); // practitioner 2's pending-ids query -> noSessions
+
+    await billingController.bulkComplianceRun(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(500);
+    const response = res.json.mock.calls[0][0];
+    expect(response.needsReview).toEqual([expect.objectContaining({ practitionerId: 1 })]);
+    expect(response.noSessions).toEqual([expect.objectContaining({ practitionerId: 2 })]);
+  });
+
+  // Regression test for an Important finding: isClean originally checked
+  // EVERY session in analysis.results (the whole period), not just the
+  // pending ones generation will actually bill. A matched-but-on_hold
+  // session in the same period could never satisfy "entire period clean"
+  // under the old check even though it isn't part of what's being billed
+  // at all — this confirms a held session in the same period no longer
+  // blocks auto-generation of the practitioner's actual pending work.
+  test('a held (non-pending) session in the same period does not block auto-generation of pending work', async () => {
+    const billingController = require('../billingController');
+    const req = { body: { practitionerIds: [42], startDate: '2026-10-01', endDate: '2026-10-15' }, practitioner: { practitionerId: 7 } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    jest.spyOn(billingController, 'acquireLock').mockResolvedValue({ acquired: true });
+    jest.spyOn(billingController, 'releaseLock').mockResolvedValue();
+    // The period's compliance analysis includes BOTH the pending session
+    // (id 100, clean) and an on_hold session (id 200, flagged) — only the
+    // pending one is relevant to this practitioner's auto-generate check.
+    jest.spyOn(billingController, 'runComplianceAnalysisForPractitioner').mockResolvedValue({
+      documentOnFile: true,
+      results: {
+        100: { matched: true, flagged: false },
+        200: { matched: false, flagged: true },
+      },
+    });
+    jest.spyOn(billingController, 'runAutoGenerateForPractitioner').mockResolvedValue({ success: true, batchId: 'batch-1' });
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 42, first_name: 'Sam', last_name: 'Lee' }] }) // name lookup
+      .mockResolvedValueOnce({ rows: [{ id: 100 }] }); // pending-ids query — only the pending session, not the held one
+
+    await billingController.bulkComplianceRun(req, res);
+
+    const response = res.json.mock.calls[0][0];
+    expect(response.autoGenerated).toEqual([expect.objectContaining({ practitionerId: 42, batchId: 'batch-1' })]);
+    expect(response.needsReview).toEqual([]);
   });
 });
