@@ -561,7 +561,12 @@ export const BillingManager = () => {
       // held in memory until the next fetch quietly wipes it.
       await fetchLogs();
     } catch (error) {
-      pushToast('error', 'Generation failed: ' + error.message);
+      // error.response.data.error is the real, specific reason the server
+      // rejected this (e.g. "This log still has unresolved compliance
+      // mismatches" or the bulk path's "No pending assessments found") —
+      // error.message alone is just axios's generic "Request failed with
+      // status code 400", which told the specialist nothing actionable.
+      pushToast('error', error.response?.data?.error || error.message || 'Generation failed for an unknown reason.');
     } finally {
       setProcessingId(null);
     }
