@@ -631,6 +631,7 @@ describe('bulkComplianceRun', () => {
       expect.objectContaining({
         practitionerId: 42,
         approvedCount: 1,
+        flaggedCount: 1,
         reason: expect.stringContaining('1 of 2 sessions'),
       }),
     ]);

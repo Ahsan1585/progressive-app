@@ -1253,6 +1253,7 @@ const bulkComplianceRun = async (req, res) => {
           // untouched and still need a human in Compliance Analysis.
           let reason;
           let approvedCount = 0;
+          let flaggedCount = null;
           if (!analysis.documentOnFile) {
             reason = 'No EIMS compliance reference document is on file to check against.';
           } else {
@@ -1264,7 +1265,7 @@ const bulkComplianceRun = async (req, res) => {
                 .filter(([sessionId, r]) => pendingIds.has(Number(sessionId)) && r.matched === true && r.flagged === false && !r.duplicateOfSessionId)
                 .map(([sessionId]) => Number(sessionId))
             );
-            const flaggedCount = pendingIds.size - cleanIdSet.size;
+            flaggedCount = pendingIds.size - cleanIdSet.size;
             if (cleanIdSet.size > 0) {
               const { rows: approvedRows } = await pool.query(
                 `UPDATE assessments SET billing_review = 'accept' WHERE id = ANY($1::int[]) AND billing_status = 'pending' RETURNING id`,
@@ -1276,7 +1277,7 @@ const bulkComplianceRun = async (req, res) => {
               ? `${flaggedCount} of ${pendingIds.size} session${pendingIds.size === 1 ? '' : 's'} didn't clear EIMS cleanly, so the batch wasn't auto-generated — but the ${approvedCount} clean one${approvedCount === 1 ? '' : 's'} ${approvedCount === 1 ? 'was' : 'were'} approved and ${approvedCount === 1 ? 'is' : 'are'} ready whenever you generate this practitioner's SEVF/invoice manually. Lock this practitioner and open Compliance Analysis to resolve the rest.`
               : `All ${pendingIds.size} session${pendingIds.size === 1 ? '' : 's'} failed to clear EIMS cleanly (mismatched, missing, or a duplicate). Lock this practitioner and open Compliance Analysis to review.`;
           }
-          needsReview.push({ practitionerId, name, reason, approvedCount });
+          needsReview.push({ practitionerId, name, reason, approvedCount, flaggedCount });
         }
       } catch (perPractitionerError) {
         console.error(`bulkComplianceRun: failed for practitioner ${practitionerId}:`, perPractitionerError);
