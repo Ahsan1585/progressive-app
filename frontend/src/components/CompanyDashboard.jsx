@@ -219,7 +219,7 @@ function PractitionerAccuracyTable({ month }) {
       <div className="px-5 py-4 border-b border-slate-100">
         <div className="text-[15.5px] font-bold text-slate-900">Practitioner accuracy</div>
         <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
-          How cleanly each practitioner's logged sessions matched EIMS this month — holds and returns count against the score. Independent practitioners (self-reported, not cross-checked) aren't included.
+          How cleanly each practitioner's logged sessions matched EIMS this month — holds, returns, and still-pending sessions already flagged by Compliance Analysis all count against the score. Independent practitioners (self-reported, not cross-checked) aren't included.
         </p>
       </div>
       {rows.length === 0 ? (

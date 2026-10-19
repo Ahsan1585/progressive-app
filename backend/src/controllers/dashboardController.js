@@ -368,9 +368,23 @@ const getMonthOverview = async (req, res) => {
          AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')`,
       [start, end]
     );
+    // Still-pending sessions that already have a real Compliance Analysis
+    // verdict on file (persisted via persistEimsFlags — see its comment in
+    // billingController.js) — folded into the accuracy table below so a
+    // practitioner whose flagged/missing work hasn't been sent to billing
+    // yet isn't silently absent from it, reading as a clean 100% by
+    // omission instead of reflecting currently-open EIMS issues.
+    const { rows: pendingCheckedSessions } = await pool.query(
+      `SELECT a.practitioner_id, a.eims_last_flagged, a.eims_last_missing
+       FROM assessments a
+       WHERE a.service_date >= $1 AND a.service_date <= $2
+         AND a.billing_status = 'pending'
+         AND (a.eims_last_flagged IS NOT NULL OR a.eims_last_missing IS NOT NULL)`,
+      [start, end]
+    );
     const { rows: practitionerRoleRows } = await pool.query(
       `SELECT id, role, first_name, last_name FROM practitioners WHERE id = ANY($1::int[])`,
-      [[...new Set(billedSessions.map((s) => s.practitioner_id))]]
+      [[...new Set([...billedSessions.map((s) => s.practitioner_id), ...pendingCheckedSessions.map((s) => s.practitioner_id)])]]
     );
     const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
     const complianceById = await loadComplianceForLines(
@@ -410,6 +424,20 @@ const getMonthOverview = async (req, res) => {
       if (tier === 'cleared') acc.clean += 1;
       if (EXCEPTION_STATUSES.includes(s.billing_status)) acc.held += 1;
     });
+
+    // A pending session that was never checked (both columns null) isn't
+    // counted either way — "not yet checked" isn't evidence of accuracy
+    // or inaccuracy.
+    pendingCheckedSessions.forEach((s) => {
+      if (roleById.get(s.practitioner_id) === 'independent_practitioner') return;
+      if (!accuracyByPractitioner.has(s.practitioner_id)) {
+        accuracyByPractitioner.set(s.practitioner_id, { total: 0, clean: 0, held: 0 });
+      }
+      const acc = accuracyByPractitioner.get(s.practitioner_id);
+      acc.total += 1;
+      if (!s.eims_last_flagged && !s.eims_last_missing) acc.clean += 1;
+    });
+
     const practitionerAccuracy = [...accuracyByPractitioner.entries()].map(([practitionerId, acc]) => {
       const p = practitionerRoleRows.find((r) => r.id === practitionerId);
       return {
