@@ -36,7 +36,8 @@ const {
   sendMissingToAdmin,
   getActionRequiredLogs,
   decideMissingInEims,
-  bulkComplianceRun
+  bulkComplianceRun,
+  getBulkComplianceRunProgress
 } = require('../controllers/billingController');
 const {
   allowComplianceField,
@@ -105,6 +106,7 @@ router.post('/reject-log',       ...pendingGuard, rejectLog);
 router.post('/reconcile-log',    ...pendingGuard, reconcileLog);
 router.post('/log-comment',      ...pendingGuard, addLogComment);
 router.post('/bulk-compliance-run', ...pendingGuard, bulkComplianceRun);
+router.get('/bulk-compliance-run/progress/:runId', ...pendingGuard, getBulkComplianceRunProgress);
 router.post('/generate-njeis',   ...pendingGuard, generateNJEISForms);
 router.post('/generate-invoice', ...pendingGuard, generateFinancialInvoice);
 router.post('/complete-billing',  ...pendingGuard, completeBilling);

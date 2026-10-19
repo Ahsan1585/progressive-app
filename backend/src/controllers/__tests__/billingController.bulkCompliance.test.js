@@ -725,3 +725,66 @@ describe('bulkComplianceRun', () => {
     ]);
   });
 });
+
+// Progress tracking: the frontend generates a runId and sends it in the
+// POST body, then polls getBulkComplianceRunProgress in parallel while
+// that POST is still in flight — see this behavior's own comment in
+// billingController.js for why bulkComplianceRun's own request/response
+// contract (tested exhaustively above) is otherwise untouched.
+describe('bulkComplianceRun progress tracking', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  test('getBulkComplianceRunProgress reports found:false for an unknown runId', () => {
+    const billingController = require('../billingController');
+    const req = { params: { runId: 'does-not-exist' } };
+    const res = { json: jest.fn() };
+
+    billingController.getBulkComplianceRunProgress(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ found: false });
+  });
+
+  test('progress advances per practitioner and is marked done at the end of a real run', async () => {
+    const billingController = require('../billingController');
+    const runId = 'test-run-1';
+    const req = {
+      body: { practitionerIds: [1, 2], startDate: '2026-10-01', endDate: '2026-10-15', runId },
+      practitioner: { practitionerId: 7 },
+    };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    jest.spyOn(billingController, 'acquireLock').mockResolvedValue({ acquired: true });
+    jest.spyOn(billingController, 'releaseLock').mockResolvedValue();
+    jest.spyOn(billingController, 'runComplianceAnalysisForPractitioner').mockResolvedValue({
+      documentOnFile: true, results: {},
+    });
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, first_name: 'A', last_name: 'One' }] })
+      .mockResolvedValueOnce({ rows: [] }) // practitioner 1: no pending sessions -> noSessions
+      .mockResolvedValueOnce({ rows: [{ id: 2, first_name: 'B', last_name: 'Two' }] })
+      .mockResolvedValueOnce({ rows: [] }); // practitioner 2: no pending sessions -> noSessions
+
+    await billingController.bulkComplianceRun(req, res);
+
+    const progressRes = { json: jest.fn() };
+    billingController.getBulkComplianceRunProgress({ params: { runId } }, progressRes);
+    expect(progressRes.json).toHaveBeenCalledWith({ found: true, total: 2, completed: 2, done: true });
+  });
+
+  test('a run with no runId in the body never touches progress tracking', async () => {
+    const billingController = require('../billingController');
+    const req = { body: { practitionerIds: [1], startDate: '2026-10-01', endDate: '2026-10-15' }, practitioner: { practitionerId: 7 } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    jest.spyOn(billingController, 'acquireLock').mockResolvedValue({ acquired: true });
+    jest.spyOn(billingController, 'releaseLock').mockResolvedValue();
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, first_name: 'A', last_name: 'One' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await expect(billingController.bulkComplianceRun(req, res)).resolves.toBeUndefined();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+});
