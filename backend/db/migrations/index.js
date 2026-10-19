@@ -38,6 +38,7 @@ const MIGRATIONS = [
   'add_correction_requests.sql',
   'add_billing_lock_scope.sql',
   'add_compliance_service_status.sql',
+  'add_eims_last_check.sql',
 ];
 
 module.exports = { MIGRATIONS };

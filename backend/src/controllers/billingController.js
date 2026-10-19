@@ -120,6 +120,7 @@ const getPendingLogs = async (req, res) => {
           rejected_count: 0,
           declined_count: 0,
           pending_count: 0,
+          eims_flagged_count: 0,
           workflow_status: 'njeis_review',
           // Lets the frontend show this practitioner's still-reviewable
           // sessions and already-sent-to-billing sessions as two separate
@@ -155,6 +156,12 @@ const getPendingLogs = async (req, res) => {
       }
       if (record.billing_status === 'pending') {
         practitionerMap[pId].pending_count += 1;
+        // Only counted for still-pending sessions — the flag's whole
+        // purpose is "needs a human before this can be generated," which
+        // is moot once a session has already moved past pending.
+        if (record.eims_last_flagged === true) {
+          practitionerMap[pId].eims_flagged_count += 1;
+        }
       }
       // Only njeis_review logs represent an in-flight generate/complete cycle —
       // their batch(es) are what "Send to Completed Bills" cares about.
@@ -2187,6 +2194,30 @@ function buildFieldsForSession(session, match, ctx) {
 // Child ID at upload time) + same service_date, then closest start_time
 // when a patient has more than one session that day — see
 // companyController.applyComplianceDocMapping for how state rows get here.
+// Persists each still-pending session's latest flagged/clean verdict
+// (eims_last_flagged) so the practitioner queue's "N not matching EIMS"
+// badge is a durable fact in the DB, not a cache of one browser tab's last
+// bulk-run response — survives refresh, visible to every billing
+// specialist. An already-generated/held/declined session is skipped: the
+// flag's purpose ("needs a human before this can be generated") is moot
+// once a session is past pending.
+async function persistEimsFlags(sessions, results) {
+  const pendingSessions = sessions.filter((s) => s.billing_status === 'pending');
+  if (pendingSessions.length === 0) return;
+  const ids = pendingSessions.map((s) => s.id);
+  const flags = pendingSessions.map((s) => results[s.id].flagged);
+  try {
+    await pool.query(
+      `UPDATE assessments SET eims_last_checked_at = now(), eims_last_flagged = u.flagged
+       FROM unnest($1::int[], $2::boolean[]) AS u(id, flagged)
+       WHERE assessments.id = u.id`,
+      [ids, flags]
+    );
+  } catch (err) {
+    console.warn('persistEimsFlags: failed to persist eims_last_flagged (non-fatal):', err.message);
+  }
+}
+
 // Core compliance-matching logic for one practitioner — extracted so both
 // the HTTP handler (getComplianceAnalysis, below) and the bulk-compliance-run
 // endpoint can reuse the exact same matching behavior instead of duplicating
@@ -2359,6 +2390,16 @@ async function runComplianceAnalysisForPractitioner(practitionerId, startDate, e
         eimsMissingStatus: session.eims_missing_status || null,
       };
     }
+
+    // Persist the verdict for still-pending sessions so the practitioner
+    // queue's "N not matching EIMS" badge survives a refresh and is visible
+    // to any billing specialist, not just whoever's browser just ran this
+    // check. Fire-and-forget (not awaited) — a write hiccup here shouldn't
+    // fail the analysis response itself. Routed through module.exports and
+    // factored out so tests that don't care about this side effect can
+    // mock it away in one line instead of threading an extra pool.query
+    // mock through every existing test's call sequence.
+    module.exports.persistEimsFlags(sessions, results);
 
     // A duplicate log (same patient/date/time/type/location submitted
     // twice) only ever has ONE state record to match against — the group
@@ -3106,6 +3147,7 @@ module.exports = {
   getLogNotes,
   getComplianceAnalysis,
   runComplianceAnalysisForPractitioner,
+  persistEimsFlags,
   acquireLock,
   releaseLock,
   runAutoGenerateForPractitioner,

@@ -58,6 +58,60 @@ const { pool } = require('../../config/db');
 
 const { runComplianceAnalysisForPractitioner } = require('../billingController');
 
+// persistEimsFlags is a fire-and-forget side effect of
+// runComplianceAnalysisForPractitioner (persists eims_last_flagged per
+// session) — it issues its own pool.query call that none of these tests'
+// carefully-ordered mock queues account for. Mocked away globally so it
+// never touches pool.query; its own real behavior gets a dedicated
+// describe block below with the mock removed.
+beforeEach(() => {
+  jest.spyOn(require('../billingController'), 'persistEimsFlags').mockResolvedValue();
+});
+afterEach(() => jest.restoreAllMocks());
+
+describe('persistEimsFlags', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  test('updates eims_last_flagged only for still-pending sessions', async () => {
+    jest.restoreAllMocks(); // use the real implementation for this block
+    const { persistEimsFlags } = require('../billingController');
+
+    const sessions = [
+      { id: 1, billing_status: 'pending' },
+      { id: 2, billing_status: 'pending' },
+      { id: 3, billing_status: 'njeis_review' }, // already past pending — excluded
+    ];
+    const results = { 1: { flagged: true }, 2: { flagged: false }, 3: { flagged: true } };
+
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    await persistEimsFlags(sessions, results);
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('eims_last_flagged = u.flagged'),
+      [[1, 2], [true, false]]
+    );
+  });
+
+  test('does nothing when there are no pending sessions', async () => {
+    jest.restoreAllMocks();
+    const { persistEimsFlags } = require('../billingController');
+
+    await persistEimsFlags([{ id: 1, billing_status: 'invoiced' }], { 1: { flagged: false } });
+
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('swallows a write failure instead of throwing', async () => {
+    jest.restoreAllMocks();
+    const { persistEimsFlags } = require('../billingController');
+
+    pool.query.mockRejectedValueOnce(new Error('connection reset'));
+    await expect(
+      persistEimsFlags([{ id: 1, billing_status: 'pending' }], { 1: { flagged: true } })
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe('runComplianceAnalysisForPractitioner', () => {
   afterEach(() => jest.clearAllMocks());
 
