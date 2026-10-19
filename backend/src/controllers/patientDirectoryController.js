@@ -18,7 +18,7 @@ const listDirectoryPatients = async (req, res) => {
               pt.parent_name, pt.parent_email,
               COALESCE(
                 jsonb_agg(
-                  jsonb_build_object('id', p.id, 'first_name', p.first_name, 'last_name', p.last_name, 'status', pp.status)
+                  jsonb_build_object('id', p.id, 'first_name', p.first_name, 'last_name', p.last_name, 'status', pp.status, 'service_types', p.service_types)
                   ORDER BY pp.status ASC, p.last_name ASC
                 ) FILTER (WHERE p.id IS NOT NULL),
                 '[]'
@@ -120,4 +120,71 @@ const reassignDirectoryPatientPractitioner = async (req, res) => {
   }
 };
 
-module.exports = { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner };
+// Adds (or reactivates) a practitioner on a child's care team WITHOUT
+// touching anyone else already assigned — the counterpart to
+// reassignDirectoryPatientPractitioner's deliberate "replace the whole
+// team" behavior, for when a child is legitimately served by more than
+// one practitioner (e.g. an OT and a PT) and the office needs to add a
+// second provider rather than swap the only one.
+const addDirectoryPatientPractitioner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { practitionerId } = req.body;
+    if (!practitionerId) return res.status(400).json({ error: 'practitionerId is required' });
+
+    const { rows: patientRows } = await pool.query('SELECT id FROM patients WHERE id = $1', [id]);
+    if (!patientRows[0]) return res.status(404).json({ error: 'Child not found' });
+
+    const { rows: practitionerRows } = await pool.query(
+      "SELECT id FROM practitioners WHERE id = $1 AND role = 'practitioner'",
+      [practitionerId]
+    );
+    if (!practitionerRows[0]) return res.status(404).json({ error: 'Practitioner not found' });
+
+    await pool.query(
+      `INSERT INTO patient_practitioners (patient_id, practitioner_id, status, deactivated_reason)
+       VALUES ($1, $2, 'active', NULL)
+       ON CONFLICT (patient_id, practitioner_id) DO UPDATE SET status = 'active', deactivated_reason = NULL`,
+      [id, practitionerId]
+    );
+
+    logAudit({ req, action: 'patient_practitioner_add', resourceType: 'patient', resourceId: id, details: { practitionerId } });
+    res.json({ message: 'Practitioner added to care team successfully' });
+  } catch (error) {
+    console.error('addDirectoryPatientPractitioner error:', error);
+    res.status(500).json({ error: 'Failed to add practitioner' });
+  }
+};
+
+// Removes one practitioner from a child's active care team WITHOUT
+// touching anyone else — status flips to 'inactive' (never a hard
+// delete, so their own historical logs/assessments for this child stay
+// intact), deactivated_reason = 'reassigned' so their access to this
+// child ends immediately (FERPA/IDEA Part C §303.404 — same marker the
+// office-reassignment flow and the practitioner-deactivation caseload
+// clear both already use).
+const removeDirectoryPatientPractitioner = async (req, res) => {
+  try {
+    const { id, practitionerId } = req.params;
+
+    const { rows } = await pool.query(
+      "UPDATE patient_practitioners SET status = 'inactive', deactivated_reason = 'reassigned' WHERE patient_id = $1 AND practitioner_id = $2 AND status = 'active' RETURNING patient_id",
+      [id, practitionerId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'This practitioner is not actively assigned to this child.' });
+
+    logAudit({ req, action: 'patient_practitioner_remove', resourceType: 'patient', resourceId: id, details: { practitionerId } });
+    res.json({ message: 'Practitioner removed from care team successfully' });
+  } catch (error) {
+    console.error('removeDirectoryPatientPractitioner error:', error);
+    res.status(500).json({ error: 'Failed to remove practitioner' });
+  }
+};
+
+module.exports = {
+  listDirectoryPatients,
+  updateDirectoryPatient,
+  reassignDirectoryPatientPractitioner,
+  addDirectoryPatientPractitioner,
+  removeDirectoryPatientPractitioner,
+};

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ChevronDown, Download, FileEdit, Loader2, X } from 'lucide-react';
+import { Search, Download, FileEdit, Loader2, X, Plus } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { AddPatientModal } from '@/components/AddPatientModal';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
+import { useDropdownOptions, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
 
 const norm = (s) => (s || '').toString().toLowerCase();
 
@@ -23,6 +24,14 @@ const matchesChildSearch = (child, term) => {
 
 const activePractitioner = (child) =>
   (child.practitioners || []).find((p) => p.status === 'active') || null;
+
+// A child's whole active care team — unlike activePractitioner() above
+// (kept for the stat cards' "is anyone assigned" check), this doesn't
+// arbitrarily pick just the first one. A child can legitimately have more
+// than one active practitioner (e.g. an OT and a PT), and the roster
+// previously only ever showed one, hiding the rest of the team.
+const activePractitioners = (child) =>
+  (child.practitioners || []).filter((p) => p.status === 'active');
 
 // Same gradient icon-tile stat card pattern as RegisterPractitionerForm.jsx's
 // RosterStatCards, duplicated here since this component doesn't share a
@@ -72,14 +81,16 @@ const formatDob = (dob) => {
 // Renders its panel through a portal at position: fixed (measured from the
 // trigger button) rather than absolute, since the table's overflow-x-auto
 // wrapper would otherwise clip a dropdown that opens near its edge.
-function PractitionerCombobox({ options, valueId, onSelect, disabled }) {
+// `options` should already exclude anyone currently on the child's active
+// care team — this is purely an "add a NEW practitioner" picker, not a
+// reassign/replace control.
+function AddPractitionerCombobox({ options, onSelect, disabled }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [panelStyle, setPanelStyle] = useState(null);
   const btnRef = useRef(null);
   const panelRef = useRef(null);
 
-  const current = options.find((o) => o.id === valueId);
   const filtered = options.filter((o) => norm(`${o.first_name} ${o.last_name}`).includes(norm(search)));
 
   const openPanel = () => {
@@ -107,10 +118,10 @@ function PractitionerCombobox({ options, valueId, onSelect, disabled }) {
         type="button"
         onClick={openPanel}
         disabled={disabled}
-        className={`inline-flex items-center gap-1.5 text-xs font-semibold border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 ${disabled ? 'opacity-50 cursor-wait' : ''}`}
+        title="Add a practitioner to this child's care team"
+        className={`inline-flex items-center gap-1 text-xs font-semibold border border-dashed border-slate-300 rounded-full px-2 py-1 cursor-pointer text-slate-500 hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${disabled ? 'opacity-50 cursor-wait' : ''}`}
       >
-        {current ? `${current.first_name} ${current.last_name}` : 'Unassigned'}
-        <ChevronDown className="size-3.5 text-slate-400" />
+        <Plus className="size-3.5" /> Add
       </button>
 
       {open && panelStyle && createPortal(
@@ -138,7 +149,7 @@ function PractitionerCombobox({ options, valueId, onSelect, disabled }) {
                   key={o.id}
                   type="button"
                   onClick={() => { setOpen(false); onSelect(o.id); }}
-                  className={`w-full text-left px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 ${o.id === valueId ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700'}`}
+                  className="w-full text-left px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 text-slate-700"
                 >
                   {o.first_name} {o.last_name}
                 </button>
@@ -322,9 +333,11 @@ export function StaffDirectoryChildren() {
   const [childSearch, setChildSearch] = useState('');
   const [practitionerSearch, setPractitionerSearch] = useState('');
   const [editingChild, setEditingChild] = useState(null);
-  const [reassigningId, setReassigningId] = useState(null);
+  const [careTeamBusyId, setCareTeamBusyId] = useState(null);
   const [correctionsChild, setCorrectionsChild] = useState(null);
   const [exportingId, setExportingId] = useState(null);
+  const { options: dropdownOptions } = useDropdownOptions();
+  const serviceTypeLabels = buildCodeLabelMap(dropdownOptions.service_type);
 
   const loadChildren = () => {
     api.get('/api/patients/directory/all')
@@ -340,34 +353,57 @@ export function StaffDirectoryChildren() {
       .catch(() => {});
   }, []);
 
-  const handleReassign = async (childId, practitionerId) => {
+  // Co-assigns a practitioner to a child's care team WITHOUT disturbing
+  // anyone else already assigned — a child can legitimately have more than
+  // one active practitioner (e.g. an OT and a PT).
+  const handleAddPractitioner = async (childId, practitionerId) => {
     if (!practitionerId) return;
-
-    const child = children.find((c) => c.id === childId);
-    const current = child ? activePractitioner(child) : null;
     const target = practitionerOptions.find((p) => p.id === Number(practitionerId));
+
+    setCareTeamBusyId(childId);
+    try {
+      await api.post(`/api/patients/directory/${childId}/practitioners`, { practitionerId: Number(practitionerId) });
+      setChildren((prev) => prev.map((c) => {
+        if (c.id !== childId) return c;
+        const others = (c.practitioners || []).filter((p) => p.id !== Number(practitionerId));
+        return {
+          ...c,
+          practitioners: [
+            ...others,
+            { id: Number(practitionerId), first_name: target?.first_name, last_name: target?.last_name, status: 'active', service_types: target?.service_types || [] },
+          ],
+        };
+      }));
+    } catch {
+      showAlert('Failed to add practitioner to care team.');
+    } finally {
+      setCareTeamBusyId(null);
+    }
+  };
+
+  // Removes one practitioner from a child's active care team WITHOUT
+  // touching anyone else on it.
+  const handleRemovePractitioner = async (childId, practitionerId, practitionerName) => {
+    const child = children.find((c) => c.id === childId);
     const childName = child ? `${child.first_name} ${child.last_name}` : 'this child';
-    const currentName = current ? `${current.first_name} ${current.last_name}` : 'no one currently assigned';
-    const targetName = target ? `${target.first_name} ${target.last_name}` : 'the selected practitioner';
 
     const confirmed = await showConfirm(
-      `Reassign ${childName} from ${currentName} to ${targetName}?\n\nThis only changes who services this child going forward. Every past session log, SEVF form, and invoice stays attributed to the practitioner who actually performed it and will not be changed or moved.`,
-      { title: 'Reassign practitioner', confirmLabel: 'Reassign' }
+      `Remove ${practitionerName} from ${childName}'s care team?\n\nThis only changes who services this child going forward. Every past session log, SEVF form, and invoice stays attributed to the practitioner who actually performed it and will not be changed or moved.`,
+      { title: 'Remove from care team', confirmLabel: 'Remove', danger: true }
     );
     if (!confirmed) return;
 
-    setReassigningId(childId);
+    setCareTeamBusyId(childId);
     try {
-      await api.patch(`/api/patients/directory/${childId}/practitioner`, { practitionerId: Number(practitionerId) });
+      await api.delete(`/api/patients/directory/${childId}/practitioners/${practitionerId}`);
       setChildren((prev) => prev.map((c) => {
         if (c.id !== childId) return c;
-        const others = (c.practitioners || []).filter((p) => p.id !== Number(practitionerId)).map((p) => ({ ...p, status: 'inactive' }));
-        return { ...c, practitioners: [...others, { id: Number(practitionerId), first_name: target?.first_name, last_name: target?.last_name, status: 'active' }] };
+        return { ...c, practitioners: (c.practitioners || []).map((p) => (p.id === practitionerId ? { ...p, status: 'inactive' } : p)) };
       }));
     } catch {
-      showAlert('Failed to reassign practitioner.');
+      showAlert('Failed to remove practitioner from care team.');
     } finally {
-      setReassigningId(null);
+      setCareTeamBusyId(null);
     }
   };
 
@@ -458,11 +494,14 @@ export function StaffDirectoryChildren() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {visibleChildren.map((child) => {
-                const active = activePractitioner(child);
+                const team = activePractitioners(child);
+                const assignedIds = new Set(team.map((p) => p.id));
+                const addableOptions = practitionerOptions.filter((p) => !assignedIds.has(p.id));
+                const busy = careTeamBusyId === child.id;
                 return (
                   <tr
                     key={child.id}
-                    className={`hover:bg-slate-50 transition-colors ${active ? '' : 'border-l-4 border-l-amber-400'}`}
+                    className={`hover:bg-slate-50 transition-colors ${team.length > 0 ? '' : 'border-l-4 border-l-amber-400'}`}
                   >
                     <td className="px-6 py-3 font-medium text-slate-800">
                       {child.first_name} {child.middle_name ? `${child.middle_name} ` : ''}{child.last_name}
@@ -471,16 +510,39 @@ export function StaffDirectoryChildren() {
                     <td className="px-4 py-3 text-slate-600">{formatDob(child.dob)}</td>
                     <td className="px-4 py-3 text-slate-600">{child.county}</td>
                     <td className="px-4 py-3">
-                      {canEdit ? (
-                        <PractitionerCombobox
-                          options={practitionerOptions}
-                          valueId={active?.id}
-                          onSelect={(id) => handleReassign(child.id, id)}
-                          disabled={reassigningId === child.id}
-                        />
-                      ) : (
-                        <span className="text-slate-600">{active ? `${active.first_name} ${active.last_name}` : '—'}</span>
-                      )}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {team.length === 0 && !canEdit && <span className="text-slate-600">—</span>}
+                        {team.map((p) => {
+                          const disciplines = (p.service_types || []).map((code) => serviceTypeLabels[code] || code).join(', ');
+                          return (
+                            <span
+                              key={p.id}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-full pl-2.5 pr-1.5 py-1"
+                            >
+                              {p.first_name} {p.last_name}
+                              {disciplines && <span className="font-normal text-slate-500">({disciplines})</span>}
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePractitioner(child.id, p.id, `${p.first_name} ${p.last_name}`)}
+                                  disabled={busy}
+                                  title={`Remove ${p.first_name} ${p.last_name} from this child's care team`}
+                                  className="flex items-center justify-center rounded-full hover:bg-slate-200 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+                                >
+                                  <X className="size-3" />
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })}
+                        {canEdit && (
+                          <AddPractitionerCombobox
+                            options={addableOptions}
+                            onSelect={(id) => handleAddPractitioner(child.id, id)}
+                            disabled={busy}
+                          />
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{formatDob(child.created_at)}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">

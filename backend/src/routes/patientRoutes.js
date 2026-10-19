@@ -8,7 +8,7 @@ const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
 const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered, setHiddenFromHistory } = require('../controllers/patientController');
-const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
+const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner, addDirectoryPatientPractitioner, removeDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
 const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
 const { listPatientConsents, createConsent, revokeConsent } = require('../controllers/recordsConsentController');
 const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest } = require('../controllers/correctionRequestController');
@@ -20,6 +20,11 @@ const { protect, loadPermissions, requirePermission, requireRole } = require('..
 router.get('/directory/all', protect, loadPermissions, requirePermission('staff_directory_view'), listDirectoryPatients);
 router.put('/directory/:id', protect, loadPermissions, requirePermission('staff_directory_edit'), updateDirectoryPatient);
 router.patch('/directory/:id/practitioner', protect, loadPermissions, requirePermission('staff_directory_edit'), reassignDirectoryPatientPractitioner);
+// Care-team management — add/remove one practitioner without disturbing
+// anyone else already assigned, unlike the single-swap PATCH above. The
+// All Children screen uses these two for its chip-based team editor.
+router.post('/directory/:id/practitioners', protect, loadPermissions, requirePermission('staff_directory_edit'), addDirectoryPatientPractitioner);
+router.delete('/directory/:id/practitioners/:practitionerId', protect, loadPermissions, requirePermission('staff_directory_edit'), removeDirectoryPatientPractitioner);
 
 // Parent-rights actions (IDEA Part C 34 CFR 303.405/.410-413) — a child's
 // full early-intervention-record export and the correction-request review
