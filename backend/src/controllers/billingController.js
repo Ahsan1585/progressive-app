@@ -29,6 +29,7 @@ const { logAudit } = require('../utils/auditLog');
 const { normalizeForMatch, scoredNamesMatch } = require('../utils/textMatch');
 const { sendSevfToAgencyEmail } = require('../utils/emailClient');
 const { resolveAgency, resolveAgencyEmail } = require('./agencyController');
+const { checkConsent } = require('../utils/recordsConsent');
 const path = require('path');
 
 // --- 1. NEW Standardized Path Helper ---
@@ -864,16 +865,35 @@ const emailSevfToAgency = async (req, res) => {
   }
 
   try {
+    // Every assessment in one of these batches shares a single patient —
+    // generateSelfCertifiedSEVF groups strictly by (patient, affiliation,
+    // month) — so LIMIT 1 on the join is sufficient to resolve the one
+    // patient_id/company_affiliation this batch belongs to.
     const { rows } = await pool.query(
-      `SELECT b.id, b.njeis_path, b.invoice_path, p.first_name, p.last_name
+      `SELECT b.id, b.njeis_path, b.invoice_path, p.first_name, p.last_name,
+              a.patient_id, a.company_affiliation
        FROM billing_batches b
        JOIN practitioners p ON p.id = b.practitioner_id
-       WHERE b.id = $1 AND b.practitioner_id = $2`,
+       JOIN assessments a ON a.billing_batch_id = b.id
+       WHERE b.id = $1 AND b.practitioner_id = $2
+       LIMIT 1`,
       [batchId, practitionerId]
     );
     const batch = rows[0];
     if (!batch) return res.status(404).json({ success: false, error: 'SEVF batch not found.' });
     if (!batch.njeis_path) return res.status(400).json({ success: false, error: 'This batch has no SEVF on file.' });
+
+    const trimmedAgencyEmail = String(agencyEmail).trim();
+    const recipientName = batch.company_affiliation || trimmedAgencyEmail;
+    const recordTypes = batch.invoice_path ? ['sevf_forms', 'invoices'] : ['sevf_forms'];
+
+    // FERPA/IDEA Part C §99.30 & §303.414 — hard-block this disclosure
+    // without a matching, active parental consent on file. See
+    // docs/superpowers/specs/2026-10-19-records-consent-design.md.
+    const consentResult = await checkConsent(batch.patient_id, recipientName, recordTypes);
+    if (!consentResult.ok) {
+      return res.status(400).json({ success: false, error: consentResult.reason, code: 'CONSENT_REQUIRED' });
+    }
 
     const pdfBuffer = await downloadFile(BILLING_INVOICES_BUCKET, batch.njeis_path);
     const practitionerName = `${batch.first_name} ${batch.last_name}`.trim();
@@ -885,7 +905,7 @@ const emailSevfToAgency = async (req, res) => {
       ? await downloadFile(BILLING_INVOICES_BUCKET, batch.invoice_path)
       : null;
 
-    await sendSevfToAgencyEmail(String(agencyEmail).trim(), {
+    await sendSevfToAgencyEmail(trimmedAgencyEmail, {
       practitionerName,
       pdfBuffer,
       pdfFilename: path.basename(batch.njeis_path),
@@ -895,7 +915,7 @@ const emailSevfToAgency = async (req, res) => {
 
     logAudit({
       req, action: 'sevf_emailed_to_agency', resourceType: 'billing_batch', resourceId: batchId,
-      details: { agencyEmail: String(agencyEmail).trim(), includedInvoice: !!invoiceBuffer },
+      details: { agencyEmail: trimmedAgencyEmail, includedInvoice: !!invoiceBuffer, consentId: consentResult.consentId },
     });
 
     res.json({ success: true, message: invoiceBuffer ? 'SEVF and invoice emailed to the agency.' : 'SEVF emailed to the agency.' });
