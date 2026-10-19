@@ -515,7 +515,7 @@ export function StaffDirectoryChildren() {
                               className="inline-flex items-center gap-1.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-full pl-2.5 pr-1.5 py-1"
                             >
                               {p.first_name} {p.last_name}
-                              {p.position_title && <span className="font-normal text-slate-500">({p.position_title})</span>}
+                              {p.position_title && <span className="font-normal text-slate-700">({p.position_title})</span>}
                               {canEdit && (
                                 <button
                                   type="button"
