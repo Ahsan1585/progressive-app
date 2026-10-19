@@ -253,7 +253,12 @@ async function generateInvoicePDF(ctx) {
   y -= tileH + 14;
 
   // ── Exceptions callout ──
-  const exceptionLines = lines.filter((l) => l.eims.tier !== 'cleared' || l.anomalies.length > 0);
+  // A manually-"Allow"-ed field mismatch (deriveEimsStatus's 'Exception'
+  // label) stays tier:'cleared' — it's still payable — so the tier check
+  // alone wouldn't surface it here; checked by label explicitly so a human
+  // override is still visible as something worth a second look, even
+  // though it isn't held back from payment.
+  const exceptionLines = lines.filter((l) => l.eims.tier !== 'cleared' || l.eims.label === 'Exception' || l.anomalies.length > 0);
   if (exceptionLines.length > 0 || warnings.length > 0) {
     const shown = exceptionLines.slice(0, 5);
     const extra = exceptionLines.length - shown.length;
@@ -365,7 +370,12 @@ async function generateInvoicePDF(ctx) {
     // EIMS pill — capped to the remaining space to the page's right
     // margin (not just the nominal 46pt column) so a long label shrinks
     // or truncates instead of running off the page edge.
-    const style = EIMS_TIER_STYLE[line.eims.tier] || EIMS_TIER_STYLE.unverified;
+    // 'Exception' is tier:'cleared' (still payable) but should never look
+    // identical to a genuine untouched 'Matched' line — styled amber
+    // (same as 'pending'/Mismatch) instead of the tier's teal.
+    const style = line.eims.label === 'Exception'
+      ? EIMS_TIER_STYLE.pending
+      : (EIMS_TIER_STYLE[line.eims.tier] || EIMS_TIER_STYLE.unverified);
     const eimsPillMaxW = MARGIN + CONTENT_WIDTH - (cx + 2) - 2;
     drawPill(page, { x: cx + 2, y: y - 18, text: line.eims.label, fonts, fg: style.fg, bg: style.bg, maxW: eimsPillMaxW });
 

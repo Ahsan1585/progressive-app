@@ -117,7 +117,18 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
     return { tier: 'unverified', label: 'Unverified', note: 'No state file uploaded' };
   }
   if (compliance.matched && !compliance.flagged) {
-    return { tier: 'cleared', label: 'Matched' };
+    // A field that disagreed with EIMS but was manually "Allow"-ed is
+    // marked match:true/acknowledged:true by buildFieldsForSession's
+    // per-log acknowledgment layer, or match:true/learnedMatch:true if a
+    // PRIOR "Allow" on the same (field, state text, our value) pairing
+    // turned it into a reusable rule — either way it's exactly what
+    // clears `flagged` here, so this would otherwise read as a clean,
+    // untouched EIMS match. A human overrode a real discrepancy (once, or
+    // via a standing rule they created); the invoice should say so rather
+    // than implying nothing needed a second look. Still payable (tier
+    // stays 'cleared'), just labeled for what it actually is.
+    const hadOverride = (compliance.fields || []).some((f) => f.acknowledged || f.learnedMatch);
+    return hadOverride ? { tier: 'cleared', label: 'Exception' } : { tier: 'cleared', label: 'Matched' };
   }
   if (compliance.matched && compliance.flagged) {
     return { tier: 'pending', label: 'Mismatch' };

@@ -159,6 +159,33 @@ describe('deriveEimsStatus', () => {
     ).toEqual({ tier: 'cleared', label: 'Matched' });
   });
 
+  it('agency mode: matched and not flagged only because a field was manually "Allow"-ed reads as an exception, not Matched', () => {
+    expect(
+      deriveEimsStatus(base, {
+        mode: 'agency',
+        compliance: {
+          documentOnFile: true, matched: true, flagged: false,
+          fields: [
+            { key: 'start_time', match: true },
+            { key: 'location', match: true, acknowledged: true },
+          ],
+        },
+      })
+    ).toEqual({ tier: 'cleared', label: 'Exception' });
+  });
+
+  it('agency mode: matched and not flagged via a reusable learned-override rule also reads as an exception', () => {
+    expect(
+      deriveEimsStatus(base, {
+        mode: 'agency',
+        compliance: {
+          documentOnFile: true, matched: true, flagged: false,
+          fields: [{ key: 'service_type', match: true, learnedMatch: true }],
+        },
+      })
+    ).toEqual({ tier: 'cleared', label: 'Exception' });
+  });
+
   it('agency mode: matched and flagged is pending (field mismatch)', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: true } })
