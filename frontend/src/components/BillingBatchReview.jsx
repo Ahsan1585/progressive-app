@@ -859,6 +859,22 @@ function PractitionerGroup({
     return acc;
   }, { billable: 0, heldReturned: 0, excluded: 0 });
 
+  // A one-line "what's actually in here" summary for the COLLAPSED row —
+  // built from the counts /pending-logs already returns per practitioner
+  // (on_hold/rejected/declined/pending), so it's visible without expanding
+  // or waiting on this card's own session fetch. Only the review card
+  // shows it; the "Sent to billing" card's whole point is "already past
+  // this stage." Omits a bucket entirely when it's zero, and falls back to
+  // the flat "N sessions" label when nothing's flagged/held/returned at
+  // all — no need to call out an all-clean queue as if something needs attention.
+  const statusParts = [];
+  if (!isBilledCard) {
+    if (practitioner.on_hold_count > 0) statusParts.push(`${practitioner.on_hold_count} held`);
+    if (practitioner.rejected_count > 0) statusParts.push(`${practitioner.rejected_count} returned to practitioner`);
+    if (practitioner.declined_count > 0) statusParts.push(`${practitioner.declined_count} declined`);
+  }
+  const statusSummary = statusParts.join(', ');
+
   // Widening the billing period (Biweekly -> Monthly) reruns this same
   // query over a bigger date range of the same underlying sessions — a
   // session already generated into an invoice/SEVF (njeis_review = sent
@@ -909,6 +925,9 @@ function PractitionerGroup({
                 <span className={`font-semibold ${subLabel.startsWith('Sent') ? 'text-slate-400' : 'text-blue-600'}`}>{subLabel}</span>
               ) : (
                 <span>{practitioner.total_interventions} sessions</span>
+              )}
+              {statusSummary && (
+                <span className="text-amber-700 font-medium truncate">· {statusSummary}</span>
               )}
               {typeof flaggedCount === 'number' && !isBilledCard && (
                 <span className="inline-flex items-center gap-1 font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-xs">

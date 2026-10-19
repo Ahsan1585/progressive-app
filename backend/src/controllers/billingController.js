@@ -117,6 +117,9 @@ const getPendingLogs = async (req, res) => {
           unique_children: new Set(),
           total_hours: 0,
           on_hold_count: 0,
+          rejected_count: 0,
+          declined_count: 0,
+          pending_count: 0,
           workflow_status: 'njeis_review',
           // Lets the frontend show this practitioner's still-reviewable
           // sessions and already-sent-to-billing sessions as two separate
@@ -143,6 +146,15 @@ const getPendingLogs = async (req, res) => {
       }
       if (record.billing_status === 'on_hold') {
         practitionerMap[pId].on_hold_count += 1;
+      }
+      if (record.billing_status === 'rejected') {
+        practitionerMap[pId].rejected_count += 1;
+      }
+      if (record.billing_status === 'declined') {
+        practitionerMap[pId].declined_count += 1;
+      }
+      if (record.billing_status === 'pending') {
+        practitionerMap[pId].pending_count += 1;
       }
       // Only njeis_review logs represent an in-flight generate/complete cycle —
       // their batch(es) are what "Send to Completed Bills" cares about.
