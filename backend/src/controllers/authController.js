@@ -761,6 +761,19 @@ const deleteStaffMember = async (req, res) => {
       return res.status(400).json({ error: 'This is the only remaining Admin account — assign Admin to someone else first.' });
     }
     await pool.query('UPDATE practitioners SET is_active = false WHERE id = $1', [id]);
+    // A deactivated practitioner can no longer log in or act on anything
+    // (protect's is_active recheck — see the FERPA §303.404 revocation
+    // fix), so leaving their caseload silently pointing at them hides
+    // real orphaned work instead of surfacing it. Clear it the same way
+    // an office reassignment does (deactivated_reason = 'reassigned'),
+    // so those children immediately show as Unassigned and are ready to
+    // be picked up by someone else. Reactivating later does NOT restore
+    // the old caseload automatically — by then those children may
+    // already have been reassigned elsewhere.
+    await pool.query(
+      "UPDATE patient_practitioners SET status = 'inactive', deactivated_reason = 'reassigned' WHERE practitioner_id = $1 AND status = 'active'",
+      [id]
+    );
     res.json({ success: true });
   } catch (error) {
     console.error('Delete staff error:', error);
