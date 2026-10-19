@@ -41,6 +41,7 @@ const MIGRATIONS = [
   'add_eims_last_check.sql',
   'add_eims_last_missing.sql',
   'add_patient_practitioner_deactivation_reason.sql',
+  'add_records_consents.sql',
 ];
 
 module.exports = { MIGRATIONS };
