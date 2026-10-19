@@ -10,6 +10,7 @@ const { getCompanyName } = require('../utils/companyName');
 const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered, setHiddenFromHistory } = require('../controllers/patientController');
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
 const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
+const { listPatientConsents, createConsent, revokeConsent } = require('../controllers/recordsConsentController');
 const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest } = require('../controllers/correctionRequestController');
 const { exportPatientRecord } = require('../controllers/patientRecordExportController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
@@ -80,6 +81,13 @@ router.get('/:id/last-session-defaults', protect, getLastSessionDefaults);
 // billingRoutes.js independent endpoints.
 router.get('/:id/agencies', protect, requireRole(['independent_practitioner']), getPatientAgencies);
 router.put('/:id/agencies', protect, requireRole(['independent_practitioner']), updatePatientAgencies);
+
+// FERPA/IDEA Part C §99.30 & §303.414 consent records — independent-
+// practitioner-only, same guard as /:id/agencies above (gates the one real
+// third-party disclosure point, emailSevfToAgency in billingController.js).
+router.get('/:id/consents', protect, requireRole(['independent_practitioner']), listPatientConsents);
+router.post('/:id/consents', protect, requireRole(['independent_practitioner']), createConsent);
+router.delete('/:id/consents/:consentId', protect, requireRole(['independent_practitioner']), revokeConsent);
 
 // Route to generate the PDF report
 router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {
