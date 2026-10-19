@@ -830,6 +830,7 @@ function PractitionerGroup({
   // tab) so this survives a refresh and is the same for every billing
   // specialist, not a per-browser-tab cache of one person's last bulk run.
   const flaggedCount = practitioner.eims_flagged_count || 0;
+  const missingCount = practitioner.eims_missing_count || 0;
   const allLogsReviewed = sessions.length > 0 &&
     sessions.some(s => !['rejected', 'declined', 'on_hold'].includes(s.billing_status)) &&
     sessions.every(s => logActions[s.id] || s.billing_review);
@@ -899,23 +900,34 @@ function PractitionerGroup({
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
             {`${practitioner.first_name?.[0] || ''}${practitioner.last_name?.[0] || ''}`.toUpperCase()}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 py-0.5">
             <div className="font-bold text-base text-slate-900 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
-            <div className="text-sm text-slate-500 flex items-center gap-1.5">
+            <div className="text-sm text-slate-500">
               {subLabel ? (
                 <span className={`font-semibold ${subLabel.startsWith('Sent') ? 'text-slate-400' : 'text-blue-600'}`}>{subLabel}</span>
               ) : (
                 <span>{practitioner.total_interventions} sessions</span>
               )}
-              {statusSummary && (
-                <span className="text-amber-700 font-medium truncate">· {statusSummary}</span>
-              )}
-              {flaggedCount > 0 && !isBilledCard && (
-                <span className="inline-flex items-center gap-1 font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-xs">
-                  {flaggedCount} not matching EIMS
-                </span>
-              )}
             </div>
+            {(statusSummary || flaggedCount > 0 || missingCount > 0) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                {statusParts.map((part, i) => (
+                  <span key={i} className="inline-flex items-center font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-xs whitespace-nowrap">
+                    {part}
+                  </span>
+                ))}
+                {flaggedCount > 0 && !isBilledCard && (
+                  <span className="inline-flex items-center font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-xs whitespace-nowrap">
+                    {flaggedCount} not matching EIMS
+                  </span>
+                )}
+                {missingCount > 0 && !isBilledCard && (
+                  <span className="inline-flex items-center font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-xs whitespace-nowrap">
+                    {missingCount} missing in EIMS
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           {isLockedByMe && (
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5 flex-shrink-0">

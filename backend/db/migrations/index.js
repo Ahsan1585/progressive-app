@@ -39,6 +39,7 @@ const MIGRATIONS = [
   'add_billing_lock_scope.sql',
   'add_compliance_service_status.sql',
   'add_eims_last_check.sql',
+  'add_eims_last_missing.sql',
 ];
 
 module.exports = { MIGRATIONS };

@@ -72,23 +72,27 @@ afterEach(() => jest.restoreAllMocks());
 describe('persistEimsFlags', () => {
   afterEach(() => jest.clearAllMocks());
 
-  test('updates eims_last_flagged only for still-pending sessions', async () => {
+  test('updates eims_last_flagged/eims_last_missing only for still-pending sessions', async () => {
     jest.restoreAllMocks(); // use the real implementation for this block
     const { persistEimsFlags } = require('../billingController');
 
     const sessions = [
-      { id: 1, billing_status: 'pending' },
-      { id: 2, billing_status: 'pending' },
+      { id: 1, billing_status: 'pending' }, // flagged (matched, field mismatch)
+      { id: 2, billing_status: 'pending' }, // missing (no match at all)
       { id: 3, billing_status: 'njeis_review' }, // already past pending — excluded
     ];
-    const results = { 1: { flagged: true }, 2: { flagged: false }, 3: { flagged: true } };
+    const results = {
+      1: { matched: true, flagged: true },
+      2: { matched: false, flagged: false },
+      3: { matched: true, flagged: true },
+    };
 
     pool.query.mockResolvedValueOnce({ rows: [] });
     await persistEimsFlags(sessions, results);
 
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining('eims_last_flagged = u.flagged'),
-      [[1, 2], [true, false]]
+      [[1, 2], [true, false], [false, true]]
     );
   });
 
@@ -96,7 +100,7 @@ describe('persistEimsFlags', () => {
     jest.restoreAllMocks();
     const { persistEimsFlags } = require('../billingController');
 
-    await persistEimsFlags([{ id: 1, billing_status: 'invoiced' }], { 1: { flagged: false } });
+    await persistEimsFlags([{ id: 1, billing_status: 'invoiced' }], { 1: { matched: true, flagged: false } });
 
     expect(pool.query).not.toHaveBeenCalled();
   });
@@ -107,7 +111,7 @@ describe('persistEimsFlags', () => {
 
     pool.query.mockRejectedValueOnce(new Error('connection reset'));
     await expect(
-      persistEimsFlags([{ id: 1, billing_status: 'pending' }], { 1: { flagged: true } })
+      persistEimsFlags([{ id: 1, billing_status: 'pending' }], { 1: { matched: true, flagged: true } })
     ).resolves.toBeUndefined();
   });
 });

@@ -121,6 +121,7 @@ const getPendingLogs = async (req, res) => {
           declined_count: 0,
           pending_count: 0,
           eims_flagged_count: 0,
+          eims_missing_count: 0,
           workflow_status: 'njeis_review',
           // Lets the frontend show this practitioner's still-reviewable
           // sessions and already-sent-to-billing sessions as two separate
@@ -161,6 +162,9 @@ const getPendingLogs = async (req, res) => {
         // is moot once a session has already moved past pending.
         if (record.eims_last_flagged === true) {
           practitionerMap[pId].eims_flagged_count += 1;
+        }
+        if (record.eims_last_missing === true) {
+          practitionerMap[pId].eims_missing_count += 1;
         }
       }
       // Only njeis_review logs represent an in-flight generate/complete cycle —
@@ -2194,27 +2198,31 @@ function buildFieldsForSession(session, match, ctx) {
 // Child ID at upload time) + same service_date, then closest start_time
 // when a patient has more than one session that day — see
 // companyController.applyComplianceDocMapping for how state rows get here.
-// Persists each still-pending session's latest flagged/clean verdict
-// (eims_last_flagged) so the practitioner queue's "N not matching EIMS"
-// badge is a durable fact in the DB, not a cache of one browser tab's last
-// bulk-run response — survives refresh, visible to every billing
-// specialist. An already-generated/held/declined session is skipped: the
-// flag's purpose ("needs a human before this can be generated") is moot
-// once a session is past pending.
+// Persists each still-pending session's latest verdict so the practitioner
+// queue's status badges are a durable fact in the DB, not a cache of one
+// browser tab's last bulk-run response — survives refresh, visible to
+// every billing specialist. Two distinct outcomes, both only meaningful
+// pre-generation (an already-generated/held/declined session is skipped):
+// eims_last_flagged — matched a state record but a field disagrees.
+// eims_last_missing — no matching state record at all ("Missing in EIMS"),
+// a higher-stakes gap than a field mismatch (buildFieldsForSession gives
+// every field match:null here, never match:false, so this can't be
+// inferred from "flagged" — it needs its own column).
 async function persistEimsFlags(sessions, results) {
   const pendingSessions = sessions.filter((s) => s.billing_status === 'pending');
   if (pendingSessions.length === 0) return;
   const ids = pendingSessions.map((s) => s.id);
   const flags = pendingSessions.map((s) => results[s.id].flagged);
+  const missing = pendingSessions.map((s) => !results[s.id].matched);
   try {
     await pool.query(
-      `UPDATE assessments SET eims_last_checked_at = now(), eims_last_flagged = u.flagged
-       FROM unnest($1::int[], $2::boolean[]) AS u(id, flagged)
+      `UPDATE assessments SET eims_last_checked_at = now(), eims_last_flagged = u.flagged, eims_last_missing = u.missing
+       FROM unnest($1::int[], $2::boolean[], $3::boolean[]) AS u(id, flagged, missing)
        WHERE assessments.id = u.id`,
-      [ids, flags]
+      [ids, flags, missing]
     );
   } catch (err) {
-    console.warn('persistEimsFlags: failed to persist eims_last_flagged (non-fatal):', err.message);
+    console.warn('persistEimsFlags: failed to persist eims_last_flagged/eims_last_missing (non-fatal):', err.message);
   }
 }
 
