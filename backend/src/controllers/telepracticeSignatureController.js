@@ -14,10 +14,12 @@ const RESEND_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between resends of the sa
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 // A patient must belong to the requesting practitioner — same check
-// /api/interventions and /api/session-drafts already use.
+// /api/interventions and /api/session-drafts already use. deactivated_reason
+// = 'reassigned' blocks this immediately once an office action moves the
+// child to a different practitioner (FERPA/IDEA Part C §303.404).
 async function assertOwnsPatient(patientId, practitionerId) {
   const { rows } = await pool.query(
-    'SELECT 1 FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2',
+    "SELECT 1 FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2 AND deactivated_reason IS DISTINCT FROM 'reassigned'",
     [patientId, practitionerId]
   );
   return !!rows[0];

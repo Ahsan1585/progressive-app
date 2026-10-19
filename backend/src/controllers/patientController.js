@@ -104,12 +104,17 @@ const getPatients = async (req, res) => {
     // pp.status (per-practitioner) is selected after p.* so it overrides
     // patients.status in the resulting row — active/inactive is this
     // practitioner's own relationship with the child, not the shared record.
+    // deactivated_reason = 'reassigned' means an office action moved this
+    // child to a different practitioner — that practitioner's own access
+    // must end immediately (FERPA/IDEA Part C §303.404), unlike
+    // deactivated_reason = 'discharged' (this practitioner's own toggle via
+    // updatePatientStatus), which intentionally keeps the record visible.
     const { rows: patients } = await pool.query(
       `SELECT p.*, pp.status,
               (SELECT MAX(a.service_date) FROM assessments a WHERE a.patient_id = p.id AND a.practitioner_id = $1) AS last_service_date
        FROM patients p
        JOIN patient_practitioners pp ON pp.patient_id = p.id
-       WHERE pp.practitioner_id = $1`,
+       WHERE pp.practitioner_id = $1 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'`,
       [practitionerId]
     );
 
@@ -126,7 +131,7 @@ const updatePatient = async (req, res) => {
     const { id } = req.params;
 
     const { rows: ownedRows } = await pool.query(
-      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
+      "SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'",
       [id, practitionerId]
     );
     if (!ownedRows[0]) return res.status(404).json({ error: 'Patient not found' });
@@ -174,8 +179,12 @@ const updatePatientStatus = async (req, res) => {
     // Status is per-practitioner (patient_practitioners), not on the shared
     // patients row — one practitioner marking a shared child inactive must
     // not affect any other practitioner's own relationship with that child.
+    // deactivated_reason = 'discharged' marks this as the practitioner's own
+    // intentional toggle (keeps the record fully visible to them — only an
+    // office reassignment sets 'reassigned', which DOES revoke access; see
+    // the ownership-check queries above). Cleared on reactivation.
     const { rows: updatedAttachment } = await pool.query(
-      'UPDATE patient_practitioners SET status = $1 WHERE patient_id = $2 AND practitioner_id = $3 RETURNING patient_id',
+      "UPDATE patient_practitioners SET status = $1, deactivated_reason = CASE WHEN $1 = 'inactive' THEN 'discharged' ELSE NULL END WHERE patient_id = $2 AND practitioner_id = $3 RETURNING patient_id",
       [status, id, practitionerId]
     );
     if (!updatedAttachment[0]) return res.status(404).json({ error: 'Patient not found' });
@@ -198,7 +207,7 @@ const getPatientAssessments = async (req, res) => {
 
     // Ownership check: the patient must belong to the requesting practitioner
     const { rows: ownedRows } = await pool.query(
-      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
+      "SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'",
       [patientId, practitionerId]
     );
     if (!ownedRows[0]) return res.status(403).json({ error: 'Not authorized for this patient' });
@@ -667,7 +676,7 @@ const getLastSessionDefaults = async (req, res) => {
   const { id } = req.params;
   try {
     const { rows: owned } = await pool.query(
-      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
+      "SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'",
       [id, practitionerId]
     );
     if (!owned[0]) return res.status(404).json({ success: false, error: 'Patient not found.' });

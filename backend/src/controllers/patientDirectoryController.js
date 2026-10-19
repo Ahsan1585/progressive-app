@@ -95,14 +95,20 @@ const reassignDirectoryPatientPractitioner = async (req, res) => {
     );
     if (!practitionerRows[0]) return res.status(404).json({ error: 'Practitioner not found' });
 
+    // deactivated_reason = 'reassigned' (not 'discharged') — this is an
+    // office action moving the child to a different practitioner, so the
+    // old practitioner's access must end immediately (FERPA/IDEA Part C
+    // §303.404), unlike a practitioner's own self-discharge toggle which
+    // intentionally keeps the record visible to them. See the
+    // ownership-check queries in patientController.js.
     await pool.query(
-      'UPDATE patient_practitioners SET status = $1 WHERE patient_id = $2 AND practitioner_id != $3',
+      "UPDATE patient_practitioners SET status = $1, deactivated_reason = 'reassigned' WHERE patient_id = $2 AND practitioner_id != $3",
       ['inactive', id, practitionerId]
     );
     await pool.query(
-      `INSERT INTO patient_practitioners (patient_id, practitioner_id, status)
-       VALUES ($1, $2, 'active')
-       ON CONFLICT (patient_id, practitioner_id) DO UPDATE SET status = 'active'`,
+      `INSERT INTO patient_practitioners (patient_id, practitioner_id, status, deactivated_reason)
+       VALUES ($1, $2, 'active', NULL)
+       ON CONFLICT (patient_id, practitioner_id) DO UPDATE SET status = 'active', deactivated_reason = NULL`,
       [id, practitionerId]
     );
 

@@ -50,10 +50,13 @@ const todayIso = () => {
 };
 
 const loadOwnedPatientAndPractitioner = async (patientId, practitionerId) => {
+  // deactivated_reason = 'reassigned' blocks access immediately once an
+  // office action moves this child to a different practitioner — see the
+  // same filter in patientController.js's ownership checks.
   const patientResult = await pool.query(
     `SELECT p.* FROM patients p
      JOIN patient_practitioners pp ON pp.patient_id = p.id
-     WHERE p.id = $1 AND pp.practitioner_id = $2`,
+     WHERE p.id = $1 AND pp.practitioner_id = $2 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'`,
     [patientId, practitionerId]
   );
   if (patientResult.rows.length === 0) return null;

@@ -143,7 +143,7 @@ const getPatientAgencies = async (req, res) => {
   const { id } = req.params;
   try {
     const { rows: owned } = await pool.query(
-      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
+      "SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'",
       [id, practitionerId]
     );
     if (!owned[0]) return res.status(404).json({ success: false, error: 'Patient not found.' });
@@ -172,7 +172,7 @@ const updatePatientAgencies = async (req, res) => {
   }
   try {
     const { rows: owned } = await pool.query(
-      'SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2',
+      "SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'",
       [id, practitionerId]
     );
     if (!owned[0]) return res.status(404).json({ success: false, error: 'Patient not found.' });

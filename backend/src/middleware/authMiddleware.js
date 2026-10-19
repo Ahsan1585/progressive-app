@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { runWithTenant } = require('../config/tenantContext');
 const { platformPool } = require('../config/platformDb');
+const { getTenantPool } = require('../config/tenantPoolRegistry');
 const { ensureDropdownOptionsCacheLoaded } = require('../constants/dropdownOptionsCache');
 
 const protect = (req, res, next) => {
@@ -25,15 +26,28 @@ const protect = (req, res, next) => {
   }
   req.practitioner = decoded;
 
-  // 3. Trial/suspension gate, checked fresh on every request (one cheap
-  // indexed lookup on a tiny table) rather than trusting the tenantDb/slug
-  // baked into a 24h JWT — a trial that just ended (or a company that gets
-  // suspended) takes effect immediately instead of waiting for the token to
-  // expire. The ceo's own subscription/payment routes stay reachable even
-  // past trial expiration so there's always a way to add a payment method.
-  platformPool
-    .query('SELECT status, trial_ends_at, baa_accepted_at FROM companies WHERE slug = $1', [decoded.slug])
-    .then(({ rows }) => {
+  // 3. Trial/suspension gate AND the practitioner's own is_active flag,
+  // both checked fresh on every request (cheap indexed lookups, run in
+  // parallel) rather than trusting what a 24h JWT said at login time — a
+  // trial that just ended, a suspended company, OR a practitioner who was
+  // just deactivated (terminated, end of a sub-contracted assignment, a
+  // child transitioning out of Part C) all take effect on this very
+  // request instead of waiting for the token to expire. FERPA/IDEA Part C
+  // §303.404 requires access revocation to be immediate, not "within 24
+  // hours" — see the 2026-10-19 compliance audit. The ceo's own
+  // subscription/payment routes stay reachable even past trial expiration
+  // so there's always a way to add a payment method.
+  Promise.all([
+    platformPool.query('SELECT status, trial_ends_at, baa_accepted_at FROM companies WHERE slug = $1', [decoded.slug]),
+    getTenantPool(decoded.tenantDb).query('SELECT is_active FROM practitioners WHERE id = $1', [decoded.practitionerId]),
+  ])
+    .then(([{ rows }, { rows: practitionerRows }]) => {
+      // Fail closed: a missing row (deleted practitioner, stale JWT) is
+      // treated the same as an explicitly deactivated one, not as "active."
+      if (!practitionerRows[0] || practitionerRows[0].is_active === false) {
+        return res.status(401).json({ error: 'Your account has been deactivated.' });
+      }
+
       const company = rows[0];
       if (!company || company.status === 'cancelled') {
         return res.status(403).json({ error: "This company's account is no longer active." });

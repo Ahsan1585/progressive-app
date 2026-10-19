@@ -6,10 +6,13 @@ const MAX_DRAFTS_PER_PATIENT = 2;
 
 // A patient must belong to the requesting practitioner — same check
 // /api/interventions already uses, so a draft can't be created/listed for a
-// child this practitioner doesn't actually serve.
+// child this practitioner doesn't actually serve. deactivated_reason =
+// 'reassigned' blocks this immediately once an office action moves the
+// child to a different practitioner (FERPA/IDEA Part C §303.404) — see
+// the same filter in patientController.js's ownership checks.
 async function assertOwnsPatient(patientId, practitionerId) {
   const { rows } = await pool.query(
-    'SELECT 1 FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2',
+    "SELECT 1 FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2 AND deactivated_reason IS DISTINCT FROM 'reassigned'",
     [patientId, practitionerId]
   );
   return !!rows[0];
