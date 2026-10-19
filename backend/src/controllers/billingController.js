@@ -888,10 +888,19 @@ const emailSevfToAgency = async (req, res) => {
     const recordTypes = batch.invoice_path ? ['sevf_forms', 'invoices'] : ['sevf_forms'];
 
     // FERPA/IDEA Part C §99.30 & §303.414 — hard-block this disclosure
-    // without a matching, active parental consent on file. See
+    // without a matching, active parental consent on file. The consent
+    // must match the ACTUAL destination address (trimmedAgencyEmail), not
+    // just the free-text affiliation name — company_affiliation and the
+    // practitioner-typed agencyEmail are two independently-entered fields
+    // with no enforced relationship, so matching on name alone would let a
+    // consent for "ABC Billing" authorize a send to any address. See
     // docs/superpowers/specs/2026-10-19-records-consent-design.md.
-    const consentResult = await checkConsent(batch.patient_id, recipientName, recordTypes);
+    const consentResult = await checkConsent(batch.patient_id, recipientName, recordTypes, trimmedAgencyEmail);
     if (!consentResult.ok) {
+      logAudit({
+        req, action: 'sevf_disclosure_blocked_no_consent', resourceType: 'billing_batch', resourceId: batchId,
+        details: { agencyEmail: trimmedAgencyEmail, recipientName, recordTypes },
+      });
       return res.status(400).json({ success: false, error: consentResult.reason, code: 'CONSENT_REQUIRED' });
     }
 

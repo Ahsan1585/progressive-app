@@ -37,7 +37,7 @@ describe('emailSevfToAgency consent gate', () => {
 
     await emailSevfToAgency(req, res);
 
-    expect(checkConsent).toHaveBeenCalledWith(10, 'ABC Billing', ['sevf_forms']);
+    expect(checkConsent).toHaveBeenCalledWith(10, 'ABC Billing', ['sevf_forms'], 'billing@abc.org');
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
@@ -54,7 +54,29 @@ describe('emailSevfToAgency consent gate', () => {
 
     await emailSevfToAgency(req, res);
 
-    expect(checkConsent).toHaveBeenCalledWith(10, 'ABC Billing', ['sevf_forms', 'invoices']);
+    expect(checkConsent).toHaveBeenCalledWith(10, 'ABC Billing', ['sevf_forms', 'invoices'], 'billing@abc.org');
+  });
+
+  // Final-review fix (Critical finding 1): checkConsent must be called
+  // with the ACTUAL destination email (agencyEmail from the request body),
+  // not just the free-text affiliation name — otherwise a consent for
+  // "ABC Billing" would authorize a send to any address the practitioner
+  // happens to type in, since company_affiliation and agencyEmail are two
+  // independently-entered fields with no enforced relationship.
+  test('passes the real destination email to checkConsent, not just the affiliation name', async () => {
+    const req = {
+      practitioner: { practitionerId: 7 },
+      body: { batchId: 'batch-uuid-1', agencyEmail: 'wrong-address@other-agency.org' },
+    };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    mockBatchLookup(); // company_affiliation: 'ABC Billing'
+    checkConsent.mockResolvedValueOnce({ ok: false, reason: 'No consent on file for "ABC Billing" at wrong-address@other-agency.org covering sevf_forms for this child.' });
+
+    await emailSevfToAgency(req, res);
+
+    expect(checkConsent).toHaveBeenCalledWith(10, 'ABC Billing', ['sevf_forms'], 'wrong-address@other-agency.org');
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(sendSevfToAgencyEmail).not.toHaveBeenCalled();
   });
 
   test('sends and logs the consentId when checkConsent reports ok:true', async () => {
@@ -82,6 +104,26 @@ describe('emailSevfToAgency consent gate', () => {
 
     await emailSevfToAgency(req, res);
 
-    expect(checkConsent).toHaveBeenCalledWith(10, 'billing@abc.org', ['sevf_forms']);
+    expect(checkConsent).toHaveBeenCalledWith(10, 'billing@abc.org', ['sevf_forms'], 'billing@abc.org');
+  });
+
+  // Final-review fix (Important finding 2): the spec requires every
+  // blocked disclosure attempt to be audit-logged, not just successful
+  // sends — a refused attempt is itself compliance-relevant evidence.
+  test('logs the blocked attempt when consent is missing', async () => {
+    const req = baseReq();
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    mockBatchLookup();
+    checkConsent.mockResolvedValueOnce({ ok: false, reason: 'No consent on file for "ABC Billing" covering sevf_forms for this child.' });
+    const { logAudit } = require('../../utils/auditLog');
+
+    await emailSevfToAgency(req, res);
+
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'sevf_disclosure_blocked_no_consent',
+      resourceType: 'billing_batch',
+      resourceId: 'batch-uuid-1',
+      details: expect.objectContaining({ agencyEmail: 'billing@abc.org' }),
+    }));
   });
 });

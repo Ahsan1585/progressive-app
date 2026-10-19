@@ -22,6 +22,12 @@ function consentStatus(c: RecordsConsent): "Active" | "Revoked" | "Expired" {
   return "Active";
 }
 
+function defaultExpiresAt(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 interface PatientConsentsProps {
   // string, matching Patient.id's type (mobile/src/types/index.ts) — the
   // caller (PatientDetail.tsx) has a Patient, not a GeneratedSevfResult
@@ -41,8 +47,10 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [formOpen, setFormOpen] = React.useState(false);
   const [recipientName, setRecipientName] = React.useState("");
+  const [recipientEmail, setRecipientEmail] = React.useState("");
   const [purpose, setPurpose] = React.useState("");
   const [selectedTypes, setSelectedTypes] = React.useState<RecordType[]>([]);
+  const [expiresAt, setExpiresAt] = React.useState(defaultExpiresAt());
   const [proofNote, setProofNote] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
   const [revokeTarget, setRevokeTarget] = React.useState<RecordsConsent | null>(null);
@@ -72,8 +80,10 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
 
   const resetForm = () => {
     setRecipientName("");
+    setRecipientEmail("");
     setPurpose("");
     setSelectedTypes([]);
+    setExpiresAt(defaultExpiresAt());
     setProofNote("");
   };
 
@@ -83,8 +93,10 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
     try {
       await api.post(`/api/patients/${patientId}/consents`, {
         recipientName: recipientName.trim(),
+        recipientEmail: recipientEmail.trim() || undefined,
         purpose: purpose.trim(),
         recordTypes: selectedTypes,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
         proofNote: proofNote.trim() || undefined,
       });
       setFormOpen(false);
@@ -155,6 +167,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
                     {status}
                   </span>
                 </div>
+                {c.recipient_email && <p className="mt-0.5 text-xs text-ink-muted">{c.recipient_email}</p>}
                 <p className="mt-1 text-xs text-ink-muted">{c.purpose}</p>
                 <p className="mt-1 text-xs text-ink-muted">
                   {c.record_types.map((t) => RECORD_TYPE_LABELS[t]).join(", ")}
@@ -191,6 +204,19 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               placeholder="e.g. ABC Billing Agency"
               disabled={isSaving}
             />
+            <Label htmlFor="consent-recipient-email">Recipient email (optional)</Label>
+            <Input
+              id="consent-recipient-email"
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              placeholder="e.g. billing@abcagency.org"
+              disabled={isSaving}
+            />
+            <p className="text-xs text-ink-muted">
+              If this consent is for emailing records to the recipient, enter the exact address you'll send to — a
+              send is only allowed when it matches.
+            </p>
             <Label htmlFor="consent-purpose">Purpose</Label>
             <Input
               id="consent-purpose"
@@ -213,6 +239,16 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
                 </label>
               ))}
             </div>
+            <Label htmlFor="consent-expires">Expires</Label>
+            <Input
+              id="consent-expires"
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}
+              disabled={isSaving}
+            />
+            <p className="text-xs text-ink-muted">Defaults to one year from today — shorten this for a one-off disclosure.</p>
             <Label htmlFor="consent-proof">Proof note (optional)</Label>
             <Input
               id="consent-proof"
@@ -221,7 +257,6 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               placeholder="e.g. Signed paper form on file"
               disabled={isSaving}
             />
-            <p className="text-xs text-ink-muted">Expires one year from today unless revoked sooner.</p>
             <Button
               className="w-full"
               onClick={commitNew}

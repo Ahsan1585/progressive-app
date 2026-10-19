@@ -38,7 +38,7 @@ const listPatientConsents = async (req, res) => {
 const createConsent = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
-  const { recipientName, purpose, recordTypes, expiresAt, proofNote } = req.body;
+  const { recipientName, recipientEmail, purpose, recordTypes, expiresAt, proofNote } = req.body;
 
   if (!recipientName || !String(recipientName).trim()) {
     return res.status(400).json({ success: false, error: 'recipientName is required.' });
@@ -54,23 +54,34 @@ const createConsent = async (req, res) => {
     return res.status(400).json({ success: false, error: `Invalid record type(s): ${invalidTypes.join(', ')}` });
   }
 
+  // Always a concrete Date computed here (not left to a DB column default)
+  // so the exact expiration is known and loggable regardless of what the
+  // schema's own default happens to be. Validated before any DB work: an
+  // unparseable or past expiresAt must 400 with a clear reason instead of
+  // reaching Postgres as an Invalid Date and surfacing as a bare 500.
+  let resolvedExpiresAt;
+  if (expiresAt) {
+    resolvedExpiresAt = new Date(expiresAt);
+    if (Number.isNaN(resolvedExpiresAt.getTime())) {
+      return res.status(400).json({ success: false, error: 'expiresAt is not a valid date.' });
+    }
+    if (resolvedExpiresAt <= new Date()) {
+      return res.status(400).json({ success: false, error: 'expiresAt must be in the future.' });
+    }
+  } else {
+    resolvedExpiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+  }
+
   try {
     if (!(await assertOwnsPatient(id, practitionerId))) {
       return res.status(404).json({ success: false, error: 'Patient not found.' });
     }
 
-    // Always a concrete Date computed here (not left to a DB column
-    // default) so the exact expiration is known and loggable regardless
-    // of what the schema's own default happens to be.
-    const resolvedExpiresAt = expiresAt
-      ? new Date(expiresAt)
-      : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-
     const { rows } = await pool.query(
-      `INSERT INTO records_consents (patient_id, recipient_name, purpose, record_types, granted_by, expires_at, proof_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO records_consents (patient_id, recipient_name, recipient_email, purpose, record_types, granted_by, expires_at, proof_note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [id, String(recipientName).trim(), String(purpose).trim(), recordTypes, practitionerId, resolvedExpiresAt, proofNote || null]
+      [id, String(recipientName).trim(), recipientEmail ? String(recipientEmail).trim() : null, String(purpose).trim(), recordTypes, practitionerId, resolvedExpiresAt, proofNote || null]
     );
     const consent = rows[0];
 

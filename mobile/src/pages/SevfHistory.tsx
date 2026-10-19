@@ -43,6 +43,15 @@ export default function SevfHistory() {
     agencyEmail: string;
     includesInvoice: boolean;
   } | null>(null);
+  // Final-review fix (Important finding 6): a blocked disclosure is a
+  // "needs action" message, not a transient failure — per this project's
+  // standing rule, that's a centered Dialog, not a toast, and the
+  // practitioner should choose to go fix it rather than being
+  // auto-navigated away from the screen they were just on.
+  const [consentRequiredError, setConsentRequiredError] = React.useState<{
+    message: string;
+    patientId: number;
+  } | null>(null);
 
   const fetchHistory = React.useCallback(async () => {
     setIsLoading(true);
@@ -124,9 +133,11 @@ export default function SevfHistory() {
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
       if (body?.code === "CONSENT_REQUIRED" && emailTarget) {
-        showToast(body.error || "Consent is required before this can be sent.", "error");
+        setConsentRequiredError({
+          message: body.error || "Consent is required before this can be sent.",
+          patientId: emailTarget.patientId,
+        });
         setEmailTarget(null);
-        navigate(`/patients/${emailTarget.patientId}`, { state: { scrollToConsents: true } });
         return;
       }
       showToast(body?.error || "Couldn't send the email. Please try again.", "error");
@@ -278,6 +289,30 @@ export default function SevfHistory() {
         onOpenChange={setRevertedNoticeOpen}
         message="SEVF reverted — sessions are ready to generate again."
       />
+
+      <Dialog open={!!consentRequiredError} onOpenChange={(open) => !open && setConsentRequiredError(null)}>
+        <DialogContent aria-labelledby="consent-required-dialog-title">
+          <DialogHeader>
+            <DialogTitle id="consent-required-dialog-title">Consent required</DialogTitle>
+            <DialogDescription>{consentRequiredError?.message}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConsentRequiredError(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!consentRequiredError) return;
+                const patientId = consentRequiredError.patientId;
+                setConsentRequiredError(null);
+                navigate(`/patients/${patientId}`);
+              }}
+            >
+              Go to Consents
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PushScreen>
   );
 }

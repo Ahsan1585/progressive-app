@@ -178,6 +178,10 @@ export interface RecordsConsent {
   id: number;
   patient_id: number;
   recipient_name: string;
+  // The actual destination address a disclosure must match — see
+  // recordsConsent.js's checkConsent. Null when this consent was logged
+  // for a non-email disclosure (or no address was known at the time).
+  recipient_email: string | null;
   purpose: string;
   record_types: RecordType[];
   granted_by: number;

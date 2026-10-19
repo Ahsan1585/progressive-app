@@ -98,13 +98,67 @@ describe('createConsent', () => {
 
     const insertCall = pool.query.mock.calls[1];
     expect(insertCall[0]).toContain('INSERT INTO records_consents');
-    // 6th bind param is expires_at (patient_id, recipient_name, purpose,
-    // record_types, granted_by, expires_at, proof_note) — when the caller
-    // doesn't supply one, the handler computes granted_at + 1 year itself
-    // rather than relying on a DB default, so it's always a concrete value
-    // in the audit trail regardless of what the row's default would be.
-    expect(insertCall[1][5]).toEqual(expect.any(Date));
+    // 7th bind param is expires_at (patient_id, recipient_name,
+    // recipient_email, purpose, record_types, granted_by, expires_at,
+    // proof_note) — when the caller doesn't supply one, the handler
+    // computes granted_at + 1 year itself rather than relying on a DB
+    // default, so it's always a concrete value in the audit trail
+    // regardless of what the row's default would be.
+    expect(insertCall[1][6]).toEqual(expect.any(Date));
     expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  // Final-review fix (Important finding 3): an unparseable expiresAt must
+  // 400 with a clear message, not fall through to a 500 from Postgres
+  // rejecting an Invalid Date — the error should tell the caller what was
+  // actually wrong with their input.
+  test('rejects an unparseable expiresAt with 400 before touching the DB', async () => {
+    const req = {
+      practitioner: { practitionerId: 7 },
+      params: { id: '42' },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], expiresAt: 'not-a-real-date' },
+    };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    await createConsent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('rejects an expiresAt that is not in the future with 400', async () => {
+    const req = {
+      practitioner: { practitionerId: 7 },
+      params: { id: '42' },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], expiresAt: '2020-01-01T00:00:00.000Z' },
+    };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    await createConsent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  // Final-review fix (Critical finding 1, write side): the gate now
+  // matches on the real destination email, so createConsent must accept
+  // and store one.
+  test('stores recipientEmail when supplied', async () => {
+    const req = {
+      practitioner: { practitionerId: 7 },
+      params: { id: '42' },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], recipientEmail: 'billing@abc.org' },
+    };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: '42' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] });
+
+    await createConsent(req, res);
+
+    const insertCall = pool.query.mock.calls[1];
+    expect(insertCall[0]).toContain('recipient_email');
+    expect(insertCall[1]).toContain('billing@abc.org');
   });
 });
 
