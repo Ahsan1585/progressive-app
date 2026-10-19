@@ -18,7 +18,7 @@ const listDirectoryPatients = async (req, res) => {
               pt.parent_name, pt.parent_email,
               COALESCE(
                 jsonb_agg(
-                  jsonb_build_object('id', p.id, 'first_name', p.first_name, 'last_name', p.last_name, 'status', pp.status, 'service_types', p.service_types)
+                  jsonb_build_object('id', p.id, 'first_name', p.first_name, 'last_name', p.last_name, 'status', pp.status, 'position_title', p.position_title)
                   ORDER BY pp.status ASC, p.last_name ASC
                 ) FILTER (WHERE p.id IS NOT NULL),
                 '[]'

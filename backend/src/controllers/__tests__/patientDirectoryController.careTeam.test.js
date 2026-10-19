@@ -14,20 +14,24 @@ afterEach(() => jest.resetAllMocks());
 // child (activePractitioner() in StaffDirectoryChildren.jsx picks the first
 // active row) even when a child has multiple active practitioners — hiding
 // the rest of the care team and giving no visibility into discipline.
-describe('listDirectoryPatients includes service_types per practitioner', () => {
-  test('each practitioner entry carries service_types so the UI can show discipline', async () => {
+// position_title (e.g. "OT", "PT") is the practitioner's actual discipline
+// label — not service_types, which is the list of billable service
+// categories they're registered to log (Developmental Intervention, IFSP
+// Meeting, etc.) and reads as noise in a care-team chip.
+describe('listDirectoryPatients includes position_title per practitioner', () => {
+  test('each practitioner entry carries position_title so the UI can show discipline', async () => {
     const req = {};
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     pool.query.mockResolvedValueOnce({
       rows: [{
         id: 1, first_name: 'Abigail', last_name: 'Barrett',
-        practitioners: [{ id: 5, first_name: 'Sophia', last_name: 'Reed', status: 'active', service_types: ['OT'] }],
+        practitioners: [{ id: 5, first_name: 'Sophia', last_name: 'Reed', status: 'active', position_title: 'OT' }],
       }],
     });
 
     await listDirectoryPatients(req, res);
 
-    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('service_types'));
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('position_title'));
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });

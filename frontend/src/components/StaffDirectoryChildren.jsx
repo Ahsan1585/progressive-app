@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { AddPatientModal } from '@/components/AddPatientModal';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
-import { useDropdownOptions, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
 
 const norm = (s) => (s || '').toString().toLowerCase();
 
@@ -336,8 +335,6 @@ export function StaffDirectoryChildren() {
   const [careTeamBusyId, setCareTeamBusyId] = useState(null);
   const [correctionsChild, setCorrectionsChild] = useState(null);
   const [exportingId, setExportingId] = useState(null);
-  const { options: dropdownOptions } = useDropdownOptions();
-  const serviceTypeLabels = buildCodeLabelMap(dropdownOptions.service_type);
 
   const loadChildren = () => {
     api.get('/api/patients/directory/all')
@@ -370,7 +367,7 @@ export function StaffDirectoryChildren() {
           ...c,
           practitioners: [
             ...others,
-            { id: Number(practitionerId), first_name: target?.first_name, last_name: target?.last_name, status: 'active', service_types: target?.service_types || [] },
+            { id: Number(practitionerId), first_name: target?.first_name, last_name: target?.last_name, status: 'active', position_title: target?.position_title || null },
           ],
         };
       }));
@@ -512,15 +509,13 @@ export function StaffDirectoryChildren() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
                         {team.length === 0 && !canEdit && <span className="text-slate-600">—</span>}
-                        {team.map((p) => {
-                          const disciplines = (p.service_types || []).map((code) => serviceTypeLabels[code] || code).join(', ');
-                          return (
+                        {team.map((p) => (
                             <span
                               key={p.id}
                               className="inline-flex items-center gap-1.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-full pl-2.5 pr-1.5 py-1"
                             >
                               {p.first_name} {p.last_name}
-                              {disciplines && <span className="font-normal text-slate-500">({disciplines})</span>}
+                              {p.position_title && <span className="font-normal text-slate-500">({p.position_title})</span>}
                               {canEdit && (
                                 <button
                                   type="button"
@@ -533,8 +528,7 @@ export function StaffDirectoryChildren() {
                                 </button>
                               )}
                             </span>
-                          );
-                        })}
+                        ))}
                         {canEdit && (
                           <AddPractitionerCombobox
                             options={addableOptions}
