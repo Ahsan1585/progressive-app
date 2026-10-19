@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { FileText, Printer, RotateCcw, FolderOpen, Send } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -25,6 +26,7 @@ import type { GeneratedSevfResult, ApiErrorBody } from "@/types";
 // visible for the few seconds right after generating on GenerateSevf.tsx.
 export default function SevfHistory() {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const { agencies, fetchAgencies } = useAppData();
   const [batches, setBatches] = React.useState<GeneratedSevfResult[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -121,6 +123,12 @@ export default function SevfHistory() {
       setEmailTarget(null);
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
+      if (body?.code === "CONSENT_REQUIRED" && emailTarget) {
+        showToast(body.error || "Consent is required before this can be sent.", "error");
+        setEmailTarget(null);
+        navigate(`/patients/${emailTarget.patientId}`, { state: { scrollToConsents: true } });
+        return;
+      }
       showToast(body?.error || "Couldn't send the email. Please try again.", "error");
     } finally {
       setIsSendingEmail(false);
