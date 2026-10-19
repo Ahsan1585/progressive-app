@@ -504,7 +504,7 @@ export function StaffDirectoryChildren() {
                       {child.first_name} {child.middle_name ? `${child.middle_name} ` : ''}{child.last_name}
                     </td>
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">{child.child_id}</td>
-                    <td className="px-4 py-3 text-slate-600">{formatDob(child.dob)}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDob(child.dob)}</td>
                     <td className="px-4 py-3 text-slate-600">{child.county}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -538,7 +538,7 @@ export function StaffDirectoryChildren() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{formatDob(child.created_at)}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDob(child.created_at)}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       {canManageRecordRights && (
                         <>
