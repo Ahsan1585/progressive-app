@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DraftCapDialog } from "@/components/DraftCapDialog";
 import { EnterInEimsDialog } from "@/components/EnterInEimsDialog";
 import { FilterPicker } from "@/components/FilterPicker";
+import { PatientConsents } from "@/components/PatientConsents";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -389,6 +390,12 @@ export default function PatientDetail() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {patient && (
+          <div className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+            <PatientConsents patientId={patient.id} />
           </div>
         )}
 

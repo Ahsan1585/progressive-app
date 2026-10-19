@@ -169,6 +169,25 @@ export interface GeneratedSevfResult {
   agencyEmail?: string | null;
 }
 
+// FERPA/IDEA Part C §99.30 & §303.414 — one row per parental consent
+// grant, required before emailSevfToAgency will disclose a child's
+// records to a third party (see billingController.js / recordsConsent.js).
+export type RecordType = 'session_logs' | 'sevf_forms' | 'invoices' | 'full_record_export';
+
+export interface RecordsConsent {
+  id: number;
+  patient_id: number;
+  recipient_name: string;
+  purpose: string;
+  record_types: RecordType[];
+  granted_by: number;
+  granted_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  revoked_by: number | null;
+  proof_note: string | null;
+}
+
 // GET /api/subscription/summary's shape for an independent practitioner's
 // account (computeFlatRatePeriodSummary) — a flat monthly price, not the
 // per-seat breakdown a tenant company's summary carries.
