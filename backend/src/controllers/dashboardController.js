@@ -6,13 +6,28 @@
 // tenant filter needed.
 const { pool } = require('../config/db');
 const { computeSessionCompliance } = require('./billingController');
-const { buildInvoiceLines, deriveEimsStatus, loadComplianceForLines } = require('../utils/invoiceData');
+const { buildInvoiceLines, deriveEimsStatus, loadComplianceForLines, formatInvoiceNumber } = require('../utils/invoiceData');
+const { serviceCodeLabel, locationCodeLabel } = require('../constants/njeis');
 
 // "What needs you" worklist — on_hold only. Returned (rejected) logs have
 // their own dedicated "Returned logs" panel elsewhere on the dashboard;
 // mixing them in here duplicated that list and muddied what this card is
 // actually for (what's sitting in a billing specialist's hold queue).
 const OPEN_EXCEPTION_STATUSES = ['on_hold'];
+
+// The fixed, ordered set of reorderable Overview-dashboard section groups.
+// Grouped at two-column-row granularity (matching the existing grid pairs
+// in CompanyDashboard.jsx), not per individual card — splitting pairs like
+// BillingFunnel+ActionQueue apart would require redesigning the responsive
+// grid itself, out of scope for this pass. Must exactly match the
+// frontend's own DASHBOARD_SECTION_KEYS constant in CompanyDashboard.jsx.
+const DASHBOARD_SECTION_KEYS = [
+  'pipeline_and_queue',
+  'services',
+  'accuracy_table',
+  'eims_status',
+  'returned_logs_and_trajectory',
+];
 
 // GET /api/dashboard/day — worklist, not a trend. "What needs a human
 // today."
@@ -767,6 +782,197 @@ const getAccountsPayable = async (req, res) => {
   }
 };
 
+const STATUS_BREAKDOWN_LABELS = {
+  pending: 'Pending review',
+  njeis_review: 'In EIMS review',
+  invoiced: 'Invoiced',
+  completed: 'Invoiced',
+  self_certified: 'Self-certified',
+  on_hold: 'On hold',
+  rejected: 'Returned',
+  declined: 'Returned',
+  voided: 'Voided',
+};
+
+// Resolves raw {key, count} rows into labeled, sorted, top-6-plus-Other
+// buckets — shared shape for all four Services-provided dimensions. A null
+// key becomes an explicit "Not specified" bucket rather than being
+// dropped, so the stacked bar's total always matches the month's real
+// session count.
+function bucketBreakdown(rows, keyField, labelFn) {
+  const resolved = rows.map((r) => {
+    const key = r[keyField];
+    return {
+      key,
+      label: key == null ? 'Not specified' : labelFn(key),
+      count: parseInt(r.count, 10),
+    };
+  });
+  resolved.sort((a, b) => b.count - a.count);
+  if (resolved.length <= 6) return resolved;
+  const top6 = resolved.slice(0, 6);
+  const otherCount = resolved.slice(6).reduce((sum, r) => sum + r.count, 0);
+  return [...top6, { key: 'other', label: 'Other', count: otherCount }];
+}
+
+// GET /api/dashboard/services?month=YYYY-MM — this month's session counts
+// broken down by service type / status / location / discipline, all four
+// dimensions in one response so the frontend's tab switch is instant with
+// no refetch. Discipline comes from practitioners.position_title (the
+// actual discipline/title field), never service_types (billable service
+// categories) — see Global Constraints.
+const getServicesBreakdown = async (req, res) => {
+  try {
+    const { start, end } = parseMonthParam(req.query.month);
+
+    const { rows: typeRows } = await pool.query(
+      `SELECT type, COUNT(*)::int AS count FROM assessments
+       WHERE service_date >= $1 AND service_date <= $2 GROUP BY type`,
+      [start, end]
+    );
+    const { rows: statusRows } = await pool.query(
+      `SELECT billing_status, COUNT(*)::int AS count FROM assessments
+       WHERE service_date >= $1 AND service_date <= $2 GROUP BY billing_status`,
+      [start, end]
+    );
+    const { rows: locationRows } = await pool.query(
+      `SELECT location, COUNT(*)::int AS count FROM assessments
+       WHERE service_date >= $1 AND service_date <= $2 GROUP BY location`,
+      [start, end]
+    );
+    const { rows: disciplineRows } = await pool.query(
+      `SELECT p.position_title, COUNT(*)::int AS count
+       FROM assessments a JOIN practitioners p ON p.id = a.practitioner_id
+       WHERE a.service_date >= $1 AND a.service_date <= $2 GROUP BY p.position_title`,
+      [start, end]
+    );
+
+    res.json({
+      success: true,
+      month: req.query.month || null,
+      byServiceType: bucketBreakdown(typeRows, 'type', serviceCodeLabel),
+      byStatus: bucketBreakdown(statusRows, 'billing_status', (k) => STATUS_BREAKDOWN_LABELS[k] || k),
+      byLocation: bucketBreakdown(locationRows, 'location', locationCodeLabel),
+      byDiscipline: bucketBreakdown(disciplineRows, 'position_title', (k) => k),
+    });
+  } catch (error) {
+    console.error('getServicesBreakdown error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load services breakdown' });
+  }
+};
+
+// GET /api/dashboard/documents — most recent 20 billing_batches, each
+// rolled up to one status: "worst wins" across its assessment lines (any
+// exception -> mismatch; else any pending/unverified -> pending; else
+// matched), mirroring the human-hold-overrides-EIMS-tier rule used
+// elsewhere on this dashboard. No separate SEVF table exists in this
+// schema — a batch for an independent_practitioner is simply labeled
+// "sevf" instead of "invoice"; the document number format is identical
+// either way (formatInvoiceNumber ties back to the same billing_batches row).
+const getDocumentsFeed = async (req, res) => {
+  try {
+    const { rows: batches } = await pool.query(
+      `SELECT bb.id, bb.created_at, bb.practitioner_id, p.first_name, p.last_name, p.role
+       FROM billing_batches bb
+       JOIN practitioners p ON p.id = bb.practitioner_id
+       ORDER BY bb.created_at DESC
+       LIMIT 20`
+    );
+
+    const documents = [];
+    for (const batch of batches) {
+      const { rows: lines } = await pool.query(
+        `SELECT a.id, a.total_time, p.pay_rate, a.practitioner_id, p.role,
+                a.eims_missing_status, a.eims_entered_at, a.is_override
+         FROM assessments a JOIN practitioners p ON p.id = a.practitioner_id
+         WHERE a.billing_batch_id = $1`,
+        [batch.id]
+      );
+
+      const sessionCount = lines.length;
+      const amount = Math.round(
+        lines.reduce((sum, l) => sum + (l.total_time ? l.total_time / 60 : 0) * parseFloat(l.pay_rate || 0), 0) * 100
+      ) / 100;
+
+      let status = 'pending';
+      if (sessionCount > 0) {
+        const complianceById = await loadComplianceForLines(
+          lines.filter((l) => l.role !== 'independent_practitioner').map((l) => l.id),
+          computeSessionCompliance
+        );
+        const tiers = lines.map((l) => {
+          const mode = l.role === 'independent_practitioner' ? 'independent' : 'agency';
+          const compliance = complianceById.get(l.id) || null;
+          return deriveEimsStatus(l, { mode, compliance }).tier;
+        });
+        if (tiers.some((t) => t === 'exception')) status = 'mismatch';
+        else if (tiers.every((t) => t === 'cleared')) status = 'matched';
+        else status = 'pending';
+      }
+
+      documents.push({
+        batchId: batch.id,
+        documentNumber: formatInvoiceNumber(batch.id),
+        documentType: batch.role === 'independent_practitioner' ? 'sevf' : 'invoice',
+        practitionerName: `${batch.first_name} ${batch.last_name}`,
+        sessionCount,
+        amount,
+        status,
+        createdAt: batch.created_at,
+      });
+    }
+
+    res.json({ success: true, documents });
+  } catch (error) {
+    console.error('getDocumentsFeed error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load documents feed' });
+  }
+};
+
+// GET /api/dashboard/layout — the calling office-staff viewer's saved
+// Overview section order, or null if they've never customized (frontend
+// falls back to DASHBOARD_SECTION_KEYS's default order).
+const getDashboardLayout = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT section_order FROM dashboard_layouts WHERE practitioner_id = $1',
+      [req.practitioner.practitionerId]
+    );
+    res.json({ success: true, sectionOrder: rows[0]?.section_order || null });
+  } catch (error) {
+    console.error('getDashboardLayout error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load dashboard layout' });
+  }
+};
+
+// PUT /api/dashboard/layout — upserts the calling viewer's section order.
+// Validated server-side as an exact permutation of DASHBOARD_SECTION_KEYS
+// (no unknown/missing/duplicate keys) rather than trusting the client's
+// array blindly.
+const saveDashboardLayout = async (req, res) => {
+  const { sectionOrder } = req.body;
+  const isValidPermutation = Array.isArray(sectionOrder)
+    && sectionOrder.length === DASHBOARD_SECTION_KEYS.length
+    && new Set(sectionOrder).size === DASHBOARD_SECTION_KEYS.length
+    && sectionOrder.every((k) => DASHBOARD_SECTION_KEYS.includes(k));
+  if (!isValidPermutation) {
+    return res.status(400).json({ success: false, error: 'sectionOrder must be a permutation of the known dashboard sections' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO dashboard_layouts (practitioner_id, section_order, updated_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (practitioner_id) DO UPDATE SET section_order = $2, updated_at = now()`,
+      [req.practitioner.practitionerId, JSON.stringify(sectionOrder)]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('saveDashboardLayout error:', error);
+    res.status(500).json({ success: false, error: 'Failed to save dashboard layout' });
+  }
+};
+
 module.exports = {
   getDayOverview,
   getPipelineOverview,
@@ -775,4 +981,9 @@ module.exports = {
   getMonthOverview,
   getYearOverview,
   getAccountsPayable,
+  getDashboardLayout,
+  saveDashboardLayout,
+  DASHBOARD_SECTION_KEYS,
+  getServicesBreakdown,
+  getDocumentsFeed,
 };
