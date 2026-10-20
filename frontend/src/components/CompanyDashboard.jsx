@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import {
   Tag, Activity, AlertTriangle, CalendarClock, TrendingUp, TrendingDown,
-  CalendarDays, CalendarRange, Calendar, X, Check, MessageCircle,
+  CalendarDays, CalendarRange, Calendar, X, Check, MessageCircle, GripVertical,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -490,6 +490,128 @@ function EimsDonut({ pipeline }) {
   );
 }
 
+const SERVICES_DIMENSIONS = [
+  { key: 'byServiceType', label: 'Service type' },
+  { key: 'byStatus', label: 'Status' },
+  { key: 'byLocation', label: 'Location' },
+  { key: 'byDiscipline', label: 'Discipline' },
+];
+const SERVICES_COLORS = ['#0d9488', '#2563eb', '#d97706', '#e11d48', '#7c3aed', '#64748b', '#94a3b8'];
+
+function ServicesBreakdown({ data }) {
+  const [dimension, setDimension] = useState('byServiceType');
+  if (!data) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="text-[15.5px] font-bold text-slate-900 mb-4">Services provided</div>
+        <div className="text-sm text-slate-400 text-center py-8">Loading…</div>
+      </div>
+    );
+  }
+
+  const rows = data[dimension] || [];
+  const total = rows.reduce((sum, r) => sum + r.count, 0);
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+        <div className="text-[15.5px] font-bold text-slate-900">Services provided</div>
+      </div>
+      <p className="text-xs text-slate-500 mb-4">This month, by category</p>
+
+      <div className="inline-flex bg-slate-50 rounded-[10px] p-[3px] gap-0.5 mb-4 flex-wrap">
+        {SERVICES_DIMENSIONS.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => setDimension(d.key)}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              dimension === d.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="text-sm text-slate-400 text-center py-8">No sessions logged this month yet.</div>
+      ) : (
+        <>
+          <div className="w-full h-2.5 rounded-full overflow-hidden flex mb-4">
+            {rows.map((r, i) => (
+              <div
+                key={r.key ?? 'null'}
+                style={{ width: `${total > 0 ? (r.count / total) * 100 : 0}%`, background: SERVICES_COLORS[i % SERVICES_COLORS.length] }}
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+            {rows.map((r, i) => (
+              <div key={r.key ?? 'null'} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-slate-600 min-w-0">
+                  <span className="w-2 h-2 rounded-[3px] flex-shrink-0" style={{ background: SERVICES_COLORS[i % SERVICES_COLORS.length] }} />
+                  <span className="truncate">{r.label}</span>
+                </div>
+                <span className="font-mono font-semibold text-slate-900 flex-shrink-0">{r.count.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const DOC_STATUS_TONE = {
+  matched: { bg: 'bg-teal-50', text: 'text-teal-700', label: 'Matched' },
+  pending: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Pending' },
+  mismatch: { bg: 'bg-rose-50', text: 'text-rose-700', label: 'Mismatch' },
+};
+
+function DocumentsFeed({ documents }) {
+  if (!documents) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="text-[15.5px] font-bold text-slate-900 mb-4">Invoices &amp; SEVF forms</div>
+        <div className="text-sm text-slate-400 text-center py-8">Loading…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+      <div className="text-[15.5px] font-bold text-slate-900 mb-1">Invoices &amp; SEVF forms</div>
+      <p className="text-xs text-slate-500 mb-4">Generated from session notes</p>
+      {documents.length === 0 ? (
+        <div className="text-sm text-slate-400 text-center py-8">No invoices or SEVF forms generated yet.</div>
+      ) : (
+        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
+          {documents.map((d) => {
+            const tone = DOC_STATUS_TONE[d.status] || DOC_STATUS_TONE.pending;
+            return (
+              <div key={d.batchId} className="flex items-center gap-3 bg-slate-50 rounded-xl px-3.5 py-2.5 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-semibold text-slate-900 truncate">
+                    {d.documentNumber} &middot; {d.documentType === 'sevf' ? 'SEVF' : 'Invoice'}
+                  </div>
+                  <div className="text-[11.5px] text-slate-500 truncate">
+                    {d.practitionerName} &middot; {d.sessionCount} session{d.sessionCount === 1 ? '' : 's'}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className="text-[13.5px] font-bold text-slate-900 font-mono tabular-nums">{money(d.amount)}</span>
+                  <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full ${tone.bg} ${tone.text}`}>{tone.label}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TrajectoryTabs({ active, onChange }) {
   const tabs = [
     { key: 'day', label: 'Day', icon: CalendarDays },
@@ -726,6 +848,60 @@ function YearTrajectory() {
   );
 }
 
+// Must exactly match backend/src/controllers/dashboardController.js's
+// DASHBOARD_SECTION_KEYS — the backend validates PUT /api/dashboard/layout
+// against this same fixed set.
+const DASHBOARD_SECTION_KEYS = ['pipeline_and_queue', 'services', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory'];
+
+function useDashboardLayout() {
+  const [order, setOrder] = useState(DASHBOARD_SECTION_KEYS);
+  useEffect(() => {
+    api.get('/api/dashboard/layout')
+      .then((res) => { if (res.data.sectionOrder) setOrder(res.data.sectionOrder); })
+      .catch(() => {});
+  }, []);
+
+  const saveOrder = (newOrder) => {
+    setOrder(newOrder);
+    api.put('/api/dashboard/layout', { sectionOrder: newOrder }).catch((err) => console.error('Failed to save dashboard layout:', err));
+  };
+
+  return [order, saveOrder];
+}
+
+function CustomizeToggle({ active, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+        active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+      }`}
+    >
+      {active ? 'Done' : 'Customize'}
+    </button>
+  );
+}
+
+function DraggableSection({ sectionKey, isCustomizing, onDragStart, onDragOver, onDrop, children }) {
+  return (
+    <div
+      draggable={isCustomizing}
+      onDragStart={isCustomizing ? (e) => onDragStart(e, sectionKey) : undefined}
+      onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, sectionKey); } : undefined}
+      onDrop={isCustomizing ? (e) => onDrop(e, sectionKey) : undefined}
+      className={isCustomizing ? 'relative ring-2 ring-dashed ring-slate-300 rounded-2xl p-1 cursor-grab active:cursor-grabbing' : ''}
+    >
+      {isCustomizing && (
+        <div className="absolute -top-2.5 right-3 bg-slate-900 text-white rounded-full p-1 z-10">
+          <GripVertical className="size-3" />
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
 export function CompanyDashboard() {
   const [day, setDay] = useState(null);
   const [ap, setAp] = useState(null);
@@ -741,19 +917,91 @@ export function CompanyDashboard() {
   // standing backlog question, not a today-only one, so it fetches once.
   const [returnedLogs, setReturnedLogs] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [services, setServices] = useState(null);
+  const [documents, setDocuments] = useState(null);
+  const [layoutOrder, saveLayoutOrder] = useDashboardLayout();
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const dragKeyRef = useRef(null);
 
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
     api.get('/api/dashboard/ap').then((res) => setAp(res.data)).catch(() => setAp(null));
     api.get('/api/dashboard/pipeline').then((res) => setPipeline(res.data)).catch(() => setPipeline(null));
     api.get('/api/dashboard/returned-logs').then((res) => setReturnedLogs(res.data)).catch(() => setReturnedLogs(null));
+    api.get('/api/dashboard/documents').then((res) => setDocuments(res.data.documents)).catch(() => setDocuments([]));
   }, []);
 
   useEffect(() => {
     api.get('/api/dashboard/month', { params: { month: monthValue } })
       .then((res) => setMonth(res.data))
       .catch(() => setMonth(null));
+    api.get('/api/dashboard/services', { params: { month: monthValue } })
+      .then((res) => setServices(res.data))
+      .catch(() => setServices(null));
   }, [monthValue]);
+
+  const handleDragStart = (e, key) => { dragKeyRef.current = key; };
+  const handleDragOver = (e, overKey) => {
+    const draggedKey = dragKeyRef.current;
+    if (!draggedKey || draggedKey === overKey) return;
+    const current = [...layoutOrder];
+    const fromIdx = current.indexOf(draggedKey);
+    const toIdx = current.indexOf(overKey);
+    if (fromIdx === -1 || toIdx === -1) return;
+    current.splice(fromIdx, 1);
+    current.splice(toIdx, 0, draggedKey);
+    saveLayoutOrder(current);
+  };
+  const handleDrop = () => { dragKeyRef.current = null; };
+
+  const sectionsByKey = {
+    pipeline_and_queue: (
+      <div>
+        <div className="text-lg font-bold text-slate-900 mb-1">From session to payment</div>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Everything currently in the pipeline, and what's stuck along the way.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start">
+          <BillingFunnel pipeline={pipeline} />
+          <ActionQueue day={day} onSelectSession={setSelectedSessionId} />
+        </div>
+      </div>
+    ),
+    services: (
+      <div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <ServicesBreakdown data={services} />
+          <DocumentsFeed documents={documents} />
+        </div>
+      </div>
+    ),
+    accuracy_table: (
+      <div>
+        <div className="text-lg font-bold text-slate-900 mb-1">Who's submitting clean logs</div>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same month as above — sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
+        <PractitionerAccuracyTable month={month} />
+      </div>
+    ),
+    eims_status: (
+      <div>
+        <div className="text-lg font-bold text-slate-900 mb-1">EIMS match status</div>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Reconciled against state records, all time.</p>
+        <EimsDonut pipeline={pipeline} />
+      </div>
+    ),
+    returned_logs_and_trajectory: (
+      <div>
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+          <div className="text-lg font-bold text-slate-900">Where this is headed</div>
+          <TrajectoryTabs active={trajectoryTab} onChange={setTrajectoryTab} />
+        </div>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same work, three distances — the volume trend, and how it's reconciling against the state.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 items-start">
+          {trajectoryTab === 'day' && <ReturnedLogsPanel returnedLogs={returnedLogs} onSelectSession={setSelectedSessionId} />}
+          {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
+          {trajectoryTab === 'year' && <YearTrajectory />}
+        </div>
+      </div>
+    ),
+  };
 
   return (
     <div className="space-y-6">
@@ -762,7 +1010,10 @@ export function CompanyDashboard() {
       <div>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <div className="text-sm font-semibold text-slate-500">Viewing</div>
-          <MonthYearPicker value={monthValue} onChange={setMonthValue} />
+          <div className="flex items-center gap-2">
+            <MonthYearPicker value={monthValue} onChange={setMonthValue} />
+            <CustomizeToggle active={isCustomizing} onToggle={() => setIsCustomizing((v) => !v)} />
+          </div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           <StatCard
@@ -792,34 +1043,18 @@ export function CompanyDashboard() {
         </div>
       </div>
 
-      <div>
-        <div className="text-lg font-bold text-slate-900 mb-1">From session to payment</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Everything currently in the pipeline, and what's stuck along the way.</p>
-        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start">
-          <BillingFunnel pipeline={pipeline} />
-          <ActionQueue day={day} onSelectSession={setSelectedSessionId} />
-        </div>
-      </div>
-
-      <div>
-        <div className="text-lg font-bold text-slate-900 mb-1">Who's submitting clean logs</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same month as above — sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
-        <PractitionerAccuracyTable month={month} />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-          <div className="text-lg font-bold text-slate-900">Where this is headed</div>
-          <TrajectoryTabs active={trajectoryTab} onChange={setTrajectoryTab} />
-        </div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same work, three distances — the volume trend, and how it's reconciling against the state.</p>
-        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 items-start">
-          {trajectoryTab === 'day' && <ReturnedLogsPanel returnedLogs={returnedLogs} onSelectSession={setSelectedSessionId} />}
-          {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
-          {trajectoryTab === 'year' && <YearTrajectory />}
-          <EimsDonut pipeline={pipeline} />
-        </div>
-      </div>
+      {layoutOrder.map((key) => (
+        <DraggableSection
+          key={key}
+          sectionKey={key}
+          isCustomizing={isCustomizing}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          {sectionsByKey[key]}
+        </DraggableSection>
+      ))}
 
       <SessionDetailDialog assessmentId={selectedSessionId} onClose={() => setSelectedSessionId(null)} />
     </div>
