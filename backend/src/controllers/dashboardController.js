@@ -401,7 +401,7 @@ const getMonthOverview = async (req, res) => {
       [start, end]
     );
     const { rows: practitionerRoleRows } = await pool.query(
-      `SELECT id, role, first_name, last_name FROM practitioners WHERE id = ANY($1::int[])`,
+      `SELECT id, role, first_name, last_name, position_title FROM practitioners WHERE id = ANY($1::int[])`,
       [[...new Set([...billedSessions.map((s) => s.practitioner_id), ...pendingCheckedSessions.map((s) => s.practitioner_id)])]]
     );
     const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
@@ -461,6 +461,7 @@ const getMonthOverview = async (req, res) => {
       return {
         practitionerId,
         name: p ? `${p.first_name} ${p.last_name}` : 'Unknown',
+        discipline: p?.position_title || '',
         sessionsChecked: acc.total,
         cleanMatches: acc.clean,
         heldOrReturned: acc.held,

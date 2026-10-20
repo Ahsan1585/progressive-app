@@ -240,10 +240,13 @@ function PractitionerAccuracyTable({ month }) {
                 const tone = tierTone(r.accuracyPct);
                 return (
                   <tr key={r.practitionerId} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-semibold text-slate-800">{r.name}</td>
+                    <td className="px-5 py-3">
+                      <div className="font-semibold text-slate-800">{r.name}</div>
+                      {r.discipline && <div className="text-[11px] text-slate-500">{r.discipline}</div>}
+                    </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-20 h-2 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
+                        <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
                           <div className="h-full rounded-full" style={{ width: `${r.accuracyPct ?? 0}%`, background: tone.bar }} />
                         </div>
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tone.bg} ${tone.text}`}>
@@ -466,7 +469,7 @@ function EimsDonut({ pipeline }) {
           strokeDasharray={`${flaggedLen} ${C - flaggedLen}`} strokeDashoffset={-matchedLen} transform="rotate(-90 60 60)" />
         <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
           strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" strokeLinecap="round" />
-        <text x="60" y="56" textAnchor="middle" fontSize="20" fontWeight="700" fill="#1b1d2a">{matchedPct}%</text>
+        <text x="60" y="56" textAnchor="middle" fontSize="24" fontWeight="700" fill="#1b1d2a">{matchedPct}%</text>
         <text x="60" y="72" textAnchor="middle" fontSize="9" fill="#9a9eb2">matched</text>
       </svg>
       <div className="flex flex-col gap-2 mt-4 w-full">
