@@ -44,8 +44,10 @@ const getDayOverview = async (req, res) => {
       `SELECT a.id, a.billing_status, a.service_date, a.hold_note, a.rejection_note,
               COALESCE(a.held_at, a.rejected_at) AS flagged_at,
               a.patient_first_name, a.patient_last_name,
-              a.practitioner_first_name, a.practitioner_last_name
+              a.practitioner_first_name, a.practitioner_last_name,
+              a.total_time, p.pay_rate
        FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
        WHERE a.billing_status = ANY($1::text[])
        ORDER BY COALESCE(a.held_at, a.rejected_at) ASC NULLS LAST
        LIMIT 200`,
@@ -84,6 +86,7 @@ const getDayOverview = async (req, res) => {
         note: r.hold_note || r.rejection_note || null,
         patientName: `${r.patient_first_name || ''} ${r.patient_last_name || ''}`.trim(),
         practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
+        amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
       })),
       practitionersNoActivity7d: noActivityRows.map((r) => ({ id: r.id, name: `${r.first_name} ${r.last_name}` })),
     });

@@ -269,7 +269,7 @@ function PractitionerAccuracyTable({ month }) {
 function VerdictBanner({ day, ap }) {
   if (!day || !ap) {
     return (
-      <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #4c3a8f 0%, #1e3a6e 100%)' }}>
+      <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
         <div className="text-sm text-white/80">Loading today's picture...</div>
       </section>
     );
@@ -289,27 +289,41 @@ function VerdictBanner({ day, ap }) {
       : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held pending verification.`;
 
   return (
-    <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #4c3a8f 0%, #1e3a6e 100%)' }}>
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: '#fcd34d' }}>
-        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
-        {isHealthy ? 'All clear' : 'Needs a look today'}
+    <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
+      <div className="flex items-start justify-between gap-6 flex-wrap">
+        <div className="flex-1 min-w-[260px]">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: '#fcd34d' }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
+            {isHealthy ? 'All clear' : 'Needs a look today'}
+          </div>
+          <h1 className="text-2xl sm:text-[26px] font-bold leading-snug mb-2.5" style={{ textWrap: 'balance' }}>{headline}</h1>
+          <p className="text-sm leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.86)' }}>
+            <b className="text-white font-bold">{money(totalOwed)}</b> is owed to practitioners.
+            {flaggedCount > 0 && <> The open item is <b className="text-white font-bold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
+          </p>
+        </div>
+        {totalOwed > 0 && (
+          <div className="min-w-[180px]">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-white/70">Cleared</span>
+              <span className="font-bold font-mono tabular-nums">{clearPct}%</span>
+            </div>
+            <div className="w-[180px] h-2 rounded-full bg-white/15 overflow-hidden">
+              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${clearPct}%` }} />
+            </div>
+          </div>
+        )}
       </div>
-      <h1 className="text-2xl sm:text-[26px] font-bold leading-snug mb-2.5" style={{ textWrap: 'balance' }}>{headline}</h1>
-      <p className="text-sm leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.86)' }}>
-        <b className="text-white font-bold">{money(totalOwed)}</b> is currently owed to practitioners
-        {totalOwed > 0 && ` — ${clearPct}% cleared and safe to pay, ${heldPct}% held pending verification`}.
-        {flaggedCount > 0 && <> The open item is <b className="text-white font-bold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
-      </p>
     </section>
   );
 }
 
 function StatCard({ icon: Icon, tone, label, value, deltaText, deltaTone }) {
-  const toneGradients = {
-    teal: 'linear-gradient(135deg, #2dd4bf, #0d9488)',
-    violet: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
-    amber: 'linear-gradient(135deg, #fbbf24, #d97706)',
-    rose: 'linear-gradient(135deg, #fb7185, #e11d48)',
+  const toneBg = {
+    teal: 'bg-teal-50 text-teal-600',
+    violet: 'bg-violet-50 text-violet-600',
+    amber: 'bg-amber-50 text-amber-600',
+    rose: 'bg-rose-50 text-rose-600',
   };
   const deltaClasses = {
     up: 'text-teal-700',
@@ -317,11 +331,11 @@ function StatCard({ icon: Icon, tone, label, value, deltaText, deltaTone }) {
     flat: 'text-slate-400',
   };
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-[18px] pb-4 min-w-0">
-      <div className="w-[42px] h-[42px] rounded-xl flex items-center justify-center mb-3.5" style={{ background: toneGradients[tone] }}>
-        <Icon className="size-5 text-white" />
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-[18px] pb-4 min-w-0 relative">
+      <div className={`absolute top-3.5 right-3.5 w-9 h-9 rounded-full flex items-center justify-center ${toneBg[tone]}`}>
+        <Icon className="size-4" />
       </div>
-      <div className="text-sm text-slate-500 mb-1.5">{label}</div>
+      <div className="text-sm text-slate-500 mb-1.5 pr-9">{label}</div>
       <div className="text-[25px] font-bold tracking-tight mb-2 font-mono tabular-nums">{value}</div>
       <div className={`inline-flex items-center gap-1 text-xs font-semibold ${deltaClasses[deltaTone || 'flat']}`}>{deltaText}</div>
     </div>
@@ -361,11 +375,14 @@ function ActionQueue({ day, onSelectSession }) {
                     {s.note || 'On hold, no note on file'}
                   </div>
                 </div>
-                {age !== null && (
-                  <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${isCritical ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
-                    {age}d
-                  </span>
-                )}
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className="text-[13.5px] font-bold text-slate-900 font-mono tabular-nums">{money(s.amount)}</span>
+                  {age !== null && (
+                    <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full ${isCritical ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {age}d
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
@@ -400,14 +417,13 @@ function BillingFunnel({ pipeline }) {
             <div className="text-xs font-semibold text-slate-500">{s.label}</div>
             {s.sub && <div className="text-[10px] font-semibold text-rose-600 mt-0.5">{s.sub}</div>}
           </div>
-          <div className="flex-1 h-[30px] bg-slate-50 rounded-lg overflow-hidden">
+          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-lg flex items-center justify-end px-2.5 text-xs font-bold text-white font-mono"
-              style={{ width: `${Math.max((s.value / max) * 100, s.value > 0 ? 8 : 0)}%`, background: s.gradient }}
-            >
-              {s.value.toLocaleString()}
-            </div>
+              className="h-full rounded-full bg-teal-500"
+              style={{ width: `${Math.max((s.value / max) * 100, s.value > 0 ? 2 : 0)}%` }}
+            />
           </div>
+          <div className="w-14 flex-shrink-0 text-right text-xs font-bold text-slate-900 font-mono tabular-nums">{s.value.toLocaleString()}</div>
         </div>
       ))}
       <div className="text-xs text-slate-400 mt-3.5 pt-3 border-t border-dashed border-slate-200">
