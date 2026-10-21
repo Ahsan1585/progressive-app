@@ -864,11 +864,23 @@ const DEFAULT_CARD_LAYOUT = DASHBOARD_CARD_KEYS.map((key) => ({ key, width: 'ful
 // layout). Only drop/dragend calls persistLayout. cardLayout is an array
 // of {key, width} in display order — width lives in the saved state, not
 // inferred, so a resize survives independently of any later reorder.
+// A layout saved under an earlier card set (e.g. the prior 5-group model,
+// or a future set this build doesn't know about) must never be trusted
+// blindly — rendering it would silently drop every card whose key isn't
+// in cardsByKey, with nothing on screen to explain why. Valid only when
+// it's exactly a permutation of today's DASHBOARD_CARD_KEYS.
+function isValidCardLayout(cardLayout) {
+  return Array.isArray(cardLayout)
+    && cardLayout.length === DASHBOARD_CARD_KEYS.length
+    && new Set(cardLayout.map((c) => c?.key)).size === DASHBOARD_CARD_KEYS.length
+    && cardLayout.every((c) => DASHBOARD_CARD_KEYS.includes(c?.key));
+}
+
 function useDashboardLayout() {
   const [cardLayout, setCardLayout] = useState(DEFAULT_CARD_LAYOUT);
   useEffect(() => {
     api.get('/api/dashboard/layout')
-      .then((res) => { if (res.data.cardLayout) setCardLayout(res.data.cardLayout); })
+      .then((res) => { if (isValidCardLayout(res.data.cardLayout)) setCardLayout(res.data.cardLayout); })
       .catch(() => {});
   }, []);
 
