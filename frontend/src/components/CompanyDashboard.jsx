@@ -906,10 +906,10 @@ function DraggableCard({ cardKey, width, isCustomizing, onDragStart, onDragOver,
       onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, cardKey); } : undefined}
       onDrop={isCustomizing ? (e) => onDrop(e, cardKey) : undefined}
       onDragEnd={isCustomizing ? onDrop : undefined}
-      className={`w-full ${width === 'half' ? 'md:w-[calc(50%-0.5rem)]' : ''} ${isCustomizing ? 'relative ring-2 ring-dashed ring-slate-300 rounded-2xl p-1 cursor-grab active:cursor-grabbing' : ''}`}
+      className={`relative w-full ${width === 'half' ? 'md:w-[calc(50%-0.75rem)]' : ''} ${isCustomizing ? 'outline outline-2 outline-dashed outline-slate-300 outline-offset-2 rounded-2xl cursor-grab active:cursor-grabbing' : ''}`}
     >
       {isCustomizing && (
-        <div className="absolute -top-2.5 right-3 flex items-center gap-1 z-10">
+        <div className="absolute -top-3 right-3 flex items-center gap-1 z-10">
           <button
             type="button"
             onClick={() => onToggleWidth(cardKey)}
