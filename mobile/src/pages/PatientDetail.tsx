@@ -393,8 +393,8 @@ export default function PatientDetail() {
           </div>
         )}
 
-        {patient && isIndependentPractitioner && (
-          <div className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
+        {patient && (
+          <div id="consents" className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
             <PatientConsents patientId={patient.id} />
           </div>
         )}

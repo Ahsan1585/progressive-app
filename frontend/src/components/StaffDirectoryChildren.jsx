@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Download, FileEdit, Loader2, X, Plus } from 'lucide-react';
+import { Search, Download, FileEdit, Loader2, X, Plus, FileSignature } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { AddPatientModal } from '@/components/AddPatientModal';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { RecordsRequestsPanel } from '@/components/RecordsRequestsPanel';
+import { ConsentsPanel } from '@/components/ConsentsPanel';
 
 const norm = (s) => (s || '').toString().toLowerCase();
 
@@ -337,6 +338,7 @@ export function StaffDirectoryChildren() {
   const [correctionsChild, setCorrectionsChild] = useState(null);
   const [exportingId, setExportingId] = useState(null);
   const [requestsPanel, setRequestsPanel] = useState(null); // { child: row child or null }
+  const [consentsPanel, setConsentsPanel] = useState(null); // { child: row child or null (null = pending list) }
 
   const loadChildren = () => {
     api.get('/api/patients/directory/all')
@@ -453,6 +455,14 @@ export function StaffDirectoryChildren() {
               Records requests
             </button>
           )}
+          {canManageRecordRights && (
+            <button
+              onClick={() => setConsentsPanel({ child: null })}
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
+            >
+              Pending consents
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -561,6 +571,13 @@ export function StaffDirectoryChildren() {
                             {exportingId === child.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                           </button>
                           <button
+                            onClick={() => setConsentsPanel({ child })}
+                            className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Records-sharing consents"
+                          >
+                            <FileSignature className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => setCorrectionsChild(child)}
                             className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                             title="Correction requests"
@@ -605,6 +622,19 @@ export function StaffDirectoryChildren() {
           childList={children}
           initialChild={requestsPanel.child}
           onClose={() => setRequestsPanel(null)}
+        />
+      )}
+
+      {consentsPanel && (
+        <ConsentsPanel
+          key={consentsPanel.child ? consentsPanel.child.id : 'pending'}
+          child={consentsPanel.child}
+          onClose={() => setConsentsPanel(null)}
+          onOpenChild={(patientId) => {
+            const match = children.find((c) => c.id === Number(patientId));
+            if (match) setConsentsPanel({ child: match });
+            else showAlert('That child is not in the loaded list.');
+          }}
         />
       )}
 

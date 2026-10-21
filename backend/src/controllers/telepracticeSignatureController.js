@@ -346,7 +346,10 @@ async function lookupByToken(token) {
 const MAX_VERIFY_ATTEMPTS = 5;
 const ATTESTATION_TEXT = 'I have reviewed this session record. I understand my electronic signature has the same legal effect as my handwritten signature.';
 
-const clientIp = (req) => req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null;
+// req.ip, never the raw X-Forwarded-For header: its leftmost entry is whatever
+// the client sent. With `trust proxy` = 1 Express resolves req.ip to the
+// address our load balancer saw, which is the value worth keeping as evidence.
+const clientIp = (req) => req.ip || null;
 
 // patient_dob is a pg `date`: node-pg hands back a local-midnight Date (or a
 // string in tests). Normalize to YYYY-MM-DD for comparison.

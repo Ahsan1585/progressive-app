@@ -305,10 +305,10 @@ export default function SevfHistory() {
                 if (!consentRequiredError) return;
                 const patientId = consentRequiredError.patientId;
                 setConsentRequiredError(null);
-                navigate(`/patients/${patientId}`);
+                navigate(`/patients/${patientId}#consents`);
               }}
             >
-              Go to Consents
+              Request or record consent
             </Button>
           </DialogFooter>
         </DialogContent>

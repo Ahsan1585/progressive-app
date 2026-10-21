@@ -12,6 +12,8 @@ const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPat
 const { listDirectoryPatients, updateDirectoryPatient, reassignDirectoryPatientPractitioner, addDirectoryPatientPractitioner, removeDirectoryPatientPractitioner } = require('../controllers/patientDirectoryController');
 const { getPatientAgencies, updatePatientAgencies } = require('../controllers/agencyController');
 const { listPatientConsents, createConsent, revokeConsent } = require('../controllers/recordsConsentController');
+const { createConsentRequest, listConsentRequests, resendConsentRequest, cancelConsentRequest } = require('../controllers/consentRequestController');
+const { requireConsentAccess } = require('../middleware/consentAccess');
 const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest } = require('../controllers/correctionRequestController');
 const { exportPatientRecord } = require('../controllers/patientRecordExportController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
@@ -88,12 +90,19 @@ router.get('/:id/last-session-defaults', protect, getLastSessionDefaults);
 router.get('/:id/agencies', protect, requireRole(['independent_practitioner']), getPatientAgencies);
 router.put('/:id/agencies', protect, requireRole(['independent_practitioner']), updatePatientAgencies);
 
-// FERPA/IDEA Part C §99.30 & §303.414 consent records — independent-
-// practitioner-only, same guard as /:id/agencies above (gates the one real
-// third-party disclosure point, emailSevfToAgency in billingController.js).
-router.get('/:id/consents', protect, requireRole(['independent_practitioner']), listPatientConsents);
-router.post('/:id/consents', protect, requireRole(['independent_practitioner']), createConsent);
-router.delete('/:id/consents/:consentId', protect, requireRole(['independent_practitioner']), revokeConsent);
+// FERPA/IDEA Part C §99.30 & §303.414 consent records (paper consents) and
+// e-sign consent requests. requireConsentAccess: admin or
+// patient_record_rights for any child; a practitioner / independent
+// practitioner only for a child on their own caseload (reassigned-away
+// excluded); everyone else 403. The consent GATE itself (checkConsent in
+// emailSevfToAgency) is unchanged and reads records_consents only.
+router.get('/:id/consents', protect, loadPermissions, requireConsentAccess, listPatientConsents);
+router.post('/:id/consents', protect, loadPermissions, requireConsentAccess, createConsent);
+router.delete('/:id/consents/:consentId', protect, loadPermissions, requireConsentAccess, revokeConsent);
+router.get('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, listConsentRequests);
+router.post('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, createConsentRequest);
+router.post('/:id/consent-requests/:requestId/resend', protect, loadPermissions, requireConsentAccess, resendConsentRequest);
+router.delete('/:id/consent-requests/:requestId', protect, loadPermissions, requireConsentAccess, cancelConsentRequest);
 
 // Route to generate the PDF report
 router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {

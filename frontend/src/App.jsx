@@ -19,6 +19,7 @@ import IndependentBilling from './pages/IndependentBilling';
 import ActivateAccount from './pages/ActivateAccount';
 import PractitionerAppRequired from './pages/PractitionerAppRequired';
 import TelepracticeSign from './pages/TelepracticeSign';
+import ConsentSign from './pages/ConsentSign';
 import AdminDashboard from './pages/AdminDashboard';
 import PlatformAdmin from './pages/PlatformAdmin';
 import { DialogHost } from './components/DialogHost';
@@ -164,6 +165,8 @@ const WEB_ROUTES = (
     <Route path="/:companySlug/activate/:token" element={<ActivateAccount />} />
     {/* Public, unauthenticated — a parent reaches this from the telepractice signature-request email, never from within the app. */}
     <Route path="/:companySlug/sign/:token" element={<TelepracticeSign />} />
+    {/* Public — a parent signs a records-sharing consent from an emailed link. */}
+    <Route path="/consent/:slug/:token" element={<ConsentSign />} />
     {/* Practitioners now use the mobile app exclusively — Login.jsx and
         ChangePassword.jsx route a practitioner here instead of /dashboard
         after a successful auth. Not gated by ProtectedRoute since it's

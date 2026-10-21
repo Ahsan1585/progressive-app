@@ -581,7 +581,52 @@ const sendParentSignatureRequestEmail = async (toEmail, {
   });
 };
 
+// FERPA 34 CFR 99.30 / IDEA Part C 303.414 e-signed disclosure consent.
+// Same PHI-minimization rule as sendParentSignatureRequestEmail: Resend
+// can't sign a BAA, so this carries NO child name, NO recipient, NO record
+// detail, only a neutral message, the organization's name and the link.
+// The signing page shows what is being consented to only after the parent
+// confirms the child's date of birth. The destructured params are the
+// whole allowed surface: anything else a caller passes is ignored.
+//
+// Unlike the other senders here, this one THROWS on any failure (client not
+// configured, or Resend v6's `{ data, error }` result carrying an error
+// instead of rejecting), so the caller can report the failure to staff
+// rather than telling them the parent was sent a link they never got.
+const sendConsentRequestEmail = async (toEmail, { signUrl, organizationName, isResend = false }) => {
+  if (!resend) {
+    throw new Error('Email is not configured (RESEND_API_KEY not set); consent request email was not sent.');
+  }
+
+  const org = organizationName ? escapeHtml(organizationName) : 'Your early intervention provider';
+  const bodyHtml = `
+    <p style="margin:0 0 4px;">${org} is asking for your consent. Follow the secure link below to review the request and decide whether to sign it.</p>
+    <p style="margin:12px 0 0;">For your privacy, the details are only shown after you confirm your child's date of birth on the next page.</p>
+    ${ctaButton(signUrl, 'Review the Request')}
+    ${linkFallback(signUrl)}
+    <p style="margin:20px 0 0; font-size:12.5px; color:${COLORS.slate};">You are never required to sign. Questions? Contact ${org} directly.</p>
+  `;
+  const html = emailShell({
+    preheader: 'A consent request is waiting for your review.',
+    eyebrow: isResend ? 'Consent Reminder' : 'Consent Requested',
+    heading: 'A consent request is waiting for you',
+    bodyHtml,
+    footnote: 'This link is private to you and expires in 7 days. No login, password, or app download required.',
+  });
+
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: isResend ? 'Reminder: A consent request is waiting for your review' : 'A consent request is waiting for your review',
+    html,
+  });
+  if (result?.error) {
+    throw new Error(`Consent request email failed: ${result.error.message || result.error.name || 'unknown error'}`);
+  }
+};
+
 module.exports = {
+  sendConsentRequestEmail,
   sendPasswordResetEmail,
   sendInviteEmail,
   sendSignupConfirmationEmail,

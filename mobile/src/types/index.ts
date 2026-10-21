@@ -193,6 +193,26 @@ export interface RecordsConsent {
   // Null on consents logged before identity verification was required.
   identity_verified_method?: string | null;
   identity_verified_note?: string | null;
+  // 'paper' = recorded by staff from a signed paper form; 'electronic' = the
+  // parent signed via an emailed link. Null on older rows.
+  source?: "paper" | "electronic" | null;
+  signed_on?: string | null;
+  signed_name?: string | null;
+}
+
+export interface ConsentRequest {
+  id: number;
+  recipientName: string;
+  recipientEmail: string | null;
+  purpose: string;
+  recordTypes: RecordType[];
+  consentExpiresAt: string;
+  requestExpiresAt: string;
+  status: "pending" | "signed" | "expired" | "cancelled";
+  requestedAt: string;
+  /** Legacy fallback; the API sends requestedAt. */
+  createdAt?: string;
+  signedAt: string | null;
 }
 
 // GET /api/subscription/summary's shape for an independent practitioner's

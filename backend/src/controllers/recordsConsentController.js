@@ -1,30 +1,22 @@
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { validateIdentityVerification } = require('../utils/inspectionRequest');
+const { validateConsentDetails, validateSignedOn, isValidIntId } = require('../utils/consentValidation');
 
-const VALID_RECORD_TYPES = ['session_logs', 'sevf_forms', 'invoices', 'full_record_export'];
+const PATIENT_NOT_FOUND = { success: false, error: 'Patient not found.' };
 
-// Same ownership-scoping pattern as every other per-patient endpoint
-// (patientController.js's getPatients/updatePatient/getPatientAssessments)
-// — a consent record is as sensitive as any other patient data, and
-// deactivated_reason = 'reassigned' means this practitioner is no longer
-// this child's assigned provider (FERPA/IDEA Part C §303.404), so their
-// access to even VIEW consent records for that child must end immediately.
-async function assertOwnsPatient(patientId, practitionerId) {
-  const { rows } = await pool.query(
-    "SELECT p.id FROM patients p JOIN patient_practitioners pp ON pp.patient_id = p.id WHERE p.id = $1 AND pp.practitioner_id = $2 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'",
-    [patientId, practitionerId]
-  );
-  return !!rows[0];
-}
+// FERPA/IDEA Part C §99.30 & §303.414 consent records. Who may call these
+// (admin / patient_record_rights for any child, a practitioner for their
+// own caseload only, reassigned-away practitioners never) is enforced by
+// middleware/consentAccess.js on every route before these handlers run.
 
 const listPatientConsents = async (req, res) => {
-  const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
+  if (!isValidIntId(id)) return res.status(404).json(PATIENT_NOT_FOUND);
   try {
-    if (!(await assertOwnsPatient(id, practitionerId))) {
-      return res.status(404).json({ success: false, error: 'Patient not found.' });
-    }
+    // SELECT * so the provenance columns (source, signed_on, paper_attested,
+    // signed_name, signed_ip, signed_user_agent, request_id) come back too.
+    // source is NULL on rows logged before e-signing existed (legacy manual).
     const { rows: consents } = await pool.query(
       'SELECT * FROM records_consents WHERE patient_id = $1 ORDER BY granted_at DESC',
       [id]
@@ -36,66 +28,50 @@ const listPatientConsents = async (req, res) => {
   }
 };
 
+// The "paper" path: the parent already signed a paper consent, and staff
+// record it here. The e-sign path is consentRequestController +
+// consentSigningController.
 const createConsent = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
-  const { recipientName, recipientEmail, purpose, recordTypes, expiresAt, proofNote, identityVerifiedMethod, identityVerifiedNote } = req.body;
+  if (!isValidIntId(id)) return res.status(404).json(PATIENT_NOT_FOUND);
+  const { proofNote, identityVerifiedMethod, identityVerifiedNote, signedOn, paperAttested } = req.body || {};
 
-  if (!recipientName || !String(recipientName).trim()) {
-    return res.status(400).json({ success: false, error: 'recipientName is required.' });
-  }
-  if (!purpose || !String(purpose).trim()) {
-    return res.status(400).json({ success: false, error: 'purpose is required.' });
-  }
-  if (!Array.isArray(recordTypes) || recordTypes.length === 0) {
-    return res.status(400).json({ success: false, error: 'At least one record type is required.' });
-  }
-  const invalidTypes = recordTypes.filter((t) => !VALID_RECORD_TYPES.includes(t));
-  if (invalidTypes.length > 0) {
-    return res.status(400).json({ success: false, error: `Invalid record type(s): ${invalidTypes.join(', ')}` });
+  // Validated before any DB work: an unparseable or past expiresAt must 400
+  // with a clear reason instead of surfacing as a bare 500 from Postgres.
+  const details = validateConsentDetails(req.body || {});
+  if (details.error) {
+    return res.status(400).json({ success: false, error: details.error });
   }
 
   // FERPA 34 CFR 99.30/99.31(c): the identity of whoever gave consent must be
-  // authenticated, and how is recorded. Required for new consents only.
+  // authenticated, and how is recorded.
   const identityError = validateIdentityVerification(identityVerifiedMethod, identityVerifiedNote);
   if (identityError) {
     return res.status(400).json({ success: false, error: identityError });
   }
 
-  // Always a concrete Date computed here (not left to a DB column default)
-  // so the exact expiration is known and loggable regardless of what the
-  // schema's own default happens to be. Validated before any DB work: an
-  // unparseable or past expiresAt must 400 with a clear reason instead of
-  // reaching Postgres as an Invalid Date and surfacing as a bare 500.
-  let resolvedExpiresAt;
-  if (expiresAt) {
-    resolvedExpiresAt = new Date(expiresAt);
-    if (Number.isNaN(resolvedExpiresAt.getTime())) {
-      return res.status(400).json({ success: false, error: 'expiresAt is not a valid date.' });
-    }
-    if (resolvedExpiresAt <= new Date()) {
-      return res.status(400).json({ success: false, error: 'expiresAt must be in the future.' });
-    }
-  } else {
-    resolvedExpiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+  const signedOnError = validateSignedOn(signedOn);
+  if (signedOnError) {
+    return res.status(400).json({ success: false, error: signedOnError });
+  }
+  if (paperAttested !== true) {
+    return res.status(400).json({ success: false, error: 'Please confirm that a signed paper consent is on file (paperAttested must be true).' });
   }
 
+  const { recipientName, recipientEmail, purpose, recordTypes, expiresAt } = details.value;
   try {
-    if (!(await assertOwnsPatient(id, practitionerId))) {
-      return res.status(404).json({ success: false, error: 'Patient not found.' });
-    }
-
     const { rows } = await pool.query(
-      `INSERT INTO records_consents (patient_id, recipient_name, recipient_email, purpose, record_types, granted_by, expires_at, proof_note, identity_verified_method, identity_verified_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO records_consents (patient_id, recipient_name, recipient_email, purpose, record_types, granted_by, expires_at, proof_note, identity_verified_method, identity_verified_note, source, signed_on, paper_attested)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'paper', $11, $12)
        RETURNING *`,
-      [id, String(recipientName).trim(), recipientEmail ? String(recipientEmail).trim() : null, String(purpose).trim(), recordTypes, practitionerId, resolvedExpiresAt, proofNote || null, identityVerifiedMethod, identityVerifiedNote && String(identityVerifiedNote).trim() ? String(identityVerifiedNote).trim() : null]
+      [id, recipientName, recipientEmail, purpose, recordTypes, practitionerId, expiresAt, proofNote && String(proofNote).trim() ? String(proofNote).trim() : null, identityVerifiedMethod, identityVerifiedNote && String(identityVerifiedNote).trim() ? String(identityVerifiedNote).trim() : null, signedOn.trim(), true]
     );
     const consent = rows[0];
 
     logAudit({
-      req, action: 'records_consent_granted', resourceType: 'patient', resourceId: id,
-      details: { consentId: consent.id, recipientName: consent.recipient_name, recordTypes: consent.record_types },
+      req, action: 'consent_paper_recorded', resourceType: 'patient', resourceId: id,
+      details: { consentId: consent.id, recordTypeCount: (consent.record_types || recordTypes).length },
     });
 
     res.status(201).json({ success: true, consent });
@@ -108,10 +84,9 @@ const createConsent = async (req, res) => {
 const revokeConsent = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id, consentId } = req.params;
+  if (!isValidIntId(id)) return res.status(404).json(PATIENT_NOT_FOUND);
+  if (!isValidIntId(consentId)) return res.status(404).json({ success: false, error: 'Consent not found.' });
   try {
-    if (!(await assertOwnsPatient(id, practitionerId))) {
-      return res.status(404).json({ success: false, error: 'Patient not found.' });
-    }
     const { rows } = await pool.query(
       'UPDATE records_consents SET revoked_at = now(), revoked_by = $1 WHERE id = $2 AND patient_id = $3 AND revoked_at IS NULL RETURNING id',
       [practitionerId, consentId, id]

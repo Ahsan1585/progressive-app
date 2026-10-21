@@ -106,6 +106,8 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/shared-documents', sharedDocumentRoutes);
 app.use('/api/inspection-requests', inspectionRequestRoutes);
+app.use('/api/consent-requests', require('./src/routes/consentRequestRoutes'));
+app.use('/api/consent-signing', require('./src/routes/consentSigningRoutes'));
 app.use('/api/dev', testDataRoutes);
 app.use('/api/session-drafts', sessionDraftsRoutes);
 app.use('/api/telepractice-signatures', telepracticeSignatureRoutes);

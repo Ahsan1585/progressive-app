@@ -37,7 +37,9 @@ async function logAudit({
     const finalActorId = actorId ?? req?.practitioner?.practitionerId ?? null;
     const finalActorEmail = actorEmail ?? req?.practitioner?.email ?? null;
     const finalActorRole = actorRole ?? req?.practitioner?.role ?? null;
-    const ip = req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req?.ip || null;
+    // req.ip (trust proxy = 1 in index.js), not the client-controlled
+    // X-Forwarded-For header, so a caller cannot write a forged IP into the log.
+    const ip = req?.ip || null;
 
     const impersonation = req?.practitioner?.impersonation;
     const finalDetails = impersonation

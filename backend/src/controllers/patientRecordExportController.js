@@ -70,6 +70,14 @@ const ACTION_LABELS = {
   shared_document_link_created: 'Secure document link created',
   shared_document_downloaded: 'Shared document downloaded by recipient',
   sevf_disclosure_blocked_no_consent: 'Disclosure blocked (no parental consent)',
+  records_consent_granted: 'Consent recorded',
+  records_consent_revoked: 'Consent revoked',
+  consent_paper_recorded: 'Signed paper consent recorded',
+  consent_request_created: 'Consent request sent to parent',
+  consent_request_resent: 'Consent request re-sent to parent',
+  consent_request_cancelled: 'Consent request cancelled',
+  consent_signed_electronically: 'Consent signed electronically by parent',
+  consent_signing_locked: 'Consent signing link locked (too many attempts)',
 };
 
 // Record of disclosures (34 CFR 99.32 / 303.406): every audit_logs row
@@ -88,6 +96,28 @@ const parseDetails = (details) => {
   try { return JSON.parse(details); } catch { return {}; }
 };
 
+// pdf-lib's standard Helvetica uses WinAnsi encoding and THROWS on any
+// character outside it, so one 'Łódź', Korean name or emoji in a recipient
+// or purpose would fail the whole export. Free text drawn in the consent and
+// disclosure tables goes through this: printable ASCII, Latin-1 and the
+// WinAnsi 0x80-0x9F extras (curly quotes, dashes, ellipsis, euro...) are
+// kept; whitespace/control characters become a space; anything else
+// becomes '?' (one per code point, so an emoji is a single '?').
+const WINANSI_EXTRAS = new Set([
+  0x152, 0x153, 0x160, 0x161, 0x178, 0x17d, 0x17e, 0x192, 0x2c6, 0x2dc, 0x2013, 0x2014, 0x2018, 0x2019,
+  0x201a, 0x201c, 0x201d, 0x201e, 0x2020, 0x2021, 0x2022, 0x2026, 0x2030, 0x2039, 0x203a, 0x20ac, 0x2122,
+]);
+function pdfSafeText(text) {
+  let out = '';
+  for (const ch of String(text ?? '')) {
+    const cp = ch.codePointAt(0);
+    if ((cp >= 0x20 && cp <= 0x7e) || (cp >= 0xa0 && cp <= 0xff) || WINANSI_EXTRAS.has(cp)) out += ch;
+    else if (cp < 0x20 || cp === 0x7f || (cp >= 0x80 && cp < 0xa0)) out += ' ';
+    else out += '?';
+  }
+  return out;
+}
+
 const formatAuditDate = (value) => new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 function buildDisclosureRows(auditRows) {
@@ -101,8 +131,56 @@ function buildDisclosureRows(auditRows) {
         ? DISCLOSURE_PURPOSE_FALLBACK.shared_document_downloaded
         : (d.purpose || DISCLOSURE_PURPOSE_FALLBACK[r.action]);
       const records = Array.isArray(d.records) && d.records.length ? d.records.join(', ') : '—';
-      return [formatAuditDate(r.created_at), recipient, purpose, records];
+      return [formatAuditDate(r.created_at), pdfSafeText(recipient), pdfSafeText(purpose), pdfSafeText(records)];
     });
+}
+
+// Consents on file (34 CFR 99.30 / 303.414): every consent ever recorded
+// for this child, with how it was given and whether it is still in force.
+const RECORD_TYPE_LABELS = {
+  session_logs: 'Session logs',
+  sevf_forms: 'SEVF forms',
+  invoices: 'Invoices',
+  full_record_export: 'Full record',
+};
+const SOURCE_LABELS = { paper: 'Paper', electronic: 'Electronic' };
+const NJ_TZ = 'America/New_York';
+
+// A pg `date` (signed_on) arrives as a local-midnight Date or 'YYYY-MM-DD'.
+function formatDateOnly(value) {
+  if (!value) return '—';
+  if (value instanceof Date) return `${value.getMonth() + 1}/${value.getDate()}/${value.getFullYear()}`;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+  return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : '—';
+}
+// A timestamptz, shown as its New Jersey calendar date.
+function formatTimestampDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { timeZone: NJ_TZ, month: 'numeric', day: 'numeric', year: 'numeric' });
+}
+const clip = (text, max) => {
+  const s = pdfSafeText(text ?? '—');
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+};
+
+function buildConsentRows(consents, now = new Date()) {
+  return (consents || []).map((c) => {
+    let status = 'Active';
+    if (c.revoked_at) status = 'Revoked';
+    else if (c.expires_at && new Date(c.expires_at) <= now) status = 'Expired';
+    const records = (c.record_types || []).map((t) => RECORD_TYPE_LABELS[t] || t).join(', ') || '—';
+    return [
+      clip(c.recipient_name || '—', 24),
+      clip(c.purpose || '—', 22),
+      clip(records, 24),
+      SOURCE_LABELS[c.source] || 'Manual (legacy)',
+      c.signed_on ? formatDateOnly(c.signed_on) : formatTimestampDate(c.granted_at),
+      formatTimestampDate(c.expires_at),
+      status,
+    ];
+  });
 }
 
 // Greedy word-wrap for pdf-lib (which has no built-in text wrapping).
@@ -406,6 +484,29 @@ const exportPatientRecord = async (req, res) => {
       rows: buildDisclosureRows(auditRows),
     });
 
+    // 7. Consents on file (34 CFR 99.30 / 303.414), next to the disclosures
+    // they authorize: paper and electronic, active, revoked or expired.
+    const { rows: consentRows } = await pool.query(
+      `SELECT recipient_name, recipient_email, purpose, record_types, source, signed_on, granted_at, expires_at, revoked_at
+       FROM records_consents WHERE patient_id = $1 ORDER BY granted_at DESC`,
+      [String(id)]
+    );
+    drawTablePage(outDoc, {
+      title: 'Consents on File',
+      pageLabel: 'Consents on File',
+      fonts,
+      cols: [
+        { label: 'Recipient', w: 110 },
+        { label: 'Purpose', w: 100 },
+        { label: 'Records', w: 110 },
+        { label: 'Source', w: 60 },
+        { label: 'Signed', w: 52 },
+        { label: 'Expires', w: 52 },
+        { label: 'Status', w: 48 },
+      ],
+      rows: buildConsentRows(consentRows),
+    });
+
     const pdfBytes = await outDoc.save();
 
     logAudit({
@@ -414,7 +515,7 @@ const exportPatientRecord = async (req, res) => {
         assessmentCount: assessments.length,
         recipientName: 'Parent/guardian (record access request)',
         purpose: 'Parent/guardian record access request (34 CFR 303.405)',
-        records: ['Session log summary', 'SEVF', 'Billing summary', 'Record access history'],
+        records: ['Session log summary', 'SEVF', 'Billing summary', 'Record access history', 'Consents on file'],
         generatedBy: requester,
       },
     });
@@ -428,4 +529,4 @@ const exportPatientRecord = async (req, res) => {
   }
 };
 
-module.exports = { exportPatientRecord, drawCoverPage, buildDisclosureRows };
+module.exports = { exportPatientRecord, drawCoverPage, buildDisclosureRows, buildConsentRows, pdfSafeText };

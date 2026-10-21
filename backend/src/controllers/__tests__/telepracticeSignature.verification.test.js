@@ -153,6 +153,19 @@ describe('signTelepracticeSession', () => {
     expect(sql).toMatch(/dob_verified_at = now\(\)/);
     expect(params).toEqual(expect.arrayContaining(['sig', ctrl.ATTESTATION_TEXT, '1.2.3.4', 'UA']));
   });
+  it('records the connection IP (req.ip), never a client-supplied X-Forwarded-For value', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [baseRow()] })
+      .mockResolvedValueOnce({ rows: [{ verify_failed_attempts: 1, verify_locked_at: null }] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rowCount: 1 });
+    const res = mkRes();
+    const req = mkReq(body());
+    req.headers['x-forwarded-for'] = '6.6.6.6, 7.7.7.7';
+    await ctrl.signTelepracticeSession(req, res);
+    const [, params] = callsMatching(/attested = true/)[0];
+    expect(params).toContain('1.2.3.4');
+    expect(params).not.toContain('6.6.6.6');
+  });
   it('refuses a locked link', async () => {
     pool.query.mockResolvedValueOnce({ rows: [baseRow({ verify_locked_at: new Date().toISOString() })] });
     const res = mkRes();
