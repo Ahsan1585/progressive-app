@@ -18,8 +18,10 @@ const client = (mfaToken) => ({
 // sends a current code or recovery code (extra = { code } | { recoveryCode }).
 export const mfaSetup = (mfaToken, password, extra) =>
   client(mfaToken).post('/api/auth/mfa/setup', mfaToken ? {} : { password, ...(extra || {}) }).then((r) => r.data);
-export const mfaEnable = (mfaToken, code, password) =>
-  client(mfaToken).post('/api/auth/mfa/enable', mfaToken ? { code } : { code, password }).then((r) => r.data);
+export const mfaEnable = (mfaToken, code, password, rememberDevice) =>
+  client(mfaToken)
+    .post('/api/auth/mfa/enable', { ...(mfaToken ? { code } : { code, password }), ...(rememberDevice ? { rememberDevice: true } : {}) })
+    .then((r) => r.data);
 export const mfaDisable = (password, code) => api.post('/api/auth/mfa/disable', { password, code }).then((r) => r.data);
 export const mfaVerify = (body) => bare.post('/api/auth/mfa/verify', body).then((r) => r.data);
 

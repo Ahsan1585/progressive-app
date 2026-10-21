@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { mfaSetup, mfaEnable, mfaDisable, errMsg } from './mfaApi';
 import { TrustedDevices } from './TrustedDevices';
+import { setDeviceToken, setDeviceTokenForCurrentUser } from './trustedDevice';
 
 const digitsOnly = (v) => v.replace(/\D/g, '').slice(0, 6);
 
@@ -47,8 +48,10 @@ export function RecoveryCodes({ codes, onConfirm, busy }) {
  *  onEnrolled - (payload) enrollment finished and codes acknowledged; payload is the
  *               enable response (contains the login payload when mfaToken was used)
  *  onChanged  - settings mode: called after MFA was turned on or off
+ *  trustedKey - forced flow: { slug, email } under which a "Remember this device" token is stored
+ *               (settings flow uses the last signed-in user on this device)
  */
-export function MfaSetup({ mfaToken, onEnrolled, onChanged }) {
+export function MfaSetup({ mfaToken, onEnrolled, onChanged, trustedKey }) {
   const forced = Boolean(mfaToken);
   const [status, setStatus] = useState(forced ? 'idle' : 'loading'); // loading | idle | enrolling | codes
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -60,6 +63,7 @@ export function MfaSetup({ mfaToken, onEnrolled, onChanged }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [confirmingDisable, setConfirmingDisable] = useState(false);
 
   // Settings flow: which password prompt is showing ('enable' | 'replace' | null)
@@ -107,7 +111,11 @@ export function MfaSetup({ mfaToken, onEnrolled, onChanged }) {
     e.preventDefault();
     setError(''); setBusy(true);
     try {
-      const data = await mfaEnable(mfaToken, code, password);
+      const data = await mfaEnable(mfaToken, code, password, rememberDevice);
+      if (rememberDevice && data?.deviceToken) {
+        if (forced && trustedKey) setDeviceToken(trustedKey.slug, trustedKey.email, data.deviceToken, data.deviceTokenExpiresAt, data.deviceId);
+        else if (!forced) setDeviceTokenForCurrentUser(data.deviceToken, data.deviceTokenExpiresAt, data.deviceId);
+      }
       setResult(data);
       setStatus('codes');
     } catch (err) {
@@ -162,6 +170,15 @@ export function MfaSetup({ mfaToken, onEnrolled, onChanged }) {
           <Input id="mfa-enable-code" inputMode="numeric" autoComplete="one-time-code" autoFocus
             value={code} onChange={(e) => setCode(digitsOnly(e.target.value))} placeholder="123456" />
         </div>
+        <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+          <input type="checkbox" checked={rememberDevice} onChange={(e) => setRememberDevice(e.target.checked)} className="mt-0.5" />
+          <span>
+            Remember this device for 30 days
+            <span className="block text-xs text-slate-500">
+              Only on a device you trust. You can remove devices any time in Security settings.
+            </span>
+          </span>
+        </label>
         <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>
           {busy ? 'Verifying...' : 'Verify and turn on'}
         </Button>

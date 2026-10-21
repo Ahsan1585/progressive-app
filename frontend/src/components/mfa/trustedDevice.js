@@ -74,3 +74,15 @@ export function clearCurrentUserDevice() {
     }
   } catch { /* ignore */ }
 }
+
+// Store a token for whoever last signed in on this device (signed-in settings flow).
+export function setDeviceTokenForCurrentUser(token, expiresAt, deviceId) {
+  if (!token) return;
+  try {
+    const k = localStorage.getItem(CURRENT_KEY);
+    if (!k) return;
+    const map = readMap();
+    map[k] = { token, expiresAt: expiresAt || null, deviceId: deviceId ? String(deviceId) : null };
+    writeMap(map);
+  } catch { /* ignore */ }
+}

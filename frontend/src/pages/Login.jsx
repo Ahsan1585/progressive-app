@@ -206,6 +206,7 @@ const Login = () => {
               </p>
               <MfaSetup
                 mfaToken={mfaToken}
+                trustedKey={{ slug: companySlug.trim().toLowerCase(), email }}
                 onEnrolled={(payload) => finishLogin(payload, companySlug.trim().toLowerCase())}
               />
               <div style={{ marginTop: 14 }}>

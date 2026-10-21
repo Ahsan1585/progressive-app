@@ -294,6 +294,7 @@ export default function Login() {
           </p>
           <MfaSetup
             mfaToken={mfaToken}
+            trustedKey={{ slug: companySlug.trim().toLowerCase(), email }}
             onEnrolled={(payload) => finishLogin(payload as LoginResponse, companySlug.trim().toLowerCase())}
           />
           <div className="text-center">

@@ -151,6 +151,116 @@ describe('verifyMfa + rememberDevice', () => {
   });
 });
 
+describe('enableMfa + rememberDevice', () => {
+  const ENABLE_WRITE = /SET mfa_secret = mfa_pending_secret/;
+  const newSecret = generateSecret();
+  const pending = { ...baseUser, mfa_pending_secret: `enc:${newSecret}` };
+  const sessionReq = (body) => ({ body: { password: 'pw', ...body }, practitioner: { practitionerId: 7 }, headers: { 'user-agent': UA } });
+  const enrollReq = (body) => ({ body, mfaChallenge: mfaClaims('enroll'), practitioner: mfaClaims('enroll'), headers: { 'user-agent': UA } });
+  const okRoutes = (user = pending) => [
+    [/SELECT \* FROM practitioners WHERE id/, { rows: [user] }],
+    [ENABLE_WRITE, { rows: [{ id: 7 }] }],
+    [INSERT_DEVICE, (sql, params) => ({ rows: [{ id: 'dev-9', label: params[2] }] })],
+  ];
+  const styles = [['session', sessionReq], ['enroll mfaToken', enrollReq]];
+
+  test.each(styles)('(%s) mints a trusted device next to the recovery codes, hash-only, labelled, audited', async (style, makeReq) => {
+    bcrypt.compare.mockResolvedValue(true);
+    routeDb(okRoutes());
+    const res = makeRes();
+    await auth.enableMfa(makeReq({ code: generateTotp(newSecret), rememberDevice: true }), res);
+    expect(res.status).not.toHaveBeenCalled();
+    const body = res.json.mock.calls[0][0];
+    expect(body.recoveryCodes).toHaveLength(10);
+    expect(body.deviceToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(body.deviceId).toBe('dev-9');
+    expect(new Date(body.deviceTokenExpiresAt).getTime()).toBeGreaterThan(Date.now() + 29 * 86400000);
+    expect(new Date(body.deviceTokenExpiresAt).getTime()).toBeLessThan(Date.now() + 31 * 86400000);
+    if (style === 'enroll mfaToken') {
+      expect(body).toMatchObject({ success: true, token: expect.any(String), practitioner: { id: 7 } });
+    } else {
+      expect(body.token).toBeUndefined();
+    }
+    const [, params] = callsMatching(INSERT_DEVICE)[0];
+    expect(params).toContain(sha256(body.deviceToken));
+    expect(params).not.toContain(body.deviceToken);
+    expect(params).toContain('Chrome on Windows');
+    expect(callsMatching(/OFFSET/)[0][1]).toEqual([7, 10]);
+    const audit = logAudit.mock.calls.map(([a]) => a).find((a) => a.action === 'mfa_device_trusted');
+    expect(audit.details).toEqual({ deviceId: 'dev-9', label: 'Chrome on Windows' });
+  });
+
+  test.each(styles)('(%s) the device is minted AFTER the revoke-all and the enable write', async (_style, makeReq) => {
+    bcrypt.compare.mockResolvedValue(true);
+    routeDb(okRoutes());
+    await auth.enableMfa(makeReq({ code: generateTotp(newSecret), rememberDevice: true }), makeRes());
+    expect(firstCallIndex(REVOKE_ALL)).toBeGreaterThanOrEqual(0);
+    expect(firstCallIndex(INSERT_DEVICE)).toBeGreaterThan(firstCallIndex(REVOKE_ALL));
+    expect(firstCallIndex(INSERT_DEVICE)).toBeGreaterThan(firstCallIndex(ENABLE_WRITE));
+  });
+
+  test.each(styles)('(%s) no device without rememberDevice: true', async (_style, makeReq) => {
+    for (const rememberDevice of [undefined, false, 'true', 1]) {
+      bcrypt.compare.mockResolvedValue(true);
+      routeDb(okRoutes());
+      const res = makeRes();
+      await auth.enableMfa(makeReq({ code: generateTotp(newSecret), rememberDevice }), res);
+      const body = res.json.mock.calls[0][0];
+      expect(body.recoveryCodes).toHaveLength(10);
+      expect(body.deviceToken).toBeUndefined();
+      expect(body.deviceTokenExpiresAt).toBeUndefined();
+      expect(body.deviceId).toBeUndefined();
+      expect(callsMatching(INSERT_DEVICE)).toHaveLength(0);
+      jest.resetAllMocks();
+      decryptField.mockImplementation((v) => (typeof v === 'string' && v.startsWith('enc:') ? v.slice(4) : v));
+      encryptField.mockImplementation((v) => (v == null ? v : `enc:${v}`));
+    }
+  });
+
+  test.each(styles)('(%s) a wrong code mints nothing', async (_style, makeReq) => {
+    bcrypt.compare.mockResolvedValue(true);
+    routeDb(okRoutes());
+    const res = makeRes();
+    const wrong = generateTotp(newSecret) === '000000' ? '111111' : '000000';
+    await auth.enableMfa(makeReq({ code: wrong, rememberDevice: true }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].deviceToken).toBeUndefined();
+    expect(callsMatching(INSERT_DEVICE)).toHaveLength(0);
+  });
+
+  test('a failed enable write (concurrent setup) mints nothing', async () => {
+    bcrypt.compare.mockResolvedValue(true);
+    routeDb([[/SELECT \* FROM practitioners WHERE id/, { rows: [pending] }], [ENABLE_WRITE, { rows: [] }]]);
+    const res = makeRes();
+    await auth.enableMfa(sessionReq({ code: generateTotp(newSecret), rememberDevice: true }), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(callsMatching(INSERT_DEVICE)).toHaveLength(0);
+  });
+
+  test.each(styles)('(%s) if minting throws, enable still succeeds without a device token', async (style, makeReq) => {
+    bcrypt.compare.mockResolvedValue(true);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    routeDb([...okRoutes().slice(0, 2), [INSERT_DEVICE, new Error('no table')]]);
+    const res = makeRes();
+    await auth.enableMfa(makeReq({ code: generateTotp(newSecret), rememberDevice: true }), res);
+    expect(res.status).not.toHaveBeenCalled();
+    const body = res.json.mock.calls[0][0];
+    expect(body.recoveryCodes).toHaveLength(10);
+    expect(body.deviceToken).toBeUndefined();
+    expect(body.deviceId).toBeUndefined();
+    if (style === 'enroll mfaToken') expect(body.token).toEqual(expect.any(String));
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  test('a support impersonation session is still refused, nothing minted', async () => {
+    routeDb(okRoutes());
+    const res = makeRes();
+    await auth.enableMfa({ body: { code: generateTotp(newSecret), password: 'pw', rememberDevice: true }, practitioner: { practitionerId: 7, impersonation: { platformAdminEmail: 'x' } }, headers: { 'user-agent': UA } }, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+});
+
 describe('loginPractitioner + deviceToken', () => {
   const loginReq = (extra = {}) => ({ body: { email: 'pat@acme.com', password: 'pw', slug: 'acme', ...extra }, company, headers: { 'user-agent': UA } });
 

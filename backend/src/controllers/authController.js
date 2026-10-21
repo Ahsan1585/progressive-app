@@ -464,6 +464,25 @@ function companyClaimsFrom(challenge) {
   return { slug: challenge.slug, tenantDb: challenge.tenantDb, accountType: challenge.accountType };
 }
 
+// Mints a trusted ("remembered") device into `payload` when the body opted in
+// with `rememberDevice: true`. Callers MUST only invoke this after the code
+// has been verified (and, for enable, after the revoke-all + enable write).
+// Strictly `true` so a stray truthy value never opts anyone in. Best-effort:
+// a failure here costs the user nothing but the convenience next time.
+async function maybeRememberDevice(req, user, payload) {
+  if (req.body?.rememberDevice !== true) return;
+  try {
+    const device = await mintTrustedDevice(user.id, req.headers?.['user-agent']);
+    payload.deviceToken = device.token;
+    payload.deviceTokenExpiresAt = device.expiresAt;
+    // Lets the client mark "this device" in GET /mfa/devices (same id).
+    payload.deviceId = device.id;
+    logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_device_trusted', resourceType: 'auth', details: { deviceId: device.id, label: device.label } });
+  } catch (err) {
+    console.error('Trusted device mint failed:', err.message);
+  }
+}
+
 // POST /api/auth/mfa/verify — req.mfaChallenge set by requireMfaChallenge('verify').
 const verifyMfa = async (req, res) => {
   const { code, recoveryCode } = req.body || {};
@@ -508,21 +527,8 @@ const verifyMfa = async (req, res) => {
     }
 
     const payload = await issueSession(req, user, companyClaimsFrom(req.mfaChallenge));
-    // Only reached after a successful code/recovery-code check. Strictly
-    // `true` so a stray truthy value never opts anyone in. Best-effort: a
-    // failure here costs the user nothing but the convenience next time.
-    if (req.body.rememberDevice === true) {
-      try {
-        const device = await mintTrustedDevice(user.id, req.headers?.['user-agent']);
-        payload.deviceToken = device.token;
-        payload.deviceTokenExpiresAt = device.expiresAt;
-        // Lets the client mark "this device" in GET /mfa/devices (same id).
-        payload.deviceId = device.id;
-        logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_device_trusted', resourceType: 'auth', details: { deviceId: device.id, label: device.label } });
-      } catch (err) {
-        console.error('Trusted device mint failed:', err.message);
-      }
-    }
+    // Only reached after a successful code/recovery-code check.
+    await maybeRememberDevice(req, user, payload);
     res.json(payload);
   } catch (error) {
     console.error('MFA verify error:', error);
@@ -620,7 +626,7 @@ const setupMfa = async (req, res) => {
 };
 
 // POST /api/auth/mfa/enable — real session (body: { code, password }) or an
-// 'enroll' mfaToken (body: { code }). Also completes an authenticator
+// 'enroll' mfaToken (body: { code }); either may add `rememberDevice: true`. Also completes an authenticator
 // replacement started by setupMfa on an already-enabled account: swaps in
 // the new secret, rotates fresh recovery codes, and resets the counters.
 const enableMfa = async (req, res) => {
@@ -675,6 +681,9 @@ const enableMfa = async (req, res) => {
     if (req.mfaChallenge) {
       Object.assign(payload, await issueSession(req, user, companyClaimsFrom(req.mfaChallenge)));
     }
+    // Minted only now: after the code check, the revoke-all above (so this
+    // new device isn't immediately revoked) and the successful enable write.
+    await maybeRememberDevice(req, user, payload);
     res.json(payload);
   } catch (error) {
     console.error('MFA enable error:', error);

@@ -19,15 +19,19 @@ export interface MfaSetupData {
 }
 
 // With an mfaToken the response also carries the full login payload.
-export type MfaEnableResponse = { recoveryCodes: string[] } & Partial<LoginResponse>;
+export type MfaEnableResponse = { recoveryCodes: string[]; deviceToken?: string; deviceTokenExpiresAt?: string; deviceId?: string } & Partial<LoginResponse>;
 
 // Forced enrollment (mfaToken) sends no password. Settings flow (session token)
 // must send the account password; replacing an existing authenticator also sends
 // a current code or recovery code via `extra`.
 export const mfaSetup = (mfaToken?: string, password?: string, extra?: { code?: string; recoveryCode?: string }) =>
   post<MfaSetupData>("/api/auth/mfa/setup", mfaToken ? {} : { password, ...(extra ?? {}) }, mfaToken).then((r) => r.data);
-export const mfaEnable = (code: string, mfaToken?: string, password?: string) =>
-  post<MfaEnableResponse>("/api/auth/mfa/enable", mfaToken ? { code } : { code, password }, mfaToken).then((r) => r.data);
+export const mfaEnable = (code: string, mfaToken?: string, password?: string, rememberDevice?: boolean) =>
+  post<MfaEnableResponse>(
+    "/api/auth/mfa/enable",
+    { ...(mfaToken ? { code } : { code, password }), ...(rememberDevice ? { rememberDevice: true } : {}) },
+    mfaToken,
+  ).then((r) => r.data);
 export const mfaDisable = (password: string, code: string) =>
   api.post<{ success: boolean }>("/api/auth/mfa/disable", { password, code }).then((r) => r.data);
 export type MfaVerifyResponse = LoginResponse & { deviceToken?: string; deviceTokenExpiresAt?: string; deviceId?: string };
