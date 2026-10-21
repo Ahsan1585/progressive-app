@@ -1,47 +1,48 @@
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn() } }));
 
 const { pool } = require('../../config/db');
-const { getDashboardLayout, saveDashboardLayout, DASHBOARD_SECTION_KEYS } = require('../dashboardController');
+const { getDashboardLayout, saveDashboardLayout, DASHBOARD_CARD_KEYS } = require('../dashboardController');
 
 afterEach(() => jest.resetAllMocks());
 
-describe('DASHBOARD_SECTION_KEYS', () => {
-  test('is the fixed 5-key set the frontend and validation both rely on', () => {
-    expect(DASHBOARD_SECTION_KEYS).toEqual([
-      'pipeline_and_queue', 'services', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory',
+describe('DASHBOARD_CARD_KEYS', () => {
+  test('is the fixed 8-key set the frontend and validation both rely on', () => {
+    expect(DASHBOARD_CARD_KEYS).toEqual([
+      'billing_pipeline', 'action_queue', 'services_breakdown', 'documents_feed',
+      'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart',
     ]);
   });
 });
 
+const fullCardLayout = () => DASHBOARD_CARD_KEYS.map((key) => ({ key, width: 'full' }));
+
 describe('getDashboardLayout', () => {
-  test('returns the saved order when one exists', async () => {
+  test('returns the saved card layout when one exists', async () => {
     const req = { practitioner: { practitionerId: 7 } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
-    pool.query.mockResolvedValueOnce({ rows: [{ section_order: ['services', 'pipeline_and_queue', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory'] }] });
+    const saved = [{ key: 'eims_status', width: 'half' }, { key: 'accuracy_table', width: 'half' }, ...DASHBOARD_CARD_KEYS.filter((k) => k !== 'eims_status' && k !== 'accuracy_table').map((key) => ({ key, width: 'full' }))];
+    pool.query.mockResolvedValueOnce({ rows: [{ section_order: saved }] });
 
     await getDashboardLayout(req, res);
 
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      sectionOrder: ['services', 'pipeline_and_queue', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory'],
-    });
+    expect(res.json).toHaveBeenCalledWith({ success: true, cardLayout: saved });
   });
 
-  test('returns null sectionOrder when the viewer has never customized', async () => {
+  test('returns null cardLayout when the viewer has never customized', async () => {
     const req = { practitioner: { practitionerId: 7 } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     pool.query.mockResolvedValueOnce({ rows: [] });
 
     await getDashboardLayout(req, res);
 
-    expect(res.json).toHaveBeenCalledWith({ success: true, sectionOrder: null });
+    expect(res.json).toHaveBeenCalledWith({ success: true, cardLayout: null });
   });
 });
 
 describe('saveDashboardLayout', () => {
-  test('upserts a valid permutation of DASHBOARD_SECTION_KEYS', async () => {
-    const order = ['services', 'pipeline_and_queue', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory'];
-    const req = { practitioner: { practitionerId: 7 }, body: { sectionOrder: order } };
+  test('upserts a valid full-width-only permutation of DASHBOARD_CARD_KEYS', async () => {
+    const cardLayout = fullCardLayout();
+    const req = { practitioner: { practitionerId: 7 }, body: { cardLayout } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     pool.query.mockResolvedValueOnce({ rows: [] });
 
@@ -49,8 +50,19 @@ describe('saveDashboardLayout', () => {
 
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining('ON CONFLICT (practitioner_id)'),
-      [7, JSON.stringify(order)]
+      [7, JSON.stringify(cardLayout)]
     );
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+  });
+
+  test('upserts a valid layout with some cards set to half width', async () => {
+    const cardLayout = DASHBOARD_CARD_KEYS.map((key, i) => ({ key, width: i < 2 ? 'half' : 'full' }));
+    const req = { practitioner: { practitionerId: 7 }, body: { cardLayout } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    await saveDashboardLayout(req, res);
+
     expect(res.json).toHaveBeenCalledWith({ success: true });
   });
 
@@ -64,8 +76,9 @@ describe('saveDashboardLayout', () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
-  test('400s on a payload missing a required key', async () => {
-    const req = { practitioner: { practitionerId: 7 }, body: { sectionOrder: ['services', 'pipeline_and_queue', 'accuracy_table', 'eims_status'] } };
+  test('400s on a payload missing a required card key', async () => {
+    const cardLayout = fullCardLayout().slice(0, -1);
+    const req = { practitioner: { practitionerId: 7 }, body: { cardLayout } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
 
     await saveDashboardLayout(req, res);
@@ -74,8 +87,10 @@ describe('saveDashboardLayout', () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
-  test('400s on a payload with a duplicate key', async () => {
-    const req = { practitioner: { practitionerId: 7 }, body: { sectionOrder: ['services', 'services', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory'] } };
+  test('400s on a payload with a duplicate card key', async () => {
+    const cardLayout = fullCardLayout();
+    cardLayout[1] = { ...cardLayout[0] };
+    const req = { practitioner: { practitionerId: 7 }, body: { cardLayout } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
 
     await saveDashboardLayout(req, res);
@@ -84,8 +99,33 @@ describe('saveDashboardLayout', () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
-  test('400s on a payload with an unknown key', async () => {
-    const req = { practitioner: { practitionerId: 7 }, body: { sectionOrder: ['services', 'pipeline_and_queue', 'accuracy_table', 'eims_status', 'not_a_real_section'] } };
+  test('400s on a payload with an unknown card key', async () => {
+    const cardLayout = fullCardLayout();
+    cardLayout[0] = { key: 'not_a_real_card', width: 'full' };
+    const req = { practitioner: { practitionerId: 7 }, body: { cardLayout } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    await saveDashboardLayout(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('400s on a payload with an invalid width value', async () => {
+    const cardLayout = fullCardLayout();
+    cardLayout[0] = { key: cardLayout[0].key, width: 'huge' };
+    const req = { practitioner: { practitionerId: 7 }, body: { cardLayout } };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    await saveDashboardLayout(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('400s when cardLayout entries are missing the width field', async () => {
+    const cardLayout = DASHBOARD_CARD_KEYS.map((key) => ({ key }));
+    const req = { practitioner: { practitionerId: 7 }, body: { cardLayout } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
 
     await saveDashboardLayout(req, res);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import {
   Tag, Activity, AlertTriangle, CalendarClock, TrendingUp, TrendingDown,
-  CalendarDays, CalendarRange, Calendar, X, Check, MessageCircle, GripVertical,
+  CalendarRange, Calendar, X, Check, MessageCircle, GripVertical,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -614,7 +614,6 @@ function DocumentsFeed({ documents }) {
 
 function TrajectoryTabs({ active, onChange }) {
   const tabs = [
-    { key: 'day', label: 'Day', icon: CalendarDays },
     { key: 'month', label: 'Month', icon: CalendarRange },
     { key: 'year', label: 'Year', icon: Calendar },
   ];
@@ -849,29 +848,35 @@ function YearTrajectory() {
 }
 
 // Must exactly match backend/src/controllers/dashboardController.js's
-// DASHBOARD_SECTION_KEYS — the backend validates PUT /api/dashboard/layout
-// against this same fixed set.
-const DASHBOARD_SECTION_KEYS = ['pipeline_and_queue', 'services', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory'];
+// DASHBOARD_CARD_KEYS/DASHBOARD_CARD_WIDTHS — the backend validates
+// PUT /api/dashboard/layout against this same fixed set.
+const DASHBOARD_CARD_KEYS = [
+  'billing_pipeline', 'action_queue', 'services_breakdown', 'documents_feed',
+  'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart',
+];
+const DEFAULT_CARD_LAYOUT = DASHBOARD_CARD_KEYS.map((key) => ({ key, width: 'full' }));
 
-// Returns [order, reorderLocally, persistOrder] — split so a drag's
-// continuous dragover events can move sections on screen without firing a
-// PUT per event (which, on a short section dragged over a taller one,
-// oscillates back and forth as the cursor crosses the swapped boundary,
-// firing a stream of PUTs that can resolve out of order and persist a
-// mid-drag layout). Only drop/dragend calls persistOrder.
+// Returns [cardLayout, reorderLocally, persistLayout] — split so a drag's
+// continuous dragover events can move cards on screen without firing a PUT
+// per event (which, on a short card dragged over a taller one, oscillates
+// back and forth as the cursor crosses the swapped boundary, firing a
+// stream of PUTs that can resolve out of order and persist a mid-drag
+// layout). Only drop/dragend calls persistLayout. cardLayout is an array
+// of {key, width} in display order — width lives in the saved state, not
+// inferred, so a resize survives independently of any later reorder.
 function useDashboardLayout() {
-  const [order, setOrder] = useState(DASHBOARD_SECTION_KEYS);
+  const [cardLayout, setCardLayout] = useState(DEFAULT_CARD_LAYOUT);
   useEffect(() => {
     api.get('/api/dashboard/layout')
-      .then((res) => { if (res.data.sectionOrder) setOrder(res.data.sectionOrder); })
+      .then((res) => { if (res.data.cardLayout) setCardLayout(res.data.cardLayout); })
       .catch(() => {});
   }, []);
 
-  const persistOrder = (newOrder) => {
-    api.put('/api/dashboard/layout', { sectionOrder: newOrder }).catch((err) => console.error('Failed to save dashboard layout:', err));
+  const persistLayout = (newLayout) => {
+    api.put('/api/dashboard/layout', { cardLayout: newLayout }).catch((err) => console.error('Failed to save dashboard layout:', err));
   };
 
-  return [order, setOrder, persistOrder];
+  return [cardLayout, setCardLayout, persistLayout];
 }
 
 function CustomizeToggle({ active, onToggle }) {
@@ -888,19 +893,34 @@ function CustomizeToggle({ active, onToggle }) {
   );
 }
 
-function DraggableSection({ sectionKey, isCustomizing, onDragStart, onDragOver, onDrop, children }) {
+// Each card's wrapper controls its own flex-basis (full vs. half width) so
+// two half-width cards wrap onto the same row — plain flex-wrap rather
+// than a fixed-column grid, since a grid can't let some rows have one
+// full-width item and others have two half-width items without naming
+// explicit row/column spans per card.
+function DraggableCard({ cardKey, width, isCustomizing, onDragStart, onDragOver, onDrop, onToggleWidth, children }) {
   return (
     <div
       draggable={isCustomizing}
-      onDragStart={isCustomizing ? (e) => onDragStart(e, sectionKey) : undefined}
-      onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, sectionKey); } : undefined}
-      onDrop={isCustomizing ? (e) => onDrop(e, sectionKey) : undefined}
+      onDragStart={isCustomizing ? (e) => onDragStart(e, cardKey) : undefined}
+      onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, cardKey); } : undefined}
+      onDrop={isCustomizing ? (e) => onDrop(e, cardKey) : undefined}
       onDragEnd={isCustomizing ? onDrop : undefined}
-      className={isCustomizing ? 'relative ring-2 ring-dashed ring-slate-300 rounded-2xl p-1 cursor-grab active:cursor-grabbing' : ''}
+      className={`w-full ${width === 'half' ? 'md:w-[calc(50%-0.5rem)]' : ''} ${isCustomizing ? 'relative ring-2 ring-dashed ring-slate-300 rounded-2xl p-1 cursor-grab active:cursor-grabbing' : ''}`}
     >
       {isCustomizing && (
-        <div className="absolute -top-2.5 right-3 bg-slate-900 text-white rounded-full p-1 z-10">
-          <GripVertical className="size-3" />
+        <div className="absolute -top-2.5 right-3 flex items-center gap-1 z-10">
+          <button
+            type="button"
+            onClick={() => onToggleWidth(cardKey)}
+            className="bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-full cursor-pointer hover:bg-slate-700"
+            title={width === 'half' ? 'Make full width' : 'Make half width'}
+          >
+            {width === 'half' ? 'Half' : 'Full'}
+          </button>
+          <div className="bg-slate-900 text-white rounded-full p-1">
+            <GripVertical className="size-3" />
+          </div>
         </div>
       )}
       {children}
@@ -913,7 +933,7 @@ export function CompanyDashboard() {
   const [ap, setAp] = useState(null);
   const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
   const [month, setMonth] = useState(null);
-  const [trajectoryTab, setTrajectoryTab] = useState('day');
+  const [trajectoryTab, setTrajectoryTab] = useState('month');
   // The billing pipeline (Logged -> Reviewed -> Invoiced -> Paid) is
   // deliberately NOT scoped to a calendar month — it's the current state
   // of every session across all time, the actual operational backlog, so
@@ -925,7 +945,7 @@ export function CompanyDashboard() {
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [services, setServices] = useState(null);
   const [documents, setDocuments] = useState(null);
-  const [layoutOrder, setLayoutOrder, persistLayoutOrder] = useDashboardLayout();
+  const [cardLayout, setCardLayout, persistCardLayout] = useDashboardLayout();
   const [isCustomizing, setIsCustomizing] = useState(false);
   const dragKeyRef = useRef(null);
 
@@ -950,42 +970,51 @@ export function CompanyDashboard() {
   const handleDragOver = (e, overKey) => {
     const draggedKey = dragKeyRef.current;
     if (!draggedKey || draggedKey === overKey) return;
-    const current = [...layoutOrder];
-    const fromIdx = current.indexOf(draggedKey);
-    const toIdx = current.indexOf(overKey);
+    const current = [...cardLayout];
+    const fromIdx = current.findIndex((c) => c.key === draggedKey);
+    const toIdx = current.findIndex((c) => c.key === overKey);
     if (fromIdx === -1 || toIdx === -1) return;
-    current.splice(fromIdx, 1);
-    current.splice(toIdx, 0, draggedKey);
-    setLayoutOrder(current);
+    const [moved] = current.splice(fromIdx, 1);
+    current.splice(toIdx, 0, moved);
+    setCardLayout(current);
   };
   const handleDrop = () => {
     dragKeyRef.current = null;
-    persistLayoutOrder(layoutOrder);
+    persistCardLayout(cardLayout);
+  };
+  const handleToggleWidth = (key) => {
+    const next = cardLayout.map((c) => (c.key === key ? { ...c, width: c.width === 'half' ? 'full' : 'half' } : c));
+    setCardLayout(next);
+    persistCardLayout(next);
   };
 
-  const sectionsByKey = {
-    pipeline_and_queue: (
+  const cardsByKey = {
+    billing_pipeline: (
       <div>
         <div className="text-lg font-bold text-slate-900 mb-1">From session to payment</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Everything currently in the pipeline, and what's stuck along the way.</p>
-        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start">
-          <BillingFunnel pipeline={pipeline} />
-          <ActionQueue day={day} onSelectSession={setSelectedSessionId} />
-        </div>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Everything currently in the pipeline.</p>
+        <BillingFunnel pipeline={pipeline} />
       </div>
     ),
-    services: (
+    action_queue: (
       <div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          <ServicesBreakdown data={services} />
-          <DocumentsFeed documents={documents} />
-        </div>
+        <ActionQueue day={day} onSelectSession={setSelectedSessionId} />
+      </div>
+    ),
+    services_breakdown: (
+      <div>
+        <ServicesBreakdown data={services} />
+      </div>
+    ),
+    documents_feed: (
+      <div>
+        <DocumentsFeed documents={documents} />
       </div>
     ),
     accuracy_table: (
       <div>
         <div className="text-lg font-bold text-slate-900 mb-1">Who's submitting clean logs</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same month as above — sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
         <PractitionerAccuracyTable month={month} />
       </div>
     ),
@@ -993,23 +1022,23 @@ export function CompanyDashboard() {
       <div>
         <div className="text-lg font-bold text-slate-900 mb-1">EIMS match status</div>
         <p className="text-sm text-slate-500 mb-4 max-w-2xl">Reconciled against state records, all time.</p>
-        <div className="max-w-sm">
-          <EimsDonut pipeline={pipeline} />
-        </div>
+        <EimsDonut pipeline={pipeline} />
       </div>
     ),
-    returned_logs_and_trajectory: (
+    returned_logs: (
+      <div>
+        <ReturnedLogsPanel returnedLogs={returnedLogs} onSelectSession={setSelectedSessionId} />
+      </div>
+    ),
+    trajectory_chart: (
       <div>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
           <div className="text-lg font-bold text-slate-900">Where this is headed</div>
           <TrajectoryTabs active={trajectoryTab} onChange={setTrajectoryTab} />
         </div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Same work, three distances — the volume trend, and how it's reconciling against the state.</p>
-        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 items-start">
-          {trajectoryTab === 'day' && <ReturnedLogsPanel returnedLogs={returnedLogs} onSelectSession={setSelectedSessionId} />}
-          {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
-          {trajectoryTab === 'year' && <YearTrajectory />}
-        </div>
+        <p className="text-sm text-slate-500 mb-4 max-w-2xl">The volume trend, and how it's reconciling against the state.</p>
+        {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
+        {trajectoryTab === 'year' && <YearTrajectory />}
       </div>
     ),
   };
@@ -1054,18 +1083,22 @@ export function CompanyDashboard() {
         </div>
       </div>
 
-      {layoutOrder.map((key) => (
-        <DraggableSection
-          key={key}
-          sectionKey={key}
-          isCustomizing={isCustomizing}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          {sectionsByKey[key]}
-        </DraggableSection>
-      ))}
+      <div className="flex flex-wrap gap-6">
+        {cardLayout.map(({ key, width }) => (
+          <DraggableCard
+            key={key}
+            cardKey={key}
+            width={width}
+            isCustomizing={isCustomizing}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onToggleWidth={handleToggleWidth}
+          >
+            {cardsByKey[key]}
+          </DraggableCard>
+        ))}
+      </div>
 
       <SessionDetailDialog assessmentId={selectedSessionId} onClose={() => setSelectedSessionId(null)} />
     </div>

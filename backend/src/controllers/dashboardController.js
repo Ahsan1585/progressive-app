@@ -15,19 +15,23 @@ const { serviceCodeLabel, locationCodeLabel } = require('../constants/njeis');
 // actually for (what's sitting in a billing specialist's hold queue).
 const OPEN_EXCEPTION_STATUSES = ['on_hold'];
 
-// The fixed, ordered set of reorderable Overview-dashboard section groups.
-// Grouped at two-column-row granularity (matching the existing grid pairs
-// in CompanyDashboard.jsx), not per individual card — splitting pairs like
-// BillingFunnel+ActionQueue apart would require redesigning the responsive
-// grid itself, out of scope for this pass. Must exactly match the
-// frontend's own DASHBOARD_SECTION_KEYS constant in CompanyDashboard.jsx.
-const DASHBOARD_SECTION_KEYS = [
-  'pipeline_and_queue',
-  'services',
+// The fixed set of individually reorderable/resizable Overview-dashboard
+// cards. Each card can be shown full-width or half-width (two half-width
+// cards sit side by side); a viewer's saved layout is an ARRAY of
+// {key, width} in display order, not just a key order — width is part of
+// the saved state, not inferred. Must exactly match the frontend's own
+// DASHBOARD_CARD_KEYS constant in CompanyDashboard.jsx.
+const DASHBOARD_CARD_KEYS = [
+  'billing_pipeline',
+  'action_queue',
+  'services_breakdown',
+  'documents_feed',
   'accuracy_table',
   'eims_status',
-  'returned_logs_and_trajectory',
+  'returned_logs',
+  'trajectory_chart',
 ];
+const DASHBOARD_CARD_WIDTHS = ['full', 'half'];
 
 // GET /api/dashboard/day — worklist, not a trend. "What needs a human
 // today."
@@ -950,25 +954,30 @@ const getDashboardLayout = async (req, res) => {
       'SELECT section_order FROM dashboard_layouts WHERE practitioner_id = $1',
       [req.practitioner.practitionerId]
     );
-    res.json({ success: true, sectionOrder: rows[0]?.section_order || null });
+    res.json({ success: true, cardLayout: rows[0]?.section_order || null });
   } catch (error) {
     console.error('getDashboardLayout error:', error);
     res.status(500).json({ success: false, error: 'Failed to load dashboard layout' });
   }
 };
 
-// PUT /api/dashboard/layout — upserts the calling viewer's section order.
-// Validated server-side as an exact permutation of DASHBOARD_SECTION_KEYS
-// (no unknown/missing/duplicate keys) rather than trusting the client's
-// array blindly.
+// PUT /api/dashboard/layout — upserts the calling viewer's card layout: an
+// array of {key, width} in display order. Validated server-side as an
+// exact permutation of DASHBOARD_CARD_KEYS (no unknown/missing/duplicate
+// keys) with each entry's width one of DASHBOARD_CARD_WIDTHS, rather than
+// trusting the client's array blindly. Stored in the existing
+// dashboard_layouts.section_order jsonb column — same column, new shape;
+// no migration needed since jsonb doesn't enforce a schema.
 const saveDashboardLayout = async (req, res) => {
-  const { sectionOrder } = req.body || {};
-  const isValidPermutation = Array.isArray(sectionOrder)
-    && sectionOrder.length === DASHBOARD_SECTION_KEYS.length
-    && new Set(sectionOrder).size === DASHBOARD_SECTION_KEYS.length
-    && sectionOrder.every((k) => DASHBOARD_SECTION_KEYS.includes(k));
-  if (!isValidPermutation) {
-    return res.status(400).json({ success: false, error: 'sectionOrder must be a permutation of the known dashboard sections' });
+  const { cardLayout } = req.body || {};
+  const isValidLayout = Array.isArray(cardLayout)
+    && cardLayout.length === DASHBOARD_CARD_KEYS.length
+    && cardLayout.every((entry) => entry && typeof entry === 'object'
+      && DASHBOARD_CARD_KEYS.includes(entry.key)
+      && DASHBOARD_CARD_WIDTHS.includes(entry.width))
+    && new Set(cardLayout.map((entry) => entry.key)).size === DASHBOARD_CARD_KEYS.length;
+  if (!isValidLayout) {
+    return res.status(400).json({ success: false, error: 'cardLayout must be a permutation of the known dashboard cards, each with a valid width' });
   }
 
   try {
@@ -976,7 +985,7 @@ const saveDashboardLayout = async (req, res) => {
       `INSERT INTO dashboard_layouts (practitioner_id, section_order, updated_at)
        VALUES ($1, $2, now())
        ON CONFLICT (practitioner_id) DO UPDATE SET section_order = $2, updated_at = now()`,
-      [req.practitioner.practitionerId, JSON.stringify(sectionOrder)]
+      [req.practitioner.practitionerId, JSON.stringify(cardLayout)]
     );
     res.json({ success: true });
   } catch (error) {
@@ -995,7 +1004,8 @@ module.exports = {
   getAccountsPayable,
   getDashboardLayout,
   saveDashboardLayout,
-  DASHBOARD_SECTION_KEYS,
+  DASHBOARD_CARD_KEYS,
+  DASHBOARD_CARD_WIDTHS,
   getServicesBreakdown,
   getDocumentsFeed,
 };
