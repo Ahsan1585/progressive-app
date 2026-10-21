@@ -54,6 +54,16 @@ describe('saveDashboardLayout', () => {
     expect(res.json).toHaveBeenCalledWith({ success: true });
   });
 
+  test('400s (not 500) when req.body itself is undefined, e.g. no body sent at all', async () => {
+    const req = { practitioner: { practitionerId: 7 }, body: undefined };
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+
+    await saveDashboardLayout(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
   test('400s on a payload missing a required key', async () => {
     const req = { practitioner: { practitionerId: 7 }, body: { sectionOrder: ['services', 'pipeline_and_queue', 'accuracy_table', 'eims_status'] } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };

@@ -43,6 +43,7 @@ const MIGRATIONS = [
   'add_patient_practitioner_deactivation_reason.sql',
   'add_records_consents.sql',
   'add_records_consents_recipient_email.sql',
+  'add_dashboard_layouts.sql',
 ];
 
 module.exports = { MIGRATIONS };

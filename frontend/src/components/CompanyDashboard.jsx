@@ -853,6 +853,12 @@ function YearTrajectory() {
 // against this same fixed set.
 const DASHBOARD_SECTION_KEYS = ['pipeline_and_queue', 'services', 'accuracy_table', 'eims_status', 'returned_logs_and_trajectory'];
 
+// Returns [order, reorderLocally, persistOrder] — split so a drag's
+// continuous dragover events can move sections on screen without firing a
+// PUT per event (which, on a short section dragged over a taller one,
+// oscillates back and forth as the cursor crosses the swapped boundary,
+// firing a stream of PUTs that can resolve out of order and persist a
+// mid-drag layout). Only drop/dragend calls persistOrder.
 function useDashboardLayout() {
   const [order, setOrder] = useState(DASHBOARD_SECTION_KEYS);
   useEffect(() => {
@@ -861,12 +867,11 @@ function useDashboardLayout() {
       .catch(() => {});
   }, []);
 
-  const saveOrder = (newOrder) => {
-    setOrder(newOrder);
+  const persistOrder = (newOrder) => {
     api.put('/api/dashboard/layout', { sectionOrder: newOrder }).catch((err) => console.error('Failed to save dashboard layout:', err));
   };
 
-  return [order, saveOrder];
+  return [order, setOrder, persistOrder];
 }
 
 function CustomizeToggle({ active, onToggle }) {
@@ -890,6 +895,7 @@ function DraggableSection({ sectionKey, isCustomizing, onDragStart, onDragOver, 
       onDragStart={isCustomizing ? (e) => onDragStart(e, sectionKey) : undefined}
       onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, sectionKey); } : undefined}
       onDrop={isCustomizing ? (e) => onDrop(e, sectionKey) : undefined}
+      onDragEnd={isCustomizing ? onDrop : undefined}
       className={isCustomizing ? 'relative ring-2 ring-dashed ring-slate-300 rounded-2xl p-1 cursor-grab active:cursor-grabbing' : ''}
     >
       {isCustomizing && (
@@ -919,7 +925,7 @@ export function CompanyDashboard() {
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [services, setServices] = useState(null);
   const [documents, setDocuments] = useState(null);
-  const [layoutOrder, saveLayoutOrder] = useDashboardLayout();
+  const [layoutOrder, setLayoutOrder, persistLayoutOrder] = useDashboardLayout();
   const [isCustomizing, setIsCustomizing] = useState(false);
   const dragKeyRef = useRef(null);
 
@@ -950,9 +956,12 @@ export function CompanyDashboard() {
     if (fromIdx === -1 || toIdx === -1) return;
     current.splice(fromIdx, 1);
     current.splice(toIdx, 0, draggedKey);
-    saveLayoutOrder(current);
+    setLayoutOrder(current);
   };
-  const handleDrop = () => { dragKeyRef.current = null; };
+  const handleDrop = () => {
+    dragKeyRef.current = null;
+    persistLayoutOrder(layoutOrder);
+  };
 
   const sectionsByKey = {
     pipeline_and_queue: (

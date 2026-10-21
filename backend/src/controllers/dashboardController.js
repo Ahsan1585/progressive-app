@@ -867,12 +867,12 @@ const getServicesBreakdown = async (req, res) => {
 
 // GET /api/dashboard/documents — most recent 20 billing_batches, each
 // rolled up to one status: "worst wins" across its assessment lines (any
-// exception -> mismatch; else any pending/unverified -> pending; else
-// matched), mirroring the human-hold-overrides-EIMS-tier rule used
-// elsewhere on this dashboard. No separate SEVF table exists in this
-// schema — a batch for an independent_practitioner is simply labeled
-// "sevf" instead of "invoice"; the document number format is identical
-// either way (formatInvoiceNumber ties back to the same billing_batches row).
+// genuine field-level mismatch -> mismatch; else anything else unresolved
+// (exception/unverified) -> pending; else matched). No separate SEVF table
+// exists in this schema — a batch for an independent_practitioner is
+// simply labeled "sevf" instead of "invoice"; the document number format
+// is identical either way (formatInvoiceNumber ties back to the same
+// billing_batches row).
 const getDocumentsFeed = async (req, res) => {
   try {
     const { rows: batches } = await pool.query(
@@ -889,7 +889,7 @@ const getDocumentsFeed = async (req, res) => {
         `SELECT a.id, a.total_time, p.pay_rate, a.practitioner_id, p.role,
                 a.eims_missing_status, a.eims_entered_at, a.is_override
          FROM assessments a JOIN practitioners p ON p.id = a.practitioner_id
-         WHERE a.billing_batch_id = $1`,
+         WHERE a.billing_batch_id = $1 AND a.billing_status != 'voided'`,
         [batch.id]
       );
 
@@ -909,7 +909,15 @@ const getDocumentsFeed = async (req, res) => {
           const compliance = complianceById.get(l.id) || null;
           return deriveEimsStatus(l, { mode, compliance }).tier;
         });
-        if (tiers.some((t) => t === 'exception')) status = 'mismatch';
+        // deriveEimsStatus's 'pending' tier is a genuine field-level
+        // mismatch (compliance.matched && compliance.flagged — see
+        // invoiceData.js), which is exactly what a billing-staff reader
+        // means by "Mismatch" on this chip. Its 'exception' tier covers
+        // missing/rejected/duplicate records — a record that isn't there
+        // to compare at all is a different, still-open problem, not
+        // (necessarily) a mismatched one, so it rolls up to this feed's
+        // 'pending' chip instead of 'mismatch'.
+        if (tiers.some((t) => t === 'pending')) status = 'mismatch';
         else if (tiers.every((t) => t === 'cleared')) status = 'matched';
         else status = 'pending';
       }
@@ -954,7 +962,7 @@ const getDashboardLayout = async (req, res) => {
 // (no unknown/missing/duplicate keys) rather than trusting the client's
 // array blindly.
 const saveDashboardLayout = async (req, res) => {
-  const { sectionOrder } = req.body;
+  const { sectionOrder } = req.body || {};
   const isValidPermutation = Array.isArray(sectionOrder)
     && sectionOrder.length === DASHBOARD_SECTION_KEYS.length
     && new Set(sectionOrder).size === DASHBOARD_SECTION_KEYS.length
