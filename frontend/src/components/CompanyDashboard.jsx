@@ -993,7 +993,9 @@ export function CompanyDashboard() {
       <div>
         <div className="text-lg font-bold text-slate-900 mb-1">EIMS match status</div>
         <p className="text-sm text-slate-500 mb-4 max-w-2xl">Reconciled against state records, all time.</p>
-        <EimsDonut pipeline={pipeline} />
+        <div className="max-w-sm">
+          <EimsDonut pipeline={pipeline} />
+        </div>
       </div>
     ),
     returned_logs_and_trajectory: (
