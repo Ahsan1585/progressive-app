@@ -357,79 +357,90 @@ const sendReferralRewardEarnedEmail = async (toEmail, referredName) => {
   });
 };
 
+// FERPA 34 CFR 99.33 / IDEA Part C 34 CFR 303.414 redisclosure notice —
+// must accompany every disclosure of a child's record to a third party
+// (the SEVF-to-agency email + its secure-link download page, and the full
+// child-record export's cover page).
+const REDISCLOSURE_NOTICE = 'This record contains confidential information protected by FERPA (34 CFR Part 99) and IDEA Part C (34 CFR 303.401-303.417). You may not redisclose it to any other party without prior written parental consent.';
+
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 // Independent-practitioner-only (see docs on the independent-practitioner
-// feature): emails an already-generated SEVF (and, since each SEVF now has
-// an invoice generated alongside it — see generateSelfCertifiedSEVF — its
-// matching invoice too) directly to the early intervention agency it was
-// billed to — the "skip the mail" flow for a practitioner whose agency
-// hasn't enrolled with Izaya. Sent from Izaya's own infrastructure, but the
-// copy must read as clearly practitioner-initiated, not an Izaya
-// solicitation — no upsell CTA, minimal branding. invoiceBuffer/
-// invoiceFilename are optional so older batches generated before invoices
-// existed on this flow still send their SEVF alone rather than erroring.
-const sendSevfToAgencyEmail = async (agencyEmail, { practitionerName, pdfBuffer, pdfFilename, invoiceBuffer, invoiceFilename }) => {
+// feature): tells the early intervention agency a practitioner billed that
+// their SEVF (and matching invoice, when one exists) is ready to download.
+//
+// Resend cannot sign a BAA, so the SEVF/invoice PDFs (child names, IDs,
+// service details) must NEVER pass through it — this email carries only
+// the practitioner's name, a neutral message, the redisclosure notice, and
+// an expiring, token-gated link (sharedDocumentController.js) that serves
+// the PDFs from Izaya's own BAA-covered infrastructure. No attachments, no
+// child data. Any legacy pdfBuffer/invoiceBuffer a caller still passes is
+// deliberately ignored.
+const sendSevfToAgencyEmail = async (agencyEmail, { practitionerName, downloadUrl, expiresAt, includesInvoice = false }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping SEVF-to-agency email send.');
     return;
   }
-  const hasInvoice = !!invoiceBuffer;
+  const name = escapeHtml(practitionerName);
+  const docs = includesInvoice ? 'Service Verification Form (SEVF) and invoice' : 'Service Verification Form (SEVF)';
+  const expiryText = expiresAt
+    ? new Date(expiresAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : null;
   const bodyHtml = `
-    <p style="margin:0;">This SEVF${hasInvoice ? ' and invoice are' : ' is'} being shared on behalf of <b style="color:${COLORS.navy};">${practitionerName}</b> for services they provided to your agency.</p>
-    <p style="margin:16px 0 0;">The completed Service Verification Form${hasInvoice ? ' and invoice are' : ' is'} attached as ${hasInvoice ? 'PDFs' : 'a PDF'}.</p>
+    <p style="margin:0;"><b style="color:${COLORS.navy};">${name}</b> has shared a ${docs} with your agency for services they provided.</p>
+    <p style="margin:16px 0 0;">For privacy, the documents are not attached to this email. Use the secure link below to view and download them.</p>
+    ${ctaButton(downloadUrl, 'View &amp; Download Securely')}
+    ${linkFallback(downloadUrl)}
+    <p style="margin:20px 0 0; padding:12px 14px; border:1px solid ${COLORS.line}; border-radius:8px; font-size:12.5px; line-height:1.55; color:${COLORS.navy};"><b>Confidentiality notice:</b> ${REDISCLOSURE_NOTICE}</p>
   `;
   const html = emailShell({
-    preheader: `${practitionerName} shared a SEVF${hasInvoice ? ' and invoice' : ''} with your agency.`,
-    eyebrow: hasInvoice ? 'SEVF & invoice shared' : 'SEVF shared',
-    heading: `A practitioner has shared their SEVF${hasInvoice ? ' and invoice' : ''} with you`,
+    preheader: `${practitionerName} shared documents with your agency via a secure link.`,
+    eyebrow: 'Secure document share',
+    heading: 'A practitioner has shared documents with you',
     bodyHtml,
-    footnote: `This email was sent at ${practitionerName}'s request via Izaya EIS, the billing platform they use to log sessions.`,
+    footnote: `This private link${expiryText ? ` expires on ${expiryText}` : ' expires in 14 days'}. This email was sent at ${name}'s request via Izaya EIS, the billing platform they use to log sessions.`,
   });
-  const attachments = [
-    {
-      filename: pdfFilename || 'SEVF.pdf',
-      content: pdfBuffer.toString('base64'),
-      contentType: 'application/pdf',
-    },
-  ];
-  if (hasInvoice) {
-    attachments.push({
-      filename: invoiceFilename || 'Invoice.pdf',
-      content: invoiceBuffer.toString('base64'),
-      contentType: 'application/pdf',
-    });
-  }
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
     to: agencyEmail,
-    subject: `SEVF${hasInvoice ? ' & invoice' : ''} from ${practitionerName}`,
+    subject: `Secure documents from ${practitionerName}`,
     html,
-    attachments,
   });
 };
 
-// PHI-minimization note (risk-reduction, not elimination — see the BAA
-// draft's subcontractor review flag): this deliberately uses the child's
-// FIRST name only (never the surname) and drops any free-text session
-// notes entirely, both in the email body and the .ics attachment's
-// DESCRIPTION field — the notes field is unbounded free text a practitioner
-// could type anything into, the single biggest unknown exposure of the two.
-// Date/time/location/first-name are kept because a truly generic calendar
-// invite ("You have an appointment") would defeat the point of attaching
-// one at all. This still very likely counts as PHI under the same
-// reasoning that first-name + a health-service date/time does elsewhere —
-// it reduces exposure, it does not remove the need for a BAA with Resend
-// (or moving this send to a HIPAA-eligible provider) before this is
-// treated as resolved.
+// Reduces a free-text session location to a non-identifying category so a
+// family's home address never passes through Resend. Idempotent (the
+// category labels map back to themselves).
+const generalizeSessionLocation = (location) => {
+  const text = String(location || '').trim();
+  if (!text) return '';
+  const lower = text.toLowerCase();
+  if (/\b(tele|telehealth|telepractice|virtual|video|zoom|remote|online)/.test(lower)) return 'Telehealth';
+  if (/\b(center|centre|clinic|office|agency|facility)\b/.test(lower)) return 'Center';
+  return 'Home or community visit';
+};
+
+// PHI-minimization: Resend cannot sign a BAA, so this email carries NO
+// child identifier at all — no name (first or last) in the subject, body,
+// or the .ics (see scheduleController.notifyParent), and no free-text notes.
+// The location is reduced to a generic category (generalizeSessionLocation)
+// since the free-text field is often a family's home address. Date, time
+// and practitioner name are kept — on their own they don't identify the
+// child, and without them the calendar invite would be pointless.
+// childFirstName is accepted for backward compatibility and ignored.
 const sendSessionScheduledEmail = async (toEmail, {
-  childFirstName, practitionerName, sessionDate, startTime, endTime, location, icsContent, cancelled,
+  practitionerName, sessionDate, startTime, endTime, location, icsContent, cancelled,
 }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping session schedule email send.');
     return;
   }
+  location = generalizeSessionLocation(location);
   const subject = cancelled
-    ? `Cancelled: ${childFirstName}'s session on ${sessionDate}`
-    : `${childFirstName}'s session scheduled for ${sessionDate}`;
+    ? `Cancelled: Session on ${sessionDate}`
+    : `Session scheduled for ${sessionDate}`;
 
   const detailRow = (label, value) => (value ? `
     <tr>
@@ -438,7 +449,6 @@ const sendSessionScheduledEmail = async (toEmail, {
     </tr>` : '');
   const detailsTable = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0; border-top:1px solid ${COLORS.line}; border-bottom:1px solid ${COLORS.line};">
-      ${detailRow('Child', childFirstName)}
       ${detailRow('Date', sessionDate)}
       ${detailRow('Time', `${startTime} – ${endTime}`)}
       ${detailRow('Practitioner', practitionerName)}
@@ -583,4 +593,7 @@ module.exports = {
   sendSessionScheduledEmail,
   sendContactRequestEmail,
   sendParentSignatureRequestEmail,
+  generalizeSessionLocation,
+  escapeHtml,
+  REDISCLOSURE_NOTICE,
 };

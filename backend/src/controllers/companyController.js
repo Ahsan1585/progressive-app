@@ -63,12 +63,17 @@ const getCompanyBranding = async (req, res) => {
   }
 };
 
+const OFFICIAL_FIELDS = ['confidentiality_official_name', 'confidentiality_official_title', 'confidentiality_official_email', 'confidentiality_official_phone'];
+
 const updateCompanySettings = async (req, res) => {
   const { display_name, legal_entity_name, state, timezone, address, phone, billing_email } = req.body;
+  // undefined/null = "not provided, keep what is stored"; '' = clear it.
+  const official = OFFICIAL_FIELDS.map((f) => (typeof req.body[f] === 'string' ? req.body[f].trim().slice(0, 255) : null));
   try {
     const { rows } = await pool.query(
-      `INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email, updated_at)
-       VALUES (1, $1, $2, $3, $4, $5, $6, $7, now())
+      `INSERT INTO company_settings (id, display_name, legal_entity_name, state, timezone, address, phone, billing_email,
+         confidentiality_official_name, confidentiality_official_title, confidentiality_official_email, confidentiality_official_phone, updated_at)
+       VALUES (1, $1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), now())
        ON CONFLICT (id) DO UPDATE SET
          display_name = EXCLUDED.display_name,
          legal_entity_name = EXCLUDED.legal_entity_name,
@@ -77,14 +82,86 @@ const updateCompanySettings = async (req, res) => {
          address = EXCLUDED.address,
          phone = EXCLUDED.phone,
          billing_email = EXCLUDED.billing_email,
+         confidentiality_official_name = CASE WHEN $8::text IS NULL THEN company_settings.confidentiality_official_name ELSE EXCLUDED.confidentiality_official_name END,
+         confidentiality_official_title = CASE WHEN $9::text IS NULL THEN company_settings.confidentiality_official_title ELSE EXCLUDED.confidentiality_official_title END,
+         confidentiality_official_email = CASE WHEN $10::text IS NULL THEN company_settings.confidentiality_official_email ELSE EXCLUDED.confidentiality_official_email END,
+         confidentiality_official_phone = CASE WHEN $11::text IS NULL THEN company_settings.confidentiality_official_phone ELSE EXCLUDED.confidentiality_official_phone END,
          updated_at = now()
        RETURNING *`,
-      [display_name, legal_entity_name, state, timezone, address, phone, billing_email]
+      [display_name, legal_entity_name, state, timezone, address, phone, billing_email, ...official]
     );
     res.json({ success: true, settings: rows[0] });
   } catch (error) {
     console.error('Error updating company settings:', error);
     res.status(500).json({ error: 'Failed to update company settings' });
+  }
+};
+
+// GET /api/company/access-roster - the designated Confidentiality Official
+// plus every ACTIVE staff member who can access child records (34 CFR
+// 303.404/303.406). Deliberately no email/SSN/pay data.
+const getAccessRoster = async (req, res) => {
+  try {
+    const { rows: settingsRows } = await pool.query(
+      `SELECT confidentiality_official_name, confidentiality_official_title,
+              confidentiality_official_email, confidentiality_official_phone
+       FROM company_settings WHERE id = 1`
+    );
+    const s = settingsRows[0] || {};
+    const official = s.confidentiality_official_name
+      ? {
+          name: s.confidentiality_official_name,
+          title: s.confidentiality_official_title || null,
+          email: s.confidentiality_official_email || null,
+          phone: s.confidentiality_official_phone || null,
+        }
+      : null;
+
+    const { rows: staffRows } = await pool.query(
+      `SELECT p.first_name, p.last_name, p.position_title,
+              COALESCE(r.name, p.role) AS role_name, p.created_at
+       FROM practitioners p
+       LEFT JOIN roles r ON r.id = p.role_id
+       WHERE p.is_active = true
+       ORDER BY p.last_name, p.first_name`
+    );
+    const staff = staffRows.map((r) => ({
+      first_name: r.first_name,
+      last_name: r.last_name,
+      position_title: r.position_title,
+      role_name: r.role_name,
+      date_added: r.created_at,
+    }));
+
+    logAudit({ req, action: 'access_roster_view', resourceType: 'company_settings', resourceId: 1, details: { staffCount: staff.length } });
+    res.json({ success: true, official, staff });
+  } catch (error) {
+    console.error('Error fetching access roster:', error);
+    res.status(500).json({ error: 'Failed to fetch access roster' });
+  }
+};
+
+// Separate from updateCompanySettings because that endpoint is a full
+// replace of the profile columns; toggling MFA must not require (or risk
+// clobbering) the rest of the company profile. Turning it on doesn't end
+// existing sessions — each user is sent to enrollment at their next login.
+const updateMfaRequirement = async (req, res) => {
+  const { mfaRequired } = req.body || {};
+  if (typeof mfaRequired !== 'boolean') {
+    return res.status(400).json({ error: 'mfaRequired must be true or false' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO company_settings (id, mfa_required, updated_at) VALUES (1, $1, now())
+       ON CONFLICT (id) DO UPDATE SET mfa_required = EXCLUDED.mfa_required, updated_at = now()
+       RETURNING mfa_required`,
+      [mfaRequired]
+    );
+    logAudit({ req, action: 'mfa_requirement_changed', resourceType: 'company_settings', details: { mfaRequired } });
+    res.json({ success: true, mfaRequired: rows[0]?.mfa_required === true });
+  } catch (error) {
+    console.error('Error updating MFA requirement:', error);
+    res.status(500).json({ error: 'Failed to update MFA requirement' });
   }
 };
 
@@ -689,6 +766,8 @@ module.exports = {
   getCompanySettings,
   getCompanyBranding,
   updateCompanySettings,
+  updateMfaRequirement,
+  getAccessRoster,
   updateCompanyLogo,
   uploadComplianceDoc,
   getComplianceDocMapping,

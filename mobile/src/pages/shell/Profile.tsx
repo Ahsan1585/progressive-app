@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, PenLine, LogOut, ChevronRight, Download, Camera, Phone, Receipt, Briefcase, ListChecks, CreditCard, Gift } from "lucide-react";
+import { KeyRound, PenLine, LogOut, ChevronRight, Download, Camera, Phone, Receipt, Briefcase, ListChecks, CreditCard, Gift, ShieldCheck } from "lucide-react";
+import { MfaSetup } from "@/components/mfa/MfaSetup";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -17,6 +19,7 @@ export default function Profile() {
   const { profile, profileLoading, profileError, fetchProfile, companyName } = useAppData();
   const navigate = useNavigate();
   const [confirmLogout, setConfirmLogout] = React.useState(false);
+  const [securityOpen, setSecurityOpen] = React.useState(false);
   const { canPromptInstall, promptInstall } = useInstallPrompt();
   const { showToast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -199,6 +202,16 @@ export default function Profile() {
 
         <button
           type="button"
+          onClick={() => setSecurityOpen(true)}
+          className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
+        >
+          <ShieldCheck className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
+          <span className="flex-1 text-[15px] font-medium text-ink">Two-step verification</span>
+          <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
+        </button>
+
+        <button
+          type="button"
           onClick={() => navigate("/profile/invoices")}
           className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--elev-rest)]"
         >
@@ -255,6 +268,16 @@ export default function Profile() {
           navigate("/login", { replace: true });
         }}
       />
+
+      <Sheet open={securityOpen} onOpenChange={setSecurityOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Two-step verification</SheetTitle>
+            <SheetDescription className="sr-only">Turn two-step verification on or off for your account.</SheetDescription>
+          </SheetHeader>
+          <div className="mt-3">{securityOpen && <MfaSetup />}</div>
+        </SheetContent>
+      </Sheet>
 
       {croppingFile && (
         <ImageCropSheet

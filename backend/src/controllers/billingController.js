@@ -231,6 +231,7 @@ const getPendingLogs = async (req, res) => {
 
     logs.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
 
+    logAudit({ req, action: 'pending_logs_view', resourceType: 'assessment', details: { count: logs.length, hasSearch: !!search, startDate: startDate || null, endDate: endDate || null } });
     res.json({ success: true, logs });
   } catch (error) {
     console.error('Error fetching logs:', error);
@@ -683,6 +684,7 @@ const getSelfCertifiedPending = async (req, res) => {
       totalTime: r.total_time,
     }));
 
+    logAudit({ req, action: 'self_certified_pending_view', resourceType: 'assessment', details: { sessionCount: sessions.length } });
     res.json({ success: true, groups: preview, sessions });
   } catch (error) {
     console.error('Error fetching self-certified pending logs:', error);
@@ -851,12 +853,15 @@ const generateSelfCertifiedSEVF = async (req, res) => {
   }
 };
 
-// POST /api/billing/independent/email-sevf — emails an already-generated
-// SEVF PDF directly to the early intervention agency it was billed to, so a
+// POST /api/billing/independent/email-sevf — shares an already-generated
+// SEVF (+ invoice) with the early intervention agency it was billed to, so a
 // practitioner whose agency hasn't enrolled with Izaya never has to print
-// and mail it. See emailClient.js's sendSevfToAgencyEmail for the required
-// practitioner-initiated disclosure wording.
+// and mail it. Delivered as an expiring secure link (no attachments) — see
+// emailClient.js's sendSevfToAgencyEmail and sharedDocumentController.js.
 const emailSevfToAgency = async (req, res) => {
+  // Lazy require: keeps this region self-contained (top-of-file imports
+  // belong to the rest of billingController).
+  const { createSharedDocumentLink, revokeSharedDocumentLink } = require('./sharedDocumentController');
   const practitionerId = req.practitioner.practitionerId;
   const { batchId, agencyEmail } = req.body;
 
@@ -870,7 +875,7 @@ const emailSevfToAgency = async (req, res) => {
     // month) — so LIMIT 1 on the join is sufficient to resolve the one
     // patient_id/company_affiliation this batch belongs to.
     const { rows } = await pool.query(
-      `SELECT b.id, b.njeis_path, b.invoice_path, p.first_name, p.last_name,
+      `SELECT b.id, b.njeis_path, b.invoice_path, b.start_date, b.end_date, p.first_name, p.last_name,
               a.patient_id, a.company_affiliation
        FROM billing_batches b
        JOIN practitioners p ON p.id = b.practitioner_id
@@ -904,30 +909,61 @@ const emailSevfToAgency = async (req, res) => {
       return res.status(400).json({ success: false, error: consentResult.reason, code: 'CONSENT_REQUIRED' });
     }
 
-    const pdfBuffer = await downloadFile(BILLING_INVOICES_BUCKET, batch.njeis_path);
     const practitionerName = `${batch.first_name} ${batch.last_name}`.trim();
-
     // invoice_path may be missing on a batch generated before invoices
-    // existed on this flow — sendSevfToAgencyEmail handles that gracefully,
-    // sending just the SEVF rather than erroring.
-    const invoiceBuffer = batch.invoice_path
-      ? await downloadFile(BILLING_INVOICES_BUCKET, batch.invoice_path)
-      : null;
+    // existed on this flow — the SEVF alone is shared in that case.
+    const includesInvoice = !!batch.invoice_path;
+    const records = includesInvoice ? ['SEVF', 'Invoice'] : ['SEVF'];
+    const purpose = 'Billing / service verification for services provided to the agency';
 
-    await sendSevfToAgencyEmail(trimmedAgencyEmail, {
-      practitionerName,
-      pdfBuffer,
-      pdfFilename: path.basename(batch.njeis_path),
-      invoiceBuffer,
-      invoiceFilename: batch.invoice_path ? path.basename(batch.invoice_path) : undefined,
+    // Resend (email vendor) cannot sign a BAA, so the PDFs are never
+    // attached — the agency gets an expiring, token-gated link served from
+    // our own infrastructure (sharedDocumentController.js). Created only
+    // AFTER the consent gate above has passed.
+    const link = await createSharedDocumentLink({
+      batchId,
+      patientId: batch.patient_id,
+      recipientEmail: trimmedAgencyEmail,
+      createdBy: practitionerId,
+      companySlug: req.practitioner.slug,
+      baseUrl: `${req.protocol}://${req.get('host')}`,
     });
 
+    // Per-child disclosure log (34 CFR 99.32 / 303.406): resourceType
+    // 'patient' so it appears in the child's Record of Access.
+    logAudit({
+      req, action: 'shared_document_link_created', resourceType: 'patient', resourceId: batch.patient_id,
+      details: { batchId, linkId: link.linkId, recipientEmail: trimmedAgencyEmail, expiresAt: link.expiresAt, records },
+    });
+
+    try {
+      await sendSevfToAgencyEmail(trimmedAgencyEmail, {
+        practitionerName,
+        downloadUrl: link.url,
+        expiresAt: link.expiresAt,
+        includesInvoice,
+      });
+    } catch (sendError) {
+      // Never leave a live link behind for an email that didn't go out.
+      await revokeSharedDocumentLink(link.linkId).catch((e) => console.error('Failed to revoke shared link:', e));
+      throw sendError;
+    }
+
+    // Original batch-level row, kept so anything reading it is unaffected.
     logAudit({
       req, action: 'sevf_emailed_to_agency', resourceType: 'billing_batch', resourceId: batchId,
-      details: { agencyEmail: trimmedAgencyEmail, includedInvoice: !!invoiceBuffer, consentId: consentResult.consentId },
+      details: { agencyEmail: trimmedAgencyEmail, includedInvoice: includesInvoice, consentId: consentResult.consentId, deliveredVia: 'secure_link', linkId: link.linkId },
+    });
+    logAudit({
+      req, action: 'sevf_emailed_to_agency', resourceType: 'patient', resourceId: batch.patient_id,
+      details: {
+        batchId, recipientName, recipientEmail: trimmedAgencyEmail, purpose, records,
+        servicePeriod: batch.start_date || batch.end_date ? { start: batch.start_date || null, end: batch.end_date || null } : undefined,
+        consentId: consentResult.consentId, deliveredVia: 'secure_link', linkId: link.linkId,
+      },
     });
 
-    res.json({ success: true, message: invoiceBuffer ? 'SEVF and invoice emailed to the agency.' : 'SEVF emailed to the agency.' });
+    res.json({ success: true, message: includesInvoice ? 'SEVF and invoice emailed to the agency.' : 'SEVF emailed to the agency.' });
   } catch (error) {
     console.error('Error emailing SEVF to agency:', error);
     res.status(500).json({ success: false, error: 'Failed to email SEVF.' });
@@ -1020,6 +1056,7 @@ const getSelfCertifiedHistory = async (req, res) => {
       })
     );
 
+    logAudit({ req, action: 'self_certified_history_view', resourceType: 'billing_batch', details: { count: batches.length } });
     res.json({ success: true, batches });
   } catch (error) {
     console.error('Error fetching self-certified SEVF history:', error);
@@ -1461,6 +1498,7 @@ const getInvoiceDownloadUrl = async (req, res) => {
     }
     const signedUrl = await getSignedUrl(BILLING_INVOICES_BUCKET, fileName, 300); // short-lived (5 min) — these are single-click downloads
 
+    logAudit({ req, action: 'billing_file_download', resourceType: 'billing_file', resourceId: fileName });
     res.json({ success: true, signedUrl });
   } catch (error) {
     console.error("Error generating download link:", error);
@@ -1758,6 +1796,8 @@ const getPractitionerLogs = async (req, res) => {
 
     const { rows: logs } = await pool.query(sql, params);
 
+    // Not view-audited: BillingManager re-polls this per expanded row every
+    // ~20s, so a per-read event would flood the audit trail with noise.
     res.json({ success: true, logs });
   } catch (error) {
     console.error('Error fetching practitioner logs:', error);
@@ -1779,6 +1819,7 @@ const getLogNotes = async (req, res) => {
        ORDER BY n.created_at ASC`,
       [assessmentId]
     );
+    logAudit({ req, action: 'assessment_notes_view', resourceType: 'assessment', resourceId: assessmentId, details: { count: notes.length } });
     res.json({ success: true, notes });
   } catch (error) {
     console.error('Error fetching log notes:', error);
@@ -2780,6 +2821,7 @@ const getVaultLogs = async (req, res) => {
     sql += ' ORDER BY patient_first_name ASC, service_date ASC';
     const { rows: logs } = await pool.query(sql, params);
 
+    logAudit({ req, action: 'vault_logs_view', resourceType: 'assessment', details: { count: logs.length } });
     res.json({ success: true, logs });
   } catch (error) {
     console.error('Error fetching vault logs:', error);
@@ -2801,6 +2843,7 @@ const getBillingBatches = async (req, res) => {
       JOIN practitioners p ON p.id = b.practitioner_id
       ORDER BY b.created_at DESC
     `);
+    logAudit({ req, action: 'billing_batches_view', resourceType: 'billing_batch', details: { count: (rows || []).length } });
     res.json({ success: true, batches: rows || [] });
   } catch (error) {
     console.error('getBillingBatches error:', error);
@@ -3145,6 +3188,7 @@ const getActionRequiredLogs = async (req, res) => {
        WHERE a.eims_missing_status = 'sent_to_admin'
        ORDER BY a.eims_missing_sent_at ASC`
     );
+    logAudit({ req, action: 'action_required_logs_view', resourceType: 'assessment', details: { count: rows.length } });
     res.json({ success: true, logs: rows });
   } catch (error) {
     console.error('Error fetching action-required logs:', error);

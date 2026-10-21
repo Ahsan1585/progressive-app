@@ -24,6 +24,8 @@ const { createAssessmentFromPayload, DuplicateAssessmentError } = require('./src
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
 const authRoutes = require('./src/routes/authRoutes');
+const sharedDocumentRoutes = require('./src/routes/sharedDocumentRoutes');
+const inspectionRequestRoutes = require('./src/routes/inspectionRequestRoutes');
 const reportRoutes = require('./src/routes/reportRoutes'); 
 const billingRoutes = require('./src/routes/billingRoutes'); // 🌟 NEW: Imported billing routes
 const messageRoutes = require('./src/routes/messageRoutes');
@@ -66,6 +68,8 @@ app.set('trust proxy', 1);
 // --- Middleware ---
 app.use(helmet());
 
+app.use('/api', require('./src/middleware/noStore'));
+
 // Restrict CORS to known frontend origin(s). Set CORS_ORIGIN (comma-separated) in the environment.
 // Shared with the socket.io server (see initRealtime below) so the two never drift.
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
@@ -100,6 +104,8 @@ app.use(express.urlencoded({ limit: '20mb', extended: true }));
 // --- Modular Routes ---
 app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/shared-documents', sharedDocumentRoutes);
+app.use('/api/inspection-requests', inspectionRequestRoutes);
 app.use('/api/dev', testDataRoutes);
 app.use('/api/session-drafts', sessionDraftsRoutes);
 app.use('/api/telepractice-signatures', telepracticeSignatureRoutes);

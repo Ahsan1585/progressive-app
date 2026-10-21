@@ -7,7 +7,8 @@ const { logAudit } = require('../utils/auditLog');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { lookupCompanyBySlug } = require('../middleware/tenantMiddleware');
 const { platformPool } = require('../config/platformDb');
-const { encryptField } = require('../utils/fieldEncryption');
+const { encryptField, decryptField } = require('../utils/fieldEncryption');
+const { generateSecret, verifyTotp, buildOtpauthUri, generateRecoveryCodes, hashRecoveryCode } = require('../utils/totp');
 // Placeholder password_hash for an invited-but-not-yet-activated account —
 // never a real bcrypt hash, so it can never match a bcrypt.compare() and
 // doubles as the "still pending" check in activateAccount below. Shared
@@ -321,40 +322,353 @@ const loginPractitioner = async (req, res) => {
       return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
     }
 
-    // CREATE THE TOKEN REGARDLESS OF PASSWORD STATUS
-    // slug/tenantDb come from req.company (set by resolveTenantBySlug,
-    // mounted ahead of this handler) — signed into the JWT so every later
-    // authenticated request already knows which tenant database to use
-    // without a platform-DB lookup on every request (see authMiddleware.js).
-    // accountType ('tenant' | 'independent') lets subscriptionController.js
-    // pick the flat-rate vs. per-seat billing path without an extra
-    // platform-DB round trip on every request — same reasoning as slug/
-    // tenantDb already being carried here instead of looked up per-call.
-    const token = jwt.sign(
-      { practitionerId: user.id, email: user.email, role: user.role, slug: req.company.slug, tenantDb: req.company.tenant_db_name, accountType: req.company.account_type },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const companyClaims = { slug: req.company.slug, tenantDb: req.company.tenant_db_name, accountType: req.company.account_type };
 
-    logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'login_success', resourceType: 'auth' });
+    // Password is correct, but a session is only issued after the second
+    // factor — the mfaToken can't be used anywhere except the /mfa/* routes.
+    if (user.mfa_enabled) {
+      return res.json({ mfaRequired: true, mfaToken: signMfaToken(user, companyClaims, 'verify') });
+    }
+    if (await companyRequiresMfa()) {
+      return res.json({ mfaEnrollmentRequired: true, mfaToken: signMfaToken(user, companyClaims, 'enroll') });
+    }
 
-    // SEND BOTH THE TOKEN AND THE FLAG TO THE FRONTEND
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token,
-      practitioner: {
-        id: user.id,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        email: user.email,
-        role: user.role
-      },
-      requirePasswordChange: user.requires_password_change
-    });
+    res.json(await issueSession(req, user, companyClaims));
 
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Shared by password-only login and the MFA completion paths, so a session
+// minted after MFA is byte-for-byte the same shape as a plain login's.
+// slug/tenantDb are signed into the JWT so every later authenticated request
+// already knows which tenant database to use without a platform-DB lookup
+// (see authMiddleware.js); accountType ('tenant' | 'independent') lets
+// subscriptionController.js pick the billing path the same way.
+async function issueSession(req, user, { slug, tenantDb, accountType }) {
+  const token = jwt.sign(
+    { practitionerId: user.id, email: user.email, role: user.role, slug, tenantDb, accountType },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  // Starts the server-side idle clock (authMiddleware.js). Non-fatal: the
+  // token's own iat also counts as activity there.
+  try {
+    await pool.query('UPDATE practitioners SET last_activity_at = now() WHERE id = $1', [user.id]);
+  } catch (err) {
+    console.error('last_activity_at update at login failed:', err.message);
+  }
+
+  logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'login_success', resourceType: 'auth' });
+
+  return {
+    success: true,
+    message: 'Login successful',
+    token,
+    practitioner: {
+      id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      email: user.email,
+      role: user.role
+    },
+    requirePasswordChange: user.requires_password_change
+  };
+}
+
+// --- MFA (TOTP) ---
+const MFA_ISSUER = 'Izaya EIS';
+const MFA_TOKEN_TTL = '10m';
+const MFA_MAX_FAILED_ATTEMPTS = 5;
+const INVALID_CODE_MESSAGE = 'Invalid verification code.';
+
+// stage 'verify' = enrolled user proving the second factor; stage 'enroll'
+// = company requires MFA and this user must enroll before getting a session.
+// The two are kept distinct so a password-only attacker holding a 'verify'
+// token can never use setup/enable to swap in their own authenticator.
+function signMfaToken(user, { slug, tenantDb, accountType }, stage) {
+  return jwt.sign(
+    { purpose: 'mfa', stage, practitionerId: user.id, email: user.email, role: user.role, slug, tenantDb, accountType },
+    process.env.JWT_SECRET,
+    { expiresIn: MFA_TOKEN_TTL }
+  );
+}
+
+async function companyRequiresMfa() {
+  const { rows } = await pool.query('SELECT mfa_required FROM company_settings WHERE id = 1');
+  return rows[0]?.mfa_required === true;
+}
+
+async function loadPractitionerForMfa(id) {
+  const { rows } = await pool.query('SELECT * FROM practitioners WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+function isMfaLocked(user) {
+  return !!user.mfa_locked_until && new Date(user.mfa_locked_until) > new Date();
+}
+
+// Per-account lockout on top of the per-IP limiter (authRoutes.js): after
+// MFA_MAX_FAILED_ATTEMPTS consecutive misses the account is locked for 15
+// minutes, and every further miss re-arms the lock until a success resets
+// the counter. At ~20 guesses/hour against 3 valid codes in 10^6, a blind
+// brute force takes on the order of years.
+async function recordMfaFailure(req, user, context) {
+  try {
+    await pool.query(
+      `UPDATE practitioners SET
+         mfa_failed_attempts = mfa_failed_attempts + 1,
+         mfa_locked_until = CASE WHEN mfa_failed_attempts + 1 >= $2 THEN now() + interval '15 minutes' ELSE mfa_locked_until END
+       WHERE id = $1`,
+      [user.id, MFA_MAX_FAILED_ATTEMPTS]
+    );
+  } catch (err) {
+    console.error('MFA failure counter update failed:', err.message);
+  }
+  logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_verify_failed', resourceType: 'auth', details: { context } });
+}
+
+const lockedResponse = (res) => res.status(429).json({ error: 'Too many failed verification attempts. Please wait 15 minutes and try again.' });
+
+function companyClaimsFrom(challenge) {
+  return { slug: challenge.slug, tenantDb: challenge.tenantDb, accountType: challenge.accountType };
+}
+
+// POST /api/auth/mfa/verify — req.mfaChallenge set by requireMfaChallenge('verify').
+const verifyMfa = async (req, res) => {
+  const { code, recoveryCode } = req.body || {};
+  if (!code && !recoveryCode) {
+    return res.status(400).json({ error: 'A verification code or recovery code is required.' });
+  }
+  try {
+    const user = await loadPractitionerForMfa(req.mfaChallenge.practitionerId);
+    if (!user || !user.is_active) {
+      return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
+    }
+    if (!user.mfa_enabled || !user.mfa_secret) {
+      return res.status(400).json({ error: 'Two-factor authentication is not enabled for this account.' });
+    }
+    if (isMfaLocked(user)) return lockedResponse(res);
+
+    if (code) {
+      const step = verifyTotp(decryptField(user.mfa_secret), code, { lastUsedStep: user.mfa_last_used_step });
+      // The conditional UPDATE is the real replay guard: two concurrent
+      // requests with the same code can't both advance the step.
+      const { rows } = step === null ? { rows: [] } : await pool.query(
+        `UPDATE practitioners SET mfa_last_used_step = $2, mfa_failed_attempts = 0, mfa_locked_until = NULL
+         WHERE id = $1 AND (mfa_last_used_step IS NULL OR mfa_last_used_step < $2) RETURNING id`,
+        [user.id, step]
+      );
+      if (!rows[0]) {
+        await recordMfaFailure(req, user, 'login');
+        return res.status(400).json({ error: INVALID_CODE_MESSAGE });
+      }
+    } else {
+      const { rows } = await pool.query(
+        `UPDATE practitioners SET mfa_recovery_hashes = array_remove(mfa_recovery_hashes, $2), mfa_failed_attempts = 0, mfa_locked_until = NULL
+         WHERE id = $1 AND $2 = ANY(mfa_recovery_hashes)
+         RETURNING cardinality(mfa_recovery_hashes) AS remaining`,
+        [user.id, hashRecoveryCode(recoveryCode)]
+      );
+      if (!rows[0]) {
+        await recordMfaFailure(req, user, 'login_recovery_code');
+        return res.status(400).json({ error: 'Invalid recovery code.' });
+      }
+      logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_recovery_code_used', resourceType: 'auth', details: { remaining: rows[0].remaining } });
+    }
+
+    res.json(await issueSession(req, user, companyClaimsFrom(req.mfaChallenge)));
+  } catch (error) {
+    console.error('MFA verify error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const INCORRECT_PASSWORD_MESSAGE = 'Password is incorrect.';
+
+// setup/enable called with a plain SESSION token must re-prove the account
+// password (same bcrypt check login uses), so a stolen/unattended session
+// alone can't enroll an attacker's authenticator. The enroll-stage mfaToken
+// path is exempt: it was minted seconds ago by a successful password login.
+// Callers MUST check isMfaLocked first, and a miss counts toward the same
+// per-account MFA failure limiter, so this can't be used to brute-force the
+// password around the login limiter. Returns true, or writes the 400.
+async function requireSessionPassword(req, res, user, context) {
+  if (req.mfaChallenge) return true;
+  const ok = await bcrypt.compare(String(req.body?.password || ''), user.password_hash);
+  if (ok) return true;
+  await recordMfaFailure(req, user, context);
+  res.status(400).json({ error: INCORRECT_PASSWORD_MESSAGE });
+  return false;
+}
+
+// POST /api/auth/mfa/setup — real session (body: { password }) or an
+// 'enroll' mfaToken (no password). On an account that already has MFA on,
+// this starts an authenticator REPLACEMENT and requires a real session with
+// { password, code } or { password, recoveryCode }; the current factor is
+// consumed atomically while the new pending secret is stored. MFA stays on
+// with the old secret until /mfa/enable confirms the new one.
+const setupMfa = async (req, res) => {
+  if (req.practitioner?.impersonation) {
+    return res.status(403).json({ error: 'Two-factor settings cannot be changed during a support session.' });
+  }
+  const { password, code, recoveryCode } = req.body || {};
+  try {
+    const user = await loadPractitionerForMfa(req.practitioner.practitionerId);
+    if (!user || !user.is_active) {
+      return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
+    }
+
+    if (user.mfa_enabled) {
+      // An enroll-stage token can never replace an enabled authenticator,
+      // and a bare session with no re-auth gets the original 409.
+      if (req.mfaChallenge || (!password && !code && !recoveryCode)) {
+        return res.status(409).json({ error: 'Two-factor authentication is already enabled. Turn it off first to set up a new authenticator.' });
+      }
+      if (isMfaLocked(user)) return lockedResponse(res);
+      if (!code && !recoveryCode) {
+        return res.status(400).json({ error: 'Your current verification code or a recovery code is required to replace your authenticator.' });
+      }
+      if (!(await requireSessionPassword(req, res, user, 'replace_password'))) return;
+
+      const secret = generateSecret();
+      const encrypted = encryptField(secret);
+      if (code) {
+        const step = verifyTotp(decryptField(user.mfa_secret), code, { lastUsedStep: user.mfa_last_used_step });
+        const { rows } = step === null ? { rows: [] } : await pool.query(
+          `UPDATE practitioners SET mfa_last_used_step = $2, mfa_failed_attempts = 0, mfa_locked_until = NULL, mfa_pending_secret = $3
+           WHERE id = $1 AND mfa_enabled = true AND (mfa_last_used_step IS NULL OR mfa_last_used_step < $2) RETURNING id`,
+          [user.id, step, encrypted]
+        );
+        if (!rows[0]) {
+          await recordMfaFailure(req, user, 'replace');
+          return res.status(400).json({ error: INVALID_CODE_MESSAGE });
+        }
+      } else {
+        const { rows } = await pool.query(
+          `UPDATE practitioners SET mfa_recovery_hashes = array_remove(mfa_recovery_hashes, $2), mfa_failed_attempts = 0, mfa_locked_until = NULL, mfa_pending_secret = $3
+           WHERE id = $1 AND mfa_enabled = true AND $2 = ANY(mfa_recovery_hashes)
+           RETURNING cardinality(mfa_recovery_hashes) AS remaining`,
+          [user.id, hashRecoveryCode(recoveryCode), encrypted]
+        );
+        if (!rows[0]) {
+          await recordMfaFailure(req, user, 'replace_recovery_code');
+          return res.status(400).json({ error: 'Invalid recovery code.' });
+        }
+        logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_recovery_code_used', resourceType: 'auth', details: { remaining: rows[0].remaining } });
+      }
+      return res.json({ secret, otpauthUri: buildOtpauthUri({ secret, accountName: user.email, issuer: MFA_ISSUER }) });
+    }
+
+    if (!req.mfaChallenge) {
+      if (isMfaLocked(user)) return lockedResponse(res);
+      if (!(await requireSessionPassword(req, res, user, 'setup_password'))) return;
+    }
+    const secret = generateSecret();
+    await pool.query('UPDATE practitioners SET mfa_pending_secret = $2 WHERE id = $1', [user.id, encryptField(secret)]);
+    res.json({ secret, otpauthUri: buildOtpauthUri({ secret, accountName: user.email, issuer: MFA_ISSUER }) });
+  } catch (error) {
+    console.error('MFA setup error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// POST /api/auth/mfa/enable — real session (body: { code, password }) or an
+// 'enroll' mfaToken (body: { code }). Also completes an authenticator
+// replacement started by setupMfa on an already-enabled account: swaps in
+// the new secret, rotates fresh recovery codes, and resets the counters.
+const enableMfa = async (req, res) => {
+  if (req.practitioner?.impersonation) {
+    return res.status(403).json({ error: 'Two-factor settings cannot be changed during a support session.' });
+  }
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ error: 'A verification code is required.' });
+  try {
+    const user = await loadPractitionerForMfa(req.practitioner.practitionerId);
+    if (!user || !user.is_active) {
+      return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
+    }
+    const isReplacement = !!user.mfa_enabled;
+    if (isReplacement && (req.mfaChallenge || !user.mfa_pending_secret)) {
+      return res.status(409).json({ error: 'Two-factor authentication is already enabled.' });
+    }
+    if (!user.mfa_pending_secret) {
+      return res.status(400).json({ error: 'Start two-factor setup first.' });
+    }
+    if (isMfaLocked(user)) return lockedResponse(res);
+    if (!(await requireSessionPassword(req, res, user, 'enable_password'))) return;
+
+    const step = verifyTotp(decryptField(user.mfa_pending_secret), code);
+    if (step === null) {
+      await recordMfaFailure(req, user, 'enable');
+      return res.status(400).json({ error: INVALID_CODE_MESSAGE });
+    }
+
+    const recoveryCodes = generateRecoveryCodes();
+    // Guarded on the exact pending secret just verified (and the enabled
+    // state it was verified under), so a concurrent setup can't swap in a
+    // different secret between the check and the write.
+    const { rows } = await pool.query(
+      `UPDATE practitioners SET mfa_secret = mfa_pending_secret, mfa_pending_secret = NULL, mfa_enabled = true,
+         mfa_recovery_hashes = $2, mfa_last_used_step = $3, mfa_failed_attempts = 0, mfa_locked_until = NULL
+       WHERE id = $1 AND mfa_enabled = $4 AND mfa_pending_secret = $5 RETURNING id`,
+      [user.id, recoveryCodes.map(hashRecoveryCode), step, isReplacement, user.mfa_pending_secret]
+    );
+    if (!rows[0]) {
+      return res.status(409).json({ error: 'Two-factor setup changed while enabling. Please start again.' });
+    }
+    logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: isReplacement ? 'mfa_authenticator_replaced' : 'mfa_enabled', resourceType: 'auth' });
+
+    const payload = { recoveryCodes };
+    if (req.mfaChallenge) {
+      Object.assign(payload, await issueSession(req, user, companyClaimsFrom(req.mfaChallenge)));
+    }
+    res.json(payload);
+  } catch (error) {
+    console.error('MFA enable error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// POST /api/auth/mfa/disable — real session only; requires password + code.
+const disableMfa = async (req, res) => {
+  if (req.practitioner?.impersonation) {
+    return res.status(403).json({ error: 'Two-factor settings cannot be changed during a support session.' });
+  }
+  const { password, code } = req.body || {};
+  try {
+    const user = await loadPractitionerForMfa(req.practitioner.practitionerId);
+    if (!user || !user.is_active) {
+      return res.status(403).json({ error: 'This account has been deactivated. Contact your administrator.' });
+    }
+    if (!user.mfa_enabled) {
+      return res.status(400).json({ error: 'Two-factor authentication is not enabled.' });
+    }
+    if (await companyRequiresMfa()) {
+      return res.status(403).json({ error: 'Your organization requires two-factor authentication, so it cannot be turned off.' });
+    }
+    if (isMfaLocked(user)) return lockedResponse(res);
+
+    const passwordOk = await bcrypt.compare(String(password || ''), user.password_hash);
+    const step = verifyTotp(decryptField(user.mfa_secret), code, { lastUsedStep: user.mfa_last_used_step });
+    if (!passwordOk || step === null) {
+      await recordMfaFailure(req, user, 'disable');
+      return res.status(400).json({ error: 'Incorrect password or verification code.' });
+    }
+
+    await pool.query(
+      `UPDATE practitioners SET mfa_enabled = false, mfa_secret = NULL, mfa_pending_secret = NULL,
+         mfa_recovery_hashes = NULL, mfa_last_used_step = NULL, mfa_failed_attempts = 0, mfa_locked_until = NULL
+       WHERE id = $1`,
+      [user.id]
+    );
+    logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_disabled', resourceType: 'auth' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('MFA disable error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -493,6 +807,7 @@ const getAllStaff = async (req, res) => {
       `SELECT p.id, p.first_name, p.last_name, p.email, p.role, p.role_id, r.name AS role_name,
               p.position_title, p.service_types,
               p.pay_rate, p.address, p.phone_number, p.created_at, p.is_active, p.profile_picture,
+              COALESCE(p.mfa_enabled, false) AS mfa_enabled,
               (p.password_hash = $1) AS is_pending_activation, p.invite_sent_at, p.invite_delivery_status, p.invite_delivery_detail,
               pcu.address AS pending_address, pcu.phone_number AS pending_phone_number, pcu.submitted_at AS pending_submitted_at
        FROM practitioners p
@@ -781,6 +1096,37 @@ const deleteStaffMember = async (req, res) => {
   }
 };
 
+// POST /api/auth/staff/:id/mfa-reset (ceo only, see authRoutes.js) — the
+// recovery path for a staff member who lost their authenticator AND their
+// recovery codes. Clears every MFA column so their next login goes through
+// the normal flow (forced re-enrollment if the company requires MFA). Ends
+// nothing else: no deactivation, no password change, no session revocation.
+// Tenant-scoped automatically (pool runs inside the caller's tenant).
+const resetStaffMfa = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (String(id) === String(req.practitioner.practitionerId)) {
+      return res.status(400).json({ error: 'You cannot reset your own two-factor authentication. Turn it off from your own settings instead.' });
+    }
+    if (!/^\d+$/.test(String(id))) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+    const { rows } = await pool.query(
+      `UPDATE practitioners SET mfa_enabled = false, mfa_secret = NULL, mfa_pending_secret = NULL,
+         mfa_recovery_hashes = NULL, mfa_last_used_step = NULL, mfa_failed_attempts = 0, mfa_locked_until = NULL
+       WHERE id = $1 AND is_platform_support = false
+       RETURNING id`,
+      [id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Account not found.' });
+    logAudit({ req, action: 'mfa_reset_by_admin', resourceType: 'practitioner', resourceId: id });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reset staff MFA error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // --- Function 6: Reactivate a Deactivated Staff Member (CEO only) ---
 const reactivateStaffMember = async (req, res) => {
   try {
@@ -825,7 +1171,24 @@ async function getMe(req, res) {
   // to the support account only (see RegisterPractitionerForm.jsx).
   const isPlatformSupport = !!req.practitioner.isPlatformSupport;
   const isImpersonating = !!req.practitioner.impersonation;
+  // Display-only, so a failed lookup degrades to "off" rather than breaking
+  // /me (which the whole admin shell depends on).
+  let mfaEnabled = false;
+  let companyMfaRequired = false;
+  try {
+    const { rows: mfaRows } = await pool.query(
+      `SELECT p.mfa_enabled, (SELECT mfa_required FROM company_settings WHERE id = 1) AS company_mfa_required
+       FROM practitioners p WHERE p.id = $1`,
+      [req.practitioner.practitionerId]
+    );
+    mfaEnabled = mfaRows[0]?.mfa_enabled === true;
+    companyMfaRequired = mfaRows[0]?.company_mfa_required === true;
+  } catch (err) {
+    console.error('getMe MFA lookup failed:', err.message);
+  }
   res.json({
+    mfaEnabled,
+    companyMfaRequired,
     isAdmin: req.isAdmin,
     permissions: Array.from(req.permissions),
     roleName,
@@ -852,5 +1215,10 @@ module.exports = {
   deleteStaffMember,
   reactivateStaffMember,
   reviewContactUpdate,
-  getMe
+  getMe,
+  verifyMfa,
+  setupMfa,
+  enableMfa,
+  disableMfa,
+  resetStaffMfa
 };

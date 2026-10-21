@@ -207,6 +207,7 @@ const getAuditLogs = async (req, res) => {
     sql += ' ORDER BY a.service_date DESC LIMIT 1000';
 
     const { rows: logs } = await pool.query(sql, params);
+    logAudit({ req, action: 'audit_logs_view', resourceType: 'audit_report', details: { count: (logs || []).length } });
     res.json({ success: true, logs: logs || [] });
   } catch (error) {
     console.error('getAuditLogs error:', error);

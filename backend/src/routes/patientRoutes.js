@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 const { pool } = require('../config/db');
+const { logAudit } = require('../utils/auditLog');
 const { getCompanyName } = require('../utils/companyName');
 
 // Import the functions from the controller
@@ -153,6 +154,7 @@ router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {
 
     // 6. Return the PDF
     const pdfOutput = await pdfDoc.save();
+    logAudit({ req, action: 'assessment_pdf_download', resourceType: 'assessment', resourceId: assessmentId, details: { patientId: assessment.patient_id } });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Encounter-${assessmentId}.pdf`);
     res.send(Buffer.from(pdfOutput));

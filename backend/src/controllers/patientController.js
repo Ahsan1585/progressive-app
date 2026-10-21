@@ -118,6 +118,7 @@ const getPatients = async (req, res) => {
       [practitionerId]
     );
 
+    logAudit({ req, action: 'patient_list_view', resourceType: 'patient', details: { count: patients.length } });
     res.json(patients);
   } catch (err) {
     console.error("Fetch Patients Error:", err);
@@ -241,6 +242,8 @@ const getRejectedLogs = async (req, res) => {
        ORDER BY rejected_at DESC`,
       [practitionerId, ['rejected', 'declined']]
     );
+    // Not view-audited: polled every ~20s by the practitioner Inbox, so a
+    // per-read event would flood the audit trail with noise.
     res.json({ success: true, logs });
   } catch (error) {
     console.error('Error fetching rejected logs:', error);
@@ -542,6 +545,7 @@ const getMyLogNotes = async (req, res) => {
        ORDER BY n.created_at ASC`,
       [id]
     );
+    logAudit({ req, action: 'assessment_notes_view', resourceType: 'assessment', resourceId: req.params.id, details: { count: notes.length } });
     res.json({ success: true, notes });
   } catch (error) {
     console.error('Error fetching log notes:', error);

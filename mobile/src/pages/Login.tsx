@@ -9,7 +9,15 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { MfaSetup } from "@/components/mfa/MfaSetup";
+import { mfaVerify, errMsg, digitsOnly } from "@/components/mfa/mfaApi";
 import type { LoginResponse, ApiErrorBody } from "@/types";
+
+type LoginStepResponse = Partial<LoginResponse> & {
+  mfaRequired?: boolean;
+  mfaEnrollmentRequired?: boolean;
+  mfaToken?: string;
+};
 
 // No company registered with Izaya yet? Independent practitioners sign up
 // on the web (the marketing site + signup wizard live in frontend/, not
@@ -49,24 +57,42 @@ export default function Login() {
 
   const resetSuccess = locationState?.resetSuccess;
 
+  // "password" | "code" (MFA challenge) | "enroll" (forced MFA enrollment)
+  const [step, setStep] = React.useState<"password" | "code" | "enroll">("password");
+  const [mfaToken, setMfaToken] = React.useState("");
+  const [mfaCode, setMfaCode] = React.useState("");
+  const [useRecovery, setUseRecovery] = React.useState(false);
+
+  const finishLogin = (data: LoginResponse, slug: string) => {
+    try { localStorage.setItem("companySlug", slug); } catch { /* ignore */ }
+    clearLogoutBanner();
+    login(data);
+    if (!["practitioner", "independent_practitioner"].includes(data.practitioner.role)) {
+      navigate("/unsupported-role", { replace: true });
+    } else if (data.requirePasswordChange) {
+      navigate("/change-password", { replace: true });
+    } else {
+      navigate("/home", { replace: true });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
       const slug = companySlug.trim().toLowerCase();
-      const res = await api.post<LoginResponse>("/api/auth/login", { slug, email, password });
-      if (res.data.success) {
-        try { localStorage.setItem("companySlug", slug); } catch { /* ignore */ }
-        clearLogoutBanner();
-        login(res.data);
-        if (!["practitioner", "independent_practitioner"].includes(res.data.practitioner.role)) {
-          navigate("/unsupported-role", { replace: true });
-        } else if (res.data.requirePasswordChange) {
-          navigate("/change-password", { replace: true });
-        } else {
-          navigate("/home", { replace: true });
-        }
+      const res = await api.post<LoginStepResponse>("/api/auth/login", { slug, email, password });
+      if (res.data.mfaRequired && res.data.mfaToken) {
+        setMfaToken(res.data.mfaToken);
+        setMfaCode("");
+        setUseRecovery(false);
+        setStep("code");
+      } else if (res.data.mfaEnrollmentRequired && res.data.mfaToken) {
+        setMfaToken(res.data.mfaToken);
+        setStep("enroll");
+      } else if (res.data.success) {
+        finishLogin(res.data as LoginResponse, slug);
       }
     } catch (err) {
       const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
@@ -74,6 +100,27 @@ export default function Login() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const data = await mfaVerify(useRecovery ? { mfaToken, recoveryCode: mfaCode.trim() } : { mfaToken, code: mfaCode });
+      if (data.success) finishLogin(data, companySlug.trim().toLowerCase());
+    } catch (err) {
+      setError(errMsg(err, "Verification failed. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const backToPassword = () => {
+    setStep("password");
+    setMfaToken("");
+    setMfaCode("");
+    setError(null);
   };
 
   const installCard = isInstalling ? (
@@ -137,6 +184,90 @@ export default function Login() {
           <Link to="/login" className="text-sm font-medium text-ink-muted">
             Already installed? Sign in instead
           </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (step === "code") {
+    return (
+      <AuthLayout>
+        <form onSubmit={handleVerify} className="space-y-5" noValidate>
+          <h2 className="text-center text-[20px] font-semibold leading-[26px] text-ink">Two-step verification</h2>
+          <p className="text-center text-sm text-ink-muted">
+            {useRecovery ? "Enter one of your saved recovery codes." : "Enter the 6-digit code from your authenticator app."}
+          </p>
+
+          {error && (
+            <div role="alert" className="flex items-start gap-2 rounded-card border border-danger-border bg-danger-bg p-3.5 text-sm text-danger">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <p>{error}</p>
+            </div>
+          )}
+
+          <Field id="mfa-code" label={useRecovery ? "Recovery code" : "Verification code"}>
+            <Input
+              inputMode={useRecovery ? "text" : "numeric"}
+              autoComplete="one-time-code"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoFocus
+              maxLength={useRecovery ? 32 : 6}
+              placeholder={useRecovery ? "xxxxx-xxxxx" : "123456"}
+              value={mfaCode}
+              onChange={(e) => setMfaCode(useRecovery ? e.target.value : digitsOnly(e.target.value))}
+              required
+            />
+          </Field>
+
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            loading={submitting}
+            disabled={useRecovery ? !mfaCode.trim() : mfaCode.length !== 6}
+          >
+            Verify
+          </Button>
+
+          <div className="flex items-center justify-between">
+            <button type="button" className="text-sm font-medium text-ink-muted" onClick={backToPassword}>
+              Back
+            </button>
+            <button
+              type="button"
+              className="text-sm font-medium text-primary"
+              onClick={() => {
+                setUseRecovery((v) => !v);
+                setMfaCode("");
+                setError(null);
+              }}
+            >
+              {useRecovery ? "Use authenticator code instead" : "Use a recovery code instead"}
+            </button>
+          </div>
+        </form>
+      </AuthLayout>
+    );
+  }
+
+  if (step === "enroll") {
+    return (
+      <AuthLayout>
+        <div className="space-y-5">
+          <h2 className="text-center text-[20px] font-semibold leading-[26px] text-ink">Set up two-step verification</h2>
+          <p className="text-center text-sm text-ink-muted">
+            Your company requires two-step verification. Set it up now to finish signing in.
+          </p>
+          <MfaSetup
+            mfaToken={mfaToken}
+            onEnrolled={(payload) => finishLogin(payload as LoginResponse, companySlug.trim().toLowerCase())}
+          />
+          <div className="text-center">
+            <button type="button" className="text-sm font-medium text-ink-muted" onClick={backToPassword}>
+              Back to sign in
+            </button>
+          </div>
         </div>
       </AuthLayout>
     );

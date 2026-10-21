@@ -44,6 +44,12 @@ const MIGRATIONS = [
   'add_records_consents.sql',
   'add_records_consents_recipient_email.sql',
   'add_dashboard_layouts.sql',
+  'add_mfa_and_session_activity.sql',
+  'add_shared_document_links.sql',
+  'add_consent_identity_verification.sql',
+  'add_records_inspection_requests.sql',
+  'add_signature_attestation.sql',
+  'add_confidentiality_official.sql',
 ];
 
 module.exports = { MIGRATIONS };

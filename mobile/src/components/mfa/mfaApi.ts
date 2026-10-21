@@ -1,0 +1,41 @@
+import axios from "axios";
+import api from "@/api/axiosInstance";
+import type { LoginResponse, ApiErrorBody } from "@/types";
+
+// Calls made with a short-lived mfaToken (mid-login) must NOT go through the
+// shared axios instance: its interceptor would overwrite Authorization with
+// any stale session token, and its 401 handler would drop the session.
+const bare = axios.create({ baseURL: api.defaults.baseURL });
+
+function post<T>(url: string, body: unknown, mfaToken?: string) {
+  return mfaToken
+    ? bare.post<T>(url, body, { headers: { Authorization: `Bearer ${mfaToken}` } })
+    : api.post<T>(url, body);
+}
+
+export interface MfaSetupData {
+  secret: string;
+  otpauthUri: string;
+}
+
+// With an mfaToken the response also carries the full login payload.
+export type MfaEnableResponse = { recoveryCodes: string[] } & Partial<LoginResponse>;
+
+// Forced enrollment (mfaToken) sends no password. Settings flow (session token)
+// must send the account password; replacing an existing authenticator also sends
+// a current code or recovery code via `extra`.
+export const mfaSetup = (mfaToken?: string, password?: string, extra?: { code?: string; recoveryCode?: string }) =>
+  post<MfaSetupData>("/api/auth/mfa/setup", mfaToken ? {} : { password, ...(extra ?? {}) }, mfaToken).then((r) => r.data);
+export const mfaEnable = (code: string, mfaToken?: string, password?: string) =>
+  post<MfaEnableResponse>("/api/auth/mfa/enable", mfaToken ? { code } : { code, password }, mfaToken).then((r) => r.data);
+export const mfaDisable = (password: string, code: string) =>
+  api.post<{ success: boolean }>("/api/auth/mfa/disable", { password, code }).then((r) => r.data);
+export const mfaVerify = (body: { mfaToken: string; code?: string; recoveryCode?: string }) =>
+  bare.post<LoginResponse>("/api/auth/mfa/verify", body).then((r) => r.data);
+
+export function errMsg(err: unknown, fallback: string): string {
+  const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;
+  return body?.error || fallback;
+}
+
+export const digitsOnly = (v: string) => v.replace(/\D/g, "").slice(0, 6);

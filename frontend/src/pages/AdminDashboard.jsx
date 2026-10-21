@@ -15,6 +15,8 @@ import { BaaGate } from '@/components/BaaGate';
 import { TrialGate } from '@/components/TrialGate';
 import { BrandLockup } from '@/components/BrandLockup';
 import { PractitionerAvatar } from '@/components/PractitionerAvatar';
+import { MfaSetup } from '@/components/mfa/MfaSetup';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // A tab's value is either a single permission key, or an array of keys with
 // any-of semantics (the tab shows if the user holds at least one of them —
@@ -87,6 +89,7 @@ const AdminDashboard = () => {
 
   const [adminProfile, setAdminProfile] = useState(null);
   const [companySettings, setCompanySettings] = useState(null);
+  const [securityOpen, setSecurityOpen] = useState(false); // two-step verification dialog
   const [sidebarOpen, setSidebarOpen] = useState(false); // hamburger toggle — click only, all breakpoints
 
   const handleLogout = () => {
@@ -420,6 +423,16 @@ const AdminDashboard = () => {
               </div>
             )}
             <button
+              onClick={() => setSecurityOpen(true)}
+              className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
+              title="Security"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" />
+              </svg>
+              <span className="hidden md:inline">Security</span>
+            </button>
+            <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
               title="Sign Out"
@@ -453,6 +466,15 @@ const AdminDashboard = () => {
           {renderContent()}
         </div>
       </main>
+
+      <Dialog open={securityOpen} onOpenChange={setSecurityOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Two-step verification</DialogTitle>
+          </DialogHeader>
+          {securityOpen && <MfaSetup />}
+        </DialogContent>
+      </Dialog>
 
       <IdleTimeoutWarning onLogout={handleLogout} />
     </div>

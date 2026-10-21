@@ -11,6 +11,7 @@ const {
   getTelepracticeRequestDetail,
   confirmTelepracticeSession,
   getTelepracticeSignatureSummary,
+  verifyTelepracticeSignatureIdentity,
   signTelepracticeSession,
 } = require('../controllers/telepracticeSignatureController');
 
@@ -59,6 +60,8 @@ router.get('/:id', protect, getTelepracticeRequestDetail);
 // --- Unauthenticated, tenant-scoped-by-slug (parent) — mirrors
 // /:companySlug/activate/:token in authRoutes.js exactly. ---
 router.get('/:companySlug/:token', signReadLimiter, resolveTenantBySlug, getTelepracticeSignatureSummary);
+// Per-IP ceiling on top of the controller's 5-attempts-per-token lock.
+router.post('/:companySlug/:token/verify', signSubmitLimiter, resolveTenantBySlug, verifyTelepracticeSignatureIdentity);
 router.post('/:companySlug/:token/sign', signSubmitLimiter, resolveTenantBySlug, signTelepracticeSession);
 
 module.exports = router;

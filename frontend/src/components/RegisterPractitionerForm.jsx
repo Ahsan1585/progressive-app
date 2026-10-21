@@ -165,6 +165,27 @@ export const RegisterPractitionerForm = () => {
   const [rosterIsSendingInvites, setRosterIsSendingInvites] = useState(false);
   const [rosterInviteError, setRosterInviteError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null); // member object to confirm
+  const [mfaResetId, setMfaResetId] = useState(null); // member id awaiting inline "Reset MFA" confirmation
+  const [mfaResettingId, setMfaResettingId] = useState(null);
+  const [mfaResetNotice, setMfaResetNotice] = useState('');
+  // CEO = admin tier. Own id comes from the session JWT (same as MessagingContext).
+  const myId = (() => {
+    try { return JSON.parse(atob(localStorage.getItem('token').split('.')[1])).practitionerId; } catch { return null; }
+  })();
+  const handleMfaReset = async (member) => {
+    setMfaResettingId(member.id);
+    try {
+      await api.post(`/api/auth/staff/${member.id}/mfa-reset`);
+      setStaffList(prev => prev.map(s => s.id === member.id ? { ...s, mfa_enabled: false } : s));
+      setMfaResetId(null);
+      setMfaResetNotice(`Two-step verification reset for ${member.first_name} ${member.last_name}.`);
+      setTimeout(() => setMfaResetNotice(''), 5000);
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Failed to reset two-step verification.');
+    } finally {
+      setMfaResettingId(null);
+    }
+  };
   const [viewingPhoto, setViewingPhoto] = useState(null); // { url, name } or null
   const [reviewingContact, setReviewingContact] = useState(null); // member object with a pending contact change
   const [reviewingAction, setReviewingAction] = useState(null); // 'accept' | 'reject' — which button is in flight
@@ -1059,6 +1080,26 @@ export const RegisterPractitionerForm = () => {
                 </td>
                 <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <span className="mr-1 whitespace-nowrap rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600" title="Two-step verification">
+                        MFA {member.mfa_enabled ? 'On' : 'Off'}
+                      </span>
+                      {me?.isAdmin && member.id !== myId && (
+                        mfaResetId === member.id ? (
+                          <span className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+                            <span className="max-w-[14rem] text-left">{member.first_name} will need to set up two-step verification again at next login.</span>
+                            <button onClick={() => handleMfaReset(member)} disabled={mfaResettingId === member.id}
+                              className="font-semibold text-red-600 hover:underline disabled:opacity-50 cursor-pointer">
+                              {mfaResettingId === member.id ? 'Resetting...' : 'Confirm'}
+                            </button>
+                            <button onClick={() => setMfaResetId(null)} className="font-semibold text-slate-600 hover:underline cursor-pointer">Cancel</button>
+                          </span>
+                        ) : (
+                          <button onClick={() => setMfaResetId(member.id)}
+                            className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
+                            Reset MFA
+                          </button>
+                        )
+                      )}
                       {member.role === 'practitioner' && (
                         <button
                           onClick={() => openThread(member.id)}

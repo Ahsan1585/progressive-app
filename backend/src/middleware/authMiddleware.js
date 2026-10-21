@@ -4,13 +4,56 @@ const { platformPool } = require('../config/platformDb');
 const { getTenantPool } = require('../config/tenantPoolRegistry');
 const { ensureDropdownOptionsCacheLoaded } = require('../constants/dropdownOptionsCache');
 
-const protect = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+// Server-side idle timeout. The browser's own 15-minute idle lock stays the
+// PRIMARY control: background polling (unread counts, /me, dashboards) is
+// an authenticated request like any other and so counts as "activity" here,
+// meaning an open-but-unattended tab never trips this limit. This is the
+// backstop for an abandoned or stolen token that is no longer being driven
+// by a live client at all. Activity is per-practitioner, not per-token, so a
+// fresh login on one device also keeps that user's other tokens alive.
+const DEFAULT_IDLE_MINUTES = 30;
+const ACTIVITY_WRITE_THROTTLE_MS = 60 * 1000;
+const IDLE_EXPIRED_MESSAGE = 'Your session expired due to inactivity. Please log in again.';
 
-  // 1. Require a Bearer token with an actual value after it
-  const token = authHeader && authHeader.startsWith('Bearer ')
+function idleLimitMs() {
+  const minutes = Number(process.env.SESSION_IDLE_MINUTES);
+  return (Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_IDLE_MINUTES) * 60 * 1000;
+}
+
+// NULL last_activity_at = never seen since the column was added; treat as
+// active. The token's own iat also counts as activity, so a freshly minted
+// token isn't rejected because of a stale timestamp from long ago. Shared
+// with the socket handshake (realtime/handshake.js).
+function isSessionIdleExpired(lastActivityAt, iat) {
+  if (!lastActivityAt) return false;
+  const lastActivityMs = new Date(lastActivityAt).getTime();
+  const issuedAtMs = iat ? iat * 1000 : 0;
+  return Date.now() - Math.max(lastActivityMs, issuedAtMs) > idleLimitMs();
+}
+
+// Fire-and-forget: a failed activity write must never fail the request.
+function touchLastActivity(tenantPool, practitionerId) {
+  try {
+    Promise.resolve(tenantPool.query(
+      `UPDATE practitioners SET last_activity_at = now()
+       WHERE id = $1 AND (last_activity_at IS NULL OR last_activity_at < now() - interval '60 seconds')`,
+      [practitionerId]
+    )).catch((err) => console.error('last_activity_at update failed:', err.message));
+  } catch (err) {
+    console.error('last_activity_at update failed:', err.message);
+  }
+}
+
+function extractBearer(req) {
+  const authHeader = req.headers.authorization;
+  return authHeader && authHeader.startsWith('Bearer ')
     ? authHeader.slice(7).trim()
     : null;
+}
+
+const protect = (req, res, next) => {
+  // 1. Require a Bearer token with an actual value after it
+  const token = extractBearer(req);
 
   if (!token) {
     return res.status(401).json({ error: 'Not authorized, no token provided' });
@@ -24,7 +67,13 @@ const protect = (req, res, next) => {
     // Do not log token contents or verification error details
     return res.status(401).json({ error: 'Not authorized, invalid token' });
   }
+  // Purpose-scoped tokens (e.g. the 10-minute MFA challenge token) are only
+  // valid on their own endpoints, never as a session.
+  if (decoded.purpose !== undefined) {
+    return res.status(401).json({ error: 'Not authorized, invalid token' });
+  }
   req.practitioner = decoded;
+  const tenantPool = getTenantPool(decoded.tenantDb);
 
   // 3. Trial/suspension gate AND the practitioner's own is_active flag,
   // both checked fresh on every request (cheap indexed lookups, run in
@@ -39,13 +88,26 @@ const protect = (req, res, next) => {
   // so there's always a way to add a payment method.
   Promise.all([
     platformPool.query('SELECT status, trial_ends_at, baa_accepted_at FROM companies WHERE slug = $1', [decoded.slug]),
-    getTenantPool(decoded.tenantDb).query('SELECT is_active FROM practitioners WHERE id = $1', [decoded.practitionerId]),
+    tenantPool.query('SELECT is_active, last_activity_at FROM practitioners WHERE id = $1', [decoded.practitionerId]),
   ])
     .then(([{ rows }, { rows: practitionerRows }]) => {
       // Fail closed: a missing row (deleted practitioner, stale JWT) is
       // treated the same as an explicitly deactivated one, not as "active."
       if (!practitionerRows[0] || practitionerRows[0].is_active === false) {
         return res.status(401).json({ error: 'Your account has been deactivated.' });
+      }
+
+      // NULL = never seen since the column was added; treat as active. The
+      // token's own iat also counts as activity, so a freshly minted token
+      // (login, or a support impersonation token, which never goes through
+      // login) isn't rejected because of a stale timestamp from long ago.
+      const lastActivity = practitionerRows[0].last_activity_at;
+      const lastActivityMs = lastActivity ? new Date(lastActivity).getTime() : null;
+      if (isSessionIdleExpired(lastActivity, decoded.iat)) {
+        return res.status(401).json({ error: IDLE_EXPIRED_MESSAGE });
+      }
+      if (lastActivityMs === null || Date.now() - lastActivityMs > ACTIVITY_WRITE_THROTTLE_MS) {
+        touchLastActivity(tenantPool, decoded.practitionerId);
       }
 
       const company = rows[0];
@@ -121,6 +183,54 @@ const protect = (req, res, next) => {
       );
     })
     .catch(next);
+};
+
+// --- MFA challenge tokens (minted by loginPractitioner, 10-minute TTL) ---
+// They carry purpose: 'mfa' so `protect` refuses them as sessions, and a
+// stage ('verify' | 'enroll') so each MFA endpoint accepts only the token it
+// was meant for.
+function decodeMfaToken(token, stage) {
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded.purpose === 'mfa' && decoded.stage === stage && decoded.tenantDb ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+function enterMfaChallenge(req, decoded, next) {
+  req.mfaChallenge = decoded;
+  req.practitioner = decoded;
+  return runWithTenant(decoded.tenantDb, () => next());
+}
+
+const INVALID_MFA_TOKEN = { error: 'Your verification session expired. Please log in again.' };
+
+// POST /mfa/verify: the token arrives in the body ({ mfaToken, code }), or
+// as a Bearer header for clients that prefer that.
+const requireMfaChallenge = (stage) => (req, res, next) => {
+  const decoded = decodeMfaToken(req.body?.mfaToken || extractBearer(req), stage);
+  if (!decoded) return res.status(401).json(INVALID_MFA_TOKEN);
+  return enterMfaChallenge(req, decoded, next);
+};
+
+// POST /mfa/setup and /mfa/enable: a real session (full `protect` checks),
+// or an enroll-stage mfaToken for a user the company is forcing to enroll.
+const protectSessionOrMfaToken = (req, res, next) => {
+  const token = extractBearer(req);
+  let unverified = null;
+  try {
+    unverified = token ? jwt.decode(token) : null;
+  } catch {
+    unverified = null;
+  }
+  if (unverified && unverified.purpose === 'mfa') {
+    const decoded = decodeMfaToken(token, 'enroll');
+    if (!decoded) return res.status(401).json(INVALID_MFA_TOKEN);
+    return enterMfaChallenge(req, decoded, next);
+  }
+  return protect(req, res, next);
 };
 
 const { pool } = require('../config/db');
@@ -242,4 +352,4 @@ const requireRole = (allowedRoles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireStaffEditOrSelf, requireOfficeStaff, requirePlatformSupportOnly };
+module.exports = { protect, isSessionIdleExpired, requireMfaChallenge, protectSessionOrMfaToken, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireStaffEditOrSelf, requireOfficeStaff, requirePlatformSupportOnly };

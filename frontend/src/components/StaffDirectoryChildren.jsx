@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { AddPatientModal } from '@/components/AddPatientModal';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
+import { RecordsRequestsPanel } from '@/components/RecordsRequestsPanel';
 
 const norm = (s) => (s || '').toString().toLowerCase();
 
@@ -335,6 +336,7 @@ export function StaffDirectoryChildren() {
   const [careTeamBusyId, setCareTeamBusyId] = useState(null);
   const [correctionsChild, setCorrectionsChild] = useState(null);
   const [exportingId, setExportingId] = useState(null);
+  const [requestsPanel, setRequestsPanel] = useState(null); // { child: row child or null }
 
   const loadChildren = () => {
     api.get('/api/patients/directory/all')
@@ -443,6 +445,14 @@ export function StaffDirectoryChildren() {
           </svg>
           <h2 className="text-base font-bold text-slate-800">All Children</h2>
           <span className="text-xs text-slate-400 font-medium">{visibleChildren.length} of {children.length} registered</span>
+          {canManageRecordRights && (
+            <button
+              onClick={() => setRequestsPanel({ child: null })}
+              className="ml-auto text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
+            >
+              Records requests
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -587,6 +597,14 @@ export function StaffDirectoryChildren() {
           patient={editingChild}
           editUrl={(id) => `/api/patients/directory/${id}`}
           onPatientAdded={() => { setEditingChild(null); loadChildren(); }}
+        />
+      )}
+
+      {requestsPanel && (
+        <RecordsRequestsPanel
+          childList={children}
+          initialChild={requestsPanel.child}
+          onClose={() => setRequestsPanel(null)}
         />
       )}
 

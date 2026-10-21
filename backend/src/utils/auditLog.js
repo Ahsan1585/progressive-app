@@ -21,6 +21,8 @@ const { pool } = require('../config/db');
 // covers all of them for free — deliberately scoped to only these
 // already-PHI-adjacent audited actions, not a new blanket "log everything
 // support does" mechanism.
+const RETRY_DELAY_MS = 250;
+
 async function logAudit({
   req = null,
   actorId = null,
@@ -42,22 +44,43 @@ async function logAudit({
       ? { ...(details || {}), viaImpersonation: true, platformAdminEmail: impersonation.platformAdminEmail, impersonationStartedAt: impersonation.startedAt }
       : details;
 
-    await pool.query(
-      `INSERT INTO audit_logs (actor_id, actor_email, actor_role, action, resource_type, resource_id, details, ip_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [
-        finalActorId,
-        finalActorEmail,
-        finalActorRole,
-        action,
-        resourceType,
-        resourceId != null ? String(resourceId) : null,
-        finalDetails ? JSON.stringify(finalDetails) : null,
-        ip,
-      ]
-    );
+    const params = [
+      finalActorId,
+      finalActorEmail,
+      finalActorRole,
+      action,
+      resourceType,
+      resourceId != null ? String(resourceId) : null,
+      finalDetails ? JSON.stringify(finalDetails) : null,
+      ip,
+    ];
+    const sql = `INSERT INTO audit_logs (actor_id, actor_email, actor_role, action, resource_type, resource_id, details, ip_address)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`;
+    try {
+      await pool.query(sql, params);
+    } catch (firstErr) {
+      // Retry once after a short delay; if it still fails, emit the full
+      // payload as one structured line so Cloud Run logs preserve the record.
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      try {
+        await pool.query(sql, params);
+      } catch (err) {
+        console.error('AUDIT_LOG_INSERT_FAILED ' + JSON.stringify({
+          timestamp: new Date().toISOString(),
+          error: err.message,
+          actorId: finalActorId,
+          actorEmail: finalActorEmail,
+          actorRole: finalActorRole,
+          action,
+          resourceType,
+          resourceId: params[5],
+          details: finalDetails,
+          ip,
+        }));
+      }
+    }
   } catch (err) {
-    console.error('Audit log insert failed:', err.message);
+    console.error('Audit log payload build failed:', err.message);
   }
 }
 

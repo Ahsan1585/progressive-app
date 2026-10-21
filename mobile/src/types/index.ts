@@ -190,6 +190,9 @@ export interface RecordsConsent {
   revoked_at: string | null;
   revoked_by: number | null;
   proof_note: string | null;
+  // Null on consents logged before identity verification was required.
+  identity_verified_method?: string | null;
+  identity_verified_note?: string | null;
 }
 
 // GET /api/subscription/summary's shape for an independent practitioner's

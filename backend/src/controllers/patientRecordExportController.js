@@ -30,6 +30,7 @@ const { logAudit } = require('../utils/auditLog');
 const { getCompanyName } = require('../utils/companyName');
 const { buildNjeisPdfForGroup } = require('../utils/njeisFormFiller');
 const { formatTime12h } = require('../utils/formatting');
+const { REDISCLOSURE_NOTICE } = require('../utils/emailClient');
 
 const PAGE = { width: 612, height: 792 }; // Letter
 const MARGIN = 40;
@@ -65,7 +66,62 @@ const ACTION_LABELS = {
   correction_request_accepted: 'Correction request accepted',
   correction_request_denied: 'Correction request denied',
   patient_record_export: 'Full record exported',
+  sevf_emailed_to_agency: 'SEVF shared with agency (secure link)',
+  shared_document_link_created: 'Secure document link created',
+  shared_document_downloaded: 'Shared document downloaded by recipient',
+  sevf_disclosure_blocked_no_consent: 'Disclosure blocked (no parental consent)',
 };
+
+// Record of disclosures (34 CFR 99.32 / 303.406): every audit_logs row
+// that represents this child's record leaving the system, with recipient,
+// purpose, date and which records. Built from the same patient-scoped
+// audit rows as the access-history table.
+const DISCLOSURE_PURPOSE_FALLBACK = {
+  sevf_emailed_to_agency: 'Billing / service verification',
+  shared_document_downloaded: 'Recipient downloaded shared document',
+  patient_record_export: 'Parent/guardian record access request',
+};
+
+const parseDetails = (details) => {
+  if (!details) return {};
+  if (typeof details === 'object') return details;
+  try { return JSON.parse(details); } catch { return {}; }
+};
+
+const formatAuditDate = (value) => new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+function buildDisclosureRows(auditRows) {
+  return (auditRows || [])
+    .filter((r) => Object.prototype.hasOwnProperty.call(DISCLOSURE_PURPOSE_FALLBACK, r.action))
+    .map((r) => {
+      const d = parseDetails(r.details);
+      const name = d.recipientName && d.recipientName !== d.recipientEmail ? d.recipientName : null;
+      const recipient = name && d.recipientEmail ? `${name} <${d.recipientEmail}>` : (name || d.recipientEmail || '—');
+      const purpose = r.action === 'shared_document_downloaded'
+        ? DISCLOSURE_PURPOSE_FALLBACK.shared_document_downloaded
+        : (d.purpose || DISCLOSURE_PURPOSE_FALLBACK[r.action]);
+      const records = Array.isArray(d.records) && d.records.length ? d.records.join(', ') : '—';
+      return [formatAuditDate(r.created_at), recipient, purpose, records];
+    });
+}
+
+// Greedy word-wrap for pdf-lib (which has no built-in text wrapping).
+function wrapText(text, font, size, maxWidth) {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = '';
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+  return lines;
+}
 
 const describeAction = (action) => ACTION_LABELS[action] || (action || '—').replace(/_/g, ' ');
 
@@ -114,6 +170,22 @@ async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
   note.forEach((line) => {
     page.drawText(line, { x: MARGIN, y, font: regular, size: 9.5, color: rgb(0.4, 0.46, 0.55) });
     y -= 14;
+  });
+
+  // Redisclosure notice (34 CFR 99.33 / 303.414) — must accompany every
+  // disclosure of this record.
+  y -= 16;
+  const noticeLines = wrapText(REDISCLOSURE_NOTICE, regular, 9.5, CONTENT_WIDTH - 20);
+  const boxH = 22 + noticeLines.length * 13 + 8;
+  page.drawRectangle({
+    x: MARGIN, y: y - boxH + 10, width: CONTENT_WIDTH, height: boxH,
+    borderColor: rgb(0.55, 0.6, 0.66), borderWidth: 0.75, color: rgb(0.98, 0.98, 0.99),
+  });
+  page.drawText('CONFIDENTIALITY NOTICE', { x: MARGIN + 10, y: y - 4, font: bold, size: 9, color: rgb(0.08, 0.1, 0.15) });
+  y -= 20;
+  noticeLines.forEach((line) => {
+    page.drawText(line, { x: MARGIN + 10, y, font: regular, size: 9.5, color: rgb(0.08, 0.1, 0.15) });
+    y -= 13;
   });
 
   return page;
@@ -312,16 +384,40 @@ const exportPatientRecord = async (req, res) => {
         { label: 'Resource', w: 90 },
       ],
       rows: auditRows.map((r) => [
-        new Date(r.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
+        formatAuditDate(r.created_at),
         r.actor_email || r.actor_resolved_email || '—',
         describeAction(r.action),
         describeResource(r.resource_type),
       ]),
     });
 
+    // 6. Record of disclosures (34 CFR 99.32 / 303.406) — each time this
+    // child's record left the system: recipient, purpose, date, records.
+    drawTablePage(outDoc, {
+      title: 'Record of Disclosures',
+      pageLabel: 'Record of Disclosures',
+      fonts,
+      cols: [
+        { label: 'Date', w: 95 },
+        { label: 'Recipient', w: 170 },
+        { label: 'Purpose', w: 160 },
+        { label: 'Records', w: 107 },
+      ],
+      rows: buildDisclosureRows(auditRows),
+    });
+
     const pdfBytes = await outDoc.save();
 
-    logAudit({ req, action: 'patient_record_export', resourceType: 'patient', resourceId: id, details: { assessmentCount: assessments.length } });
+    logAudit({
+      req, action: 'patient_record_export', resourceType: 'patient', resourceId: id,
+      details: {
+        assessmentCount: assessments.length,
+        recipientName: 'Parent/guardian (record access request)',
+        purpose: 'Parent/guardian record access request (34 CFR 303.405)',
+        records: ['Session log summary', 'SEVF', 'Billing summary', 'Record access history'],
+        generatedBy: requester,
+      },
+    });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="record-export-${patient.last_name || 'child'}-${ts()}.pdf"`);
@@ -332,4 +428,4 @@ const exportPatientRecord = async (req, res) => {
   }
 };
 
-module.exports = { exportPatientRecord };
+module.exports = { exportPatientRecord, drawCoverPage, buildDisclosureRows };

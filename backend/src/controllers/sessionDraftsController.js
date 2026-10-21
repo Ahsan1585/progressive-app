@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { logAudit } = require('../utils/auditLog');
 
 // A practitioner may keep at most this many concurrent in-progress drafts
 // per child (e.g. catching up on two separate missed visits at once).
@@ -132,6 +133,7 @@ const getDraft = async (req, res) => {
     );
     res.set('Cache-Control', 'no-store');
     if (!rows[0]) return res.json({ success: true, draft: null });
+    logAudit({ req, action: 'session_draft_view', resourceType: 'session_draft', resourceId: draftId });
     res.json({
       success: true,
       draft: {

@@ -1,36 +1,34 @@
 const { pool } = require('../config/db');
 const { buildSessionICS } = require('../utils/icsGenerator');
-const { sendSessionScheduledEmail } = require('../utils/emailClient');
+const { sendSessionScheduledEmail, generalizeSessionLocation } = require('../utils/emailClient');
 
 const notifyParent = async (session, patient, practitioner, { cancelled = false } = {}) => {
   if (!patient.parent_email) return;
 
-  // PHI-minimization: first name only (never the surname), and no
-  // session.notes in the calendar description — see the comment on
-  // sendSessionScheduledEmail in emailClient.js for the full reasoning.
-  // Notes are free text a practitioner could put anything in and are the
-  // single biggest unbounded-content risk of the two, so they're dropped
-  // entirely rather than reduced.
-  const childFirstName = patient.first_name;
+  // PHI-minimization: Resend (the email vendor) cannot sign a BAA, so no
+  // child identifier goes into the email or the .ics — no name at all, no
+  // session.notes, and the free-text location (often a home address) is
+  // reduced to a generic category. See sendSessionScheduledEmail in
+  // emailClient.js for the full reasoning.
   const practitionerName = `${practitioner.first_name} ${practitioner.last_name}`;
+  const genericLocation = generalizeSessionLocation(session.location);
   const icsContent = buildSessionICS({
     sessionId: session.id,
     sessionDate: session.session_date,
     startTime: session.start_time,
     endTime: session.end_time,
-    summary: `${childFirstName}'s session with ${practitionerName}`,
-    location: session.location,
+    summary: `Session with ${practitionerName}`,
+    location: genericLocation,
     cancelled,
   });
 
   try {
     await sendSessionScheduledEmail(patient.parent_email, {
-      childFirstName,
       practitionerName,
       sessionDate: session.session_date,
       startTime: session.start_time,
       endTime: session.end_time,
-      location: session.location,
+      location: genericLocation,
       icsContent,
       cancelled,
     });

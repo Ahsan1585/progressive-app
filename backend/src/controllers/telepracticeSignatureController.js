@@ -219,7 +219,8 @@ const resendTelepracticeSignatureRequest = async (req, res) => {
 
     await pool.query(
       `UPDATE telepractice_signature_requests
-       SET token_hash = $1, token_expires = $2, resent_at = now(), resend_count = resend_count + 1
+       SET token_hash = $1, token_expires = $2, resent_at = now(), resend_count = resend_count + 1,
+           verify_failed_attempts = 0, verify_locked_at = NULL
        WHERE id = $3`,
       [tokenHash, tokenExpires, id]
     );
@@ -342,76 +343,166 @@ async function lookupByToken(token) {
   return rows[0] || null;
 }
 
-// GET /api/telepractice-signatures/:companySlug/:token — the parent's
-// read-only session summary, fully humanized (no codes/abbreviations) since
-// this is what the parent is attesting to by signing.
+const MAX_VERIFY_ATTEMPTS = 5;
+const ATTESTATION_TEXT = 'I have reviewed this session record. I understand my electronic signature has the same legal effect as my handwritten signature.';
+
+const clientIp = (req) => req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null;
+
+// patient_dob is a pg `date`: node-pg hands back a local-midnight Date (or a
+// string in tests). Normalize to YYYY-MM-DD for comparison.
+function dobToIso(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const p = (n) => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())}`;
+  }
+  return String(value).slice(0, 10);
+}
+
+const GENERIC_LOCKED = { error: 'locked', message: 'This link has been locked. Ask your practitioner to send you a new link.' };
+const GENERIC_VERIFY_FAILED = { error: 'verification_failed', message: 'We could not verify that information. Please check it and try again.' };
+
+// Shared link-state checks (never reveal session detail). Returns true if it
+// already wrote an error response.
+function linkStateError(request, res) {
+  if (!request) { res.status(404).json({ error: 'invalid', message: 'This link is not valid.' }); return true; }
+  if (request.status === 'signed' || request.status === 'completed') {
+    res.status(409).json({ error: 'already_signed', message: 'This session has already been signed.' });
+    return true;
+  }
+  if (new Date(request.token_expires) < new Date()) {
+    res.status(410).json({ error: 'expired', message: 'This link has expired. Ask your practitioner to resend it.' });
+    return true;
+  }
+  if (request.verify_locked_at) { res.status(423).json(GENERIC_LOCKED); return true; }
+  return false;
+}
+
+// Checks the DOB answer. Returns true if verified; otherwise has already
+// written the response. Never says which part was wrong.
+//
+// Race-safe: every attempt is claimed UP FRONT, before the DOB is compared,
+// by one conditional UPDATE that checks the lock, bumps the counter and sets
+// the lock at MAX_VERIFY_ATTEMPTS in the same statement. Postgres row locking
+// serializes concurrent claims, so parallel requests can never get more than
+// MAX_VERIFY_ATTEMPTS guesses between them (a check-then-count version let a
+// burst of parallel requests all pass the "not locked yet" read). A correct
+// DOB then resets the counter (and clears a lock its own claim just set).
+async function checkDobOrFail(request, dob, req, res) {
+  const { rows } = await pool.query(
+    `UPDATE telepractice_signature_requests
+     SET verify_failed_attempts = verify_failed_attempts + 1,
+         verify_locked_at = CASE WHEN verify_failed_attempts + 1 >= $2 THEN now() ELSE verify_locked_at END
+     WHERE id = $1 AND token_hash = $3 AND verify_locked_at IS NULL AND verify_failed_attempts < $2
+     RETURNING verify_failed_attempts, verify_locked_at`,
+    [request.id, MAX_VERIFY_ATTEMPTS, request.token_hash]
+  );
+  // No row: the link was locked (or re-issued) between the lookup and now.
+  if (!rows[0]) {
+    res.status(423).json(GENERIC_LOCKED);
+    return false;
+  }
+
+  const given = typeof dob === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dob.trim()) ? dob.trim() : null;
+  const expected = dobToIso(request.patient_dob);
+  if (given && expected && given === expected) {
+    await pool.query(
+      `UPDATE telepractice_signature_requests SET verify_failed_attempts = 0, verify_locked_at = NULL
+       WHERE id = $1 AND token_hash = $2`,
+      [request.id, request.token_hash]
+    );
+    return true;
+  }
+
+  if (rows[0].verify_locked_at) {
+    logAudit({
+      req, actorEmail: request.parent_email, actorRole: 'parent',
+      action: 'telepractice_signature_locked',
+      resourceType: 'telepractice_signature_request', resourceId: request.id,
+      details: { failedAttempts: rows[0].verify_failed_attempts },
+    });
+    res.status(423).json(GENERIC_LOCKED);
+  } else {
+    res.status(403).json(GENERIC_VERIFY_FAILED);
+  }
+  return false;
+}
+
+function buildSummary(request) {
+  return {
+    childName: `${request.patient_first_name || ''} ${request.patient_last_name || ''}`.trim(),
+    serviceLabel: serviceCodeLabel(request.type),
+    sessionDate: formatLongDate(request.service_date),
+    startTime: formatTime12h(request.start_time),
+    endTime: formatTime12h(request.end_time),
+    durationLabel: formatDurationLabel(request.total_time),
+    sessionTypeLabel: groupSizeCodeLabel(request.group_size_category),
+    locationLabel: locationCodeLabel(request.location),
+    statusLabel: statusCodeLabel(request.session_status),
+    practitionerName: `${request.practitioner_first_name || ''} ${request.practitioner_last_name || ''}`.trim(),
+    practitionerDisciplineLabel: request.practitioner_discipline,
+  };
+}
+
+// GET /api/telepractice-signatures/:companySlug/:token - link-state check
+// only. Returns NO session detail: the parent must first confirm the child's
+// date of birth via POST .../verify.
 const getTelepracticeSignatureSummary = async (req, res) => {
   try {
     const request = await lookupByToken(req.params.token);
-    if (!request) return res.status(404).json({ error: 'invalid', message: 'This link is not valid.' });
-    if (request.status === 'signed' || request.status === 'completed') {
-      return res.status(409).json({ error: 'already_signed', message: 'This session has already been signed.' });
-    }
-    if (new Date(request.token_expires) < new Date()) {
-      return res.status(410).json({ error: 'expired', message: 'This link has expired. Ask your practitioner to resend it.' });
-    }
-
-    await ensureDropdownOptionsCacheLoaded(getCurrentTenantDb());
-
+    if (linkStateError(request, res)) return;
     res.set('Cache-Control', 'no-store');
-    res.json({
-      success: true,
-      summary: {
-        childName: `${request.patient_first_name || ''} ${request.patient_last_name || ''}`.trim(),
-        serviceLabel: serviceCodeLabel(request.type),
-        sessionDate: formatLongDate(request.service_date),
-        startTime: formatTime12h(request.start_time),
-        endTime: formatTime12h(request.end_time),
-        durationLabel: formatDurationLabel(request.total_time),
-        sessionTypeLabel: groupSizeCodeLabel(request.group_size_category),
-        locationLabel: locationCodeLabel(request.location),
-        statusLabel: statusCodeLabel(request.session_status),
-        practitionerName: `${request.practitioner_first_name || ''} ${request.practitioner_last_name || ''}`.trim(),
-        practitionerDisciplineLabel: request.practitioner_discipline,
-      },
-    });
+    res.json({ success: true, requiresVerification: true });
   } catch (error) {
-    console.error('Failed to fetch telepractice signature summary:', error);
+    console.error('Failed to fetch telepractice signature link state:', error);
     res.status(500).json({ error: 'server_error', message: 'Something went wrong. Please try again.' });
   }
 };
 
-// POST /api/telepractice-signatures/:companySlug/:token/sign — the parent
-// submits their signature. Re-validates everything server-side; never
-// trusts the earlier GET.
+// POST /api/telepractice-signatures/:companySlug/:token/verify - DOB check;
+// on success returns the humanized session summary the parent will attest
+// to, plus the exact attestation statement.
+const verifyTelepracticeSignatureIdentity = async (req, res) => {
+  try {
+    const request = await lookupByToken(req.params.token);
+    if (linkStateError(request, res)) return;
+    if (!(await checkDobOrFail(request, req.body?.dob, req, res))) return;
+
+    await ensureDropdownOptionsCacheLoaded(getCurrentTenantDb());
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, summary: buildSummary(request), attestationText: ATTESTATION_TEXT });
+  } catch (error) {
+    console.error('Failed to verify telepractice signature identity:', error);
+    res.status(500).json({ error: 'server_error', message: 'Something went wrong. Please try again.' });
+  }
+};
+
+// POST /api/telepractice-signatures/:companySlug/:token/sign - the parent
+// submits their signature. Re-validates everything server-side (including
+// the DOB and the explicit attestation); never trusts the earlier steps.
 const signTelepracticeSession = async (req, res) => {
   try {
-    const { signatureBase64 } = req.body;
+    const { signatureBase64, attested, dob } = req.body || {};
     if (!signatureBase64) {
       return res.status(400).json({ error: 'invalid', message: 'A signature is required.' });
     }
+    if (attested !== true) {
+      return res.status(400).json({ error: 'attestation_required', message: 'Please confirm the statement above before signing.' });
+    }
 
     const request = await lookupByToken(req.params.token);
-    if (!request) return res.status(404).json({ error: 'invalid', message: 'This link is not valid.' });
-    if (request.status === 'signed' || request.status === 'completed') {
-      return res.status(409).json({ error: 'already_signed', message: 'This session has already been signed.' });
-    }
-    if (new Date(request.token_expires) < new Date()) {
-      return res.status(410).json({ error: 'expired', message: 'This link has expired. Ask your practitioner to resend it.' });
-    }
+    if (linkStateError(request, res)) return;
+    if (!(await checkDobOrFail(request, dob, req, res))) return;
 
     await pool.query(
       `UPDATE telepractice_signature_requests
-       SET parent_signature = $1, signed_at = now(), status = 'signed'
+       SET parent_signature = $1, signed_at = now(), status = 'signed',
+           attested = true, attestation_text = $3, signed_ip = $4, signed_user_agent = $5,
+           dob_verified_at = now()
        WHERE id = $2 AND status = 'awaiting_signature'`,
-      [signatureBase64, request.id]
+      [signatureBase64, request.id, ATTESTATION_TEXT, clientIp(req), req.headers?.['user-agent'] || null]
     );
 
-    // No req.practitioner here — this is a public, unauthenticated endpoint
-    // reached by a parent via a token link, not an app login. Still pass
-    // req (for IP capture) alongside explicit actor overrides — logAudit
-    // prefers the explicit actorEmail/actorRole over req.practitioner,
-    // which doesn't exist here anyway (see its own header comment).
     logAudit({
       req,
       actorEmail: request.parent_email,
@@ -435,5 +526,7 @@ module.exports = {
   getTelepracticeRequestDetail,
   confirmTelepracticeSession,
   getTelepracticeSignatureSummary,
+  verifyTelepracticeSignatureIdentity,
   signTelepracticeSession,
+  ATTESTATION_TEXT,
 };

@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
+const { validateIdentityVerification } = require('../utils/inspectionRequest');
 
 const VALID_RECORD_TYPES = ['session_logs', 'sevf_forms', 'invoices', 'full_record_export'];
 
@@ -38,7 +39,7 @@ const listPatientConsents = async (req, res) => {
 const createConsent = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   const { id } = req.params;
-  const { recipientName, recipientEmail, purpose, recordTypes, expiresAt, proofNote } = req.body;
+  const { recipientName, recipientEmail, purpose, recordTypes, expiresAt, proofNote, identityVerifiedMethod, identityVerifiedNote } = req.body;
 
   if (!recipientName || !String(recipientName).trim()) {
     return res.status(400).json({ success: false, error: 'recipientName is required.' });
@@ -52,6 +53,13 @@ const createConsent = async (req, res) => {
   const invalidTypes = recordTypes.filter((t) => !VALID_RECORD_TYPES.includes(t));
   if (invalidTypes.length > 0) {
     return res.status(400).json({ success: false, error: `Invalid record type(s): ${invalidTypes.join(', ')}` });
+  }
+
+  // FERPA 34 CFR 99.30/99.31(c): the identity of whoever gave consent must be
+  // authenticated, and how is recorded. Required for new consents only.
+  const identityError = validateIdentityVerification(identityVerifiedMethod, identityVerifiedNote);
+  if (identityError) {
+    return res.status(400).json({ success: false, error: identityError });
   }
 
   // Always a concrete Date computed here (not left to a DB column default)
@@ -78,10 +86,10 @@ const createConsent = async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO records_consents (patient_id, recipient_name, recipient_email, purpose, record_types, granted_by, expires_at, proof_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO records_consents (patient_id, recipient_name, recipient_email, purpose, record_types, granted_by, expires_at, proof_note, identity_verified_method, identity_verified_note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [id, String(recipientName).trim(), recipientEmail ? String(recipientEmail).trim() : null, String(purpose).trim(), recordTypes, practitionerId, resolvedExpiresAt, proofNote || null]
+      [id, String(recipientName).trim(), recipientEmail ? String(recipientEmail).trim() : null, String(purpose).trim(), recordTypes, practitionerId, resolvedExpiresAt, proofNote || null, identityVerifiedMethod, identityVerifiedNote && String(identityVerifiedNote).trim() ? String(identityVerifiedNote).trim() : null]
     );
     const consent = rows[0];
 

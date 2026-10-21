@@ -16,6 +16,14 @@ const RECORD_TYPE_LABELS: Record<RecordType, string> = {
   full_record_export: "Full record export",
 };
 
+const IDENTITY_METHOD_LABELS: Record<string, string> = {
+  known_parent: "Known parent/guardian",
+  photo_id: "Photo ID checked",
+  callback_verified: "Verified by callback",
+  in_person: "Verified in person",
+  other: "Other",
+};
+
 function consentStatus(c: RecordsConsent): "Active" | "Revoked" | "Expired" {
   if (c.revoked_at) return "Revoked";
   if (new Date(c.expires_at) <= new Date()) return "Expired";
@@ -52,6 +60,9 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
   const [selectedTypes, setSelectedTypes] = React.useState<RecordType[]>([]);
   const [expiresAt, setExpiresAt] = React.useState(defaultExpiresAt());
   const [proofNote, setProofNote] = React.useState("");
+  const [identityMethod, setIdentityMethod] = React.useState("");
+  const [identityNote, setIdentityNote] = React.useState("");
+  const [showValidation, setShowValidation] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [revokeTarget, setRevokeTarget] = React.useState<RecordsConsent | null>(null);
   const [isRevoking, setIsRevoking] = React.useState(false);
@@ -85,10 +96,17 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
     setSelectedTypes([]);
     setExpiresAt(defaultExpiresAt());
     setProofNote("");
+    setIdentityMethod("");
+    setIdentityNote("");
+    setShowValidation(false);
   };
 
   const commitNew = async () => {
     if (!recipientName.trim() || !purpose.trim() || selectedTypes.length === 0) return;
+    if (!identityMethod || (identityMethod === "other" && !identityNote.trim())) {
+      setShowValidation(true);
+      return;
+    }
     setIsSaving(true);
     try {
       await api.post(`/api/patients/${patientId}/consents`, {
@@ -98,6 +116,8 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
         recordTypes: selectedTypes,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
         proofNote: proofNote.trim() || undefined,
+        identityVerifiedMethod: identityMethod,
+        identityVerifiedNote: identityNote.trim() || undefined,
       });
       setFormOpen(false);
       resetForm();
@@ -172,6 +192,11 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
                 <p className="mt-1 text-xs text-ink-muted">
                   {c.record_types.map((t) => RECORD_TYPE_LABELS[t]).join(", ")}
                 </p>
+                {c.identity_verified_method && (
+                  <p className="mt-1 text-[11px] text-ink-muted">
+                    Identity: {IDENTITY_METHOD_LABELS[c.identity_verified_method] || c.identity_verified_method}
+                  </p>
+                )}
                 <p className="mt-1 text-[11px] text-ink-muted">
                   Granted {new Date(c.granted_at).toLocaleDateString()} · Expires {new Date(c.expires_at).toLocaleDateString()}
                 </p>
@@ -257,6 +282,41 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               placeholder="e.g. Signed paper form on file"
               disabled={isSaving}
             />
+            <Label htmlFor="consent-identity">How was the parent/guardian's identity verified?</Label>
+            <select
+              id="consent-identity"
+              value={identityMethod}
+              onChange={(e) => setIdentityMethod(e.target.value)}
+              disabled={isSaving}
+              aria-invalid={showValidation && !identityMethod}
+              className="h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-ink"
+            >
+              <option value="">Select a method…</option>
+              {Object.entries(IDENTITY_METHOD_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            {showValidation && !identityMethod && (
+              <p role="alert" className="text-xs font-semibold text-red-600">
+                Select how the consenting person's identity was verified.
+              </p>
+            )}
+            {identityMethod === "other" && (
+              <>
+                <Label htmlFor="consent-identity-note">Describe how identity was verified</Label>
+                <Input
+                  id="consent-identity-note"
+                  value={identityNote}
+                  onChange={(e) => setIdentityNote(e.target.value)}
+                  disabled={isSaving}
+                />
+                {showValidation && !identityNote.trim() && (
+                  <p role="alert" className="text-xs font-semibold text-red-600">
+                    A note is required when the method is "Other".
+                  </p>
+                )}
+              </>
+            )}
             <Button
               className="w-full"
               onClick={commitNew}

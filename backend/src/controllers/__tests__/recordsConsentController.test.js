@@ -69,7 +69,7 @@ describe('createConsent', () => {
     const req = {
       practitioner: { practitionerId: 7 },
       params: { id: '42' },
-      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'] },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id' },
     };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     pool.query.mockResolvedValueOnce({ rows: [] }); // ownership check finds nothing -> 404
@@ -87,7 +87,7 @@ describe('createConsent', () => {
     const req = {
       practitioner: { practitionerId: 7 },
       params: { id: '42' },
-      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'] },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id' },
     };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     pool.query
@@ -100,7 +100,7 @@ describe('createConsent', () => {
     expect(insertCall[0]).toContain('INSERT INTO records_consents');
     // 7th bind param is expires_at (patient_id, recipient_name,
     // recipient_email, purpose, record_types, granted_by, expires_at,
-    // proof_note) — when the caller doesn't supply one, the handler
+    // proof_note, identity_verified_method, identity_verified_note) — when the caller doesn't supply one, the handler
     // computes granted_at + 1 year itself rather than relying on a DB
     // default, so it's always a concrete value in the audit trail
     // regardless of what the row's default would be.
@@ -116,7 +116,7 @@ describe('createConsent', () => {
     const req = {
       practitioner: { practitionerId: 7 },
       params: { id: '42' },
-      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], expiresAt: 'not-a-real-date' },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id', expiresAt: 'not-a-real-date' },
     };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
 
@@ -130,7 +130,7 @@ describe('createConsent', () => {
     const req = {
       practitioner: { practitionerId: 7 },
       params: { id: '42' },
-      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], expiresAt: '2020-01-01T00:00:00.000Z' },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id', expiresAt: '2020-01-01T00:00:00.000Z' },
     };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
 
@@ -147,7 +147,7 @@ describe('createConsent', () => {
     const req = {
       practitioner: { practitionerId: 7 },
       params: { id: '42' },
-      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], recipientEmail: 'billing@abc.org' },
+      body: { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id', recipientEmail: 'billing@abc.org' },
     };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
     pool.query
@@ -159,6 +159,42 @@ describe('createConsent', () => {
     const insertCall = pool.query.mock.calls[1];
     expect(insertCall[0]).toContain('recipient_email');
     expect(insertCall[1]).toContain('billing@abc.org');
+  });
+});
+
+describe('createConsent identity verification (FERPA 99.30)', () => {
+  afterEach(() => jest.resetAllMocks());
+  const base = { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'] };
+  const mk = (extra) => ({ practitioner: { practitionerId: 7 }, params: { id: '42' }, body: { ...base, ...extra } });
+  const mkRes = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });
+
+  test('400 when identityVerifiedMethod is missing', async () => {
+    const res = mkRes();
+    await createConsent(mk({}), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].error).toMatch(/identityVerifiedMethod/);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+  test('400 when method is invalid', async () => {
+    const res = mkRes();
+    await createConsent(mk({ identityVerifiedMethod: 'trust_me' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+  test("400 when method is 'other' without a note", async () => {
+    const res = mkRes();
+    await createConsent(mk({ identityVerifiedMethod: 'other' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+  test('stores method and note on insert', async () => {
+    const res = mkRes();
+    pool.query.mockResolvedValueOnce({ rows: [{ id: '42' }] }).mockResolvedValueOnce({ rows: [{ id: 5 }] });
+    await createConsent(mk({ identityVerifiedMethod: 'other', identityVerifiedNote: ' checked w/ school ' }), res);
+    const [sql, params] = pool.query.mock.calls[1];
+    expect(sql).toContain('identity_verified_method');
+    expect(params.slice(-2)).toEqual(['other', 'checked w/ school']);
+    expect(res.status).toHaveBeenCalledWith(201);
   });
 });
 

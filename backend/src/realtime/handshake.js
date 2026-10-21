@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { platformPool } = require('../config/platformDb');
 const { runWithTenant } = require('../config/tenantContext');
 const { pool } = require('../config/db');
+const { isSessionIdleExpired } = require('../middleware/authMiddleware');
 
 // Socket.io connection gate. Mirrors the REST `protect` middleware
 // (authMiddleware.js): verify the JWT, re-check the company's status against
@@ -23,6 +24,12 @@ async function authHandshake(socket, next) {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch {
+      return next(new Error('unauthorized'));
+    }
+    // Purpose-scoped tokens (the 10-minute password-only MFA challenge
+    // token, etc.) are never sessions — same rule as `protect`. Without
+    // this, a password alone could open the chat socket and bypass MFA.
+    if (decoded.purpose !== undefined) {
       return next(new Error('unauthorized'));
     }
     const { practitionerId, role, slug, tenantDb } = decoded;
@@ -66,12 +73,15 @@ async function authHandshake(socket, next) {
     // tenant-proxy `pool` hits the right database.
     const person = await runWithTenant(tenantDb, async () => {
       const r = await pool.query(
-        'SELECT first_name, last_name, is_active FROM practitioners WHERE id = $1',
+        'SELECT first_name, last_name, is_active, last_activity_at FROM practitioners WHERE id = $1',
         [practitionerId]
       );
       return r.rows[0];
     });
     if (!person || person.is_active === false) return next(new Error('unauthorized'));
+    // Same server-side idle timeout `protect` enforces. Read-only here: a
+    // socket (re)connect is not user activity, so it never extends the clock.
+    if (isSessionIdleExpired(person.last_activity_at, decoded.iat)) return next(new Error('unauthorized'));
 
     socket.data = {
       staffId: practitionerId,

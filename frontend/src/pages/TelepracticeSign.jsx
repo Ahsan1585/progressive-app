@@ -59,10 +59,14 @@ function StatusMessage({ icon: Icon, tone, title, message }) {
 const TelepracticeSign = () => {
   const { companySlug, token } = useParams();
 
-  const [status, setStatus] = useState('loading'); // loading | invalid | expired | already_signed | ready | submitting | success | server_error
+  const [status, setStatus] = useState('loading'); // loading | invalid | expired | already_signed | locked | verify | verifying | ready | submitting | success | server_error
   const [summary, setSummary] = useState(null);
   const [signature, setSignature] = useState(null);
   const [signError, setSignError] = useState('');
+  const [dob, setDob] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+  const [attested, setAttested] = useState(false);
+  const [attestationText, setAttestationText] = useState('');
 
   const fetchSummary = useCallback(async () => {
     if (!companySlug || !token) {
@@ -71,13 +75,13 @@ const TelepracticeSign = () => {
     }
     setStatus('loading');
     try {
-      const { data } = await api.get(`/api/telepractice-signatures/${companySlug}/${token}`);
-      setSummary(data.summary);
-      setStatus('ready');
+      await api.get(`/api/telepractice-signatures/${companySlug}/${token}`);
+      setStatus('verify');
     } catch (err) {
       const code = err.response?.data?.error;
       if (code === 'expired') setStatus('expired');
       else if (code === 'already_signed') setStatus('already_signed');
+      else if (code === 'locked') setStatus('locked');
       else if (code === 'invalid') setStatus('invalid');
       else setStatus('server_error');
     }
@@ -87,21 +91,52 @@ const TelepracticeSign = () => {
     fetchSummary();
   }, [fetchSummary]);
 
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setVerifyError('');
+    if (!dob) {
+      setVerifyError('Please enter your child’s date of birth.');
+      return;
+    }
+    setStatus('verifying');
+    try {
+      const { data } = await api.post(`/api/telepractice-signatures/${companySlug}/${token}/verify`, { dob });
+      setSummary(data.summary);
+      setAttestationText(data.attestationText);
+      setStatus('ready');
+    } catch (err) {
+      const code = err.response?.data?.error;
+      if (code === 'expired') setStatus('expired');
+      else if (code === 'already_signed') setStatus('already_signed');
+      else if (code === 'locked') setStatus('locked');
+      else if (code === 'invalid') setStatus('invalid');
+      else {
+        setStatus('verify');
+        setVerifyError(err.response?.data?.message || 'Something went wrong. Please try again.');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSignError('');
+    if (!attested) {
+      setSignError('Please tick the box to confirm the statement before signing.');
+      return;
+    }
     if (!signature) {
       setSignError('Please sign above before submitting.');
       return;
     }
     setStatus('submitting');
     try {
-      await api.post(`/api/telepractice-signatures/${companySlug}/${token}/sign`, { signatureBase64: signature });
+      await api.post(`/api/telepractice-signatures/${companySlug}/${token}/sign`, { signatureBase64: signature, attested: true, dob });
       setStatus('success');
     } catch (err) {
       const code = err.response?.data?.error;
       if (code === 'expired') setStatus('expired');
       else if (code === 'already_signed') setStatus('already_signed');
+      else if (code === 'locked') setStatus('locked');
       else if (code === 'invalid') setStatus('invalid');
       else {
         setStatus('ready');
@@ -122,6 +157,42 @@ const TelepracticeSign = () => {
     return (
       <Shell>
         <StatusMessage icon={Clock} tone="warning" title="This link has expired or was already used" message="Signing links only work once and expire after 7 days. Ask your practitioner to send you a new one." />
+      </Shell>
+    );
+  }
+
+  if (status === 'locked') {
+    return (
+      <Shell>
+        <StatusMessage icon={AlertCircle} tone="danger" title="This link has been locked" message="For your child's privacy, this link can no longer be used. Ask your practitioner to send you a new link." />
+      </Shell>
+    );
+  }
+
+  if (status === 'verify' || status === 'verifying') {
+    return (
+      <Shell>
+        <h1 className="text-center text-lg font-semibold text-slate-800">Confirm it&apos;s you</h1>
+        <p className="mt-2 text-center text-sm text-slate-500">
+          To protect your child&apos;s privacy, please enter your child&apos;s date of birth to view and sign this session record.
+        </p>
+        <form onSubmit={handleVerify} className="mt-6 space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="child-dob" className="text-xs font-medium text-slate-600">Child&apos;s date of birth</label>
+            <input
+              id="child-dob"
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              required
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-600"
+            />
+          </div>
+          {verifyError && <p role="alert" className="text-sm text-red-600">{verifyError}</p>}
+          <Button type="submit" className="w-full h-11" disabled={status === 'verifying' || !dob}>
+            {status === 'verifying' ? 'Checking…' : 'Continue'}
+          </Button>
+        </form>
       </Shell>
     );
   }
@@ -193,8 +264,17 @@ const TelepracticeSign = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={attested}
+            onChange={(e) => setAttested(e.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-cyan-700"
+          />
+          <span>{attestationText}</span>
+        </label>
         <ParentSignaturePad value={signature} onChange={setSignature} error={signError} />
-        <Button type="submit" className="w-full h-11" disabled={status === 'submitting' || !signature}>
+        <Button type="submit" className="w-full h-11" disabled={status === 'submitting' || !signature || !attested}>
           {status === 'submitting' ? 'Submitting…' : 'Sign & Submit'}
         </Button>
       </form>

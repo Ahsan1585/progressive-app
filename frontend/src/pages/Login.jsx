@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { PasswordInput } from '@/components/ui/password-input';
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
+import { MfaSetup } from '@/components/mfa/MfaSetup';
+import { mfaVerify, errMsg } from '@/components/mfa/mfaApi';
 
 const PIN_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>;
 const CHECK_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>;
@@ -34,6 +36,40 @@ const Login = () => {
   const navigate = useNavigate();
   const resetSuccess = location.state?.resetSuccess;
 
+  // 'password' | 'code' (MFA challenge) | 'enroll' (forced MFA enrollment)
+  const [step, setStep] = useState('password');
+  const [mfaToken, setMfaToken] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
+
+  const finishLogin = (data, slug) => {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('role', data.practitioner.role);
+    localStorage.setItem('companySlug', slug);
+    // Wakes the MessagingProvider (App.jsx) to connect the chat socket.
+    window.dispatchEvent(new Event('auth-changed'));
+
+    const role = data.practitioner.role;
+
+    if (data.requirePasswordChange) {
+      // ChangePassword.jsx does its own role check afterward (same
+      // ADMIN_ROLES/practitioner branch as here) once the new password
+      // is actually set.
+      navigate('/change-password');
+    } else if (ADMIN_ROLES.includes(role)) {
+      navigate('/admin-dashboard');
+    } else if (role === 'independent_practitioner') {
+      // The one legitimate reason this role logs into the web app at
+      // all — everything else (session logging, SEVF generation) is
+      // mobile-only for them too, same as a normal practitioner.
+      navigate('/billing/independent');
+    } else {
+      // Practitioners now use the mobile app exclusively — the legacy
+      // web /dashboard is no longer reachable via login.
+      navigate('/practitioner-app-required');
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -42,38 +78,43 @@ const Login = () => {
       const slug = companySlug.trim().toLowerCase();
       const response = await api.post('/api/auth/login', { slug, email, password });
 
-      if (response.data.success) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('role', response.data.practitioner.role);
-        localStorage.setItem('companySlug', slug);
-        // Wakes the MessagingProvider (App.jsx) to connect the chat socket.
-        window.dispatchEvent(new Event('auth-changed'));
-
-        const role = response.data.practitioner.role;
-
-        if (response.data.requirePasswordChange) {
-          // ChangePassword.jsx does its own role check afterward (same
-          // ADMIN_ROLES/practitioner branch as here) once the new password
-          // is actually set.
-          navigate('/change-password');
-        } else if (ADMIN_ROLES.includes(role)) {
-          navigate('/admin-dashboard');
-        } else if (role === 'independent_practitioner') {
-          // The one legitimate reason this role logs into the web app at
-          // all — everything else (session logging, SEVF generation) is
-          // mobile-only for them too, same as a normal practitioner.
-          navigate('/billing/independent');
-        } else {
-          // Practitioners now use the mobile app exclusively — the legacy
-          // web /dashboard is no longer reachable via login.
-          navigate('/practitioner-app-required');
-        }
+      if (response.data.mfaRequired) {
+        setMfaToken(response.data.mfaToken);
+        setMfaCode('');
+        setUseRecovery(false);
+        setStep('code');
+      } else if (response.data.mfaEnrollmentRequired) {
+        setMfaToken(response.data.mfaToken);
+        setStep('enroll');
+      } else if (response.data.success) {
+        finishLogin(response.data, slug);
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const data = await mfaVerify(useRecovery ? { mfaToken, recoveryCode: mfaCode.trim() } : { mfaToken, code: mfaCode });
+      if (data.success) finishLogin(data, companySlug.trim().toLowerCase());
+    } catch (err) {
+      setError(errMsg(err, 'Verification failed. Please try again.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const backToPassword = () => {
+    setStep('password');
+    setMfaToken('');
+    setMfaCode('');
+    setError('');
   };
 
   return (
@@ -91,6 +132,63 @@ const Login = () => {
             <div className="mk-form-banner mk-error">{error}</div>
           )}
 
+          {step === 'code' && (
+            <form onSubmit={handleVerify} noValidate>
+              <p style={{ fontSize: 14, marginBottom: 14 }}>
+                {useRecovery
+                  ? 'Enter one of your saved recovery codes.'
+                  : 'Enter the 6-digit code from your authenticator app.'}
+              </p>
+              <div className="mk-field">
+                <label htmlFor="login-mfa-code">{useRecovery ? 'Recovery code' : 'Verification code'}</label>
+                <input
+                  id="login-mfa-code"
+                  type="text"
+                  inputMode={useRecovery ? 'text' : 'numeric'}
+                  autoComplete="one-time-code"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  autoFocus
+                  maxLength={useRecovery ? 32 : 6}
+                  placeholder={useRecovery ? 'xxxxx-xxxxx' : '123456'}
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(useRecovery ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="mk-btn-primary"
+                disabled={isSubmitting || (useRecovery ? !mfaCode.trim() : mfaCode.length !== 6)}
+                style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}
+              >
+                {isSubmitting ? 'Verifying…' : 'Verify'}
+              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, fontSize: 14 }}>
+                <button type="button" className="mk-btn-text" onClick={backToPassword}>Back</button>
+                <button type="button" className="mk-btn-text" onClick={() => { setUseRecovery((v) => !v); setMfaCode(''); setError(''); }}>
+                  {useRecovery ? 'Use authenticator code instead' : 'Use a recovery code instead'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {step === 'enroll' && (
+            <div>
+              <p style={{ fontSize: 14, marginBottom: 14 }}>
+                Your company requires two-step verification. Set it up now to finish signing in.
+              </p>
+              <MfaSetup
+                mfaToken={mfaToken}
+                onEnrolled={(payload) => finishLogin(payload, companySlug.trim().toLowerCase())}
+              />
+              <div style={{ marginTop: 14 }}>
+                <button type="button" className="mk-btn-text" onClick={backToPassword}>Back to sign in</button>
+              </div>
+            </div>
+          )}
+
+          {step === 'password' && (
           <form onSubmit={handleLogin} noValidate>
             <div className="mk-field">
               <label htmlFor="login-company">Company Code</label>
@@ -137,6 +235,7 @@ const Login = () => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
             </button>
           </form>
+          )}
 
           <div className="mk-login-card-foot">
             Already have an account but no Company Code? Ask your agency admin.<br />

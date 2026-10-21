@@ -30,6 +30,7 @@ const listDirectoryPatients = async (req, res) => {
        ORDER BY pt.created_at DESC
        LIMIT 2000`
     );
+    logAudit({ req, action: 'patient_directory_view', resourceType: 'patient', details: { count: patients.length } });
     res.json({ success: true, patients });
   } catch (error) {
     console.error('listDirectoryPatients error:', error);

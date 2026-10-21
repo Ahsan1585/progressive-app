@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-const { protect, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireStaffEditOrSelf, requirePlatformSupportOnly } = require('../middleware/authMiddleware');
+const { protect, protectSessionOrMfaToken, requireMfaChallenge, requireRole, loadPermissions, requirePermission, requireAnyPermission, requireStaffEditOrSelf, requirePlatformSupportOnly } = require('../middleware/authMiddleware');
 const { resolveTenantBySlug } = require('../middleware/tenantMiddleware');
 
 // Throttle login attempts to slow brute-force / credential-stuffing (HIPAA §164.308(a)(5))
@@ -40,8 +40,25 @@ const {
   deleteStaffMember,
   reactivateStaffMember,
   reviewContactUpdate,
-  getMe
+  getMe,
+  verifyMfa,
+  setupMfa,
+  enableMfa,
+  disableMfa,
+  resetStaffMfa
 } = require('../controllers/authController');
+
+// Per-IP throttle on MFA code checks. Only failures count, so a busy office
+// behind one NAT isn't locked out by its own successful logins; the per-
+// account lockout in authController.js is the main brute-force control.
+const mfaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many verification attempts. Please try again later.' },
+});
 
 const {
   previewPractitionerImport,
@@ -114,6 +131,11 @@ router.delete('/staff/:id', protect, loadPermissions, deleteStaffMember);
 // Reactivate a deactivated staff member — same target-dependent gate as delete.
 router.patch('/staff/:id/reactivate', protect, loadPermissions, reactivateStaffMember);
 
+// Admin MFA reset for a staff member who lost both their authenticator and
+// recovery codes — ceo only (same gate as accept-baa); the controller
+// refuses self-reset and audits mfa_reset_by_admin.
+router.post('/staff/:id/mfa-reset', protect, requireRole(['ceo']), resetStaffMfa);
+
 // Accept or reject a practitioner's self-submitted contact info change
 // (staff_directory_edit — same tier as editing staff profiles)
 router.post('/staff/:id/contact-request', protect, loadPermissions, requirePermission('staff_directory_edit'), reviewContactUpdate);
@@ -140,5 +162,14 @@ router.post('/change-password', protect, changeTemporaryPassword);
 router.get('/company-status', protect, getCompanyStatus);
 router.get('/me', protect, loadPermissions, getMe);
 router.post('/accept-baa', protect, requireRole(['ceo']), acceptBaa);
+
+// MFA (TOTP). verify takes only a verify-stage mfaToken from login; setup/
+// enable take a real session OR an enroll-stage mfaToken (company requires
+// MFA, user not enrolled yet); disable needs a real session.
+router.post('/mfa/verify', mfaLimiter, requireMfaChallenge('verify'), verifyMfa);
+// setup is rate-limited too now that a session call verifies the password.
+router.post('/mfa/setup', mfaLimiter, protectSessionOrMfaToken, setupMfa);
+router.post('/mfa/enable', mfaLimiter, protectSessionOrMfaToken, enableMfa);
+router.post('/mfa/disable', mfaLimiter, protect, disableMfa);
 
 module.exports = router;

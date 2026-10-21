@@ -6,6 +6,8 @@ const {
   getCompanySettings,
   getCompanyBranding,
   updateCompanySettings,
+  updateMfaRequirement,
+  getAccessRoster,
   updateCompanyLogo,
   uploadComplianceDoc,
   getComplianceDocMapping,
@@ -29,8 +31,12 @@ router.get('/', ...readGuard, getCompanySettings);
 // Any authenticated role (practitioners included) — just the display
 // name/logo for the mobile app's Home header, not the full settings above.
 router.get('/branding', protect, getCompanyBranding);
+// Access roster: staff_directory_view (admins always pass) - same permission that
+// already exposes the staff list, and the roster adds no data beyond it.
+router.get('/access-roster', protect, loadPermissions, requirePermission('staff_directory_view'), getAccessRoster);
 router.put('/', ...brandingWriteGuard, updateCompanySettings);
 router.put('/logo', ...brandingWriteGuard, updateCompanyLogo);
+router.put('/mfa-required', ...brandingWriteGuard, updateMfaRequirement);
 router.put('/compliance-doc', ...complianceDocGuard, uploadComplianceDoc);
 router.get('/compliance-doc/mapping', ...complianceDocGuard, getComplianceDocMapping);
 router.post('/compliance-doc/apply-mapping', ...complianceDocGuard, applyComplianceDocMapping);

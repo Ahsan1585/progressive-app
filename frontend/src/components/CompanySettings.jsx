@@ -7,6 +7,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { DropdownOptionsManager } from '@/components/DropdownOptionsManager';
+import { ConfidentialitySection } from '@/components/ConfidentialitySection';
+import { MfaRequirementToggle } from '@/components/MfaRequirementToggle';
 
 const STATE_OPTIONS = ['New Jersey', 'New York', 'Pennsylvania', 'Connecticut'];
 const TIMEZONE_OPTIONS = ['Eastern (ET)', 'Central (CT)', 'Mountain (MT)', 'Pacific (PT)'];
@@ -19,6 +21,10 @@ const EMPTY_FORM = {
   address: '',
   phone: '',
   billing_email: '',
+  confidentiality_official_name: '',
+  confidentiality_official_title: '',
+  confidentiality_official_email: '',
+  confidentiality_official_phone: '',
 };
 
 // Admin-only ('ceo', labeled "Admin" in this app) settings for the single
@@ -66,6 +72,10 @@ export const CompanySettings = ({ onSettingsChange }) => {
       address: settings.address || '',
       phone: settings.phone || '',
       billing_email: settings.billing_email || '',
+      confidentiality_official_name: settings.confidentiality_official_name || '',
+      confidentiality_official_title: settings.confidentiality_official_title || '',
+      confidentiality_official_email: settings.confidentiality_official_email || '',
+      confidentiality_official_phone: settings.confidentiality_official_phone || '',
     });
     setLogo(settings.logo || null);
     setComplianceDoc(settings.compliance_doc_filename ? {
@@ -487,6 +497,10 @@ export const CompanySettings = ({ onSettingsChange }) => {
             <Input type="email" value={form.billing_email} onChange={(e) => setField('billing_email', e.target.value)} />
           </div>
         </div>
+
+        <ConfidentialitySection form={form} setField={setField} />
+
+        <MfaRequirementToggle />
 
         <div className="flex items-start gap-2.5 bg-sky-50 border border-sky-200 rounded-xl px-3.5 py-3 text-xs font-semibold text-sky-700">
           <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
