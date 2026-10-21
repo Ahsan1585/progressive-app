@@ -198,16 +198,20 @@ const signConsent = async (req, res) => {
       `INSERT INTO records_consents
          (patient_id, recipient_name, recipient_email, purpose, record_types, granted_by, expires_at,
           granted_at, source, identity_verified_method, identity_verified_note, proof_note,
-          signed_ip, signed_user_agent, signed_name, request_id)
+          signed_ip, signed_user_agent, signed_name, request_id, attestation_text)
        VALUES ($1, $2, $3, $4, $5, $6, $7,
           now(), 'electronic', 'electronic_dob', 'Parent confirmed the child''s date of birth on the secure signing page.', $8,
-          $9, $10, $11, $12)
+          $9, $10, $11, $12, $13)
        RETURNING id`,
       [
         request.patient_id, request.recipient_name, request.recipient_email, request.purpose, request.record_types,
         request.requested_by, request.consent_expires_at,
         `Signed electronically. Attestation: "${ATTESTATION_TEXT}"`,
         ip, userAgent, name, request.id,
+        // The exact wording the parent saw and agreed to (the verify step
+        // returns this same constant), kept on its own column so the signed
+        // consent copy can quote it verbatim.
+        ATTESTATION_TEXT,
       ]
     );
     const consentId = inserted[0].id;

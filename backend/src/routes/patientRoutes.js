@@ -15,7 +15,8 @@ const { listPatientConsents, createConsent, revokeConsent } = require('../contro
 const { createConsentRequest, listConsentRequests, resendConsentRequest, cancelConsentRequest } = require('../controllers/consentRequestController');
 const { requireConsentAccess } = require('../middleware/consentAccess');
 const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest } = require('../controllers/correctionRequestController');
-const { exportPatientRecord } = require('../controllers/patientRecordExportController');
+const { exportPatientRecord, overrideExportPatientRecord } = require('../controllers/patientRecordExportController');
+const { generateConsentReport } = require('../controllers/consentReportController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
 
 // Staff Directory > All Children — office-wide (not ownership-scoped), placed
@@ -36,6 +37,10 @@ router.delete('/directory/:id/practitioners/:practitionerId', protect, loadPermi
 // staff_directory_view/edit, since a CEO may want to delegate this
 // specifically without granting general roster-editing access.
 router.get('/:id/record-export', protect, loadPermissions, requirePermission('patient_record_rights'), exportPatientRecord);
+// No covering parent consent: an admin re-enters their own password and gives
+// a reason (admin-only, no support sessions, per-user wrong-password lockout
+// enforced in the handler).
+router.post('/:id/record-export/override', protect, loadPermissions, requirePermission('patient_record_rights'), overrideExportPatientRecord);
 router.get('/:id/correction-requests', protect, loadPermissions, requirePermission('patient_record_rights'), listCorrectionRequestsForPatient);
 router.post('/:id/correction-requests', protect, loadPermissions, requirePermission('patient_record_rights'), createCorrectionRequest);
 router.post('/correction-requests/:requestId/decide', protect, loadPermissions, requirePermission('patient_record_rights'), decideCorrectionRequest);
@@ -99,6 +104,11 @@ router.put('/:id/agencies', protect, requireRole(['independent_practitioner']), 
 router.get('/:id/consents', protect, loadPermissions, requireConsentAccess, listPatientConsents);
 router.post('/:id/consents', protect, loadPermissions, requireConsentAccess, createConsent);
 router.delete('/:id/consents/:consentId', protect, loadPermissions, requireConsentAccess, revokeConsent);
+// Consent-scoped disclosure packet (only the records that consent approves,
+// plus a copy of the signed consent). Gated like the full record export
+// (patient_record_rights; admins pass), NOT requireConsentAccess: preparing
+// a third-party disclosure is an office records-rights action.
+router.get('/:id/consents/:consentId/report', protect, loadPermissions, requirePermission('patient_record_rights'), generateConsentReport);
 router.get('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, listConsentRequests);
 router.post('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, createConsentRequest);
 router.post('/:id/consent-requests/:requestId/resend', protect, loadPermissions, requireConsentAccess, resendConsentRequest);

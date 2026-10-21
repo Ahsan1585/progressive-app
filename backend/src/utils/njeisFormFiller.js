@@ -15,6 +15,7 @@
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { formatTime12h } = require('./formatting');
 const { getDisciplineCode } = require('./disciplineCodes');
+const { pdfSafeText } = require('./pdfText');
 
 async function buildNjeisPdfForGroup(templateBytes, patientRecords, companyName, practitioner) {
   const outDoc = await PDFDocument.create();
@@ -28,7 +29,9 @@ async function buildNjeisPdfForGroup(templateBytes, patientRecords, companyName,
     const setUniformText = (fieldName, text) => {
       try {
         const field = form.getTextField(fieldName);
-        field.setText(text || '');
+        // The form's default appearance font is WinAnsi Helvetica, which
+        // throws (at flatten) on names like 'Nguyễn'; see utils/pdfText.js.
+        field.setText(pdfSafeText(text || ''));
         field.setFontSize(10);
       } catch (e) { }
     };
@@ -135,7 +138,7 @@ async function buildNjeisPdfForGroup(templateBytes, patientRecords, companyName,
         color: rgb(1, 1, 1),
         borderWidth: 0,
       });
-      firstPage.drawText(countyValue, {
+      firstPage.drawText(pdfSafeText(countyValue), {
         x: countyRect.x + 3,
         y: countyRect.y + (countyRect.height - 10) / 2,
         size: 10,

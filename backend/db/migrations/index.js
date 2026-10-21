@@ -52,6 +52,7 @@ const MIGRATIONS = [
   'add_confidentiality_official.sql',
   'add_mfa_trusted_devices.sql',
   'add_consent_signing.sql',
+  'add_consent_attestation_text.sql',
 ];
 
 module.exports = { MIGRATIONS };

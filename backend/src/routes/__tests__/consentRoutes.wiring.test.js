@@ -32,6 +32,50 @@ describe('patientRoutes consent endpoints', () => {
   });
 });
 
+describe('patientRoutes consent disclosure packet', () => {
+  test('GET /:id/consents/:consentId/report runs protect -> loadPermissions -> patient_record_rights gate -> generateConsentReport', () => {
+    const { generateConsentReport } = require('../../controllers/consentReportController');
+    const r = find(routesOf(require('../patientRoutes')), 'GET', '/:id/consents/:consentId/report');
+    expect(r).toBeDefined();
+    expect(r.handles[0]).toBe(protect);
+    expect(r.handles[1]).toBe(loadPermissions);
+    expect(r.handles[3]).toBe(generateConsentReport);
+    expect(r.handles).toHaveLength(4);
+    const gate = r.handles[2];
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const next = jest.fn();
+    // A caseload practitioner (who passes requireConsentAccess) does NOT pass here.
+    gate({ isAdmin: false, permissions: new Set() }, res, next);
+    expect(res.status).toHaveBeenCalledWith(403);
+    gate({ isAdmin: false, permissions: new Set(['patient_record_rights']) }, res, next);
+    gate({ isAdmin: true, permissions: new Set() }, res, next);
+    expect(next).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('patientRoutes full record export', () => {
+  const ctrl = require('../../controllers/patientRecordExportController');
+  test.each([
+    ['GET', '/:id/record-export', 'exportPatientRecord'],
+    ['POST', '/:id/record-export/override', 'overrideExportPatientRecord'],
+  ])('%s %s runs protect -> loadPermissions -> patient_record_rights gate -> handler', (method, path, handler) => {
+    const r = find(routesOf(require('../patientRoutes')), method, path);
+    expect(r).toBeDefined();
+    expect(r.handles[0]).toBe(protect);
+    expect(r.handles[1]).toBe(loadPermissions);
+    expect(r.handles[3]).toBe(ctrl[handler]);
+    expect(r.handles).toHaveLength(4);
+    const gate = r.handles[2];
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const next = jest.fn();
+    gate({ isAdmin: false, permissions: new Set() }, res, next);
+    expect(res.status).toHaveBeenCalledWith(403);
+    gate({ isAdmin: false, permissions: new Set(['patient_record_rights']) }, res, next);
+    gate({ isAdmin: true, permissions: new Set() }, res, next);
+    expect(next).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('consentRequestRoutes', () => {
   test('GET /pending is protected and permission-gated', async () => {
     const routes = routesOf(require('../consentRequestRoutes'));

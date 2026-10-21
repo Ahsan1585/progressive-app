@@ -22,8 +22,17 @@
 //      record and when) — satisfies 34 CFR 303.406.
 // All four sections are merged into one PDF via pdf-lib copyPages, the
 // same merge pattern used by generateNJEISForms/generateAuditNJEIS.
+//
+// Gate (owner rule): with an active parent consent approving a full-record
+// release (GET, findCoveringConsent) the response is THAT consent's
+// disclosure packet (consentReportController.sendConsentPacket), since the
+// consent names a third-party recipient. The complete parent copy built by
+// buildFullRecordPdf (with access history, disclosures and consents on file)
+// is produced only by the admin override (POST .../override: password, a
+// reason, and a TOTP code when the admin has MFA enabled).
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
@@ -31,6 +40,9 @@ const { getCompanyName } = require('../utils/companyName');
 const { buildNjeisPdfForGroup } = require('../utils/njeisFormFiller');
 const { formatTime12h } = require('../utils/formatting');
 const { REDISCLOSURE_NOTICE } = require('../utils/emailClient');
+const { isValidIntId } = require('../utils/consentValidation');
+const { pdfSafeText, safeFilenamePart } = require('../utils/pdfText');
+const { isMfaLocked, recordMfaFailure, consumeTotpCode } = require('../utils/mfaGuard');
 
 const PAGE = { width: 612, height: 792 }; // Letter
 const MARGIN = 40;
@@ -78,7 +90,28 @@ const ACTION_LABELS = {
   consent_request_cancelled: 'Consent request cancelled',
   consent_signed_electronically: 'Consent signed electronically by parent',
   consent_signing_locked: 'Consent signing link locked (too many attempts)',
+  // Preparing a consent-scoped packet is not the same as sending it; staff
+  // hand it over themselves (consentReportController).
+  consent_report_generated: 'Disclosure packet prepared',
+  // Admin password-confirmed export with no covering consent (the reason is
+  // appended by describeAuditRow).
+  record_export_override: 'Full record exported with admin approval',
+  record_export_override_failed: 'Admin approval for full record export failed',
 };
+
+// Reasons an admin may give for exporting the full record without a
+// covering consent (POST /:id/record-export/override).
+const OVERRIDE_REASON_LABELS = {
+  parent_request: 'Parent request',
+  internal_review: 'Internal review',
+  audit: 'Audit',
+  legal: 'Legal',
+};
+const OVERRIDE_RECIPIENT = 'Parent/guardian or agency';
+// Only these override reasons put the record in someone else's hands, so only
+// they belong in the parent-facing Record of Disclosures. internal_review and
+// audit exports stay in the Record Access History (as admin-approved exports).
+const OVERRIDE_DISCLOSURE_REASONS = new Set(['parent_request', 'legal']);
 
 // Record of disclosures (34 CFR 99.32 / 303.406): every audit_logs row
 // that represents this child's record leaving the system, with recipient,
@@ -88,6 +121,8 @@ const DISCLOSURE_PURPOSE_FALLBACK = {
   sevf_emailed_to_agency: 'Billing / service verification',
   shared_document_downloaded: 'Recipient downloaded shared document',
   patient_record_export: 'Parent/guardian record access request',
+  consent_report_generated: 'Disclosure under parental consent',
+  record_export_override: 'Full record export approved by an administrator',
 };
 
 const parseDetails = (details) => {
@@ -96,35 +131,38 @@ const parseDetails = (details) => {
   try { return JSON.parse(details); } catch { return {}; }
 };
 
-// pdf-lib's standard Helvetica uses WinAnsi encoding and THROWS on any
-// character outside it, so one 'Łódź', Korean name or emoji in a recipient
-// or purpose would fail the whole export. Free text drawn in the consent and
-// disclosure tables goes through this: printable ASCII, Latin-1 and the
-// WinAnsi 0x80-0x9F extras (curly quotes, dashes, ellipsis, euro...) are
-// kept; whitespace/control characters become a space; anything else
-// becomes '?' (one per code point, so an emoji is a single '?').
-const WINANSI_EXTRAS = new Set([
-  0x152, 0x153, 0x160, 0x161, 0x178, 0x17d, 0x17e, 0x192, 0x2c6, 0x2dc, 0x2013, 0x2014, 0x2018, 0x2019,
-  0x201a, 0x201c, 0x201d, 0x201e, 0x2020, 0x2021, 0x2022, 0x2026, 0x2030, 0x2039, 0x203a, 0x20ac, 0x2122,
-]);
-function pdfSafeText(text) {
-  let out = '';
-  for (const ch of String(text ?? '')) {
-    const cp = ch.codePointAt(0);
-    if ((cp >= 0x20 && cp <= 0x7e) || (cp >= 0xa0 && cp <= 0xff) || WINANSI_EXTRAS.has(cp)) out += ch;
-    else if (cp < 0x20 || cp === 0x7f || (cp >= 0x80 && cp < 0xa0)) out += ' ';
-    else out += '?';
-  }
-  return out;
-}
+// Every string drawn with the standard (WinAnsi) fonts goes through
+// pdfSafeText (utils/pdfText.js): pdf-lib throws on anything it cannot
+// encode, so one 'Łukasz' or emoji would otherwise fail the whole export.
 
 const formatAuditDate = (value) => new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 function buildDisclosureRows(auditRows) {
   return (auditRows || [])
     .filter((r) => Object.prototype.hasOwnProperty.call(DISCLOSURE_PURPOSE_FALLBACK, r.action))
+    .filter((r) => r.action !== 'record_export_override' || OVERRIDE_DISCLOSURE_REASONS.has(parseDetails(r.details).reason))
     .map((r) => {
       const d = parseDetails(r.details);
+      if (r.action === 'consent_report_generated') {
+        // details: { consentId, recordTypes, recipient, purpose } — worded as
+        // "prepared", since generating the packet does not send it anywhere.
+        const types = Array.isArray(d.recordTypes) ? d.recordTypes.map((t) => RECORD_TYPE_LABELS[t] || t) : [];
+        return [
+          formatAuditDate(r.created_at),
+          pdfSafeText(`Disclosure packet prepared for ${d.recipient || '—'}`),
+          pdfSafeText(d.purpose || DISCLOSURE_PURPOSE_FALLBACK.consent_report_generated),
+          pdfSafeText(types.length ? types.join(', ') : '—'),
+        ];
+      }
+      if (r.action === 'record_export_override') {
+        // The admin's reason is the purpose of this disclosure.
+        return [
+          formatAuditDate(r.created_at),
+          pdfSafeText(d.recipientName || OVERRIDE_RECIPIENT),
+          pdfSafeText(OVERRIDE_REASON_LABELS[d.reason] || DISCLOSURE_PURPOSE_FALLBACK.record_export_override),
+          pdfSafeText(Array.isArray(d.records) && d.records.length ? d.records.join(', ') : 'Full record'),
+        ];
+      }
       const name = d.recipientName && d.recipientName !== d.recipientEmail ? d.recipientName : null;
       const recipient = name && d.recipientEmail ? `${name} <${d.recipientEmail}>` : (name || d.recipientEmail || '—');
       const purpose = r.action === 'shared_document_downloaded'
@@ -203,6 +241,23 @@ function wrapText(text, font, size, maxWidth) {
 
 const describeAction = (action) => ACTION_LABELS[action] || (action || '—').replace(/_/g, ' ');
 
+// Access-history label for one audit row; the admin-approved export also
+// says why it was approved.
+function describeAuditRow(row) {
+  const label = describeAction(row.action);
+  if (row.action === 'record_export_override') {
+    const reason = OVERRIDE_REASON_LABELS[parseDetails(row.details).reason];
+    return reason ? `${label} (${reason})` : label;
+  }
+  if (row.action === 'record_export_override_failed') {
+    const d = parseDetails(row.details);
+    if (d.rateLimited) return `${label} (too many attempts)`;
+    if (d.factor === 'verification_code') return `${label} (incorrect verification code)`;
+    return `${label} (incorrect password)`;
+  }
+  return label;
+}
+
 // A reader-facing label for what the row touched — never the raw
 // resource_type/resource_id pair (e.g. "patient 85" means nothing to a
 // parent). Every row in this table is already scoped to this one child, so
@@ -218,7 +273,7 @@ async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
 
   page.drawText('Early Intervention Record', { x: MARGIN, y, font: bold, size: 20, color: rgb(0.08, 0.1, 0.15) });
   y -= 30;
-  page.drawText(`${patient.first_name || ''} ${patient.last_name || ''}`.trim(), { x: MARGIN, y, font: bold, size: 16, color: rgb(0.08, 0.1, 0.15) });
+  page.drawText(pdfSafeText(`${patient.first_name || ''} ${patient.last_name || ''}`.trim()), { x: MARGIN, y, font: bold, size: 16, color: rgb(0.08, 0.1, 0.15) });
   y -= 40;
 
   const rows = [
@@ -231,7 +286,7 @@ async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
   ];
   rows.forEach(([label, value]) => {
     page.drawText(label, { x: MARGIN, y, font: bold, size: 11, color: rgb(0.2, 0.24, 0.3) });
-    page.drawText(String(value), { x: MARGIN + 140, y, font: regular, size: 11, color: rgb(0.2, 0.24, 0.3) });
+    page.drawText(pdfSafeText(String(value)), { x: MARGIN + 140, y, font: regular, size: 11, color: rgb(0.2, 0.24, 0.3) });
     y -= 20;
   });
 
@@ -253,6 +308,15 @@ async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
   // Redisclosure notice (34 CFR 99.33 / 303.414) — must accompany every
   // disclosure of this record.
   y -= 16;
+  drawRedisclosureNotice(page, y, { regular, bold });
+
+  return page;
+}
+
+// The boxed CONFIDENTIALITY NOTICE (REDISCLOSURE_NOTICE), drawn with its top
+// edge near `y`. Shared by the full export's cover and the consent-scoped
+// disclosure packet's cover (consentReportController). Returns the y below it.
+function drawRedisclosureNotice(page, y, { regular, bold }) {
   const noticeLines = wrapText(REDISCLOSURE_NOTICE, regular, 9.5, CONTENT_WIDTH - 20);
   const boxH = 22 + noticeLines.length * 13 + 8;
   page.drawRectangle({
@@ -260,13 +324,12 @@ async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
     borderColor: rgb(0.55, 0.6, 0.66), borderWidth: 0.75, color: rgb(0.98, 0.98, 0.99),
   });
   page.drawText('CONFIDENTIALITY NOTICE', { x: MARGIN + 10, y: y - 4, font: bold, size: 9, color: rgb(0.08, 0.1, 0.15) });
-  y -= 20;
+  let yy = y - 20;
   noticeLines.forEach((line) => {
-    page.drawText(line, { x: MARGIN + 10, y, font: regular, size: 9.5, color: rgb(0.08, 0.1, 0.15) });
-    y -= 13;
+    page.drawText(line, { x: MARGIN + 10, y: yy, font: regular, size: 9.5, color: rgb(0.08, 0.1, 0.15) });
+    yy -= 13;
   });
-
-  return page;
+  return yy;
 }
 
 function drawTablePage(pdfDoc, { title, cols, rows, fonts, pageLabel }) {
@@ -280,7 +343,7 @@ function drawTablePage(pdfDoc, { title, cols, rows, fonts, pageLabel }) {
   let page = pdfDoc.addPage([PAGE.width, PAGE.height]);
   let y = PAGE.height - MARGIN;
 
-  page.drawText(title, { x: MARGIN, y, font: bold, size: 14, color: black });
+  page.drawText(pdfSafeText(title), { x: MARGIN, y, font: bold, size: 14, color: black });
   y -= 24;
 
   const drawHeader = (p, yy) => {
@@ -313,7 +376,7 @@ function drawTablePage(pdfDoc, { title, cols, rows, fonts, pageLabel }) {
     }
     let cx = MARGIN;
     row.forEach((val, ci) => {
-      page.drawText(String(val ?? '—'), { x: cx + 4, y: y - rowH + 5, font: regular, size: 8, color: rgb(0.2, 0.24, 0.3) });
+      page.drawText(pdfSafeText(String(val ?? '—')), { x: cx + 4, y: y - rowH + 5, font: regular, size: 8, color: rgb(0.2, 0.24, 0.3) });
       cx += cols[ci].w;
     });
     y -= rowH;
@@ -322,211 +385,443 @@ function drawTablePage(pdfDoc, { title, cols, rows, fonts, pageLabel }) {
   return page;
 }
 
-const exportPatientRecord = async (req, res) => {
-  try {
-    const { id } = req.params;
+// ---- Reusable single-child section builders -------------------------------
+// Used by the full export below AND by consentReportController's
+// consent-scoped disclosure packet. Each takes only rows the caller has
+// already scoped to one patient_id. Free text goes through pdfSafeText (a
+// no-op for anything the WinAnsi font could already draw).
 
+// assessments.service_date is a 'YYYY-MM-DD' string -> 'M/D/YY'.
+const shortServiceDate = (serviceDate) => {
+  const [y, m, d] = (serviceDate || '').split('-');
+  return y ? `${parseInt(m, 10)}/${parseInt(d, 10)}/${y.slice(-2)}` : '—';
+};
+const hoursLabel = (totalTime) => (totalTime ? `${(totalTime / 60).toFixed(2)}h` : '—');
+
+// Session log summary — hand-drawn table, same visual pattern as
+// reportController.generateAuditReportPDF.
+function drawSessionLogSection(outDoc, assessments, fonts) {
+  return drawTablePage(outDoc, {
+    title: 'Session Log Summary',
+    pageLabel: 'Session Log Summary',
+    fonts,
+    cols: [
+      { label: 'Date', w: 70 },
+      { label: 'Practitioner', w: 130 },
+      { label: 'Type', w: 90 },
+      { label: 'Location', w: 90 },
+      { label: 'Start', w: 55 },
+      { label: 'End', w: 55 },
+      { label: 'Time', w: 42 },
+    ],
+    rows: assessments.map((a) => [
+      shortServiceDate(a.service_date),
+      pdfSafeText(`${a.practitioner_first_name || ''} ${a.practitioner_last_name || ''}`.trim()),
+      pdfSafeText(a.type || '—'),
+      pdfSafeText(a.location || '—'),
+      a.start_time ? formatTime12h(a.start_time) : '—',
+      a.end_time ? formatTime12h(a.end_time) : '—',
+      hoursLabel(a.total_time),
+    ]),
+  });
+}
+
+// Freshly-generated SEVF for this child only (not a stored multi-child
+// batch file). A child can have more than one practitioner over time
+// (patient_practitioners is many-to-many), and the SEVF template's
+// Discipline/Position Title box reflects one practitioner — so, same as
+// billingController.generateNJEISForms, group this child's own sessions by
+// practitioner first and render one SEVF group per practitioner rather than
+// assuming a single practitioner for the whole child. Throws on failure
+// (the full export catches and continues); returns the pages appended.
+async function appendSevfSection(outDoc, assessments, patient, companyName) {
+  const templatePath = path.join(__dirname, '..', '..', 'templates', 'NJEIS-020.pdf');
+  const templateBytes = fs.readFileSync(templatePath);
+  const byPractitioner = assessments.reduce((acc, a) => {
+    const key = a.practitioner_id;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push({ ...a, patient_first_name: patient.first_name, patient_last_name: patient.last_name });
+    return acc;
+  }, {});
+  let added = 0;
+  for (const practitionerId of Object.keys(byPractitioner)) {
+    const group = byPractitioner[practitionerId];
+    // practitioner_discipline is already denormalized onto each
+    // assessment row at logging time (see assessments.practitioner_discipline
+    // in schema.sql) — reuse it here instead of a second query, since
+    // buildNjeisPdfForGroup only reads position_title off this object.
+    const syntheticPractitioner = { position_title: group[0]?.practitioner_discipline || '' };
+    const sevfDoc = await buildNjeisPdfForGroup(templateBytes, group, companyName, syntheticPractitioner);
+    const sevfPages = await outDoc.copyPages(sevfDoc, sevfDoc.getPageIndices());
+    sevfPages.forEach((pg) => outDoc.addPage(pg));
+    added += sevfPages.length;
+  }
+  return added;
+}
+
+// Billing/invoice line items for this child only — hand-drawn, not the
+// stored invoice PDF (which also carries the practitioner's SSN/EIN and
+// other children's rows on the same page).
+function drawBillingSection(outDoc, assessments, fonts) {
+  return drawTablePage(outDoc, {
+    title: 'Billing Summary',
+    pageLabel: 'Billing Summary',
+    fonts,
+    cols: [
+      { label: 'Date', w: 70 },
+      { label: 'Type', w: 90 },
+      { label: 'Time', w: 60 },
+      { label: 'Billing Status', w: 100 },
+      { label: 'Agency', w: 140 },
+    ],
+    rows: assessments.map((a) => [
+      shortServiceDate(a.service_date),
+      pdfSafeText(a.type || '—'),
+      hoursLabel(a.total_time),
+      pdfSafeText(a.billing_status || '—'),
+      pdfSafeText(a.company_affiliation || '—'),
+    ]),
+  });
+}
+
+const FULL_RECORD_SECTIONS = ['Session log summary', 'SEVF', 'Billing summary', 'Record access history', 'Consents on file'];
+
+// Builds the full single-child record PDF. Shared by the consent-covered GET
+// and the admin override POST so both produce the identical document.
+async function buildFullRecordPdf(patient, requester) {
+  const id = patient.id;
+  const companyName = await getCompanyName();
+
+  const { rows: assessments } = await pool.query(
+    `SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date ASC, start_time ASC`,
+    [id]
+  );
+
+  const outDoc = await PDFDocument.create();
+  const regular = await outDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await outDoc.embedFont(StandardFonts.HelveticaBold);
+  const fonts = { regular, bold };
+
+  // 1. Cover page
+  await drawCoverPage(outDoc, patient, companyName, requester);
+
+  // 2. Session log summary
+  drawSessionLogSection(outDoc, assessments, fonts);
+
+  // 3. Freshly-generated SEVF for this child only (see appendSevfSection).
+  if (assessments.length > 0) {
+    try {
+      await appendSevfSection(outDoc, assessments, patient, companyName);
+    } catch (sevfError) {
+      console.error('buildFullRecordPdf: SEVF generation failed, continuing without it:', sevfError);
+    }
+  }
+
+  // 4. Billing/invoice line items for this child only (see drawBillingSection).
+  drawBillingSection(outDoc, assessments, fonts);
+
+  // 5. Audit-log history for this child (34 CFR 303.406) — direct
+  // 'patient' rows plus every 'assessment' row tied to one of this
+  // child's logs. Deleted logs' own audit rows fall out of the
+  // assessment-id subquery (see survey note); acceptable here since the
+  // session-log summary above and the SEVF itself are generated from
+  // the assessments that still exist.
+  const { rows: auditRows } = await pool.query(
+    `SELECT al.*, p.email AS actor_resolved_email
+     FROM audit_logs al
+     LEFT JOIN practitioners p ON p.id = al.actor_id
+     WHERE (al.resource_type = 'patient' AND al.resource_id = $1)
+        OR (al.resource_type = 'assessment' AND al.resource_id = ANY($2))
+     ORDER BY al.created_at ASC`,
+    [String(id), assessments.map((a) => String(a.id))]
+  );
+  drawTablePage(outDoc, {
+    title: 'Record Access History',
+    pageLabel: 'Record Access History',
+    fonts,
+    cols: [
+      { label: 'Date', w: 90 },
+      { label: 'Actor', w: 160 },
+      { label: 'Action', w: 150 },
+      { label: 'Resource', w: 90 },
+    ],
+    rows: auditRows.map((r) => [
+      formatAuditDate(r.created_at),
+      r.actor_email || r.actor_resolved_email || '—',
+      describeAuditRow(r),
+      describeResource(r.resource_type),
+    ]),
+  });
+
+  // 6. Record of disclosures (34 CFR 99.32 / 303.406) — each time this
+  // child's record left the system: recipient, purpose, date, records.
+  drawTablePage(outDoc, {
+    title: 'Record of Disclosures',
+    pageLabel: 'Record of Disclosures',
+    fonts,
+    cols: [
+      { label: 'Date', w: 95 },
+      { label: 'Recipient', w: 170 },
+      { label: 'Purpose', w: 160 },
+      { label: 'Records', w: 107 },
+    ],
+    rows: buildDisclosureRows(auditRows),
+  });
+
+  // 7. Consents on file (34 CFR 99.30 / 303.414), next to the disclosures
+  // they authorize: paper and electronic, active, revoked or expired.
+  const { rows: consentRows } = await pool.query(
+    `SELECT recipient_name, recipient_email, purpose, record_types, source, signed_on, granted_at, expires_at, revoked_at
+     FROM records_consents WHERE patient_id = $1 ORDER BY granted_at DESC`,
+    [String(id)]
+  );
+  drawTablePage(outDoc, {
+    title: 'Consents on File',
+    pageLabel: 'Consents on File',
+    fonts,
+    cols: [
+      { label: 'Recipient', w: 110 },
+      { label: 'Purpose', w: 100 },
+      { label: 'Records', w: 110 },
+      { label: 'Source', w: 60 },
+      { label: 'Signed', w: 52 },
+      { label: 'Expires', w: 52 },
+      { label: 'Status', w: 48 },
+    ],
+    rows: buildConsentRows(consentRows),
+  });
+
+  const pdfBytes = await outDoc.save();
+  return { pdfBytes, assessmentCount: assessments.length };
+}
+
+// Header-safe filename (Node throws ERR_INVALID_CHAR on e.g. a curly
+// apostrophe). Called BEFORE the audit row is written, so a header failure
+// can never leave a disclosure entry for a file that was never sent.
+function setRecordPdfHeaders(res, patient) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="record-export-${safeFilenamePart(patient.last_name)}-${ts()}.pdf"`);
+  res.setHeader('Cache-Control', 'no-store');
+}
+
+const CHILD_NOT_FOUND = { error: 'Child not found' };
+
+// An active parent consent approving a full-record release FOR THIS CHILD.
+async function findCoveringConsent(patientId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM records_consents
+     WHERE patient_id = $1 AND revoked_at IS NULL AND expires_at > now()
+       AND 'full_record_export' = ANY(record_types)
+     ORDER BY granted_at DESC LIMIT 1`,
+    [String(patientId)]
+  );
+  return rows[0] || null;
+}
+
+// Whether the signed-in practitioner must add a TOTP code to the override.
+async function overrideNeedsMfaCode(req) {
+  const { rows } = await pool.query('SELECT mfa_enabled FROM practitioners WHERE id = $1', [req.practitioner.practitionerId]);
+  return rows[0]?.mfa_enabled === true;
+}
+
+// GET /api/patients/:id/record-export — only with a covering parent consent.
+// A consent names a third-party recipient, so what it releases is that
+// consent's disclosure packet (consentReportController: only the approved
+// sections, audited as consent_report_generated to the real recipient), NOT
+// the parent's complete copy with its access history and other consents.
+// The admin override POST is the only way to the complete parent copy.
+const exportPatientRecord = async (req, res) => {
+  const { id } = req.params;
+  if (!isValidIntId(id)) return res.status(404).json(CHILD_NOT_FOUND);
+  try {
     const { rows: patientRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
     const patient = patientRows[0];
-    if (!patient) return res.status(404).json({ error: 'Child not found' });
+    if (!patient) return res.status(404).json(CHILD_NOT_FOUND);
 
-    const companyName = await getCompanyName();
-    const requester = `${req.practitioner.email || 'Unknown'}`;
-
-    const { rows: assessments } = await pool.query(
-      `SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date ASC, start_time ASC`,
-      [id]
-    );
-
-    const outDoc = await PDFDocument.create();
-    const regular = await outDoc.embedFont(StandardFonts.Helvetica);
-    const bold = await outDoc.embedFont(StandardFonts.HelveticaBold);
-    const fonts = { regular, bold };
-
-    // 1. Cover page
-    await drawCoverPage(outDoc, patient, companyName, requester);
-
-    // 2. Session log summary
-    drawTablePage(outDoc, {
-      title: 'Session Log Summary',
-      pageLabel: 'Session Log Summary',
-      fonts,
-      cols: [
-        { label: 'Date', w: 70 },
-        { label: 'Practitioner', w: 130 },
-        { label: 'Type', w: 90 },
-        { label: 'Location', w: 90 },
-        { label: 'Start', w: 55 },
-        { label: 'End', w: 55 },
-        { label: 'Time', w: 42 },
-      ],
-      rows: assessments.map((a) => {
-        const [y, m, d] = (a.service_date || '').split('-');
-        const dateStr = y ? `${parseInt(m, 10)}/${parseInt(d, 10)}/${y.slice(-2)}` : '—';
-        return [
-          dateStr,
-          `${a.practitioner_first_name || ''} ${a.practitioner_last_name || ''}`.trim(),
-          a.type || '—',
-          a.location || '—',
-          a.start_time ? formatTime12h(a.start_time) : '—',
-          a.end_time ? formatTime12h(a.end_time) : '—',
-          a.total_time ? `${(a.total_time / 60).toFixed(2)}h` : '—',
-        ];
-      }),
-    });
-
-    // 3. Freshly-generated SEVF for this child only (not a stored
-    // multi-child batch file). A child can have more than one practitioner
-    // over time (patient_practitioners is many-to-many), and the SEVF
-    // template's Discipline/Position Title box reflects one practitioner —
-    // so, same as billingController.generateNJEISForms, group this child's
-    // own sessions by practitioner first and render one SEVF group per
-    // practitioner rather than assuming a single practitioner for the
-    // whole child.
-    if (assessments.length > 0) {
-      try {
-        const templatePath = path.join(__dirname, '..', '..', 'templates', 'NJEIS-020.pdf');
-        const templateBytes = fs.readFileSync(templatePath);
-        const byPractitioner = assessments.reduce((acc, a) => {
-          const key = a.practitioner_id;
-          if (!acc[key]) acc[key] = [];
-          acc[key].push({ ...a, patient_first_name: patient.first_name, patient_last_name: patient.last_name });
-          return acc;
-        }, {});
-        for (const practitionerId of Object.keys(byPractitioner)) {
-          const group = byPractitioner[practitionerId];
-          // practitioner_discipline is already denormalized onto each
-          // assessment row at logging time (see assessments.practitioner_discipline
-          // in schema.sql) — reuse it here instead of a second query, since
-          // buildNjeisPdfForGroup only reads position_title off this object.
-          const syntheticPractitioner = { position_title: group[0]?.practitioner_discipline || '' };
-          const sevfDoc = await buildNjeisPdfForGroup(templateBytes, group, companyName, syntheticPractitioner);
-          const sevfPages = await outDoc.copyPages(sevfDoc, sevfDoc.getPageIndices());
-          sevfPages.forEach((p) => outDoc.addPage(p));
-        }
-      } catch (sevfError) {
-        console.error('exportPatientRecord: SEVF generation failed, continuing without it:', sevfError);
-      }
+    const consent = await findCoveringConsent(id);
+    if (!consent) {
+      const canOverride = req.isAdmin === true;
+      return res.status(403).json({
+        code: 'CONSENT_REQUIRED',
+        error: 'No active parent consent covers a full record export for this child.',
+        canOverride,
+        requiresMfaCode: canOverride ? await overrideNeedsMfaCode(req) : false,
+      });
     }
 
-    // 4. Billing/invoice line items for this child only — hand-drawn, not
-    // the stored invoice PDF (which also carries the practitioner's
-    // SSN/EIN and other children's rows on the same page).
-    drawTablePage(outDoc, {
-      title: 'Billing Summary',
-      pageLabel: 'Billing Summary',
-      fonts,
-      cols: [
-        { label: 'Date', w: 70 },
-        { label: 'Type', w: 90 },
-        { label: 'Time', w: 60 },
-        { label: 'Billing Status', w: 100 },
-        { label: 'Agency', w: 140 },
-      ],
-      rows: assessments.map((a) => {
-        const [y, m, d] = (a.service_date || '').split('-');
-        const dateStr = y ? `${parseInt(m, 10)}/${parseInt(d, 10)}/${y.slice(-2)}` : '—';
-        return [
-          dateStr,
-          a.type || '—',
-          a.total_time ? `${(a.total_time / 60).toFixed(2)}h` : '—',
-          a.billing_status || '—',
-          a.company_affiliation || '—',
-        ];
-      }),
-    });
-
-    // 5. Audit-log history for this child (34 CFR 303.406) — direct
-    // 'patient' rows plus every 'assessment' row tied to one of this
-    // child's logs. Deleted logs' own audit rows fall out of the
-    // assessment-id subquery (see survey note); acceptable here since the
-    // session-log summary above and the SEVF itself are generated from
-    // the assessments that still exist.
-    const { rows: auditRows } = await pool.query(
-      `SELECT al.*, p.email AS actor_resolved_email
-       FROM audit_logs al
-       LEFT JOIN practitioners p ON p.id = al.actor_id
-       WHERE (al.resource_type = 'patient' AND al.resource_id = $1)
-          OR (al.resource_type = 'assessment' AND al.resource_id = ANY($2))
-       ORDER BY al.created_at ASC`,
-      [String(id), assessments.map((a) => String(a.id))]
-    );
-    drawTablePage(outDoc, {
-      title: 'Record Access History',
-      pageLabel: 'Record Access History',
-      fonts,
-      cols: [
-        { label: 'Date', w: 90 },
-        { label: 'Actor', w: 160 },
-        { label: 'Action', w: 150 },
-        { label: 'Resource', w: 90 },
-      ],
-      rows: auditRows.map((r) => [
-        formatAuditDate(r.created_at),
-        r.actor_email || r.actor_resolved_email || '—',
-        describeAction(r.action),
-        describeResource(r.resource_type),
-      ]),
-    });
-
-    // 6. Record of disclosures (34 CFR 99.32 / 303.406) — each time this
-    // child's record left the system: recipient, purpose, date, records.
-    drawTablePage(outDoc, {
-      title: 'Record of Disclosures',
-      pageLabel: 'Record of Disclosures',
-      fonts,
-      cols: [
-        { label: 'Date', w: 95 },
-        { label: 'Recipient', w: 170 },
-        { label: 'Purpose', w: 160 },
-        { label: 'Records', w: 107 },
-      ],
-      rows: buildDisclosureRows(auditRows),
-    });
-
-    // 7. Consents on file (34 CFR 99.30 / 303.414), next to the disclosures
-    // they authorize: paper and electronic, active, revoked or expired.
-    const { rows: consentRows } = await pool.query(
-      `SELECT recipient_name, recipient_email, purpose, record_types, source, signed_on, granted_at, expires_at, revoked_at
-       FROM records_consents WHERE patient_id = $1 ORDER BY granted_at DESC`,
-      [String(id)]
-    );
-    drawTablePage(outDoc, {
-      title: 'Consents on File',
-      pageLabel: 'Consents on File',
-      fonts,
-      cols: [
-        { label: 'Recipient', w: 110 },
-        { label: 'Purpose', w: 100 },
-        { label: 'Records', w: 110 },
-        { label: 'Source', w: 60 },
-        { label: 'Signed', w: 52 },
-        { label: 'Expires', w: 52 },
-        { label: 'Status', w: 48 },
-      ],
-      rows: buildConsentRows(consentRows),
-    });
-
-    const pdfBytes = await outDoc.save();
-
-    logAudit({
-      req, action: 'patient_record_export', resourceType: 'patient', resourceId: id,
-      details: {
-        assessmentCount: assessments.length,
-        recipientName: 'Parent/guardian (record access request)',
-        purpose: 'Parent/guardian record access request (34 CFR 303.405)',
-        records: ['Session log summary', 'SEVF', 'Billing summary', 'Record access history', 'Consents on file'],
-        generatedBy: requester,
-      },
-    });
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="record-export-${patient.last_name || 'child'}-${ts()}.pdf"`);
-    res.send(Buffer.from(pdfBytes));
+    // Lazy require: consentReportController requires this module at load.
+    const { sendConsentPacket } = require('./consentReportController');
+    await sendConsentPacket(req, res, { patient, consent });
   } catch (error) {
     console.error('exportPatientRecord error:', error);
     res.status(500).json({ error: 'Failed to export record' });
   }
 };
 
-module.exports = { exportPatientRecord, drawCoverPage, buildDisclosureRows, buildConsentRows, pdfSafeText };
+// ---- Admin override: brute-force limiter ----------------------------------
+// At most OVERRIDE_MAX_FAILURES attempts per OVERRIDE_WINDOW_MS per signed-in
+// user (sliding window), so an unattended admin session cannot be used to
+// guess the password or the verification code. Keyed by tenant DB +
+// practitioner id (practitioner ids are per-tenant). In-memory and per
+// process, like the express-rate-limit default store the auth routes use.
+//
+// Race-safe: an attempt is RESERVED (check-and-increment in one synchronous
+// step) before anything is awaited, so N parallel requests each consume a
+// slot and at most OVERRIDE_MAX_FAILURES ever reach bcrypt. A correct
+// password (+ code) releases the user's slots. A request rejected with 429
+// also counts (re-arming the window), and each key keeps at most
+// OVERRIDE_MAX_FAILURES timestamps, so memory stays bounded.
+const OVERRIDE_MAX_FAILURES = 5;
+const OVERRIDE_WINDOW_MS = 15 * 60 * 1000;
+const OVERRIDE_MAX_KEYS = 10000;
+const overrideAttempts = new Map(); // key -> [attempt timestamps], newest last
+
+const overrideKey = (req) => `${req.practitioner?.tenantDb || ''}:${req.practitioner?.practitionerId}`;
+function recentAttempts(key, now) {
+  const list = (overrideAttempts.get(key) || []).filter((t) => now - t < OVERRIDE_WINDOW_MS);
+  if (list.length) overrideAttempts.set(key, list); else overrideAttempts.delete(key);
+  return list;
+}
+// Synchronous: records the attempt and returns whether it may proceed.
+function reserveOverrideAttempt(key, now) {
+  if (overrideAttempts.size > OVERRIDE_MAX_KEYS) {
+    for (const k of [...overrideAttempts.keys()]) recentAttempts(k, now);
+  }
+  const list = recentAttempts(key, now);
+  if (list.length < OVERRIDE_MAX_FAILURES) {
+    overrideAttempts.set(key, [...list, now]);
+    return true;
+  }
+  // Already locked: this rejected attempt counts too and re-arms the full
+  // window from now (like the account MFA lockout), still MAX entries.
+  overrideAttempts.set(key, new Array(OVERRIDE_MAX_FAILURES).fill(now));
+  return false;
+}
+const releaseOverrideAttempts = (key) => overrideAttempts.delete(key);
+const resetOverrideFailures = () => overrideAttempts.clear();
+
+// Never matches any password; compared against when the practitioner row or
+// hash is missing so the response time does not differ.
+const DUMMY_HASH = '$2b$10$kfbIqw/2Dj.rlDic572uhuWxN01VGzbkxLbzZFws5lTYPCa6/Cp7S';
+const INCORRECT_CODE = { error: 'Verification code is incorrect.' };
+
+// POST /api/patients/:id/record-export/override
+//   body: { password, reason, code? }  code = 6-digit TOTP, required when the
+//   admin has MFA enabled (the GET 403 says so via requiresMfaCode).
+const overrideExportPatientRecord = async (req, res) => {
+  if (req.isAdmin !== true) {
+    return res.status(403).json({ error: 'Only an administrator can export the full record without a parent consent.' });
+  }
+  if (req.practitioner?.impersonation) {
+    return res.status(403).json({ error: 'A support session cannot approve a full record export.' });
+  }
+  const { id } = req.params;
+  if (!isValidIntId(id)) return res.status(404).json(CHILD_NOT_FOUND);
+  const { password, reason, code } = req.body || {};
+  if (typeof reason !== 'string' || !Object.prototype.hasOwnProperty.call(OVERRIDE_REASON_LABELS, reason)) {
+    return res.status(400).json({ error: 'Choose a reason for this export.' });
+  }
+
+  const auditFailure = (extra = {}) => logAudit({
+    req, action: 'record_export_override_failed', resourceType: 'patient', resourceId: id, details: { reason, ...extra },
+  });
+
+  // Reserved before the first await (see the limiter comment above).
+  const key = overrideKey(req);
+  if (!reserveOverrideAttempt(key, Date.now())) {
+    auditFailure({ rateLimited: true });
+    return res.status(429).json({ error: 'Too many incorrect passwords. Try again later.' });
+  }
+
+  try {
+    const { rows: userRows } = await pool.query(
+      'SELECT password_hash, mfa_enabled, mfa_secret, mfa_last_used_step, mfa_locked_until FROM practitioners WHERE id = $1',
+      [req.practitioner.practitionerId]
+    );
+    const user = userRows[0]
+      ? { ...userRows[0], id: req.practitioner.practitionerId, email: req.practitioner.email, role: req.practitioner.role }
+      : null;
+    const mfaRequired = user?.mfa_enabled === true;
+    // The same per-account lockout the login MFA path enforces.
+    if (mfaRequired && isMfaLocked(user)) {
+      auditFailure({ rateLimited: true });
+      return res.status(429).json({ error: 'Too many failed verification attempts. Please wait 15 minutes and try again.' });
+    }
+
+    const hash = user?.password_hash;
+    const usable = typeof hash === 'string' && hash.length > 0;
+    let ok = false;
+    try {
+      ok = await bcrypt.compare(typeof password === 'string' ? password : '', usable ? hash : DUMMY_HASH);
+    } catch {
+      ok = false;
+    }
+    if (!ok || !usable) {
+      auditFailure();
+      return res.status(400).json({ error: 'Password is incorrect.' });
+    }
+
+    if (mfaRequired) {
+      const supplied = code !== undefined && code !== null && String(code).trim() !== '';
+      // verifyTotp + the atomic replay-guarded step UPDATE, as login uses.
+      if (!supplied || !(await consumeTotpCode(user, code))) {
+        // A supplied-but-wrong code also counts toward the account MFA lockout.
+        if (supplied) await recordMfaFailure(req, user, 'record_export_override');
+        auditFailure({ factor: 'verification_code' });
+        return res.status(400).json(INCORRECT_CODE);
+      }
+    }
+    releaseOverrideAttempts(key);
+
+    const { rows: patientRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
+    const patient = patientRows[0];
+    if (!patient) return res.status(404).json(CHILD_NOT_FOUND);
+
+    const requester = `${req.practitioner.email || 'Unknown'}`;
+    const { pdfBytes, assessmentCount } = await buildFullRecordPdf(patient, requester);
+    setRecordPdfHeaders(res, patient);
+
+    logAudit({
+      req, action: 'record_export_override', resourceType: 'patient', resourceId: id,
+      details: {
+        reason,
+        assessmentCount,
+        recipientName: OVERRIDE_RECIPIENT,
+        records: FULL_RECORD_SECTIONS,
+        generatedBy: requester,
+      },
+    });
+
+    res.send(Buffer.from(pdfBytes));
+  } catch (error) {
+    console.error('overrideExportPatientRecord error:', error);
+    res.status(500).json({ error: 'Failed to export record' });
+  }
+};
+
+module.exports = {
+  exportPatientRecord,
+  overrideExportPatientRecord,
+  resetOverrideFailures,
+  buildFullRecordPdf,
+  describeAuditRow,
+  OVERRIDE_REASON_LABELS,
+  drawCoverPage,
+  buildDisclosureRows,
+  buildConsentRows,
+  pdfSafeText,
+  // Shared with consentReportController (the consent-scoped disclosure packet).
+  drawRedisclosureNotice,
+  drawTablePage,
+  drawSessionLogSection,
+  appendSevfSection,
+  drawBillingSection,
+  wrapText,
+  formatDateOnly,
+  formatTimestampDate,
+  RECORD_TYPE_LABELS,
+  NJ_TZ,
+  PAGE,
+  MARGIN,
+  CONTENT_WIDTH,
+};

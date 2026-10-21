@@ -60,6 +60,15 @@ const createConsent = async (req, res) => {
   }
 
   const { recipientName, recipientEmail, purpose, recordTypes, expiresAt } = details.value;
+
+  // A full_record_export consent unlocks GET /record-export, so only an admin
+  // may attest that such a PAPER consent is on file (req.isAdmin is set by
+  // loadPermissions, which runs before requireConsentAccess on this route).
+  // E-signature requests stay open to anyone with consent access: there the
+  // parent's own signature is the proof.
+  if (recordTypes.includes('full_record_export') && req.isAdmin !== true) {
+    return res.status(403).json({ error: 'Only an admin can record a paper consent that approves a full record release.' });
+  }
   try {
     const { rows } = await pool.query(
       `INSERT INTO records_consents (patient_id, recipient_name, recipient_email, purpose, record_types, granted_by, expires_at, proof_note, identity_verified_method, identity_verified_note, source, signed_on, paper_attested)

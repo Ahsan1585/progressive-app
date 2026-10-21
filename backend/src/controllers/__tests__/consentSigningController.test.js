@@ -216,6 +216,25 @@ describe('signConsent', () => {
     }));
   });
 
+  test('stores the exact attestation wording shown to the parent in records_consents.attestation_text', async () => {
+    primeVerified();
+    client.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: 'req1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({});
+    await ctrl.signConsent(mkReq(goodBody()), mkRes());
+    const [insertSql, insertParams] = client.query.mock.calls[2];
+    expect(insertSql).toMatch(/attestation_text/);
+    // The column list and the placeholder for attestation_text line up.
+    const cols = /\(([^)]*)\)\s*VALUES/.exec(insertSql)[1].split(',').map((s) => s.trim());
+    const vals = /VALUES\s*\(([\s\S]*)\)\s*RETURNING/.exec(insertSql)[1].split(/,(?=(?:[^']*'[^']*')*[^']*$)/).map((s) => s.trim());
+    const placeholder = vals[cols.indexOf('attestation_text')];
+    expect(placeholder).toMatch(/^\$\d+$/);
+    expect(insertParams[Number(placeholder.slice(1)) - 1]).toBe(ctrl.ATTESTATION_TEXT);
+  });
+
   test('records req.ip (resolved by trust proxy), never a client-supplied X-Forwarded-For entry', async () => {
     primeVerified();
     client.query

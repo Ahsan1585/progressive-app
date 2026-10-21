@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Download } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -296,6 +296,8 @@ function ChildConsents({ child }) {
   const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [reqError, setReqError] = useState(null); // { id, message }
+  const [reportBusyId, setReportBusyId] = useState(null);
+  const [reportError, setReportError] = useState(null); // { id, message }
 
   const load = useCallback(() => {
     setLoading(true);
@@ -345,6 +347,36 @@ function ChildConsents({ child }) {
   };
 
   const typesText = (arr) => (arr || []).map((t) => TYPE_LABEL[t] || t).join(', ');
+
+  // Same blob-download pattern as the full record export in
+  // StaffDirectoryChildren; a blob error body is parsed back into JSON so the
+  // server's message (e.g. revoked/expired 409) can be shown inline.
+  const generateReport = async (c) => {
+    setReportBusyId(c.id);
+    setReportError(null);
+    try {
+      const response = await api.get(`/api/patients/${child.id}/consents/${c.id}/report`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      const safe = (s, fb) => String(s || fb).trim().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || fb;
+      link.href = url;
+      link.setAttribute('download', `consent-report-${safe(child.last_name, 'child')}-${safe(c.recipient_name, 'recipient')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      let message = 'Failed to generate the report.';
+      try {
+        const data = err.response?.data;
+        const body = data instanceof Blob ? JSON.parse(await data.text()) : data;
+        message = body?.message || body?.error || message;
+      } catch { /* keep fallback */ }
+      setReportError({ id: c.id, message });
+    } finally {
+      setReportBusyId(null);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
@@ -401,6 +433,9 @@ function ChildConsents({ child }) {
 
       <section className="space-y-2">
         <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Consents</h4>
+        <p className="text-xs text-slate-400">
+          To produce the child's complete record instead, use the Export full record button (first icon) on the child's row.
+        </p>
         {loading ? null : consents.length === 0 ? (
           <div className="text-sm text-slate-400">No consents on file for this child.</div>
         ) : (
@@ -422,6 +457,25 @@ function ChildConsents({ child }) {
                   Signed {fmtDate(c.signed_on || c.granted_at)}{c.signed_name ? ` by ${c.signed_name}` : ''} · expires {fmtDate(c.expires_at)}
                   {c.revoked_at ? ` · revoked ${fmtDate(c.revoked_at)}` : ''}
                 </p>
+                {st.label === 'Active' && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-slate-500">
+                      Includes only what the parent approved: {typesText(c.record_types)}, plus the signed consent copy.
+                    </p>
+                    {reportError && reportError.id === c.id && (
+                      <p role="alert" className="text-xs text-rose-600">{reportError.message}</p>
+                    )}
+                    <div className="flex justify-end">
+                      <Button size="sm" variant="outline" disabled={reportBusyId === c.id} onClick={() => generateReport(c)}>
+                        {reportBusyId === c.id ? (
+                          <><Loader2 className="size-3.5 animate-spin" /> Preparing...</>
+                        ) : (
+                          <><Download className="size-3.5" /> Generate report</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {!c.revoked_at && (
                   confirmRevoke === c.id ? (
                     <div className="flex items-center justify-end gap-2 flex-wrap">

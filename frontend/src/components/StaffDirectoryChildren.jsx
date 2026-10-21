@@ -9,6 +9,7 @@ import { AddPatientModal } from '@/components/AddPatientModal';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { RecordsRequestsPanel } from '@/components/RecordsRequestsPanel';
 import { ConsentsPanel } from '@/components/ConsentsPanel';
+import { FullExportOverrideDialog, readBlobError } from '@/components/FullExportOverrideDialog';
 
 const norm = (s) => (s || '').toString().toLowerCase();
 
@@ -338,6 +339,7 @@ export function StaffDirectoryChildren() {
   const [correctionsChild, setCorrectionsChild] = useState(null);
   const [exportingId, setExportingId] = useState(null);
   const [requestsPanel, setRequestsPanel] = useState(null); // { child: row child or null }
+  const [overrideChild, setOverrideChild] = useState(null);
   const [consentsPanel, setConsentsPanel] = useState(null); // { child: row child or null (null = pending list) }
 
   const loadChildren = () => {
@@ -425,8 +427,14 @@ export function StaffDirectoryChildren() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      showAlert('Failed to export this child\'s record.');
+    } catch (err) {
+      const body = err?.response?.status === 403 ? await readBlobError(err) : {};
+      if (body.code === 'CONSENT_REQUIRED') {
+        if (body.canOverride) setOverrideChild({ child, requiresMfaCode: !!body.requiresMfaCode });
+        else showAlert('A full record can only be exported with parent consent, or by an admin. To share what a parent has approved, use the Records-sharing consents icon on this row.');
+      } else {
+        showAlert('Failed to export this child\'s record.');
+      }
     } finally {
       setExportingId(null);
     }
@@ -566,14 +574,16 @@ export function StaffDirectoryChildren() {
                             onClick={() => handleExportRecord(child)}
                             disabled={exportingId === child.id}
                             className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
-                            title="Export full record (parent/guardian record request)"
+                            title="Export record (parent-approved packet, or admin approval for the complete copy)"
+                            aria-label="Export record (parent-approved packet, or admin approval for the complete copy)"
                           >
                             {exportingId === child.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                           </button>
                           <button
                             onClick={() => setConsentsPanel({ child })}
                             className="p-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                            title="Records-sharing consents"
+                            title="Records-sharing consents and reports"
+                            aria-label="Records-sharing consents and reports"
                           >
                             <FileSignature className="w-4 h-4" />
                           </button>
@@ -625,6 +635,9 @@ export function StaffDirectoryChildren() {
         />
       )}
 
+      {overrideChild && (
+        <FullExportOverrideDialog key={overrideChild.child.id} child={overrideChild.child} requiresMfaCode={overrideChild.requiresMfaCode} onClose={() => setOverrideChild(null)} />
+      )}
       {consentsPanel && (
         <ConsentsPanel
           key={consentsPanel.child ? consentsPanel.child.id : 'pending'}

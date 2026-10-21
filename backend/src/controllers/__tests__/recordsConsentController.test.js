@@ -147,6 +147,34 @@ describe('createConsent (paper path)', () => {
   });
 });
 
+describe('createConsent: a paper consent approving the full record is admin-only', () => {
+  const body = (recordTypes) => ({ recipientName: 'ABC', purpose: 'Transition', recordTypes, identityVerifiedMethod: 'photo_id', ...paper() });
+  const mk = (recordTypes, isAdmin) => ({ practitioner: { practitionerId: 7 }, params: { id: '42' }, isAdmin, body: body(recordTypes) });
+
+  test.each([[false], [undefined], ['true']])('non-admin (isAdmin=%p) -> 403, nothing stored or audited', async (isAdmin) => {
+    const res = mkRes();
+    await createConsent(mk(['session_logs', 'full_record_export'], isAdmin), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Only an admin can record a paper consent that approves a full record release.' });
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(logAudit).not.toHaveBeenCalled();
+  });
+
+  test('admin -> 201', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 5, record_types: ['full_record_export'] }] });
+    const res = mkRes();
+    await createConsent(mk(['full_record_export'], true), res);
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  test('non-admins may still record paper consents for the other record types', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 5, record_types: ['sevf_forms'] }] });
+    const res = mkRes();
+    await createConsent(mk(['sevf_forms', 'invoices'], false), res);
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+});
+
 describe('createConsent identity verification (FERPA 99.30)', () => {
   const base = { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'] };
   const mk = (extra) => ({ practitioner: { practitionerId: 7 }, params: { id: '42' }, body: { ...base, ...paper(), ...extra } });

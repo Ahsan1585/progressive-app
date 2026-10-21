@@ -9,6 +9,7 @@ const { lookupCompanyBySlug } = require('../middleware/tenantMiddleware');
 const { platformPool } = require('../config/platformDb');
 const { encryptField, decryptField } = require('../utils/fieldEncryption');
 const { generateSecret, verifyTotp, buildOtpauthUri, generateRecoveryCodes, hashRecoveryCode } = require('../utils/totp');
+const { isMfaLocked, recordMfaFailure, consumeTotpCode } = require('../utils/mfaGuard');
 const { mintTrustedDevice, consumeTrustedDevice, revokeAllTrustedDevices } = require('../utils/trustedDevices');
 // Placeholder password_hash for an invited-but-not-yet-activated account —
 // never a real bcrypt hash, so it can never match a bcrypt.compare() and
@@ -409,7 +410,6 @@ async function issueSession(req, user, { slug, tenantDb, accountType }) {
 // --- MFA (TOTP) ---
 const MFA_ISSUER = 'Izaya EIS';
 const MFA_TOKEN_TTL = '10m';
-const MFA_MAX_FAILED_ATTEMPTS = 5;
 const INVALID_CODE_MESSAGE = 'Invalid verification code.';
 
 // stage 'verify' = enrolled user proving the second factor; stage 'enroll'
@@ -434,29 +434,9 @@ async function loadPractitionerForMfa(id) {
   return rows[0] || null;
 }
 
-function isMfaLocked(user) {
-  return !!user.mfa_locked_until && new Date(user.mfa_locked_until) > new Date();
-}
-
-// Per-account lockout on top of the per-IP limiter (authRoutes.js): after
-// MFA_MAX_FAILED_ATTEMPTS consecutive misses the account is locked for 15
-// minutes, and every further miss re-arms the lock until a success resets
-// the counter. At ~20 guesses/hour against 3 valid codes in 10^6, a blind
-// brute force takes on the order of years.
-async function recordMfaFailure(req, user, context) {
-  try {
-    await pool.query(
-      `UPDATE practitioners SET
-         mfa_failed_attempts = mfa_failed_attempts + 1,
-         mfa_locked_until = CASE WHEN mfa_failed_attempts + 1 >= $2 THEN now() + interval '15 minutes' ELSE mfa_locked_until END
-       WHERE id = $1`,
-      [user.id, MFA_MAX_FAILED_ATTEMPTS]
-    );
-  } catch (err) {
-    console.error('MFA failure counter update failed:', err.message);
-  }
-  logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_verify_failed', resourceType: 'auth', details: { context } });
-}
+// isMfaLocked / recordMfaFailure (per-account lockout) and consumeTotpCode
+// (verify + atomic replay-guarded step consumption) live in utils/mfaGuard.js
+// so step-up checks elsewhere (record-export override) enforce the same rules.
 
 const lockedResponse = (res) => res.status(429).json({ error: 'Too many failed verification attempts. Please wait 15 minutes and try again.' });
 
@@ -500,15 +480,9 @@ const verifyMfa = async (req, res) => {
     if (isMfaLocked(user)) return lockedResponse(res);
 
     if (code) {
-      const step = verifyTotp(decryptField(user.mfa_secret), code, { lastUsedStep: user.mfa_last_used_step });
-      // The conditional UPDATE is the real replay guard: two concurrent
-      // requests with the same code can't both advance the step.
-      const { rows } = step === null ? { rows: [] } : await pool.query(
-        `UPDATE practitioners SET mfa_last_used_step = $2, mfa_failed_attempts = 0, mfa_locked_until = NULL
-         WHERE id = $1 AND (mfa_last_used_step IS NULL OR mfa_last_used_step < $2) RETURNING id`,
-        [user.id, step]
-      );
-      if (!rows[0]) {
+      // consumeTotpCode's conditional UPDATE is the real replay guard: two
+      // concurrent requests with the same code can't both advance the step.
+      if (!(await consumeTotpCode(user, code))) {
         await recordMfaFailure(req, user, 'login');
         return res.status(400).json({ error: INVALID_CODE_MESSAGE });
       }
