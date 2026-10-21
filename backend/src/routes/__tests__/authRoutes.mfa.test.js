@@ -65,6 +65,26 @@ describe('authRoutes MFA wiring', () => {
     expect(chain.slice(1)).toEqual(['protect', 'disableMfa']);
   });
 
+  test('POST /mfa/recovery-email: rate-limited, verify-stage mfaToken only (never a session or enroll token)', () => {
+    const chain = route('post', '/mfa/recovery-email');
+    expect(chain).not.toBeNull();
+    expect(chain).toEqual([expect.any(String), 'requireMfaChallenge_verify', 'requestMfaResetEmail']);
+    expect(chain).not.toContain('protect');
+    expect(chain).not.toContain('protectSessionOrMfaToken');
+    expect(chain).not.toContain('requireMfaChallenge_enroll');
+  });
+
+  test('POST /:companySlug/mfa-reset/:token: public, rate-limited, tenant from slug', () => {
+    const chain = route('post', '/:companySlug/mfa-reset/:token');
+    expect(chain).not.toBeNull();
+    expect(chain).toHaveLength(3);
+    expect(chain[2]).toBe('confirmMfaReset');
+    expect(chain).not.toContain('protect');
+    const layer = router.stack.find((l) => l.route && l.route.path === '/:companySlug/mfa-reset/:token');
+    const { resolveTenantBySlug } = require('../../middleware/tenantMiddleware');
+    expect(layer.route.stack[1].handle).toBe(resolveTenantBySlug);
+  });
+
   test('trusted-device management: real session only', () => {
     expect(route('get', '/mfa/devices')).toEqual(['protect', 'listTrustedDevices']);
     expect(route('delete', '/mfa/devices')).toEqual(['protect', 'revokeAllTrustedDevicesForSelf']);

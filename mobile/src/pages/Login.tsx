@@ -10,7 +10,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { MfaSetup } from "@/components/mfa/MfaSetup";
-import { mfaVerify, errMsg, digitsOnly } from "@/components/mfa/mfaApi";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { mfaVerify, mfaRecoveryEmail, errMsg, digitsOnly } from "@/components/mfa/mfaApi";
 import { getDeviceToken, setDeviceToken, clearDeviceToken, setCurrentUser } from "@/components/mfa/trustedDevice";
 import type { LoginResponse, ApiErrorBody } from "@/types";
 
@@ -65,6 +66,10 @@ export default function Login() {
   const [mfaCode, setMfaCode] = React.useState("");
   const [useRecovery, setUseRecovery] = React.useState(false);
   const [rememberDevice, setRememberDevice] = React.useState(false);
+  const [confirmReset, setConfirmReset] = React.useState(false);
+  const [sendingReset, setSendingReset] = React.useState(false);
+  const [resetSentTo, setResetSentTo] = React.useState("");
+  const [resetProblem, setResetProblem] = React.useState<string | null>(null);
 
   const finishLogin = (data: LoginResponse, slug: string) => {
     try { localStorage.setItem("companySlug", slug); } catch { /* ignore */ }
@@ -97,6 +102,7 @@ export default function Login() {
         setMfaCode("");
         setUseRecovery(false);
         setRememberDevice(false);
+        setResetSentTo("");
         setStep("code");
       } else if (res.data.mfaEnrollmentRequired && res.data.mfaToken) {
         setMfaToken(res.data.mfaToken);
@@ -134,7 +140,24 @@ export default function Login() {
     }
   };
 
+  const sendResetLink = async () => {
+    setSendingReset(true);
+    try {
+      const data = await mfaRecoveryEmail(mfaToken);
+      setResetSentTo(data.maskedEmail || "your email address");
+      setConfirmReset(false);
+    } catch (err) {
+      setConfirmReset(false);
+      setResetProblem(errMsg(err, "We could not send the email. Please try again or contact your administrator."));
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
   const backToPassword = () => {
+    setConfirmReset(false);
+    setResetSentTo("");
+    setResetProblem(null);
     setStep("password");
     setMfaToken("");
     setMfaCode("");
@@ -279,7 +302,51 @@ export default function Login() {
               {useRecovery ? "Use authenticator code instead" : "Use a recovery code instead"}
             </button>
           </div>
+
+          {resetSentTo ? (
+            <div role="status" className="flex items-start gap-2 rounded-card border border-success-border bg-success-bg p-3.5 text-sm text-success">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <p>We sent a link to {resetSentTo}. Open it on this device or any device, then come back and sign in.</p>
+            </div>
+          ) : (
+            <div className="text-center">
+              <button type="button" className="min-h-11 text-sm font-medium text-primary" onClick={() => setConfirmReset(true)}>
+                Lost your authenticator? Email me a reset link
+              </button>
+            </div>
+          )}
         </form>
+
+        <Dialog open={confirmReset} onOpenChange={(o) => !o && !sendingReset && setConfirmReset(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Email a reset link?</DialogTitle>
+              <DialogDescription>
+                We will email a one-time link to the address on your account. Opening it turns off two-step verification so you can sign in and set it up again. The link expires in 30 minutes.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setConfirmReset(false)} disabled={sendingReset}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={sendResetLink} loading={sendingReset}>
+                Send link
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={resetProblem !== null} onOpenChange={(o) => !o && setResetProblem(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Could not send the link</DialogTitle>
+              <DialogDescription>{resetProblem}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" onClick={() => setResetProblem(null)}>OK</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </AuthLayout>
     );
   }

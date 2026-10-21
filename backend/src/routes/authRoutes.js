@@ -48,8 +48,29 @@ const {
   resetStaffMfa,
   listTrustedDevices,
   revokeTrustedDevice,
-  revokeAllTrustedDevicesForSelf
+  revokeAllTrustedDevicesForSelf,
+  requestMfaResetEmail,
+  confirmMfaReset
 } = require('../controllers/authController');
+
+// MFA self-recovery by email. The controller also caps each user at 3 emails
+// an hour; this per-IP limit stops one client from mailing many accounts.
+const mfaResetEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many reset emails. Please try again later.' },
+});
+
+// Per-IP throttle on following the emailed MFA reset link (token guessing).
+const mfaResetConfirmLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+});
 
 // Per-IP throttle on MFA code checks. Only failures count, so a busy office
 // behind one NAT isn't locked out by its own successful logins; the per-
@@ -160,6 +181,9 @@ router.post('/reset-password', resolveTenantBySlug, resetPassword);
 // know or type a company code themselves.
 router.post('/:companySlug/activate/:token', activateLimiter, resolveTenantBySlug, activateAccount);
 router.get('/:companySlug/company-name', getCompanyDisplayName);
+// Emailed MFA self-recovery link (see /mfa/recovery-email below) — public,
+// tenant from the URL slug exactly like activate.
+router.post('/:companySlug/mfa-reset/:token', mfaResetConfirmLimiter, resolveTenantBySlug, confirmMfaReset);
 
 router.post('/change-password', protect, changeTemporaryPassword);
 router.get('/company-status', protect, getCompanyStatus);
@@ -170,6 +194,9 @@ router.post('/accept-baa', protect, requireRole(['ceo']), acceptBaa);
 // enable take a real session OR an enroll-stage mfaToken (company requires
 // MFA, user not enrolled yet); disable needs a real session.
 router.post('/mfa/verify', mfaLimiter, requireMfaChallenge('verify'), verifyMfa);
+// Lost authenticator AND recovery codes: email a one-time link that turns
+// MFA off. Verify-stage mfaToken only (i.e. right after a correct password).
+router.post('/mfa/recovery-email', mfaResetEmailLimiter, requireMfaChallenge('verify'), requestMfaResetEmail);
 // setup is rate-limited too now that a session call verifies the password.
 router.post('/mfa/setup', mfaLimiter, protectSessionOrMfaToken, setupMfa);
 router.post('/mfa/enable', mfaLimiter, protectSessionOrMfaToken, enableMfa);

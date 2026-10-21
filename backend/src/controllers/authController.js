@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { pool } = require('../config/db');
-const { sendPasswordResetEmail, sendInviteEmail } = require('../utils/emailClient');
+const { sendPasswordResetEmail, sendInviteEmail, sendMfaResetEmail, sendMfaResetCompletedEmail } = require('../utils/emailClient');
 const { logAudit } = require('../utils/auditLog');
 const { isPasswordStrong } = require('../utils/passwordValidation');
 const { lookupCompanyBySlug } = require('../middleware/tenantMiddleware');
@@ -21,6 +21,21 @@ const {
   insertInvitedPractitioner, getValidServiceTypeCodes,
   INVITE_PENDING, INVITE_TOKEN_TTL_MS, hashToken, buildActivateUrl,
 } = require('../utils/practitionerRegistration');
+
+// Every password write kills that user's pending email MFA-reset links.
+// Best-effort: never blocks the password change (a tenant DB without the
+// table yet simply has no links to kill).
+async function expirePendingMfaResets(practitionerId) {
+  try {
+    await pool.query(
+      `UPDATE mfa_reset_requests SET used_at = now()
+       WHERE practitioner_id = $1 AND used_at IS NULL`,
+      [practitionerId]
+    );
+  } catch (err) {
+    console.error('Expiring pending MFA reset links failed:', err.message);
+  }
+}
 
 // --- Function 1: Admin Provisions a Practitioner (invite-link based — the
 // admin fills in every field except a password; the invitee gets a
@@ -289,10 +304,12 @@ const activateAccount = async (req, res) => {
     }
     await pool.query(
       `UPDATE practitioners
-       SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL
+       SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL,
+           password_changed_at = now()
        WHERE id = $2`,
       [newPasswordHash, user.id]
     );
+    await expirePendingMfaResets(user.id);
 
     // email returned so the frontend can land the user on a confirmation
     // screen with their login form already filled in (company + email),
@@ -787,9 +804,10 @@ const changeTemporaryPassword = async (req, res) => {
 
     // Update the database AND remove the required change flag
     await pool.query(
-      'UPDATE practitioners SET password_hash = $1, requires_password_change = false WHERE id = $2',
+      'UPDATE practitioners SET password_hash = $1, requires_password_change = false, password_changed_at = now() WHERE id = $2',
       [newPasswordHash, practitionerId]
     );
+    await expirePendingMfaResets(practitionerId);
 
     res.json({ success: true, message: 'Password updated successfully. Welcome to the portal!' });
   } catch (error) {
@@ -887,14 +905,229 @@ const resetPassword = async (req, res) => {
     await revokeAllTrustedDevices(user.id, { tolerateMissingTable: true });
     await pool.query(
       `UPDATE practitioners
-       SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL
+       SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL,
+           password_changed_at = now()
        WHERE id = $2`,
       [newPasswordHash, user.id]
     );
+    await expirePendingMfaResets(user.id);
 
     res.json({ success: true, message: 'Password updated successfully. You can now log in.' });
   } catch (error) {
     console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// --- Function 3d: Email-verified MFA self-recovery ---
+// For a user who passed the password step but has neither their authenticator
+// nor recovery codes (and so can't use disableMfa, and resetStaffMfa refuses
+// self-reset, which could otherwise lock out the only admin). Proof of the
+// password (verify-stage mfaToken) + control of the account's own inbox.
+const MFA_RESET_HOURLY_LIMIT = 3;
+const MFA_RESET_TOKEN_RE = /^[0-9a-f]{64}$/;
+const MFA_RESET_INVALID = { error: 'This reset link is no longer valid.' };
+const MFA_RESET_RECENT_PASSWORD = 'For your security, a two-step reset by email is not available for 24 hours after a password change. Use a recovery code, or ask an administrator to reset it.';
+
+// Count-and-insert under a per-user transaction-scoped advisory lock, so
+// parallel requests for one user serialize and can never exceed the hourly
+// cap. Returns the new row ({ id }) or null when the cap is reached.
+async function insertMfaResetRequestCapped(practitionerId, tokenHash) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('mfa_reset_requests'), $1)", [practitionerId]);
+    const { rows } = await client.query(
+      `INSERT INTO mfa_reset_requests (practitioner_id, token_hash, expires_at)
+       SELECT $1, $2, now() + interval '30 minutes'
+       WHERE (SELECT count(*) FROM mfa_reset_requests
+              WHERE practitioner_id = $1 AND created_at > now() - interval '1 hour') < ${MFA_RESET_HOURLY_LIMIT}
+       RETURNING id`,
+      [practitionerId, tokenHash]
+    );
+    await client.query('COMMIT');
+    return rows[0] || null;
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* connection already broken */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// 'alex@gmail.com' -> 'a***@gmail.com'
+function maskEmail(email) {
+  const s = String(email || '');
+  const at = s.lastIndexOf('@');
+  if (at < 1) return '***';
+  return `${s[0]}***${s.slice(at)}`;
+}
+
+// Same app choice as the password-reset link (forgotPassword): practitioners
+// live in the mobile app, everyone else in the office web app. Both bases
+// already include their /eis or /EIS path.
+function buildMfaResetUrl(role, slug, rawToken) {
+  const baseUrl = ['practitioner', 'independent_practitioner'].includes(role)
+    ? (process.env.MOBILE_APP_URL || 'http://localhost:5174/EIS')
+    : (process.env.FRONTEND_URL || 'http://localhost:5173/eis');
+  return `${baseUrl}/mfa-reset/${encodeURIComponent(slug)}/${rawToken}`;
+}
+
+// POST /api/auth/mfa/recovery-email — verify-stage mfaToken only (the route
+// uses requireMfaChallenge('verify'); re-checked here as defense in depth).
+const requestMfaResetEmail = async (req, res) => {
+  const challenge = req.mfaChallenge;
+  if (!challenge || challenge.purpose !== 'mfa' || challenge.stage !== 'verify') {
+    return res.status(401).json({ error: 'Your verification session expired. Please log in again.' });
+  }
+  try {
+    const { rows: userRows } = await pool.query(
+      `SELECT id, email, role, is_active, is_platform_support, mfa_enabled,
+              (password_changed_at IS NOT NULL AND password_changed_at > now() - interval '24 hours') AS recent_password_change
+       FROM practitioners WHERE id = $1`,
+      [challenge.practitionerId]
+    );
+    const user = userRows[0];
+    if (!user || !user.is_active || user.is_platform_support) {
+      return res.status(403).json({ error: 'This account cannot be reset by email. Contact your administrator.' });
+    }
+    if (!user.mfa_enabled) {
+      return res.status(400).json({ error: 'Two-factor authentication is not enabled for this account.' });
+    }
+    // Inbox control alone can produce a fresh password (forgot-password) and
+    // so a verify-stage mfaToken; it must not also be able to drop MFA.
+    if (user.recent_password_change) {
+      return res.status(403).json({ error: MFA_RESET_RECENT_PASSWORD });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const inserted = await insertMfaResetRequestCapped(user.id, hashResetToken(rawToken));
+    if (!inserted) {
+      return res.status(429).json({ error: 'Too many reset emails. Try again in an hour.' });
+    }
+    const requestId = inserted.id;
+
+    let organizationName = null;
+    try {
+      const { rows: companyRows } = await pool.query('SELECT display_name FROM company_settings WHERE id = 1');
+      organizationName = companyRows[0]?.display_name || null;
+    } catch (err) {
+      console.error('MFA reset org name lookup failed:', err.message);
+    }
+
+    const resetUrl = buildMfaResetUrl(user.role, challenge.slug, rawToken);
+    try {
+      await sendMfaResetEmail(user.email, { resetUrl, organizationName });
+    } catch (emailError) {
+      console.error('Failed to send MFA reset email:', emailError.message);
+      try {
+        await pool.query('DELETE FROM mfa_reset_requests WHERE id = $1', [requestId]);
+      } catch (err) {
+        console.error('Failed to drop unsent MFA reset request:', err.message);
+      }
+      return res.status(502).json({ error: 'We could not send the email. Please try again or contact your administrator.' });
+    }
+
+    // Only once the new link is really on its way, so a failed send never
+    // kills a link the user already has. The email is already out, so a
+    // failure here is logged, never turned into an error response.
+    try {
+      await pool.query(
+        `UPDATE mfa_reset_requests SET expires_at = now()
+         WHERE practitioner_id = $1 AND id <> $2 AND used_at IS NULL AND expires_at > now()`,
+        [user.id, requestId]
+      );
+    } catch (err) {
+      console.error('Expiring older MFA reset links failed:', err.message);
+    }
+
+    logAudit({ req, action: 'mfa_reset_requested', resourceType: 'auth', details: { requestId } });
+    res.json({ success: true, maskedEmail: maskEmail(user.email) });
+  } catch (error) {
+    console.error('MFA reset request error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// POST /api/auth/:companySlug/mfa-reset/:token — public; tenant from the slug
+// (resolveTenantBySlug). Same fail-safe order as resetStaffMfa: revoke every
+// trusted device first, then clear MFA. If anything before the clear fails,
+// the claim is undone so the link still works and MFA stays on.
+const confirmMfaReset = async (req, res) => {
+  // Accepted risk (same as the activate link): the token sits in the URL path and may reach access logs; it is single-use and lives 30 minutes.
+  const token = String(req.params?.token || '');
+  if (!MFA_RESET_TOKEN_RE.test(token)) return res.status(404).json(MFA_RESET_INVALID);
+
+  let claim = null;
+  const unclaim = async () => {
+    try {
+      await pool.query('UPDATE mfa_reset_requests SET used_at = NULL WHERE id = $1', [claim.id]);
+    } catch (err) {
+      console.error('Failed to release MFA reset request:', err.message);
+    }
+  };
+
+  try {
+    // Atomic single-use claim: of two parallel clicks only one UPDATE can
+    // match used_at IS NULL. Deactivated and support accounts never match,
+    // nor does a link older than a later password change (or within 24h of one).
+    const { rows } = await pool.query(
+      `UPDATE mfa_reset_requests r SET used_at = now()
+       FROM practitioners p
+       WHERE r.token_hash = $1 AND r.used_at IS NULL AND r.expires_at > now()
+         AND p.id = r.practitioner_id AND p.is_active = true AND p.is_platform_support = false
+         AND (p.password_changed_at IS NULL OR (p.password_changed_at < r.created_at AND p.password_changed_at <= now() - interval '24 hours'))
+       RETURNING r.id, r.practitioner_id, p.email, p.role`,
+      [hashResetToken(token)]
+    );
+    claim = rows[0] || null;
+    if (!claim) return res.status(404).json(MFA_RESET_INVALID);
+
+    try {
+      await revokeAllTrustedDevices(claim.practitioner_id);
+    } catch (err) {
+      console.error('MFA reset device revoke failed:', err.message);
+      await unclaim();
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    let cleared;
+    try {
+      ({ rows: cleared } = await pool.query(
+        `UPDATE practitioners SET mfa_enabled = false, mfa_secret = NULL, mfa_pending_secret = NULL,
+           mfa_recovery_hashes = NULL, mfa_last_used_step = NULL, mfa_failed_attempts = 0, mfa_locked_until = NULL
+         WHERE id = $1 AND is_active = true AND is_platform_support = false
+         RETURNING id`,
+        [claim.practitioner_id]
+      ));
+    } catch (err) {
+      console.error('MFA reset clear failed:', err.message);
+      await unclaim();
+      return res.status(500).json({ error: 'Server error' });
+    }
+    if (!cleared[0]) {
+      await unclaim();
+      return res.status(404).json(MFA_RESET_INVALID);
+    }
+
+    logAudit({ req, actorId: claim.practitioner_id, actorEmail: claim.email, actorRole: claim.role, action: 'mfa_reset_via_email', resourceType: 'auth', details: { requestId: claim.id } });
+
+    let requiresMfa = false;
+    try {
+      requiresMfa = await companyRequiresMfa();
+    } catch (err) {
+      console.error('MFA reset company policy lookup failed:', err.message);
+    }
+
+    try {
+      await sendMfaResetCompletedEmail(claim.email);
+    } catch (err) {
+      console.error('MFA reset completed notice failed:', err.message);
+    }
+
+    res.json({ success: true, companyRequiresMfa: requiresMfa });
+  } catch (error) {
+    console.error('MFA reset confirm error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -1322,6 +1555,9 @@ module.exports = {
   changeTemporaryPassword,
   forgotPassword,
   resetPassword,
+  requestMfaResetEmail,
+  confirmMfaReset,
+  maskEmail,
   getAllStaff,
   updateStaffProfile,
   updateStaffRole,

@@ -11,6 +11,7 @@ import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import MfaReset from './pages/MfaReset';
 import SignupWizard from './pages/SignupWizard';
 import SignupConfirm from './pages/SignupConfirm';
 import IndependentSignupWizard from './pages/IndependentSignupWizard';
@@ -158,6 +159,7 @@ const WEB_ROUTES = (
     <Route path="/change-password" element={<ChangePassword />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/mfa-reset/:slug/:token" element={<MfaReset />} />
     <Route path="/signup" element={<SignupWizard />} />
     <Route path="/signup/confirm/:token" element={<SignupConfirm />} />
     <Route path="/signup/independent" element={<IndependentSignupWizard />} />

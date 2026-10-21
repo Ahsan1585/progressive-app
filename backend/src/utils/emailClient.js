@@ -625,7 +625,71 @@ const sendConsentRequestEmail = async (toEmail, { signUrl, organizationName, isR
   }
 };
 
+// MFA self-recovery link (authController.js requestMfaResetEmail). Goes only
+// to the account's own address, link-only, neutral copy; the organization
+// name is the only company detail and nothing about any child is included,
+// whatever a caller passes. THROWS on any failure (not configured, or a
+// Resend `{ error }` result) so the caller can answer 502 and drop the
+// request row instead of telling the user a link is on its way.
+const sendMfaResetEmail = async (toEmail, { resetUrl, organizationName } = {}) => {
+  if (!resend) {
+    throw new Error('Email is not configured (RESEND_API_KEY not set); MFA reset email was not sent.');
+  }
+  const org = organizationName ? escapeHtml(organizationName) : null;
+  const bodyHtml = `
+    <p style="margin:0;">Someone, hopefully you, asked to turn off two-step verification after losing access to the authenticator app.${org ? ` This is for your ${org} account on Izaya EIS.` : ''}</p>
+    ${ctaButton(resetUrl, 'Turn Off Two-Step Verification')}
+    ${linkFallback(resetUrl)}
+  `;
+  const html = emailShell({
+    preheader: 'A request to turn off two-step verification on your Izaya EIS account.',
+    eyebrow: 'Account Security',
+    heading: 'Turn off two-step verification',
+    bodyHtml,
+    footnote: 'This link works once and expires in 30 minutes. If this was not you, ignore this email and change your password.',
+  });
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'Turn off two-step verification on your Izaya EIS account',
+    html,
+  });
+  if (result?.error) {
+    throw new Error(`MFA reset email failed: ${result.error.message || result.error.name || 'unknown error'}`);
+  }
+};
+
+// Notice after an email-verified MFA reset completed (confirmMfaReset).
+// The caller treats this as best-effort.
+const sendMfaResetCompletedEmail = async (toEmail) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping MFA reset completed notice.');
+    return;
+  }
+  const bodyHtml = `
+    <p style="margin:0;">Two-step verification was turned off on your Izaya EIS account. If this was not you, change your password now and contact your administrator.</p>
+  `;
+  const html = emailShell({
+    preheader: 'Two-step verification was turned off on your Izaya EIS account.',
+    eyebrow: 'Account Security',
+    heading: 'Two-step verification was turned off',
+    bodyHtml,
+    footnote: 'You are receiving this because a security setting on your account changed.',
+  });
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'Two-step verification was turned off on your Izaya EIS account',
+    html,
+  });
+  if (result?.error) {
+    throw new Error(`MFA reset notice failed: ${result.error.message || result.error.name || 'unknown error'}`);
+  }
+};
+
 module.exports = {
+  sendMfaResetEmail,
+  sendMfaResetCompletedEmail,
   sendConsentRequestEmail,
   sendPasswordResetEmail,
   sendInviteEmail,

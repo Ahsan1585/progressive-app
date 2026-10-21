@@ -4,7 +4,7 @@ import api from '@/api/axiosInstance';
 import { PasswordInput } from '@/components/ui/password-input';
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
 import { MfaSetup } from '@/components/mfa/MfaSetup';
-import { mfaVerify, errMsg } from '@/components/mfa/mfaApi';
+import { mfaVerify, mfaRecoveryEmail, errMsg } from '@/components/mfa/mfaApi';
 import { getDeviceToken, setDeviceToken, clearDeviceToken, setCurrentUser } from '@/components/mfa/trustedDevice';
 
 const PIN_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>;
@@ -43,6 +43,10 @@ const Login = () => {
   const [mfaCode, setMfaCode] = useState('');
   const [useRecovery, setUseRecovery] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSentTo, setResetSentTo] = useState('');
 
   const finishLogin = (data, slug) => {
     localStorage.setItem('token', data.token);
@@ -88,6 +92,7 @@ const Login = () => {
         setMfaCode('');
         setUseRecovery(false);
         setRememberDevice(false);
+        resetRecoveryState();
         setStep('code');
       } else if (response.data.mfaEnrollmentRequired) {
         setMfaToken(response.data.mfaToken);
@@ -122,7 +127,29 @@ const Login = () => {
     }
   };
 
+  const resetRecoveryState = () => {
+    setConfirmingReset(false);
+    setSendingReset(false);
+    setResetError('');
+    setResetSentTo('');
+  };
+
+  const sendResetLink = async () => {
+    setResetError('');
+    setSendingReset(true);
+    try {
+      const data = await mfaRecoveryEmail(mfaToken);
+      setResetSentTo(data.maskedEmail || 'your email address');
+      setConfirmingReset(false);
+    } catch (err) {
+      setResetError(errMsg(err, 'We could not send the email. Please try again or contact your administrator.'));
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
   const backToPassword = () => {
+    resetRecoveryState();
     setStep('password');
     setMfaToken('');
     setMfaCode('');
@@ -195,6 +222,33 @@ const Login = () => {
                 <button type="button" className="mk-btn-text" onClick={() => { setUseRecovery((v) => !v); setMfaCode(''); setError(''); }}>
                   {useRecovery ? 'Use authenticator code instead' : 'Use a recovery code instead'}
                 </button>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(0,0,0,0.08)', fontSize: 14 }}>
+                {resetSentTo ? (
+                  <div className="mk-form-banner mk-success" role="status">
+                    We sent a link to {resetSentTo}. Open it on this device or any device, then come back and sign in.
+                  </div>
+                ) : confirmingReset ? (
+                  <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
+                    <p style={{ marginBottom: 10 }}>
+                      We will email a one-time link to the address on your account. Opening it turns off two-step verification so you can sign in and set it up again. The link expires in 30 minutes.
+                    </p>
+                    {resetError && <div className="mk-form-banner mk-error" role="alert">{resetError}</div>}
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <button type="button" className="mk-btn-text" onClick={sendResetLink} disabled={sendingReset}>
+                        {sendingReset ? 'Sending…' : 'Send link'}
+                      </button>
+                      <button type="button" className="mk-btn-text" onClick={() => { setConfirmingReset(false); setResetError(''); }} disabled={sendingReset}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" className="mk-btn-text" onClick={() => setConfirmingReset(true)}>
+                    Lost your authenticator? Email me a reset link
+                  </button>
+                )}
               </div>
             </form>
           )}

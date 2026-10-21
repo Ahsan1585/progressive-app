@@ -38,6 +38,16 @@ export type MfaVerifyResponse = LoginResponse & { deviceToken?: string; deviceTo
 export const mfaVerify = (body: { mfaToken: string; code?: string; recoveryCode?: string; rememberDevice?: boolean }) =>
   bare.post<MfaVerifyResponse>("/api/auth/mfa/verify", body).then((r) => r.data);
 
+// Emails a one-time MFA reset link to the account address (verify-stage mfaToken).
+export const mfaRecoveryEmail = (mfaToken: string) =>
+  bare.post<{ success: boolean; maskedEmail: string }>("/api/auth/mfa/recovery-email", { mfaToken }).then((r) => r.data);
+
+export const mfaResetWithToken = (companySlug: string, token: string) =>
+  bare.post<{ success: boolean; companyRequiresMfa?: boolean }>(
+    `/api/auth/${encodeURIComponent(companySlug)}/mfa-reset/${encodeURIComponent(token)}`,
+    {},
+  );
+
 export interface TrustedDevice {
   id: string;
   label: string | null;

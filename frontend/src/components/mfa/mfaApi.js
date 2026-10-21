@@ -25,6 +25,12 @@ export const mfaEnable = (mfaToken, code, password, rememberDevice) =>
 export const mfaDisable = (password, code) => api.post('/api/auth/mfa/disable', { password, code }).then((r) => r.data);
 export const mfaVerify = (body) => bare.post('/api/auth/mfa/verify', body).then((r) => r.data);
 
+// Emails a one-time MFA reset link. Uses the verify-stage mfaToken. Returns { success, maskedEmail }.
+export const mfaRecoveryEmail = (mfaToken) => bare.post('/api/auth/mfa/recovery-email', { mfaToken }).then((r) => r.data);
+// Public; the token comes from the emailed link. Returns { success, companyRequiresMfa }.
+export const mfaResetWithToken = (slug, token) =>
+  bare.post(`/api/auth/${encodeURIComponent(slug)}/mfa-reset/${encodeURIComponent(token)}`, {}).then((r) => r.data);
+
 export const errMsg = (err, fallback) => err?.response?.data?.error || err?.response?.data?.message || fallback;
 
 // Trusted devices (session token). Response: { devices: [{ id, label, createdAt, lastUsedAt, expiresAt }] }

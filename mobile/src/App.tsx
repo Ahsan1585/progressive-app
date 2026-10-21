@@ -16,6 +16,7 @@ import ForcedPasswordChange from "@/pages/ForcedPasswordChange";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ActivateAccount from "@/pages/ActivateAccount";
+import MfaReset from "@/pages/MfaReset";
 
 import Home from "@/pages/shell/Home";
 import Roster from "@/pages/shell/Roster";
@@ -127,6 +128,7 @@ function App() {
                 </RequireGuest>
               }
             />
+            <Route path="/mfa-reset/:companySlug/:token" element={<MfaReset />} />
             <Route path="/unsupported-role" element={<UnsupportedRole />} />
             <Route
               path="/change-password"

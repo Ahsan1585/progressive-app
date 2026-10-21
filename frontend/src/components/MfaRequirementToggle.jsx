@@ -40,7 +40,7 @@ export function MfaRequirementToggle() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p id="mfa-required-label" className="text-sm font-semibold text-slate-800">Require two-step verification for everyone</p>
-          <p className="mt-0.5 text-xs text-slate-500">Users who have not set it up will be asked at their next login. Existing sessions are not interrupted.</p>
+          <p className="mt-0.5 text-xs text-slate-500">Controls whether people must set up two-step verification when they sign in. Turning this off does not turn it off for people who already set it up: they keep their own setting under Security.</p>
         </div>
         <button
           type="button" role="switch" aria-checked={required} aria-labelledby="mfa-required-label"
