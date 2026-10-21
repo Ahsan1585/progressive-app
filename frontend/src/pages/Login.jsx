@@ -5,6 +5,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { MarketingLayout } from '@/components/marketing/MarketingLayout';
 import { MfaSetup } from '@/components/mfa/MfaSetup';
 import { mfaVerify, errMsg } from '@/components/mfa/mfaApi';
+import { getDeviceToken, setDeviceToken, clearDeviceToken, setCurrentUser } from '@/components/mfa/trustedDevice';
 
 const PIN_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>;
 const CHECK_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>;
@@ -41,11 +42,13 @@ const Login = () => {
   const [mfaToken, setMfaToken] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [useRecovery, setUseRecovery] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(false);
 
   const finishLogin = (data, slug) => {
     localStorage.setItem('token', data.token);
     localStorage.setItem('role', data.practitioner.role);
     localStorage.setItem('companySlug', slug);
+    setCurrentUser(slug, email);
     // Wakes the MessagingProvider (App.jsx) to connect the chat socket.
     window.dispatchEvent(new Event('auth-changed'));
 
@@ -76,12 +79,15 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       const slug = companySlug.trim().toLowerCase();
-      const response = await api.post('/api/auth/login', { slug, email, password });
+      const deviceToken = getDeviceToken(slug, email);
+      const response = await api.post('/api/auth/login', deviceToken ? { slug, email, password, deviceToken } : { slug, email, password });
+      if (response.data.clearDeviceToken) clearDeviceToken(slug, email);
 
       if (response.data.mfaRequired) {
         setMfaToken(response.data.mfaToken);
         setMfaCode('');
         setUseRecovery(false);
+        setRememberDevice(false);
         setStep('code');
       } else if (response.data.mfaEnrollmentRequired) {
         setMfaToken(response.data.mfaToken);
@@ -101,8 +107,14 @@ const Login = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      const data = await mfaVerify(useRecovery ? { mfaToken, recoveryCode: mfaCode.trim() } : { mfaToken, code: mfaCode });
-      if (data.success) finishLogin(data, companySlug.trim().toLowerCase());
+      const body = useRecovery ? { mfaToken, recoveryCode: mfaCode.trim() } : { mfaToken, code: mfaCode };
+      if (rememberDevice) body.rememberDevice = true;
+      const data = await mfaVerify(body);
+      if (data.success) {
+        const slug = companySlug.trim().toLowerCase();
+        if (data.deviceToken) setDeviceToken(slug, email, data.deviceToken, data.deviceTokenExpiresAt, data.deviceId);
+        finishLogin(data, slug);
+      }
     } catch (err) {
       setError(errMsg(err, 'Verification failed. Please try again.'));
     } finally {
@@ -156,6 +168,20 @@ const Login = () => {
                   required
                 />
               </div>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, marginBottom: 14, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberDevice}
+                  onChange={(e) => setRememberDevice(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  Remember this device for 30 days
+                  <span style={{ display: 'block', fontSize: 12, opacity: 0.75 }}>
+                    Only on a device you trust. You can remove devices any time in Security settings.
+                  </span>
+                </span>
+              </label>
               <button
                 type="submit"
                 className="mk-btn-primary"

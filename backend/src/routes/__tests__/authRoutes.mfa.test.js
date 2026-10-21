@@ -64,4 +64,10 @@ describe('authRoutes MFA wiring', () => {
     expect(chain).toHaveLength(3);
     expect(chain.slice(1)).toEqual(['protect', 'disableMfa']);
   });
+
+  test('trusted-device management: real session only', () => {
+    expect(route('get', '/mfa/devices')).toEqual(['protect', 'listTrustedDevices']);
+    expect(route('delete', '/mfa/devices')).toEqual(['protect', 'revokeAllTrustedDevicesForSelf']);
+    expect(route('delete', '/mfa/devices/:id')).toEqual(['protect', 'revokeTrustedDevice']);
+  });
 });

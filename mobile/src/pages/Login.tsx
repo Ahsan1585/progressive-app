@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { MfaSetup } from "@/components/mfa/MfaSetup";
 import { mfaVerify, errMsg, digitsOnly } from "@/components/mfa/mfaApi";
+import { getDeviceToken, setDeviceToken, clearDeviceToken, setCurrentUser } from "@/components/mfa/trustedDevice";
 import type { LoginResponse, ApiErrorBody } from "@/types";
 
 type LoginStepResponse = Partial<LoginResponse> & {
+  clearDeviceToken?: boolean;
   mfaRequired?: boolean;
   mfaEnrollmentRequired?: boolean;
   mfaToken?: string;
@@ -62,9 +64,11 @@ export default function Login() {
   const [mfaToken, setMfaToken] = React.useState("");
   const [mfaCode, setMfaCode] = React.useState("");
   const [useRecovery, setUseRecovery] = React.useState(false);
+  const [rememberDevice, setRememberDevice] = React.useState(false);
 
   const finishLogin = (data: LoginResponse, slug: string) => {
     try { localStorage.setItem("companySlug", slug); } catch { /* ignore */ }
+    setCurrentUser(slug, email);
     clearLogoutBanner();
     login(data);
     if (!["practitioner", "independent_practitioner"].includes(data.practitioner.role)) {
@@ -82,11 +86,17 @@ export default function Login() {
     setSubmitting(true);
     try {
       const slug = companySlug.trim().toLowerCase();
-      const res = await api.post<LoginStepResponse>("/api/auth/login", { slug, email, password });
+      const deviceToken = getDeviceToken(slug, email);
+      const res = await api.post<LoginStepResponse>(
+        "/api/auth/login",
+        deviceToken ? { slug, email, password, deviceToken } : { slug, email, password },
+      );
+      if (res.data.clearDeviceToken) clearDeviceToken(slug, email);
       if (res.data.mfaRequired && res.data.mfaToken) {
         setMfaToken(res.data.mfaToken);
         setMfaCode("");
         setUseRecovery(false);
+        setRememberDevice(false);
         setStep("code");
       } else if (res.data.mfaEnrollmentRequired && res.data.mfaToken) {
         setMfaToken(res.data.mfaToken);
@@ -107,8 +117,16 @@ export default function Login() {
     setError(null);
     setSubmitting(true);
     try {
-      const data = await mfaVerify(useRecovery ? { mfaToken, recoveryCode: mfaCode.trim() } : { mfaToken, code: mfaCode });
-      if (data.success) finishLogin(data, companySlug.trim().toLowerCase());
+      const data = await mfaVerify({
+        mfaToken,
+        ...(useRecovery ? { recoveryCode: mfaCode.trim() } : { code: mfaCode }),
+        ...(rememberDevice ? { rememberDevice: true } : {}),
+      });
+      if (data.success) {
+        const slug = companySlug.trim().toLowerCase();
+        if (data.deviceToken) setDeviceToken(slug, email, data.deviceToken, data.deviceTokenExpiresAt, data.deviceId);
+        finishLogin(data, slug);
+      }
     } catch (err) {
       setError(errMsg(err, "Verification failed. Please try again."));
     } finally {
@@ -219,6 +237,21 @@ export default function Login() {
               required
             />
           </Field>
+
+          <label className="flex items-start gap-2.5 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={rememberDevice}
+              onChange={(e) => setRememberDevice(e.target.checked)}
+              className="mt-0.5 size-5 shrink-0"
+            />
+            <span>
+              Remember this device for 30 days
+              <span className="mt-0.5 block text-xs text-ink-muted">
+                Only on a device you trust. You can remove devices any time in Security settings.
+              </span>
+            </span>
+          </label>
 
           <Button
             type="submit"

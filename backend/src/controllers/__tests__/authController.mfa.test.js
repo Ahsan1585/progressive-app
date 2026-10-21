@@ -491,7 +491,10 @@ describe('resetStaffMfa (admin)', () => {
   const req = (id, practitionerId = 1) => ({ params: { id }, practitioner: { practitionerId, role: 'ceo' }, body: {}, headers: {} });
 
   test('clears every MFA column for the target and audits mfa_reset_by_admin with the target id only', async () => {
-    routeDb([[/UPDATE practitioners SET mfa_enabled = false/, { rows: [{ id: 9 }] }]]);
+    routeDb([
+      [/SELECT id FROM practitioners WHERE id = \$1 AND is_platform_support = false/, { rows: [{ id: 9 }] }],
+      [/UPDATE practitioners SET mfa_enabled = false/, { rows: [{ id: 9 }] }],
+    ]);
     const res = makeRes();
     await auth.resetStaffMfa(req('9'), res);
     expect(res.json).toHaveBeenCalledWith({ success: true });

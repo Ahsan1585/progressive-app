@@ -30,8 +30,24 @@ export const mfaEnable = (code: string, mfaToken?: string, password?: string) =>
   post<MfaEnableResponse>("/api/auth/mfa/enable", mfaToken ? { code } : { code, password }, mfaToken).then((r) => r.data);
 export const mfaDisable = (password: string, code: string) =>
   api.post<{ success: boolean }>("/api/auth/mfa/disable", { password, code }).then((r) => r.data);
-export const mfaVerify = (body: { mfaToken: string; code?: string; recoveryCode?: string }) =>
-  bare.post<LoginResponse>("/api/auth/mfa/verify", body).then((r) => r.data);
+export type MfaVerifyResponse = LoginResponse & { deviceToken?: string; deviceTokenExpiresAt?: string; deviceId?: string };
+export const mfaVerify = (body: { mfaToken: string; code?: string; recoveryCode?: string; rememberDevice?: boolean }) =>
+  bare.post<MfaVerifyResponse>("/api/auth/mfa/verify", body).then((r) => r.data);
+
+export interface TrustedDevice {
+  id: string;
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string;
+}
+// Trusted devices (session token).
+export const mfaListDevices = () =>
+  api.get<{ devices: TrustedDevice[] }>("/api/auth/mfa/devices").then((r) => r.data.devices ?? []);
+export const mfaRevokeDevice = (id: string) =>
+  api.delete<{ success: boolean }>(`/api/auth/mfa/devices/${encodeURIComponent(id)}`).then((r) => r.data);
+export const mfaRevokeAllDevices = () =>
+  api.delete<{ success: boolean }>("/api/auth/mfa/devices").then((r) => r.data);
 
 export function errMsg(err: unknown, fallback: string): string {
   const body = (err as { response?: { data?: ApiErrorBody } }).response?.data;

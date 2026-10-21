@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { mfaSetup, mfaEnable, mfaDisable, errMsg } from './mfaApi';
+import { TrustedDevices } from './TrustedDevices';
 
 const digitsOnly = (v) => v.replace(/\D/g, '').slice(0, 6);
 
@@ -256,6 +257,7 @@ export function MfaSetup({ mfaToken, onEnrolled, onChanged }) {
           </div>
         </form>
       )}
+      {mfaEnabled && <TrustedDevices />}
     </div>
   );
 }

@@ -24,3 +24,8 @@ export const mfaDisable = (password, code) => api.post('/api/auth/mfa/disable', 
 export const mfaVerify = (body) => bare.post('/api/auth/mfa/verify', body).then((r) => r.data);
 
 export const errMsg = (err, fallback) => err?.response?.data?.error || err?.response?.data?.message || fallback;
+
+// Trusted devices (session token). Response: { devices: [{ id, label, createdAt, lastUsedAt, expiresAt }] }
+export const mfaListDevices = () => api.get('/api/auth/mfa/devices').then((r) => r.data.devices || []);
+export const mfaRevokeDevice = (id) => api.delete(`/api/auth/mfa/devices/${encodeURIComponent(id)}`).then((r) => r.data);
+export const mfaRevokeAllDevices = () => api.delete('/api/auth/mfa/devices').then((r) => r.data);

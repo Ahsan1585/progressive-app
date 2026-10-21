@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { TrustedDevices } from "./TrustedDevices";
 import {
   mfaSetup,
   mfaEnable,
@@ -395,6 +396,8 @@ export function MfaSetup({ mfaToken, onEnrolled, onChanged }: MfaSetupProps) {
           </div>
         </form>
       )}
+
+      {mfaEnabled && <TrustedDevices />}
 
       <Dialog open={refusal !== null} onOpenChange={(o) => !o && setRefusal(null)}>
         <DialogContent>

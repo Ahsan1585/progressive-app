@@ -45,7 +45,10 @@ const {
   setupMfa,
   enableMfa,
   disableMfa,
-  resetStaffMfa
+  resetStaffMfa,
+  listTrustedDevices,
+  revokeTrustedDevice,
+  revokeAllTrustedDevicesForSelf
 } = require('../controllers/authController');
 
 // Per-IP throttle on MFA code checks. Only failures count, so a busy office
@@ -171,5 +174,10 @@ router.post('/mfa/verify', mfaLimiter, requireMfaChallenge('verify'), verifyMfa)
 router.post('/mfa/setup', mfaLimiter, protectSessionOrMfaToken, setupMfa);
 router.post('/mfa/enable', mfaLimiter, protectSessionOrMfaToken, enableMfa);
 router.post('/mfa/disable', mfaLimiter, protect, disableMfa);
+// "Remember this device" management — real session only (protect refuses
+// mfaTokens); the controller refuses support impersonation sessions.
+router.get('/mfa/devices', protect, listTrustedDevices);
+router.delete('/mfa/devices', protect, revokeAllTrustedDevicesForSelf);
+router.delete('/mfa/devices/:id', protect, revokeTrustedDevice);
 
 module.exports = router;

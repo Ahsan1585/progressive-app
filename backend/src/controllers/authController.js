@@ -9,6 +9,7 @@ const { lookupCompanyBySlug } = require('../middleware/tenantMiddleware');
 const { platformPool } = require('../config/platformDb');
 const { encryptField, decryptField } = require('../utils/fieldEncryption');
 const { generateSecret, verifyTotp, buildOtpauthUri, generateRecoveryCodes, hashRecoveryCode } = require('../utils/totp');
+const { mintTrustedDevice, consumeTrustedDevice, revokeAllTrustedDevices } = require('../utils/trustedDevices');
 // Placeholder password_hash for an invited-but-not-yet-activated account —
 // never a real bcrypt hash, so it can never match a bcrypt.compare() and
 // doubles as the "still pending" check in activateAccount below. Shared
@@ -278,6 +279,13 @@ const activateAccount = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
+    // A pending account can't have trusted devices yet, so this revoke is
+    // belt-and-braces only and never blocks an activation.
+    try {
+      await revokeAllTrustedDevices(user.id);
+    } catch (err) {
+      console.error('Trusted device revoke on activation failed:', err.message);
+    }
     await pool.query(
       `UPDATE practitioners
        SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL
@@ -300,7 +308,7 @@ const activateAccount = async (req, res) => {
 const DUMMY_HASH = '$2b$10$kfbIqw/2Dj.rlDic572uhuWxN01VGzbkxLbzZFws5lTYPCa6/Cp7S';
 
 const loginPractitioner = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, deviceToken } = req.body;
 
   try {
     const { rows } = await pool.query(
@@ -327,7 +335,26 @@ const loginPractitioner = async (req, res) => {
     // Password is correct, but a session is only issued after the second
     // factor — the mfaToken can't be used anywhere except the /mfa/* routes.
     if (user.mfa_enabled) {
-      return res.json({ mfaRequired: true, mfaToken: signMfaToken(user, companyClaims, 'verify') });
+      const mfaRequiredBody = { mfaRequired: true, mfaToken: signMfaToken(user, companyClaims, 'verify') };
+      // "Remember this device": a trusted-device token for THIS account skips
+      // the second factor. Never while the account is MFA-locked (the token is
+      // left alone so it works again once the lock expires). A supplied token
+      // that doesn't match one of this user's active devices — wrong account,
+      // expired, revoked, or garbage — gets the same response either way, so
+      // nothing reveals which; clearDeviceToken tells the client to drop it.
+      if (deviceToken !== undefined && deviceToken !== null && !isMfaLocked(user)) {
+        let device;
+        try {
+          device = await consumeTrustedDevice(user.id, deviceToken);
+        } catch (err) {
+          console.error('Trusted device lookup failed:', err.message);
+          return res.json(mfaRequiredBody);
+        }
+        if (!device) return res.json({ ...mfaRequiredBody, clearDeviceToken: true });
+        logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_trusted_device_used', resourceType: 'auth', details: { deviceId: device.id, label: device.label } });
+        return res.json(await issueSession(req, user, companyClaims));
+      }
+      return res.json(mfaRequiredBody);
     }
     if (await companyRequiresMfa()) {
       return res.json({ mfaEnrollmentRequired: true, mfaToken: signMfaToken(user, companyClaims, 'enroll') });
@@ -480,7 +507,23 @@ const verifyMfa = async (req, res) => {
       logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_recovery_code_used', resourceType: 'auth', details: { remaining: rows[0].remaining } });
     }
 
-    res.json(await issueSession(req, user, companyClaimsFrom(req.mfaChallenge)));
+    const payload = await issueSession(req, user, companyClaimsFrom(req.mfaChallenge));
+    // Only reached after a successful code/recovery-code check. Strictly
+    // `true` so a stray truthy value never opts anyone in. Best-effort: a
+    // failure here costs the user nothing but the convenience next time.
+    if (req.body.rememberDevice === true) {
+      try {
+        const device = await mintTrustedDevice(user.id, req.headers?.['user-agent']);
+        payload.deviceToken = device.token;
+        payload.deviceTokenExpiresAt = device.expiresAt;
+        // Lets the client mark "this device" in GET /mfa/devices (same id).
+        payload.deviceId = device.id;
+        logAudit({ req, actorId: user.id, actorEmail: user.email, actorRole: user.role, action: 'mfa_device_trusted', resourceType: 'auth', details: { deviceId: device.id, label: device.label } });
+      } catch (err) {
+        console.error('Trusted device mint failed:', err.message);
+      }
+    }
+    res.json(payload);
   } catch (error) {
     console.error('MFA verify error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -607,6 +650,12 @@ const enableMfa = async (req, res) => {
       return res.status(400).json({ error: INVALID_CODE_MESSAGE });
     }
 
+    // A new authenticator invalidates every remembered device — including, on
+    // a first-time enable, stale rows left by an earlier admin reset. Revoked
+    // BEFORE the secret/recovery-code write: if this throws, the user keeps
+    // their current (working) factor and recovery codes.
+    await revokeAllTrustedDevices(user.id);
+
     const recoveryCodes = generateRecoveryCodes();
     // Guarded on the exact pending secret just verified (and the enabled
     // state it was verified under), so a concurrent setup can't swap in a
@@ -659,6 +708,9 @@ const disableMfa = async (req, res) => {
       return res.status(400).json({ error: 'Incorrect password or verification code.' });
     }
 
+    // Revoke first: if this throws, MFA stays on rather than leaving
+    // orphaned trusted devices behind a disabled factor.
+    await revokeAllTrustedDevices(user.id);
     await pool.query(
       `UPDATE practitioners SET mfa_enabled = false, mfa_secret = NULL, mfa_pending_secret = NULL,
          mfa_recovery_hashes = NULL, mfa_last_used_step = NULL, mfa_failed_attempts = 0, mfa_locked_until = NULL
@@ -669,6 +721,63 @@ const disableMfa = async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('MFA disable error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// --- Trusted ("remembered") MFA devices: session-only self-service. ---
+const SUPPORT_SESSION_MFA_MESSAGE = 'Two-factor settings cannot be changed during a support session.';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// GET /api/auth/mfa/devices — the caller's active devices only; never the hash.
+const listTrustedDevices = async (req, res) => {
+  if (req.practitioner?.impersonation) return res.status(403).json({ error: SUPPORT_SESSION_MFA_MESSAGE });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, label, created_at, last_used_at, expires_at FROM mfa_trusted_devices
+       WHERE practitioner_id = $1 AND revoked_at IS NULL AND expires_at > now()
+       ORDER BY created_at DESC`,
+      [req.practitioner.practitionerId]
+    );
+    res.json({
+      devices: rows.map((r) => ({ id: r.id, label: r.label, createdAt: r.created_at, lastUsedAt: r.last_used_at, expiresAt: r.expires_at })),
+    });
+  } catch (error) {
+    console.error('List trusted devices error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// DELETE /api/auth/mfa/devices/:id — own devices only; anything else is 404.
+const revokeTrustedDevice = async (req, res) => {
+  if (req.practitioner?.impersonation) return res.status(403).json({ error: SUPPORT_SESSION_MFA_MESSAGE });
+  const { id } = req.params;
+  if (!UUID_RE.test(String(id))) return res.status(404).json({ error: 'Device not found.' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE mfa_trusted_devices SET revoked_at = now()
+       WHERE id = $1 AND practitioner_id = $2 AND revoked_at IS NULL
+       RETURNING id, label`,
+      [id, req.practitioner.practitionerId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Device not found.' });
+    logAudit({ req, action: 'mfa_device_revoked', resourceType: 'auth', details: { deviceId: rows[0].id, label: rows[0].label } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Revoke trusted device error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// DELETE /api/auth/mfa/devices — revoke all of the caller's devices.
+const revokeAllTrustedDevicesForSelf = async (req, res) => {
+  if (req.practitioner?.impersonation) return res.status(403).json({ error: SUPPORT_SESSION_MFA_MESSAGE });
+  try {
+    const count = await revokeAllTrustedDevices(req.practitioner.practitionerId);
+    logAudit({ req, action: 'mfa_device_revoked', resourceType: 'auth', details: { all: true, count } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Revoke all trusted devices error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -687,6 +796,11 @@ const changeTemporaryPassword = async (req, res) => {
     // Hash the new password
     const salt = await bcrypt.genSalt(10);
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    // A password change ends every "remembered" MFA device. Revoked before
+    // the write so a failure can never leave the new password paired with
+    // old trusted devices. A not-yet-migrated tenant DB has no devices.
+    await revokeAllTrustedDevices(practitionerId, { tolerateMissingTable: true });
 
     // Update the database AND remove the required change flag
     await pool.query(
@@ -786,6 +900,8 @@ const resetPassword = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
+    // Same as changeTemporaryPassword: revoke trusted MFA devices first.
+    await revokeAllTrustedDevices(user.id, { tolerateMissingTable: true });
     await pool.query(
       `UPDATE practitioners
        SET password_hash = $1, requires_password_change = false, reset_token_hash = NULL, reset_token_expires = NULL
@@ -1075,6 +1191,9 @@ const deleteStaffMember = async (req, res) => {
     if (await isLastActiveAdmin(id)) {
       return res.status(400).json({ error: 'This is the only remaining Admin account — assign Admin to someone else first.' });
     }
+    // Revoked first (fatal on failure) so a later reactivation can never
+    // silently revive old remembered devices; nothing else has changed yet.
+    await revokeAllTrustedDevices(id);
     await pool.query('UPDATE practitioners SET is_active = false WHERE id = $1', [id]);
     // A deactivated practitioner can no longer log in or act on anything
     // (protect's is_active recheck — see the FERPA §303.404 revocation
@@ -1111,6 +1230,14 @@ const resetStaffMfa = async (req, res) => {
     if (!/^\d+$/.test(String(id))) {
       return res.status(404).json({ error: 'Account not found.' });
     }
+    const { rows: targetRows } = await pool.query(
+      'SELECT id FROM practitioners WHERE id = $1 AND is_platform_support = false',
+      [id]
+    );
+    if (!targetRows[0]) return res.status(404).json({ error: 'Account not found.' });
+    // Revoke first (as disableMfa does): if this throws, MFA stays on and
+    // enforced rather than being cleared with devices still trusted.
+    await revokeAllTrustedDevices(id);
     const { rows } = await pool.query(
       `UPDATE practitioners SET mfa_enabled = false, mfa_secret = NULL, mfa_pending_secret = NULL,
          mfa_recovery_hashes = NULL, mfa_last_used_step = NULL, mfa_failed_attempts = 0, mfa_locked_until = NULL
@@ -1136,6 +1263,9 @@ const reactivateStaffMember = async (req, res) => {
     if (!canManageTarget(req, targetRows[0].role)) {
       return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
     }
+    // Deactivation already revoked these; repeated here (before is_active
+    // flips) so reactivation can never revive an old remembered device.
+    await revokeAllTrustedDevices(id);
     await pool.query('UPDATE practitioners SET is_active = true WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
@@ -1220,5 +1350,8 @@ module.exports = {
   setupMfa,
   enableMfa,
   disableMfa,
-  resetStaffMfa
+  resetStaffMfa,
+  listTrustedDevices,
+  revokeTrustedDevice,
+  revokeAllTrustedDevicesForSelf
 };
