@@ -22,7 +22,10 @@
   font-family: 'Manrope Variable', sans-serif;
   color: var(--mk-ink);
   background: var(--mk-paper);
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes this a scroll container, which silently
+     disables position: sticky for everything inside (the homepage's pinned
+     Log / Catch / Bill words). clip stops sideways scroll the same way. */
+  overflow-x: clip;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
