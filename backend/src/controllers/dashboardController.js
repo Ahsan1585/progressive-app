@@ -33,10 +33,30 @@ const DASHBOARD_CARD_KEYS = [
 ];
 const DASHBOARD_CARD_WIDTHS = ['full', 'half'];
 
+// Optional month scope (?month=YYYY-MM) for the cards below the stat row, so they
+// follow the month picker exactly like the stat row does: by the session's
+// service_date. Absent = no scope (all time), which the verdict banner relies
+// on. Returns [start, end] as the two SQL params the filters below use; both
+// null means "no filter". A malformed month falls back to the current month,
+// the same as every other dashboard endpoint (parseMonthParam).
+const monthScope = (req) => {
+  const raw = req.query?.month;
+  if (!raw) return [null, null];
+  const { start, end } = parseMonthParam(raw);
+  return [start, end];
+};
+// SQL for "this session is in the selected month (or no month was selected)",
+// given the placeholder numbers of the start/end params and the column.
+const inMonthSql = (startParam, endParam, column = 'service_date') =>
+  `($${startParam}::date IS NULL OR (${column} >= $${startParam}::date AND ${column} <= $${endParam}::date))`;
+
 // GET /api/dashboard/day — worklist, not a trend. "What needs a human
-// today."
+// today." With ?month=YYYY-MM the flagged list and its count cover only that
+// month's sessions (the "What needs you" card); without it they are all-time
+// (the verdict banner).
 const getDayOverview = async (req, res) => {
   try {
+    const [monthStart, monthEnd] = monthScope(req);
     const { rows: todayRows } = await pool.query(
       `SELECT COUNT(*)::int AS count, COUNT(DISTINCT practitioner_id)::int AS practitioners
        FROM assessments WHERE completed_at::date = CURRENT_DATE`
@@ -52,14 +72,14 @@ const getDayOverview = async (req, res) => {
               a.total_time, p.pay_rate
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
-       WHERE a.billing_status = ANY($1::text[])
+       WHERE a.billing_status = ANY($1::text[]) AND ${inMonthSql(2, 3, 'a.service_date')}
        ORDER BY COALESCE(a.held_at, a.rejected_at) ASC NULLS LAST
        LIMIT 200`,
-      [OPEN_EXCEPTION_STATUSES]
+      [OPEN_EXCEPTION_STATUSES, monthStart, monthEnd]
     );
     const { rows: exceptionCountRows } = await pool.query(
-      `SELECT COUNT(*)::int AS count FROM assessments WHERE billing_status = ANY($1::text[])`,
-      [OPEN_EXCEPTION_STATUSES]
+      `SELECT COUNT(*)::int AS count FROM assessments WHERE billing_status = ANY($1::text[]) AND ${inMonthSql(2, 3)}`,
+      [OPEN_EXCEPTION_STATUSES, monthStart, monthEnd]
     );
 
     // Active practitioners with zero logged sessions in the last 7 days —
@@ -100,7 +120,7 @@ const getDayOverview = async (req, res) => {
   }
 };
 
-// GET /api/dashboard/returned-logs — all-time list of logs billing has
+// GET /api/dashboard/returned-logs[?month=YYYY-MM] — list of logs billing has
 // returned or declined (billing_status 'rejected'/'declined', set via
 // rejectLog's type='return'/'reject'), oldest-first so the longest-waiting
 // ones surface first, same convention as the day worklist's exception
@@ -109,14 +129,16 @@ const getDayOverview = async (req, res) => {
 // with the full note/comment thread so the reason is visible inline.
 const getReturnedLogs = async (req, res) => {
   try {
+    const [monthStart, monthEnd] = monthScope(req);
     const { rows } = await pool.query(
       `SELECT a.id, a.billing_status, a.service_date, a.rejection_note, a.rejected_at, a.rejection_count,
               a.patient_first_name, a.patient_last_name,
               a.practitioner_first_name, a.practitioner_last_name
        FROM assessments a
-       WHERE a.billing_status IN ('rejected', 'declined')
+       WHERE a.billing_status IN ('rejected', 'declined') AND ${inMonthSql(1, 2, 'a.service_date')}
        ORDER BY a.rejected_at ASC NULLS LAST
-       LIMIT 200`
+       LIMIT 200`,
+      [monthStart, monthEnd]
     );
     const assessmentIds = rows.map((r) => r.id);
     const { rows: noteRows } = assessmentIds.length
@@ -213,16 +235,19 @@ function priorMonth(year, month) {
   return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 }
 
-// GET /api/dashboard/pipeline — the CURRENT state of every session in the
-// pipeline right now, across all time, not scoped to a calendar month.
-// "How much work is sitting at each stage" is an operational backlog
-// question, not a historical one — a session logged in August that's
-// still pending review is just as real a bottleneck today as one logged
-// yesterday, so this deliberately does NOT filter by service_date.
+// GET /api/dashboard/pipeline[?month=YYYY-MM] — the CURRENT billing state of
+// the sessions in the pipeline. The Overview passes the selected month so this
+// card, the EIMS match chart and everything else below the stat row agree on
+// which sessions they describe (service_date in that month). Without a month
+// it is every session across all time.
 const getPipelineOverview = async (req, res) => {
   try {
+    const [monthStart, monthEnd] = monthScope(req);
     const { rows: statusRows } = await pool.query(
-      `SELECT billing_status, COUNT(*)::int AS count FROM assessments GROUP BY billing_status`
+      `SELECT billing_status, COUNT(*)::int AS count FROM assessments
+       WHERE ${inMonthSql(1, 2)}
+       GROUP BY billing_status`,
+      [monthStart, monthEnd]
     );
     const byStatus = { pending: 0, njeis_review: 0, invoiced: 0, self_certified: 0, completed: 0 };
     const exceptions = { on_hold: 0, rejected: 0, declined: 0, voided: 0 };
@@ -251,7 +276,9 @@ const getPipelineOverview = async (req, res) => {
       `SELECT COUNT(*)::int AS count
        FROM assessments a
        JOIN billing_batches bb ON bb.id = a.billing_batch_id
-       WHERE a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NOT NULL`
+       WHERE a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NOT NULL
+         AND ${inMonthSql(1, 2, 'a.service_date')}`,
+      [monthStart, monthEnd]
     );
 
     // All-time EIMS match status — unlike the month/year views, this runs
@@ -271,8 +298,10 @@ const getPipelineOverview = async (req, res) => {
       `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
        FROM assessments a
        WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')
+         AND ${inMonthSql(1, 2, 'a.service_date')}
        ORDER BY a.service_date DESC
-       LIMIT 2000`
+       LIMIT 2000`,
+      [monthStart, monthEnd]
     );
     const { rows: practitionerRoleRows } = await pool.query(
       `SELECT id, role FROM practitioners WHERE id = ANY($1::int[])`,
@@ -301,7 +330,10 @@ const getPipelineOverview = async (req, res) => {
 
     res.json({
       success: true,
-      logged: totalInPipeline,
+      // Every session that entered the pipeline. Held, returned and declined
+      // sessions were logged too (they are in 'reviewed' below), so they count
+      // here: a funnel stage can never be smaller than the one after it.
+      logged: totalInPipeline + exceptions.on_hold + exceptions.rejected + exceptions.declined,
       reviewed: Math.max(reviewed, 0),
       invoiced: invoicedTotal,
       paid: paidRows[0].count,
@@ -869,7 +901,7 @@ const getServicesBreakdown = async (req, res) => {
   }
 };
 
-// GET /api/dashboard/documents — most recent 20 billing_batches, each
+// GET /api/dashboard/documents[?month=YYYY-MM] — billing_batches (latest 20, or the month's), each
 // rolled up to one status: "worst wins" across its assessment lines (any
 // genuine field-level mismatch -> mismatch; else anything else unresolved
 // (exception/unverified) -> pending; else matched). No separate SEVF table
@@ -879,12 +911,22 @@ const getServicesBreakdown = async (req, res) => {
 // billing_batches row).
 const getDocumentsFeed = async (req, res) => {
   try {
+    // With ?month=YYYY-MM: the documents that cover at least one session from
+    // that month (a billing batch is one practitioner's invoice/SEVF), up to
+    // 50. Without a month: the 20 most recent, as before.
+    const [monthStart, monthEnd] = monthScope(req);
+    const limit = monthStart ? 50 : 20;
     const { rows: batches } = await pool.query(
       `SELECT bb.id, bb.created_at, bb.practitioner_id, p.first_name, p.last_name, p.role
        FROM billing_batches bb
        JOIN practitioners p ON p.id = bb.practitioner_id
+       WHERE ($1::date IS NULL OR EXISTS (
+         SELECT 1 FROM assessments x
+         WHERE x.billing_batch_id = bb.id AND x.service_date >= $1::date AND x.service_date <= $2::date
+       ))
        ORDER BY bb.created_at DESC
-       LIMIT 20`
+       LIMIT ${limit}`,
+      [monthStart, monthEnd]
     );
 
     const documents = [];

@@ -17,6 +17,13 @@ const compactMoney = (n) => `$${Number(n || 0).toLocaleString('en-US', { maximum
 // Age in whole days since a timestamp, for the action queue's "waiting
 // since" tag — computed client-side from flaggedAt/serviceDate rather
 // than adding another backend field for something this cheap.
+// "2026-10" -> "October 2026"
+function monthLabel(monthValue) {
+  const [y, m] = String(monthValue || '').split('-').map(Number);
+  if (!y || !m) return 'this month';
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 function daysAgo(dateStr) {
   if (!dateStr) return null;
   const then = new Date(dateStr).getTime();
@@ -357,7 +364,7 @@ function ActionQueue({ day, onSelectSession }) {
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} open</div>
       </div>
       {sessions.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">No open holds or returns. Nice.</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">No open holds or returns this month. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {sessions.map((s) => {
@@ -432,8 +439,8 @@ function BillingFunnel({ pipeline }) {
       ))}
       <div className="text-[14px] text-slate-500 mt-3.5 pt-3 border-t border-dashed border-slate-200">
         {paid === 0
-          ? "Nothing in the pipeline has been marked paid yet."
-          : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of invoiced sessions are confirmed paid, across all time.`}
+          ? "Nothing from this month has been marked paid yet."
+          : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of invoiced sessions are confirmed paid.`}
       </div>
     </div>
   );
@@ -447,7 +454,7 @@ function EimsDonut({ pipeline }) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
-        <div className="text-[15px] text-slate-500 py-8">No billed sessions yet.</div>
+        <div className="text-[15px] text-slate-500 py-8">No billed sessions this month.</div>
       </div>
     );
   }
@@ -583,9 +590,9 @@ function DocumentsFeed({ documents }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">Invoices &amp; SEVF forms</div>
-      <p className="text-[14px] text-slate-600 mb-4">Generated from session notes</p>
+      <p className="text-[14px] text-slate-600 mb-4">Covering this month's sessions</p>
       {documents.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">No invoices or SEVF forms generated yet.</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">No invoices or SEVF forms for this month.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {documents.map((d) => {
@@ -652,10 +659,10 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Returned logs</div>
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{count} total</div>
       </div>
-      <div className="text-[14px] text-slate-500 mb-3">Everything billing has sent back, oldest first.</div>
+      <div className="text-[14px] text-slate-500 mb-3">Sessions from this month that billing sent back, oldest first.</div>
 
       {logs.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">No returned or declined logs. Nice.</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">No returned or declined logs this month. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {logs.map((log) => {
@@ -928,14 +935,13 @@ export function CompanyDashboard() {
   const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
   const [month, setMonth] = useState(null);
   const [trajectoryTab, setTrajectoryTab] = useState('month');
-  // The billing pipeline (Logged -> Reviewed -> Invoiced -> Paid) is
-  // deliberately NOT scoped to a calendar month — it's the current state
-  // of every session across all time, the actual operational backlog, so
-  // it fetches once and doesn't depend on monthValue below.
+  // Everything below the stat row follows the month picker, so the cards agree
+  // with each other and with the stat row: the sessions whose service date is
+  // in the selected month. Only the verdict banner (day / ap) above the picker
+  // stays an all-time, today's-picture view.
   const [pipeline, setPipeline] = useState(null);
-  // Same all-time framing as pipeline — "what's been returned" is a
-  // standing backlog question, not a today-only one, so it fetches once.
   const [returnedLogs, setReturnedLogs] = useState(null);
+  const [monthDay, setMonthDay] = useState(null); // the "What needs you" list for the selected month
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [services, setServices] = useState(null);
   const [documents, setDocuments] = useState(null);
@@ -946,18 +952,24 @@ export function CompanyDashboard() {
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
     api.get('/api/dashboard/ap').then((res) => setAp(res.data)).catch(() => setAp(null));
-    api.get('/api/dashboard/pipeline').then((res) => setPipeline(res.data)).catch(() => setPipeline(null));
-    api.get('/api/dashboard/returned-logs').then((res) => setReturnedLogs(res.data)).catch(() => setReturnedLogs(null));
-    api.get('/api/dashboard/documents').then((res) => setDocuments(res.data.documents)).catch(() => setDocuments([]));
   }, []);
 
+  // One fetch per card for the selected month. `stale` drops a response that
+  // arrives after the picker has moved on, so flipping months quickly can
+  // never leave one card showing a different month from the rest.
   useEffect(() => {
-    api.get('/api/dashboard/month', { params: { month: monthValue } })
-      .then((res) => setMonth(res.data))
-      .catch(() => setMonth(null));
-    api.get('/api/dashboard/services', { params: { month: monthValue } })
-      .then((res) => setServices(res.data))
-      .catch(() => setServices(null));
+    let stale = false;
+    const params = { month: monthValue };
+    const load = (url, onOk, onFail) => api.get(url, { params })
+      .then((res) => { if (!stale) onOk(res.data); })
+      .catch(() => { if (!stale) onFail(); });
+    load('/api/dashboard/month', setMonth, () => setMonth(null));
+    load('/api/dashboard/services', setServices, () => setServices(null));
+    load('/api/dashboard/pipeline', setPipeline, () => setPipeline(null));
+    load('/api/dashboard/day', setMonthDay, () => setMonthDay(null));
+    load('/api/dashboard/returned-logs', setReturnedLogs, () => setReturnedLogs(null));
+    load('/api/dashboard/documents', (d) => setDocuments(d.documents), () => setDocuments([]));
+    return () => { stale = true; };
   }, [monthValue]);
 
   const handleDragStart = (e, key) => { dragKeyRef.current = key; };
@@ -990,13 +1002,13 @@ export function CompanyDashboard() {
     billing_pipeline: (
       <div>
         <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">From session to payment</div>
-        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Everything currently in the pipeline.</p>
+        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sessions from {monthLabel(monthValue)}, by where they are in billing.</p>
         <BillingFunnel pipeline={pipeline} />
       </div>
     ),
     action_queue: (
       <div>
-        <ActionQueue day={day} onSelectSession={setSelectedSessionId} />
+        <ActionQueue day={monthDay} onSelectSession={setSelectedSessionId} />
       </div>
     ),
     services_breakdown: (
@@ -1019,7 +1031,7 @@ export function CompanyDashboard() {
     eims_status: (
       <div>
         <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">EIMS match status</div>
-        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Reconciled against state records, all time.</p>
+        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sessions from {monthLabel(monthValue)}, reconciled against state records.</p>
         <EimsDonut pipeline={pipeline} />
       </div>
     ),
