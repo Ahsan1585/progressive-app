@@ -6,8 +6,8 @@
 const { buildCorsOptions } = require('../corsPolicy');
 
 const allowed = ['https://izayaedge.com', 'https://app.izayaedge.com'];
-const decide = (headers, { protocol = 'https' } = {}) => {
-  const req = { headers, protocol, get: (h) => headers[h.toLowerCase()] };
+const decide = (headers, { protocol = 'https', url = '/api/patients' } = {}) => {
+  const req = { headers, protocol, originalUrl: url, get: (h) => headers[h.toLowerCase()] };
   let result;
   buildCorsOptions(allowed)(req, (err, opts) => { result = { err, opts }; });
   return result;
@@ -42,5 +42,36 @@ test('same host but a different scheme is not same-origin', () => {
 
 test('a lookalike host is not same-origin', () => {
   const r = decide({ origin: 'https://api.example.run.app.evil.example', host: 'api.example.run.app' });
+  expect(r.err).toBeInstanceOf(Error);
+});
+
+// The server-rendered public pages send "Origin: null" on their form posts
+// because the API's Referrer-Policy is no-referrer. Those pages are never meant
+// to be read cross-origin and are gated by a secret token (no cookies), so they
+// are exempt from CORS: no error, and no CORS headers granted to anyone.
+describe.each([
+  '/api/released-records/acme/' + 'a'.repeat(64) + '/code',
+  '/api/released-records/acme/' + 'a'.repeat(64) + '/download',
+  '/api/consent-manage/acme/' + 'a'.repeat(64) + '/withdraw',
+])('public server-rendered page %s', (url) => {
+  test('a form post with Origin: null is not rejected', () => {
+    const r = decide({ origin: 'null', host: 'api.example.run.app' }, { url });
+    expect(r.err).toBeNull();
+  });
+
+  test('and it is granted no CORS access for other sites', () => {
+    const r = decide({ origin: 'https://evil.example', host: 'api.example.run.app' }, { url });
+    expect(r.err).toBeNull();
+    expect(r.opts.origin).toBe(false);
+  });
+});
+
+test('Origin: null is still rejected everywhere else', () => {
+  const r = decide({ origin: 'null', host: 'api.example.run.app' }, { url: '/api/patients' });
+  expect(r.err).toBeInstanceOf(Error);
+});
+
+test('a look-alike path does not get the exemption', () => {
+  const r = decide({ origin: 'null', host: 'api.example.run.app' }, { url: '/api/released-recordsX/a' });
   expect(r.err).toBeInstanceOf(Error);
 });
