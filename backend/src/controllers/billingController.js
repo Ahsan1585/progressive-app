@@ -2350,7 +2350,10 @@ async function persistEimsFlags(sessions, results) {
 // it. Throws on unexpected failure; callers decide how to translate that
 // (an HTTP 500 for the single-practitioner tab, a per-practitioner
 // needsReview outcome for the bulk run).
-async function runComplianceAnalysisForPractitioner(practitionerId, startDate, endDate) {
+// persist:false is for read-only callers (the dashboard): looking at a month
+// must not record "checked" verdicts on pending sessions, only a real
+// Compliance Analysis run does that.
+async function runComplianceAnalysisForPractitioner(practitionerId, startDate, endDate, { persist = true } = {}) {
   {
     const { rows: docRows } = await pool.query(
       'SELECT compliance_doc_filename, compliance_doc_uploaded_at, compliance_doc_column_mapping, compliance_doc_path, compliance_doc_applied_path, compliance_doc_custom_fields, compliance_strictness FROM company_settings WHERE id = 1'
@@ -2525,7 +2528,7 @@ async function runComplianceAnalysisForPractitioner(practitionerId, startDate, e
     // factored out so tests that don't care about this side effect can
     // mock it away in one line instead of threading an extra pool.query
     // mock through every existing test's call sequence.
-    module.exports.persistEimsFlags(sessions, results);
+    if (persist) module.exports.persistEimsFlags(sessions, results);
 
     // A duplicate log (same patient/date/time/type/location submitted
     // twice) only ever has ONE state record to match against — the group

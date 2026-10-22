@@ -7,7 +7,8 @@
 const { pool } = require('../config/db');
 const { computeSessionCompliance } = require('./billingController');
 const { buildInvoiceLines, deriveEimsStatus, loadComplianceBatched, formatInvoiceNumber } = require('../utils/invoiceData');
-const analyzeFn = (...args) => require('./billingController').runComplianceAnalysisForPractitioner(...args);
+// Read-only: viewing the dashboard must not mark pending sessions as checked.
+const analyzeFn = (pid, start, end) => require('./billingController').runComplianceAnalysisForPractitioner(pid, start, end, { persist: false });
 const { serviceCodeLabel, locationCodeLabel } = require('../constants/njeis');
 
 // "What needs you" worklist — on_hold only. Returned (rejected) logs have

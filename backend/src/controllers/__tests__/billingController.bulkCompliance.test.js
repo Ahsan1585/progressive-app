@@ -788,3 +788,35 @@ describe('bulkComplianceRun progress tracking', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });
+
+describe('runComplianceAnalysisForPractitioner persistence', () => {
+  afterEach(() => jest.clearAllMocks());
+  const queue = () => pool.query
+    .mockResolvedValueOnce({ rows: [{
+      compliance_doc_filename: 'eims.xlsx', compliance_doc_uploaded_at: new Date(),
+      compliance_doc_column_mapping: { child_id: 'Child ID', service_date: 'Service Date' },
+      compliance_doc_path: 'p1', compliance_doc_applied_path: 'p1',
+      compliance_doc_custom_fields: [], compliance_strictness: 'moderate',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 1, patient_id: 10, service_date: '2026-10-05', start_time: '09:00', end_time: '09:30',
+      total_time: 30, type: 'OT', location: '1', group_size_category: 'individual',
+      patient_first_name: 'A', patient_last_name: 'B', practitioner_first_name: 'C', practitioner_last_name: 'D',
+      completed_at: new Date(), child_id: '700000001', status: 'done', billing_status: 'pending',
+      practitioner_discipline: 'OT', patient_dob: '2024-01-01', patient_county: 'Essex',
+      eims_missing_status: null, form_data: {},
+    }] })
+    .mockResolvedValue({ rows: [] });
+
+  test('a compliance check run for the dashboard (persist:false) does not mark pending sessions as checked', async () => {
+    queue();
+    await runComplianceAnalysisForPractitioner(42, '2026-10-01', '2026-10-31', { persist: false });
+    expect(require('../billingController').persistEimsFlags).not.toHaveBeenCalled();
+  });
+
+  test('a check run from Compliance Analysis still records its verdicts', async () => {
+    queue();
+    await runComplianceAnalysisForPractitioner(42, '2026-10-01', '2026-10-31');
+    expect(require('../billingController').persistEimsFlags).toHaveBeenCalledTimes(1);
+  });
+});
