@@ -1,3 +1,4 @@
+import { DEFAULT_CARD_LAYOUT, resolveCardLayout } from '@/components/dashboardLayout';
 import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import {
@@ -42,7 +43,7 @@ function MonthYearPicker({ value, onChange }) {
       <select
         value={month}
         onChange={(e) => setMonth(Number(e.target.value))}
-        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-700 bg-white cursor-pointer"
+        className="border border-slate-200 rounded-lg px-3 py-1.5 text-[15px] font-semibold text-slate-700 bg-white cursor-pointer"
       >
         {MONTH_NAMES.map((name, i) => (
           <option key={name} value={i + 1}>{name}</option>
@@ -51,7 +52,7 @@ function MonthYearPicker({ value, onChange }) {
       <select
         value={year}
         onChange={(e) => setYear(Number(e.target.value))}
-        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-700 bg-white cursor-pointer"
+        className="border border-slate-200 rounded-lg px-3 py-1.5 text-[15px] font-semibold text-slate-700 bg-white cursor-pointer"
       >
         {years.map((y) => (
           <option key={y} value={y}>{y}</option>
@@ -126,7 +127,7 @@ function SessionDetailDialog({ assessmentId, onClose }) {
             </div>
 
             {session?.note && (
-              <div className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5">
+              <div className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
                 <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1">Note on file</div>
                 <div className="text-slate-700">{session.note}</div>
               </div>
@@ -199,17 +200,17 @@ function PractitionerAccuracyTable({ month }) {
   };
 
   const tierTone = (pct) => {
-    if (pct == null) return { text: 'text-slate-400', bg: 'bg-slate-50', bar: '#cbd5e1' };
+    if (pct == null) return { text: 'text-slate-500', bg: 'bg-slate-50', bar: '#cbd5e1' };
     if (pct >= 90) return { text: 'text-teal-700', bg: 'bg-teal-50', bar: '#0d9488' };
     if (pct >= 70) return { text: 'text-amber-700', bg: 'bg-amber-50', bar: '#d97706' };
     return { text: 'text-rose-700', bg: 'bg-rose-50', bar: '#e11d48' };
   };
 
   const SortHeader = ({ label, sortKey, className }) => (
-    <th className={`text-xs font-bold uppercase text-slate-500 px-3 py-2.5 cursor-pointer select-none ${className || ''}`} onClick={() => toggleSort(sortKey)}>
+    <th className={`text-[14px] font-bold uppercase text-slate-600 px-3 py-2.5 cursor-pointer select-none ${className || ''}`} onClick={() => toggleSort(sortKey)}>
       <span className="inline-flex items-center gap-1">
         {label}
-        {sortBy === sortKey && <span className="text-[10px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
+        {sortBy === sortKey && <span className="text-[13px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
       </span>
     </th>
   );
@@ -217,19 +218,19 @@ function PractitionerAccuracyTable({ month }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100">
-        <div className="text-[15.5px] font-bold text-slate-900">Practitioner accuracy</div>
-        <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Practitioner accuracy</div>
+        <p className="text-[14px] text-slate-600 mt-0.5 max-w-2xl">
           How cleanly each practitioner's logged sessions matched EIMS this month — holds, returns, and still-pending sessions already flagged by Compliance Analysis all count against the score. Independent practitioners (self-reported, not cross-checked) aren't included.
         </p>
       </div>
       {rows.length === 0 ? (
-        <div className="text-sm text-slate-400 text-center py-10">No agency practitioner sessions checked against EIMS this month yet.</div>
+        <div className="text-[15px] text-slate-500 text-center py-10">No agency practitioner sessions checked against EIMS this month yet.</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[15px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="text-left text-xs font-bold uppercase text-slate-500 px-5 py-2.5">Practitioner</th>
+                <th className="text-left text-[14px] font-bold uppercase text-slate-600 px-5 py-2.5">Practitioner</th>
                 <SortHeader label="Accuracy" sortKey="accuracyPct" />
                 <SortHeader label="Checked" sortKey="sessionsChecked" />
                 <SortHeader label="Held / Returned" sortKey="heldOrReturned" />
@@ -241,21 +242,21 @@ function PractitionerAccuracyTable({ month }) {
                 return (
                   <tr key={r.practitionerId} className="hover:bg-slate-50">
                     <td className="px-5 py-3">
-                      <div className="font-semibold text-slate-800">{r.name}</div>
-                      {r.discipline && <div className="text-[11px] text-slate-500">{r.discipline}</div>}
+                      <div className="text-[17px] font-bold text-slate-900">{r.name}</div>
+                      {r.discipline && <div className="text-[13px] text-slate-600">{r.discipline}</div>}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
+                        <div className="w-24 h-2.5 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
                           <div className="h-full rounded-full" style={{ width: `${r.accuracyPct ?? 0}%`, background: tone.bar }} />
                         </div>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tone.bg} ${tone.text}`}>
+                        <span className={`text-[15px] font-extrabold px-3 py-1 rounded-full ${tone.bg} ${tone.text}`}>
                           {r.accuracyPct != null ? `${r.accuracyPct}%` : '—'}
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-slate-600 font-mono tabular-nums">{r.sessionsChecked}</td>
-                    <td className="px-3 py-3 text-slate-600 font-mono tabular-nums">{r.heldOrReturned}</td>
+                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{r.sessionsChecked}</td>
+                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{r.heldOrReturned}</td>
                   </tr>
                 );
               })}
@@ -272,8 +273,8 @@ function PractitionerAccuracyTable({ month }) {
 function VerdictBanner({ day, ap }) {
   if (!day || !ap) {
     return (
-      <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
-        <div className="text-sm text-white/80">Loading today's picture...</div>
+      <section className="rounded-[24px] p-8 sm:p-10 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
+        <div className="text-[15px] text-white/80">Loading today's picture...</div>
       </section>
     );
   }
@@ -292,26 +293,26 @@ function VerdictBanner({ day, ap }) {
       : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held pending verification.`;
 
   return (
-    <section className="rounded-[20px] p-7 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
+    <section className="rounded-[24px] p-8 sm:p-10 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
       <div className="flex items-start justify-between gap-6 flex-wrap">
         <div className="flex-1 min-w-[260px]">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: '#fcd34d' }}>
+          <div className="flex items-center gap-2 text-[14px] font-extrabold uppercase tracking-[0.14em] mb-3" style={{ color: '#fcd34d' }}>
             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
             {isHealthy ? 'All clear' : 'Needs a look today'}
           </div>
-          <h1 className="text-2xl sm:text-[26px] font-bold leading-snug mb-2.5" style={{ textWrap: 'balance' }}>{headline}</h1>
-          <p className="text-sm leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.86)' }}>
-            <b className="text-white font-bold">{money(totalOwed)}</b> is owed to practitioners.
-            {flaggedCount > 0 && <> The open item is <b className="text-white font-bold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
+          <h1 className="text-[32px] sm:text-[46px] font-extrabold leading-[1.08] tracking-tight mb-4" style={{ textWrap: 'balance' }}>{headline}</h1>
+          <p className="text-[18px] sm:text-[20px] leading-relaxed max-w-3xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
+            <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners.
+            {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
           </p>
         </div>
         {totalOwed > 0 && (
-          <div className="min-w-[180px]">
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="text-white/70">Cleared</span>
-              <span className="font-bold font-mono tabular-nums">{clearPct}%</span>
+          <div className="min-w-[240px]">
+            <div className="flex items-end justify-between text-[16px] font-semibold mb-2">
+              <span className="text-white/80">Cleared</span>
+              <span className="text-[30px] leading-none font-extrabold font-mono tabular-nums">{clearPct}%</span>
             </div>
-            <div className="w-[180px] h-2 rounded-full bg-white/15 overflow-hidden">
+            <div className="w-[240px] h-3 rounded-full bg-white/15 overflow-hidden">
               <div className="h-full rounded-full bg-emerald-400" style={{ width: `${clearPct}%` }} />
             </div>
           </div>
@@ -331,16 +332,16 @@ function StatCard({ icon: Icon, tone, label, value, deltaText, deltaTone }) {
   const deltaClasses = {
     up: 'text-teal-700',
     down: 'text-rose-700',
-    flat: 'text-slate-400',
+    flat: 'text-slate-500',
   };
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-[18px] pb-4 min-w-0 relative">
-      <div className={`absolute top-3.5 right-3.5 w-9 h-9 rounded-full flex items-center justify-center ${toneBg[tone]}`}>
-        <Icon className="size-4" />
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0 relative">
+      <div className={`absolute top-4 right-4 w-11 h-11 rounded-full flex items-center justify-center ${toneBg[tone]}`}>
+        <Icon className="size-5" />
       </div>
-      <div className="text-sm text-slate-500 mb-1.5 pr-9">{label}</div>
-      <div className="text-[25px] font-bold tracking-tight mb-2 font-mono tabular-nums">{value}</div>
-      <div className={`inline-flex items-center gap-1 text-xs font-semibold ${deltaClasses[deltaTone || 'flat']}`}>{deltaText}</div>
+      <div className="text-[16px] font-semibold text-slate-600 mb-2 pr-12">{label}</div>
+      <div className="text-[34px] leading-none font-extrabold tracking-tight mb-3 font-mono tabular-nums">{value}</div>
+      <div className={`inline-flex items-center gap-1 text-[15px] font-bold ${deltaClasses[deltaTone || 'flat']}`}>{deltaText}</div>
     </div>
   );
 }
@@ -350,13 +351,13 @@ function ActionQueue({ day, onSelectSession }) {
   const total = day?.flaggedCount || 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between mb-4">
-        <div className="text-[15.5px] font-bold text-slate-900">What needs you</div>
-        <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full">{total} open</div>
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">What needs you</div>
+        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} open</div>
       </div>
       {sessions.length === 0 ? (
-        <div className="text-sm text-slate-400 text-center py-8">No open holds or returns. Nice.</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">No open holds or returns. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {sessions.map((s) => {
@@ -367,21 +368,21 @@ function ActionQueue({ day, onSelectSession }) {
                 key={s.id}
                 type="button"
                 onClick={() => onSelectSession(s.id)}
-                className="w-full flex items-center gap-3 bg-slate-50 hover:bg-slate-100 transition-colors rounded-xl px-3.5 py-2.5 min-w-0 text-left cursor-pointer"
+                className="w-full flex items-center gap-3 bg-slate-50 hover:bg-slate-100 transition-colors rounded-xl px-4 py-3 min-w-0 text-left cursor-pointer"
               >
                 <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isCritical ? 'bg-rose-600' : 'bg-amber-600'}`} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold text-slate-900 truncate">
+                  <div className="text-[16px] font-semibold text-slate-900 truncate">
                     {s.patientName} &middot; {s.practitionerName}
                   </div>
-                  <div className="text-[11.5px] text-slate-500 truncate">
+                  <div className="text-[14px] text-slate-600 truncate">
                     {s.note || 'On hold, no note on file'}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="text-[13.5px] font-bold text-slate-900 font-mono tabular-nums">{money(s.amount)}</span>
+                  <span className="text-[18px] font-extrabold text-slate-900 font-mono tabular-nums">{money(s.amount)}</span>
                   {age !== null && (
-                    <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full ${isCritical ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
+                    <span className={`text-[13px] font-extrabold px-2.5 py-1 rounded-full ${isCritical ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
                       {age}d
                     </span>
                   )}
@@ -409,27 +410,27 @@ function BillingFunnel({ pipeline }) {
   const max = Math.max(logged, 1);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="text-[15.5px] font-bold text-slate-900">Billing pipeline</div>
-        <div className="text-[11.5px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} total</div>
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Billing pipeline</div>
+        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} total</div>
       </div>
       {stages.map((s) => (
-        <div key={s.label} className="flex items-center gap-3 mb-3 last:mb-0">
-          <div className="w-[88px] flex-shrink-0">
-            <div className="text-xs font-semibold text-slate-500">{s.label}</div>
-            {s.sub && <div className="text-[10px] font-semibold text-rose-600 mt-0.5">{s.sub}</div>}
+        <div key={s.label} className="flex items-center gap-4 mb-4 last:mb-0">
+          <div className="w-[116px] flex-shrink-0">
+            <div className="text-[16px] font-bold text-slate-700">{s.label}</div>
+            {s.sub && <div className="text-[13px] font-bold text-rose-700 mt-0.5">{s.sub}</div>}
           </div>
-          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-teal-500"
               style={{ width: `${Math.max((s.value / max) * 100, s.value > 0 ? 2 : 0)}%` }}
             />
           </div>
-          <div className="w-14 flex-shrink-0 text-right text-xs font-bold text-slate-900 font-mono tabular-nums">{s.value.toLocaleString()}</div>
+          <div className="w-16 flex-shrink-0 text-right text-[20px] font-extrabold text-slate-900 font-mono tabular-nums">{s.value.toLocaleString()}</div>
         </div>
       ))}
-      <div className="text-xs text-slate-400 mt-3.5 pt-3 border-t border-dashed border-slate-200">
+      <div className="text-[14px] text-slate-500 mt-3.5 pt-3 border-t border-dashed border-slate-200">
         {paid === 0
           ? "Nothing in the pipeline has been marked paid yet."
           : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of invoiced sessions are confirmed paid, across all time.`}
@@ -444,9 +445,9 @@ function EimsDonut({ pipeline }) {
   const total = rate.matched + rate.flagged + rate.missing + rate.unverified;
   if (total === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col items-center">
-        <div className="text-[15.5px] font-bold text-slate-900 self-start mb-4">EIMS match status</div>
-        <div className="text-sm text-slate-400 py-8">No billed sessions yet.</div>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
+        <div className="text-[15px] text-slate-500 py-8">No billed sessions yet.</div>
       </div>
     );
   }
@@ -459,9 +460,9 @@ function EimsDonut({ pipeline }) {
   const missingLen = seg(rate.missing + rate.unverified);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col items-center">
-      <div className="text-[15.5px] font-bold text-slate-900 self-start mb-4">EIMS match status</div>
-      <svg viewBox="0 0 120 120" width="150" height="150">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
+      <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
+      <svg viewBox="0 0 120 120" width="200" height="200">
         <circle cx="60" cy="60" r="46" fill="none" stroke="#f6f7fb" strokeWidth="16" />
         <circle cx="60" cy="60" r="46" fill="none" stroke="#0d9488" strokeWidth="16"
           strokeDasharray={`${matchedLen} ${C - matchedLen}`} strokeDashoffset="0" transform="rotate(-90 60 60)" strokeLinecap="round" />
@@ -469,21 +470,21 @@ function EimsDonut({ pipeline }) {
           strokeDasharray={`${flaggedLen} ${C - flaggedLen}`} strokeDashoffset={-matchedLen} transform="rotate(-90 60 60)" />
         <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
           strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" strokeLinecap="round" />
-        <text x="60" y="56" textAnchor="middle" fontSize="24" fontWeight="700" fill="#1b1d2a">{matchedPct}%</text>
-        <text x="60" y="72" textAnchor="middle" fontSize="9" fill="#9a9eb2">matched</text>
+        <text x="60" y="56" textAnchor="middle" fontSize="27" fontWeight="800" fill="#0f172a">{matchedPct}%</text>
+        <text x="60" y="73" textAnchor="middle" fontSize="10" fontWeight="600" fill="#475569">matched</text>
       </svg>
       <div className="flex flex-col gap-2 mt-4 w-full">
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-slate-500"><span className="w-2 h-2 rounded-[3px] flex-shrink-0" style={{ background: '#0d9488' }} />Matched</div>
-          <span className="font-mono font-semibold text-slate-900">{rate.matched.toLocaleString()}</span>
+        <div className="flex items-center justify-between text-[16px]">
+          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#0d9488' }} />Matched</div>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.matched.toLocaleString()}</span>
         </div>
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-slate-500"><span className="w-2 h-2 rounded-[3px] flex-shrink-0" style={{ background: '#d97706' }} />Mismatch / pending</div>
-          <span className="font-mono font-semibold text-slate-900">{rate.flagged.toLocaleString()}</span>
+        <div className="flex items-center justify-between text-[16px]">
+          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#d97706' }} />Mismatch / pending</div>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.flagged.toLocaleString()}</span>
         </div>
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-slate-500"><span className="w-2 h-2 rounded-[3px] flex-shrink-0" style={{ background: '#e11d48' }} />Missing / unverified</div>
-          <span className="font-mono font-semibold text-slate-900">{(rate.missing + rate.unverified).toLocaleString()}</span>
+        <div className="flex items-center justify-between text-[16px]">
+          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#e11d48' }} />Missing / unverified</div>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{(rate.missing + rate.unverified).toLocaleString()}</span>
         </div>
       </div>
     </div>
@@ -502,9 +503,9 @@ function ServicesBreakdown({ data }) {
   const [dimension, setDimension] = useState('byServiceType');
   if (!data) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div className="text-[15.5px] font-bold text-slate-900 mb-4">Services provided</div>
-        <div className="text-sm text-slate-400 text-center py-8">Loading…</div>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-4">Services provided</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">Loading…</div>
       </div>
     );
   }
@@ -513,11 +514,11 @@ function ServicesBreakdown({ data }) {
   const total = rows.reduce((sum, r) => sum + r.count, 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-        <div className="text-[15.5px] font-bold text-slate-900">Services provided</div>
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Services provided</div>
       </div>
-      <p className="text-xs text-slate-500 mb-4">This month, by category</p>
+      <p className="text-[14px] text-slate-600 mb-4">This month, by category</p>
 
       <div className="inline-flex bg-slate-50 rounded-[10px] p-[3px] gap-0.5 mb-4 flex-wrap">
         {SERVICES_DIMENSIONS.map((d) => (
@@ -525,8 +526,8 @@ function ServicesBreakdown({ data }) {
             key={d.key}
             type="button"
             onClick={() => setDimension(d.key)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-              dimension === d.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            className={`px-4 py-2 rounded-lg text-[15px] font-bold transition-colors cursor-pointer ${
+              dimension === d.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
             }`}
           >
             {d.label}
@@ -535,10 +536,10 @@ function ServicesBreakdown({ data }) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="text-sm text-slate-400 text-center py-8">No sessions logged this month yet.</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">No sessions logged this month yet.</div>
       ) : (
         <>
-          <div className="w-full h-2.5 rounded-full overflow-hidden flex mb-4">
+          <div className="w-full h-3.5 rounded-full overflow-hidden flex mb-5">
             {rows.map((r, i) => (
               <div
                 key={r.key ?? 'null'}
@@ -548,12 +549,12 @@ function ServicesBreakdown({ data }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
             {rows.map((r, i) => (
-              <div key={r.key ?? 'null'} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-slate-600 min-w-0">
-                  <span className="w-2 h-2 rounded-[3px] flex-shrink-0" style={{ background: SERVICES_COLORS[i % SERVICES_COLORS.length] }} />
+              <div key={r.key ?? 'null'} className="flex items-center justify-between text-[16px]">
+                <div className="flex items-center gap-2 text-slate-700 font-semibold min-w-0">
+                  <span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: SERVICES_COLORS[i % SERVICES_COLORS.length] }} />
                   <span className="truncate">{r.label}</span>
                 </div>
-                <span className="font-mono font-semibold text-slate-900 flex-shrink-0">{r.count.toLocaleString()}</span>
+                <span className="font-mono font-extrabold text-[18px] text-slate-900 flex-shrink-0">{r.count.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -572,36 +573,36 @@ const DOC_STATUS_TONE = {
 function DocumentsFeed({ documents }) {
   if (!documents) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div className="text-[15.5px] font-bold text-slate-900 mb-4">Invoices &amp; SEVF forms</div>
-        <div className="text-sm text-slate-400 text-center py-8">Loading…</div>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-4">Invoices &amp; SEVF forms</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
-      <div className="text-[15.5px] font-bold text-slate-900 mb-1">Invoices &amp; SEVF forms</div>
-      <p className="text-xs text-slate-500 mb-4">Generated from session notes</p>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
+      <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">Invoices &amp; SEVF forms</div>
+      <p className="text-[14px] text-slate-600 mb-4">Generated from session notes</p>
       {documents.length === 0 ? (
-        <div className="text-sm text-slate-400 text-center py-8">No invoices or SEVF forms generated yet.</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">No invoices or SEVF forms generated yet.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {documents.map((d) => {
             const tone = DOC_STATUS_TONE[d.status] || DOC_STATUS_TONE.pending;
             return (
-              <div key={d.batchId} className="flex items-center gap-3 bg-slate-50 rounded-xl px-3.5 py-2.5 min-w-0">
+              <div key={d.batchId} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 min-w-0">
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold text-slate-900 truncate">
+                  <div className="text-[16px] font-semibold text-slate-900 truncate">
                     {d.documentNumber} &middot; {d.documentType === 'sevf' ? 'SEVF' : 'Invoice'}
                   </div>
-                  <div className="text-[11.5px] text-slate-500 truncate">
+                  <div className="text-[14px] text-slate-600 truncate">
                     {d.practitionerName} &middot; {d.sessionCount} session{d.sessionCount === 1 ? '' : 's'}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="text-[13.5px] font-bold text-slate-900 font-mono tabular-nums">{money(d.amount)}</span>
-                  <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full ${tone.bg} ${tone.text}`}>{tone.label}</span>
+                  <span className="text-[18px] font-extrabold text-slate-900 font-mono tabular-nums">{money(d.amount)}</span>
+                  <span className={`text-[13px] font-extrabold px-2.5 py-1 rounded-full ${tone.bg} ${tone.text}`}>{tone.label}</span>
                 </div>
               </div>
             );
@@ -624,8 +625,8 @@ function TrajectoryTabs({ active, onChange }) {
           key={t.key}
           type="button"
           onClick={() => onChange(t.key)}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            active === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[15px] font-bold transition-colors cursor-pointer ${
+            active === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
           }`}
         >
           <t.icon className="size-3.5" /> {t.label}
@@ -646,15 +647,15 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
   const [expandedId, setExpandedId] = useState(null);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 min-w-0">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <div className="text-[15.5px] font-bold text-slate-900">Returned logs</div>
-        <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0">{count} total</div>
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Returned logs</div>
+        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{count} total</div>
       </div>
-      <div className="text-xs text-slate-400 mb-3">Everything billing has sent back, oldest first.</div>
+      <div className="text-[14px] text-slate-500 mb-3">Everything billing has sent back, oldest first.</div>
 
       {logs.length === 0 ? (
-        <div className="text-sm text-slate-400 text-center py-8">No returned or declined logs. Nice.</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">No returned or declined logs. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {logs.map((log) => {
@@ -663,7 +664,7 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
             const isOpen = expandedId === log.id;
             return (
               <div key={log.id} className="bg-slate-50 rounded-xl overflow-hidden min-w-0">
-                <div className="w-full min-w-0 flex items-center gap-3 px-3.5 py-2.5">
+                <div className="w-full min-w-0 flex items-center gap-3 px-4 py-3">
                   <button
                     type="button"
                     onClick={() => setExpandedId(isOpen ? null : log.id)}
@@ -671,10 +672,10 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
                   >
                     <div className={`w-[3px] self-stretch rounded-sm flex-shrink-0 ${isDeclined ? 'bg-rose-600' : 'bg-amber-600'}`} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13.5px] font-semibold text-slate-900 truncate">
+                      <div className="text-[16px] font-semibold text-slate-900 truncate">
                         {log.patientName} &middot; {log.practitionerName}
                       </div>
-                      <div className="text-[11.5px] text-slate-500 truncate">
+                      <div className="text-[14px] text-slate-600 truncate">
                         {isDeclined ? 'Declined' : 'Returned'}{log.rejectionCount > 1 ? ` &middot; sent back ${log.rejectionCount}x` : ''}
                         {log.note ? ` — ${log.note}` : ''}
                       </div>
@@ -683,12 +684,12 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
                   <button
                     type="button"
                     onClick={() => onSelectSession(log.id)}
-                    className="text-[10.5px] font-semibold text-slate-500 hover:text-slate-800 underline flex-shrink-0 cursor-pointer"
+                    className="text-[13px] font-semibold text-slate-600 hover:text-slate-800 underline flex-shrink-0 cursor-pointer"
                   >
                     Details
                   </button>
                   {age !== null && (
-                    <span className={`text-[10.5px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${isDeclined ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
+                    <span className={`text-[13px] font-extrabold px-2.5 py-1 rounded-full flex-shrink-0 ${isDeclined ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
                       {age}d
                     </span>
                   )}
@@ -696,10 +697,10 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
                 {isOpen && log.comments.length > 0 && (
                   <div className="border-t border-slate-200 bg-white px-3.5 py-3 space-y-2.5">
                     {log.comments.map((c, i) => (
-                      <div key={i} className="text-xs">
+                      <div key={i} className="text-[14px]">
                         <div className="font-semibold text-slate-700 mb-0.5 capitalize">{c.authorRole || 'Staff'}</div>
                         <div className="text-slate-600">{c.note}</div>
-                        <div className="text-[10.5px] text-slate-400 mt-0.5">{new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                        <div className="text-[13px] text-slate-500 mt-0.5">{new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                       </div>
                     ))}
                   </div>
@@ -721,13 +722,13 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
         type="month"
         value={monthValue}
         onChange={(e) => onMonthChange(e.target.value)}
-        className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700"
+        className="border border-slate-200 rounded-lg px-3 py-2 text-[15px] font-semibold text-slate-700"
       />
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex items-center gap-6 flex-wrap mb-4">
           <div>
-            <div className="text-2xl font-bold tracking-tight font-mono">{month.volumeVsPriorMonth.current.toLocaleString()}</div>
-            <div className={`text-xs font-semibold mt-1 ${month.volumeVsPriorMonth.pctChange >= 0 ? 'text-teal-700' : 'text-rose-700'}`}>
+            <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono">{month.volumeVsPriorMonth.current.toLocaleString()}</div>
+            <div className={`text-[14px] font-semibold mt-1 ${month.volumeVsPriorMonth.pctChange >= 0 ? 'text-teal-700' : 'text-rose-700'}`}>
               {month.volumeVsPriorMonth.pctChange !== null ? (
                 <span className="inline-flex items-center gap-1">
                   {month.volumeVsPriorMonth.pctChange >= 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
@@ -737,8 +738,8 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500">Children seen</div>
-            <div className="text-lg font-bold font-mono">{month.patientRosterCount}</div>
+            <div className="text-[14px] text-slate-600">Children seen</div>
+            <div className="text-[26px] font-extrabold font-mono">{month.patientRosterCount}</div>
           </div>
         </div>
         {(() => {
@@ -758,8 +759,8 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data} barCategoryGap="35%">
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#475569', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip cursor={{ fill: '#f6f7fb' }} formatter={(v) => [v.toLocaleString(), 'Sessions']} />
                   <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={90}>
                     {data.map((d, i) => (
@@ -795,26 +796,26 @@ function YearTrajectory() {
         type="number"
         value={year}
         onChange={(e) => setYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
-        className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 w-28"
+        className="border border-slate-200 rounded-lg px-3 py-2 text-[15px] font-semibold text-slate-700 w-28"
       />
       {isLoading || !data ? (
-        <div className="text-sm text-slate-400 text-center py-8">Loading...</div>
+        <div className="text-[15px] text-slate-500 text-center py-8">Loading...</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center gap-6 flex-wrap mb-4">
             <div>
-              <div className="text-2xl font-bold tracking-tight font-mono">{data.yoyComparison.current.count.toLocaleString()}</div>
-              <div className={`text-xs font-semibold mt-1 ${data.yoyComparison.pctChange >= 0 ? 'text-teal-700' : 'text-rose-700'}`}>
+              <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono">{data.yoyComparison.current.count.toLocaleString()}</div>
+              <div className={`text-[14px] font-semibold mt-1 ${data.yoyComparison.pctChange >= 0 ? 'text-teal-700' : 'text-rose-700'}`}>
                 {data.yoyComparison.pctChange !== null ? `${Math.abs(data.yoyComparison.pctChange)}% YoY` : 'No prior year to compare'}
               </div>
             </div>
             <div>
-              <div className="text-xs text-slate-500">Est. billable this year</div>
-              <div className="text-lg font-bold font-mono">{compactMoney(data.yoyComparison.current.estBillable)}</div>
+              <div className="text-[14px] text-slate-600">Est. billable this year</div>
+              <div className="text-[26px] font-extrabold font-mono">{compactMoney(data.yoyComparison.current.estBillable)}</div>
             </div>
             <div>
-              <div className="text-xs text-slate-500">Active practitioners</div>
-              <div className="text-lg font-bold font-mono">{data.practitionerRoster.activeNow}</div>
+              <div className="text-[14px] text-slate-600">Active practitioners</div>
+              <div className="text-[26px] font-extrabold font-mono">{data.practitionerRoster.activeNow}</div>
             </div>
           </div>
           {data.monthlyVolume.length > 0 && (
@@ -828,15 +829,15 @@ function YearTrajectory() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
-                  <XAxis dataKey="month" tickFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })} tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#9a9eb2' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <XAxis dataKey="month" tickFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
                   <Area type="monotone" dataKey="count" stroke="#0d9488" strokeWidth={2.5} fill="url(#yearArea)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
-          <div className="text-[11.5px] text-slate-400 mt-2.5">
+          <div className="text-[14px] text-slate-500 mt-2.5">
             {data.fullYearCompliance.coverageRate !== null
               ? `${data.fullYearCompliance.coverageRate}% of this year's billed sessions have a matching state record on file.`
               : 'Not enough billed sessions this year to compute coverage.'}
@@ -847,15 +848,6 @@ function YearTrajectory() {
   );
 }
 
-// Must exactly match backend/src/controllers/dashboardController.js's
-// DASHBOARD_CARD_KEYS/DASHBOARD_CARD_WIDTHS — the backend validates
-// PUT /api/dashboard/layout against this same fixed set.
-const DASHBOARD_CARD_KEYS = [
-  'billing_pipeline', 'action_queue', 'services_breakdown', 'documents_feed',
-  'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart',
-];
-const DEFAULT_CARD_LAYOUT = DASHBOARD_CARD_KEYS.map((key) => ({ key, width: 'full' }));
-
 // Returns [cardLayout, reorderLocally, persistLayout] — split so a drag's
 // continuous dragover events can move cards on screen without firing a PUT
 // per event (which, on a short card dragged over a taller one, oscillates
@@ -864,23 +856,13 @@ const DEFAULT_CARD_LAYOUT = DASHBOARD_CARD_KEYS.map((key) => ({ key, width: 'ful
 // layout). Only drop/dragend calls persistLayout. cardLayout is an array
 // of {key, width} in display order — width lives in the saved state, not
 // inferred, so a resize survives independently of any later reorder.
-// A layout saved under an earlier card set (e.g. the prior 5-group model,
-// or a future set this build doesn't know about) must never be trusted
-// blindly — rendering it would silently drop every card whose key isn't
-// in cardsByKey, with nothing on screen to explain why. Valid only when
-// it's exactly a permutation of today's DASHBOARD_CARD_KEYS.
-function isValidCardLayout(cardLayout) {
-  return Array.isArray(cardLayout)
-    && cardLayout.length === DASHBOARD_CARD_KEYS.length
-    && new Set(cardLayout.map((c) => c?.key)).size === DASHBOARD_CARD_KEYS.length
-    && cardLayout.every((c) => DASHBOARD_CARD_KEYS.includes(c?.key));
-}
-
 function useDashboardLayout() {
   const [cardLayout, setCardLayout] = useState(DEFAULT_CARD_LAYOUT);
   useEffect(() => {
     api.get('/api/dashboard/layout')
-      .then((res) => { if (isValidCardLayout(res.data.cardLayout)) setCardLayout(res.data.cardLayout); })
+      // Nothing saved, an unusable layout, or the old all-full-width default
+      // (never a deliberate choice) all resolve to the designed default.
+      .then((res) => setCardLayout(resolveCardLayout(res.data.cardLayout)))
       .catch(() => {});
   }, []);
 
@@ -896,7 +878,7 @@ function CustomizeToggle({ active, onToggle }) {
     <button
       type="button"
       onClick={onToggle}
-      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+      className={`inline-flex items-center gap-1.5 text-[14px] font-semibold px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
         active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
       }`}
     >
@@ -918,14 +900,14 @@ function DraggableCard({ cardKey, width, isCustomizing, onDragStart, onDragOver,
       onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, cardKey); } : undefined}
       onDrop={isCustomizing ? (e) => onDrop(e, cardKey) : undefined}
       onDragEnd={isCustomizing ? onDrop : undefined}
-      className={`relative w-full ${width === 'half' ? 'md:w-[calc(50%-0.75rem)]' : ''} ${isCustomizing ? 'outline outline-2 outline-dashed outline-slate-300 outline-offset-2 rounded-2xl cursor-grab active:cursor-grabbing' : ''}`}
+      className={`relative w-full ${width === 'half' ? '@4xl:w-[calc(50%-0.75rem)] [&>div:last-child]:h-full [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child>:last-child]:flex-1' : ''} ${isCustomizing ? 'outline outline-2 outline-dashed outline-slate-300 outline-offset-2 rounded-2xl cursor-grab active:cursor-grabbing' : ''}`}
     >
       {isCustomizing && (
         <div className="absolute -top-3 right-3 flex items-center gap-1 z-10">
           <button
             type="button"
             onClick={() => onToggleWidth(cardKey)}
-            className="bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-full cursor-pointer hover:bg-slate-700"
+            className="bg-slate-900 text-white text-[13px] font-bold px-2 py-1 rounded-full cursor-pointer hover:bg-slate-700"
             title={width === 'half' ? 'Make full width' : 'Make half width'}
           >
             {width === 'half' ? 'Half' : 'Full'}
@@ -994,6 +976,10 @@ export function CompanyDashboard() {
     dragKeyRef.current = null;
     persistCardLayout(cardLayout);
   };
+  const handleResetLayout = () => {
+    setCardLayout(DEFAULT_CARD_LAYOUT);
+    persistCardLayout(DEFAULT_CARD_LAYOUT);
+  };
   const handleToggleWidth = (key) => {
     const next = cardLayout.map((c) => (c.key === key ? { ...c, width: c.width === 'half' ? 'full' : 'half' } : c));
     setCardLayout(next);
@@ -1003,8 +989,8 @@ export function CompanyDashboard() {
   const cardsByKey = {
     billing_pipeline: (
       <div>
-        <div className="text-lg font-bold text-slate-900 mb-1">From session to payment</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Everything currently in the pipeline.</p>
+        <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">From session to payment</div>
+        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Everything currently in the pipeline.</p>
         <BillingFunnel pipeline={pipeline} />
       </div>
     ),
@@ -1025,15 +1011,15 @@ export function CompanyDashboard() {
     ),
     accuracy_table: (
       <div>
-        <div className="text-lg font-bold text-slate-900 mb-1">Who's submitting clean logs</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
+        <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">Who's submitting clean logs</div>
+        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
         <PractitionerAccuracyTable month={month} />
       </div>
     ),
     eims_status: (
       <div>
-        <div className="text-lg font-bold text-slate-900 mb-1">EIMS match status</div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">Reconciled against state records, all time.</p>
+        <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">EIMS match status</div>
+        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Reconciled against state records, all time.</p>
         <EimsDonut pipeline={pipeline} />
       </div>
     ),
@@ -1045,10 +1031,10 @@ export function CompanyDashboard() {
     trajectory_chart: (
       <div>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-          <div className="text-lg font-bold text-slate-900">Where this is headed</div>
+          <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900">Where this is headed</div>
           <TrajectoryTabs active={trajectoryTab} onChange={setTrajectoryTab} />
         </div>
-        <p className="text-sm text-slate-500 mb-4 max-w-2xl">The volume trend, and how it's reconciling against the state.</p>
+        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">The volume trend, and how it's reconciling against the state.</p>
         {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
         {trajectoryTab === 'year' && <YearTrajectory />}
       </div>
@@ -1061,9 +1047,18 @@ export function CompanyDashboard() {
 
       <div>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-          <div className="text-sm font-semibold text-slate-500">Viewing</div>
+          <div className="text-[15px] font-semibold text-slate-600">Viewing</div>
           <div className="flex items-center gap-2">
             <MonthYearPicker value={monthValue} onChange={setMonthValue} />
+            {isCustomizing && (
+              <button
+                type="button"
+                onClick={handleResetLayout}
+                className="text-[14px] font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Reset layout
+              </button>
+            )}
             <CustomizeToggle active={isCustomizing} onToggle={() => setIsCustomizing((v) => !v)} />
           </div>
         </div>
@@ -1095,6 +1090,7 @@ export function CompanyDashboard() {
         </div>
       </div>
 
+      <div className="@container">
       <div className="flex flex-wrap gap-6">
         {cardLayout.map(({ key, width }) => (
           <DraggableCard
@@ -1110,6 +1106,7 @@ export function CompanyDashboard() {
             {cardsByKey[key]}
           </DraggableCard>
         ))}
+      </div>
       </div>
 
       <SessionDetailDialog assessmentId={selectedSessionId} onClose={() => setSelectedSessionId(null)} />
