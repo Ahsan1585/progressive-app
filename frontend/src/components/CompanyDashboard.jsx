@@ -296,7 +296,7 @@ function VerdictBanner({ day, ap, monthLabel }) {
   if (!day || !ap) {
     return (
       <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
-        <div className="text-[15px] text-white/80">Loading today's picture...</div>
+        <div className="text-[15px] text-white/80">Loading {monthLabel}...</div>
       </section>
     );
   }
@@ -1141,7 +1141,6 @@ function DraggableCard({ cardKey, width, isCustomizing, compact, isDragging, dro
 
 export function CompanyDashboard() {
   const [day, setDay] = useState(null);
-  const [ap, setAp] = useState(null);
   const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
   const [month, setMonth] = useState(null);
   const [trajectoryTab, setTrajectoryTab] = useState('month');
@@ -1157,6 +1156,7 @@ export function CompanyDashboard() {
   const [services, setServices] = useState(null);
   const [documents, setDocuments] = useState(null);
   const [cardLayout, setCardLayout, persistCardLayout] = useDashboardLayout();
+  const [monthLoading, setMonthLoading] = useState(true);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const dragKeyRef = useRef(null);
   const [draggingKey, setDraggingKey] = useState(null);
@@ -1174,14 +1174,24 @@ export function CompanyDashboard() {
   useEffect(() => {
     let stale = false;
     const params = { month: monthValue };
-    const load = (url, onOk, onFail) => api.get(url, { params })
-      .then((res) => { if (!stale) onOk(res.data); })
-      .catch(() => { if (!stale) onFail(); });
+    // Drop the previous month's numbers straight away so nothing stale sits on
+    // screen while the new month loads; the cards show their loading state.
+    setMonth(null); setServices(null); setPipeline(null); setMonthDay(null); setDay(null);
+    setReturnedLogs(null); setDocuments(null);
+    setMonthLoading(true);
+    let pending = 0;
+    const settle = () => { pending -= 1; if (!stale && pending === 0) setMonthLoading(false); };
+    const load = (url, onOk, onFail) => {
+      pending += 1;
+      api.get(url, { params })
+        .then((res) => { if (!stale) onOk(res.data); })
+        .catch(() => { if (!stale) onFail(); })
+        .finally(settle);
+    };
     load('/api/dashboard/month', setMonth, () => setMonth(null));
     load('/api/dashboard/services', setServices, () => setServices(null));
     load('/api/dashboard/pipeline', setPipeline, () => setPipeline(null));
     load('/api/dashboard/day', (d) => { setMonthDay(d); setDay(d); }, () => { setMonthDay(null); setDay(null); });
-    load('/api/dashboard/ap', setAp, () => setAp(null));
     load('/api/dashboard/returned-logs', setReturnedLogs, () => setReturnedLogs(null));
     load('/api/dashboard/documents', (d) => setDocuments(d.documents), () => setDocuments([]));
     return () => { stale = true; };
@@ -1304,7 +1314,7 @@ export function CompanyDashboard() {
           so an open sidebar cannot squeeze them); stacked otherwise. */}
       <div className="@container">
         <div className="grid gap-6 @4xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <VerdictBanner day={day} ap={ap} monthLabel={new Date(`${monthValue}-01T12:00:00`).toLocaleString('en-US', { month: 'long', year: 'numeric' })} />
+          <VerdictBanner day={day} ap={month?.ap} monthLabel={new Date(`${monthValue}-01T12:00:00`).toLocaleString('en-US', { month: 'long', year: 'numeric' })} />
           <AllTimeStatus pipeline={allTime} />
         </div>
       </div>
@@ -1313,6 +1323,12 @@ export function CompanyDashboard() {
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <div className="text-[15px] font-semibold text-slate-600">Viewing</div>
           <div className="flex items-center gap-2">
+            {monthLoading && (
+              <span className="inline-flex items-center gap-2 text-[14px] font-semibold text-slate-600" role="status" aria-live="polite">
+                <span className="size-4 rounded-full border-2 border-slate-300 border-t-teal-600 animate-spin" />
+                Loading {new Date(`${monthValue}-01T12:00:00`).toLocaleString('en-US', { month: 'long' })}...
+              </span>
+            )}
             <MonthYearPicker value={monthValue} onChange={setMonthValue} />
             {isCustomizing && (
               <button
