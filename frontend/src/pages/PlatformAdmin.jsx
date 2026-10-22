@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
   Loader2, Plus, Ban, LogOut, ChevronDown, ChevronRight, LogIn, ShieldAlert,
   Building2, UserPlus, Tag, CircleCheck, Clock, TriangleAlert, DollarSign,
-  CreditCard, ShieldOff, ShieldCheck, MailX, Trash2,
+  CreditCard, ShieldOff, ShieldCheck, MailX, Trash2, CalendarDays,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -946,6 +946,67 @@ function PromoCodeManager({ client }) {
   );
 }
 
+// Demo calls booked from the marketing site's /book page (izaya_platform's
+// demo_bookings table). View-only: prospects cancel from their email link.
+function DemoBookingsManager({ client }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    client.get('/api/platform/demo-bookings')
+      .then(({ data }) => setRows(data.bookings))
+      .catch(() => setError('Failed to load demo bookings.'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET';
+  const upcoming = (r) => r.status === 'booked' && new Date(r.slot_start) > new Date();
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-sm overflow-x-auto">
+        {error && <p className="p-6 text-sm text-red-400 font-medium">{error}</p>}
+        {rows === null && !error && (
+          <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-slate-500" /></div>
+        )}
+        {rows && rows.length === 0 && (
+          <p className="p-6 text-sm text-slate-400">No demo bookings yet.</p>
+        )}
+        {rows && rows.length > 0 && (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800/60 text-slate-400 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-3">When</th>
+                <th className="text-left px-4 py-3">Agency</th>
+                <th className="text-left px-4 py-3">Contact</th>
+                <th className="text-left px-4 py-3">Practitioners</th>
+                <th className="text-left px-4 py-3">Source</th>
+                <th className="text-left px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {rows.map((r) => (
+                <tr key={r.id} className="hover:bg-slate-800/25 transition-colors">
+                  <td className="px-4 py-3 text-slate-100 whitespace-nowrap">{when(r.slot_start)}</td>
+                  <td className="px-4 py-3 text-slate-100">{r.agency_name}</td>
+                  <td className="px-4 py-3 text-slate-300"><div>{r.full_name}</div><div className="font-mono text-xs text-slate-400">{r.work_email}</div></td>
+                  <td className="px-4 py-3 text-slate-300">{r.practitioner_count ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-400">{r.source || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${r.status === 'cancelled' ? 'bg-red-500/15 text-red-300' : upcoming(r) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700 text-slate-300'}`}>
+                      {r.status === 'cancelled' ? 'Cancelled' : upcoming(r) ? 'Upcoming' : 'Past'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 // Read-only list of Izaya's own outbound-marketing suppression list (e.g.
 // the trial newsletter's unsubscribe link — see backend's
 // marketingController.js). Entirely separate from any tenant's data: this
@@ -1304,6 +1365,7 @@ const TABS = {
   billing: { label: 'Billing', icon: DollarSign, subtitle: "What every company owes Izaya, who's overdue, and the ability to suspend or reactivate access." },
   promoCodes: { label: 'Promo Codes', icon: Tag, subtitle: 'Trial-extension codes for outbound sales and partner offers.' },
   unsubscribes: { label: 'Unsubscribes', icon: MailX, subtitle: 'Everyone who has opted out of Izaya EIS marketing emails.' },
+  demoBookings: { label: 'Demo bookings', icon: CalendarDays, subtitle: 'Demo calls booked from izayaedge.com/eis/book, upcoming first by date.' },
 };
 
 export default function PlatformAdmin() {
@@ -1385,6 +1447,7 @@ export default function PlatformAdmin() {
           {tab === 'billing' && <BillingSection client={client} />}
           {tab === 'promoCodes' && <PromoCodeManager client={client} />}
           {tab === 'unsubscribes' && <UnsubscribesManager client={client} />}
+          {tab === 'demoBookings' && <DemoBookingsManager client={client} />}
         </div>
       </div>
     </div>

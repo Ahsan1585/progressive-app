@@ -122,7 +122,7 @@ export default function PractitionerApp() {
       <section className="mk-app-cta">
         <div className="mk-app-cta-inner">
           <p style={{ maxWidth: 480 }}>Not using Izaya EISimplified™ yet? See what your billing cycle looks like without the paperwork.</p>
-          <Link to="/contact" className="mk-btn-primary">Schedule a demo</Link>
+          <Link to="/book" className="mk-btn-primary">Book a demo</Link>
         </div>
       </section>
     </MarketingLayout>

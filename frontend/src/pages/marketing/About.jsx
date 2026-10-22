@@ -133,7 +133,7 @@ export default function About() {
               <h2>See Izaya EIS for your agency</h2>
               <p>We'll walk your team through the full workflow in about 30 minutes.</p>
             </div>
-            <Link to="/contact" className="mk-btn-primary">Schedule a demo</Link>
+            <Link to="/book" className="mk-btn-primary">Book a demo</Link>
           </div>
         </div>
       </section>

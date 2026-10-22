@@ -14,18 +14,18 @@ export function MarketingFooter({ isOne = false }) {
           <p className="mk-footer-blurb">
             {isOne
               ? 'Izaya One is a simple app for independent early intervention practitioners — log sessions, generate your own SEVFs and invoices, and get parent signatures, all from your phone.'
-              : 'Izaya EISimplified™ automates the entire billing process from session log to SEVF and invoice — so your team can focus on what truly matters: children.'}
+              : 'Izaya EISimplified™ is early intervention software for New Jersey agencies: session notes, EIMS checks, SEVFs and invoices, and your whole agency in one place.'}
           </p>
         </div>
         <div>
           <h3>Explore</h3>
           <ul>
-            <li><Link to={isOne ? '/practitioners#how-it-works' : '/how-it-works'}>How it works</Link></li>
+            {isOne && <li><Link to="/practitioners#how-it-works">How it works</Link></li>}
             <li><Link to="/about">About</Link></li>
             <li><Link to={isOne ? '/practitioners#download' : '/download'}>Practitioner app</Link></li>
             {isOne
               ? <li><Link to="/signup/independent">Start free trial</Link></li>
-              : <li><Link to="/contact">Schedule a demo</Link></li>}
+              : <li><Link to="/book?source=footer">Book a demo</Link></li>}
           </ul>
         </div>
         <div>

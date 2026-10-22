@@ -18,7 +18,7 @@ if (window.location.hash) {
   window.scrollTo(0, 0);
 }
 
-// The four public marketing routes (/, /how-it-works, /download, /contact
+// The public marketing routes (/, /download, /book, /about
 // under the /eis base) are prerendered at build time (scripts/prerender.mjs)
 // so crawlers get real HTML instead of an empty shell — see that script's
 // header comment for why. Every other route (login, dashboard, signup,

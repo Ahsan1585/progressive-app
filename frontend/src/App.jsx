@@ -3,9 +3,8 @@ import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useNav
 import { SESSION_EXPIRED_EVENT, clearSessionAndNotify } from './api/axiosInstance';
 import Login from './pages/Login';
 import Home from './pages/marketing/Home';
-import HowItWorks from './pages/marketing/HowItWorks';
 import PractitionerApp from './pages/marketing/PractitionerApp';
-import Contact from './pages/marketing/Contact';
+import BookDemo from './pages/marketing/BookDemo';
 import About from './pages/marketing/About';
 import Dashboard from './pages/dashboard';
 import ChangePassword from './components/ChangePassword';
@@ -151,9 +150,11 @@ const DESKTOP_ROUTES = (
 const WEB_ROUTES = (
   <>
     <Route path="/" element={<Home />} />
-    <Route path="/how-it-works" element={<HowItWorks />} />
+    {/* Retired pages: their content now lives on the homepage and /book. */}
+    <Route path="/how-it-works" element={<Navigate to="/" replace />} />
     <Route path="/download" element={<PractitionerApp />} />
-    <Route path="/contact" element={<Contact />} />
+    <Route path="/book" element={<BookDemo />} />
+    <Route path="/contact" element={<Navigate to="/book" replace />} />
     <Route path="/about" element={<About />} />
     <Route path="/login" element={<Login />} />
     <Route path="/change-password" element={<ChangePassword />} />

@@ -1,34 +1,122 @@
 {
   "redirects": [
-    { "source": "/", "destination": "/eis", "permanent": false }
+    {
+      "source": "/",
+      "destination": "/eis",
+      "permanent": false
+    },
+    {
+      "source": "/eis/how-it-works",
+      "destination": "/eis",
+      "permanent": true
+    },
+    {
+      "source": "/eis/contact",
+      "destination": "/eis/book",
+      "permanent": true
+    }
   ],
   "rewrites": [
-    { "source": "/eis/assets/:path*", "destination": "/assets/:path*" },
-    { "source": "/eis/favicon.svg", "destination": "/favicon.svg" },
-    { "source": "/eis/favicon.png", "destination": "/favicon.png" },
-    { "source": "/eis/icons.svg", "destination": "/icons.svg" },
-    { "source": "/eis/email-logo.png", "destination": "/email-logo.png" },
-    { "source": "/eis/email-logo-one.png", "destination": "/email-logo-one.png" },
-    { "source": "/eis/email-icon-review.png", "destination": "/email-icon-review.png" },
-    { "source": "/eis/email-icon-sign.png", "destination": "/email-icon-sign.png" },
-    { "source": "/eis/email-icon-done.png", "destination": "/email-icon-done.png" },
-    { "source": "/eis/hero-practitioner.jpg", "destination": "/hero-practitioner.jpg" },
-    { "source": "/eis/practitionerfamily.png", "destination": "/practitionerfamily.png" },
-    { "source": "/eis/Pract_Dash.png", "destination": "/Pract_Dash.png" },
-    { "source": "/eis/practitioners-hero-banner.png", "destination": "/practitioners-hero-banner.png" },
-    { "source": "/eis/lovable-hero-photo.jpg", "destination": "/lovable-hero-photo.jpg" },
-    { "source": "/eis/lovable-dashboard.png", "destination": "/lovable-dashboard.png" },
-    { "source": "/eis/hero-practitioner-puppet.png", "destination": "/hero-practitioner-puppet.png" },
-    { "source": "/eis/message.mp3", "destination": "/message.mp3" },
-    { "source": "/eis/robots.txt", "destination": "/robots.txt" },
-    { "source": "/eis/sitemap.xml", "destination": "/sitemap.xml" },
-    { "source": "/eis/newsletter/:path*", "destination": "/newsletter/:path*" },
-    { "source": "/eis", "destination": "/index.html" },
-    { "source": "/eis/how-it-works", "destination": "/how-it-works/index.html" },
-    { "source": "/eis/download", "destination": "/download/index.html" },
-    { "source": "/eis/contact", "destination": "/contact/index.html" },
-    { "source": "/eis/about", "destination": "/about/index.html" },
-    { "source": "/(.*)", "destination": "/app.html" }
+    {
+      "source": "/eis/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/eis/favicon.svg",
+      "destination": "/favicon.svg"
+    },
+    {
+      "source": "/eis/favicon.png",
+      "destination": "/favicon.png"
+    },
+    {
+      "source": "/eis/icons.svg",
+      "destination": "/icons.svg"
+    },
+    {
+      "source": "/eis/email-logo.png",
+      "destination": "/email-logo.png"
+    },
+    {
+      "source": "/eis/email-logo-one.png",
+      "destination": "/email-logo-one.png"
+    },
+    {
+      "source": "/eis/email-icon-review.png",
+      "destination": "/email-icon-review.png"
+    },
+    {
+      "source": "/eis/email-icon-sign.png",
+      "destination": "/email-icon-sign.png"
+    },
+    {
+      "source": "/eis/email-icon-done.png",
+      "destination": "/email-icon-done.png"
+    },
+    {
+      "source": "/eis/hero-practitioner.jpg",
+      "destination": "/hero-practitioner.jpg"
+    },
+    {
+      "source": "/eis/practitionerfamily.png",
+      "destination": "/practitionerfamily.png"
+    },
+    {
+      "source": "/eis/Pract_Dash.png",
+      "destination": "/Pract_Dash.png"
+    },
+    {
+      "source": "/eis/practitioners-hero-banner.png",
+      "destination": "/practitioners-hero-banner.png"
+    },
+    {
+      "source": "/eis/lovable-hero-photo.jpg",
+      "destination": "/lovable-hero-photo.jpg"
+    },
+    {
+      "source": "/eis/lovable-dashboard.png",
+      "destination": "/lovable-dashboard.png"
+    },
+    {
+      "source": "/eis/hero-practitioner-puppet.png",
+      "destination": "/hero-practitioner-puppet.png"
+    },
+    {
+      "source": "/eis/message.mp3",
+      "destination": "/message.mp3"
+    },
+    {
+      "source": "/eis/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
+      "source": "/eis/sitemap.xml",
+      "destination": "/sitemap.xml"
+    },
+    {
+      "source": "/eis/newsletter/:path*",
+      "destination": "/newsletter/:path*"
+    },
+    {
+      "source": "/eis",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/eis/download",
+      "destination": "/download/index.html"
+    },
+    {
+      "source": "/eis/book",
+      "destination": "/book/index.html"
+    },
+    {
+      "source": "/eis/about",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/app.html"
+    }
   ],
   "headers": [
     {
@@ -38,11 +126,26 @@
           "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: wss://njeis-backend-996984273416.us-east1.run.app; frame-src https://js.stripe.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
         },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "no-referrer" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
       ]
     },
     {
@@ -52,10 +155,22 @@
           "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self' data:; connect-src 'none'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"
         },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "no-referrer" }
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
       ]
     }
   ]

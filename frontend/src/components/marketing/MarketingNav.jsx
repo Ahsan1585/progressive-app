@@ -4,10 +4,8 @@ import { IZAYA_ONE_URL } from '../AuthLayout';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home', end: true },
-  { to: '/how-it-works', label: 'How it works' },
   { to: '/about', label: 'About' },
   { to: '/download', label: 'Practitioner app' },
-  { to: '/contact', label: 'Contact' },
 ];
 
 // On /practitioners (Izaya One), "How it works" and "Practitioner app" both
@@ -50,7 +48,7 @@ export function MarketingNav({ isOne = false }) {
         ) : (
           <>
             <Link to="/login" className="mk-nav-login">Log In</Link>
-            <Link to="/contact" className="mk-nav-cta">Schedule a demo</Link>
+            <Link to="/book?source=nav" className="mk-nav-cta">Book a demo</Link>
           </>
         )}
       </div>

@@ -5,9 +5,8 @@
 # the exact rule to add there.
 User-agent: *
 Allow: /eis
-Allow: /eis/how-it-works
 Allow: /eis/download
-Allow: /eis/contact
+Allow: /eis/book
 Allow: /eis/about
 Disallow: /eis/login
 Disallow: /eis/dashboard
