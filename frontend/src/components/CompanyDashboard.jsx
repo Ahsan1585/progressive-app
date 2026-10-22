@@ -530,12 +530,22 @@ function EimsDonut({ pipeline }) {
       <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
       <svg viewBox="0 0 120 120" width="200" height="200">
         <circle cx="60" cy="60" r="46" fill="none" stroke="#f6f7fb" strokeWidth="16" />
-        <circle cx="60" cy="60" r="46" fill="none" stroke="#0d9488" strokeWidth="16"
-          strokeDasharray={`${matchedLen} ${C - matchedLen}`} strokeDashoffset="0" transform="rotate(-90 60 60)" strokeLinecap="round" />
-        <circle cx="60" cy="60" r="46" fill="none" stroke="#d97706" strokeWidth="16"
-          strokeDasharray={`${flaggedLen} ${C - flaggedLen}`} strokeDashoffset={-matchedLen} transform="rotate(-90 60 60)" />
-        <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
-          strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" strokeLinecap="round" />
+        {/* A segment is drawn only when it has sessions: a zero-length stroke
+            with a round cap still paints a dot, which showed as a red blip at
+            the top of the ring when Missing was 0. Flat ends so a small segment
+            never overlaps its neighbor. */}
+        {rate.matched > 0 && (
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#0d9488" strokeWidth="16"
+            strokeDasharray={`${matchedLen} ${C - matchedLen}`} strokeDashoffset="0" transform="rotate(-90 60 60)" />
+        )}
+        {rate.flagged > 0 && (
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#d97706" strokeWidth="16"
+            strokeDasharray={`${flaggedLen} ${C - flaggedLen}`} strokeDashoffset={-matchedLen} transform="rotate(-90 60 60)" />
+        )}
+        {rate.missing + rate.unverified > 0 && (
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
+            strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" />
+        )}
         <text x="60" y="56" textAnchor="middle" fontSize="27" fontWeight="800" fill="#0f172a">{matchedPct}%</text>
         <text x="60" y="73" textAnchor="middle" fontSize="10" fontWeight="600" fill="#475569">matched</text>
       </svg>
