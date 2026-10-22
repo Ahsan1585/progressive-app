@@ -22,7 +22,19 @@ const listDirectoryPatients = async (req, res) => {
                   ORDER BY pp.status ASC, p.last_name ASC
                 ) FILTER (WHERE p.id IS NOT NULL),
                 '[]'
-              ) AS practitioners
+              ) AS practitioners,
+              -- Signed (active) consents and how many have not had records sent
+              -- yet: a release that failed to email or was revoked does not count.
+              (SELECT jsonb_build_object(
+                        'active', count(*),
+                        'awaiting_send', count(*) FILTER (WHERE NOT EXISTS (
+                          SELECT 1 FROM records_releases r
+                          WHERE r.consent_id = c.id AND r.revoked_at IS NULL AND r.email_status = 'sent'
+                        ))
+                      )
+               FROM records_consents c
+               WHERE c.patient_id = pt.id AND c.revoked_at IS NULL AND (c.expires_at IS NULL OR c.expires_at > now())
+              ) AS consent_summary
        FROM patients pt
        LEFT JOIN patient_practitioners pp ON pp.patient_id = pt.id
        LEFT JOIN practitioners p ON p.id = pp.practitioner_id

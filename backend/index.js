@@ -25,6 +25,7 @@ const { createAssessmentFromPayload, DuplicateAssessmentError } = require('./src
 const patientRoutes = require('./src/routes/patientRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const sharedDocumentRoutes = require('./src/routes/sharedDocumentRoutes');
+const recordsReleaseRoutes = require('./src/routes/recordsReleaseRoutes');
 const inspectionRequestRoutes = require('./src/routes/inspectionRequestRoutes');
 const reportRoutes = require('./src/routes/reportRoutes'); 
 const billingRoutes = require('./src/routes/billingRoutes'); // 🌟 NEW: Imported billing routes
@@ -105,6 +106,7 @@ app.use(express.urlencoded({ limit: '20mb', extended: true }));
 app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/shared-documents', sharedDocumentRoutes);
+app.use('/api/released-records', recordsReleaseRoutes);
 app.use('/api/inspection-requests', inspectionRequestRoutes);
 app.use('/api/consent-requests', require('./src/routes/consentRequestRoutes'));
 app.use('/api/consent-signing', require('./src/routes/consentSigningRoutes'));

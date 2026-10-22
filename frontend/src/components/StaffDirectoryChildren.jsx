@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Download, FileEdit, Loader2, X, Plus, FileSignature } from 'lucide-react';
+import { Search, Download, FileEdit, Loader2, X, Plus, FileSignature, Send } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -530,6 +530,18 @@ export function StaffDirectoryChildren() {
                   >
                     <td className="px-6 py-3 font-medium text-slate-800">
                       {child.first_name} {child.middle_name ? `${child.middle_name} ` : ''}{child.last_name}
+                      {canManageRecordRights && child.consent_summary?.awaiting_send > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setConsentsPanel({ child })}
+                          className="mt-1.5 flex items-center gap-1.5 w-fit text-xs font-bold text-amber-900 bg-amber-100 border border-amber-400 rounded-full pl-2 pr-2.5 py-1 hover:bg-amber-200 cursor-pointer"
+                          title="The parent has signed a consent. Open it and press Send records to email the records."
+                        >
+                          <Send className="size-3" aria-hidden="true" />
+                          Signed consent: records not sent
+                          {child.consent_summary.awaiting_send > 1 ? ` (${child.consent_summary.awaiting_send})` : ''}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">{child.child_id}</td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDob(child.dob)}</td>
@@ -643,6 +655,7 @@ export function StaffDirectoryChildren() {
           key={consentsPanel.child ? consentsPanel.child.id : 'pending'}
           child={consentsPanel.child}
           onClose={() => setConsentsPanel(null)}
+          onChanged={loadChildren}
           onOpenChild={(patientId) => {
             const match = children.find((c) => c.id === Number(patientId));
             if (match) setConsentsPanel({ child: match });

@@ -93,6 +93,10 @@ const ACTION_LABELS = {
   // Preparing a consent-scoped packet is not the same as sending it; staff
   // hand it over themselves (consentReportController).
   consent_report_generated: 'Disclosure packet prepared',
+  // In-app "Send records" (recordsReleaseController).
+  records_release_sent: 'Records sent to recipient (secure link)',
+  records_release_downloaded: 'Records downloaded by recipient',
+  records_release_revoked: 'Records link revoked',
   // Admin password-confirmed export with no covering consent (the reason is
   // appended by describeAuditRow).
   record_export_override: 'Full record exported with admin approval',
@@ -122,6 +126,8 @@ const DISCLOSURE_PURPOSE_FALLBACK = {
   shared_document_downloaded: 'Recipient downloaded shared document',
   patient_record_export: 'Parent/guardian record access request',
   consent_report_generated: 'Disclosure under parental consent',
+  records_release_sent: 'Disclosure under parental consent',
+  records_release_downloaded: 'Disclosure under parental consent',
   record_export_override: 'Full record export approved by an administrator',
 };
 
@@ -151,6 +157,20 @@ function buildDisclosureRows(auditRows) {
           formatAuditDate(r.created_at),
           pdfSafeText(`Disclosure packet prepared for ${d.recipient || '—'}`),
           pdfSafeText(d.purpose || DISCLOSURE_PURPOSE_FALLBACK.consent_report_generated),
+          pdfSafeText(types.length ? types.join(', ') : '—'),
+        ];
+      }
+      if (r.action === 'records_release_sent' || r.action === 'records_release_downloaded') {
+        // details: { consentId, releaseId, recipient, recipientEmail?, recordTypes }
+        const types = Array.isArray(d.recordTypes) ? d.recordTypes.map((t) => RECORD_TYPE_LABELS[t] || t) : [];
+        const who = d.recipient || '—';
+        const text = r.action === 'records_release_sent'
+          ? `Records sent to ${d.recipientEmail ? `${who} <${d.recipientEmail}>` : who} (secure link)`
+          : `Records downloaded by ${who}`;
+        return [
+          formatAuditDate(r.created_at),
+          pdfSafeText(text),
+          pdfSafeText(DISCLOSURE_PURPOSE_FALLBACK[r.action]),
           pdfSafeText(types.length ? types.join(', ') : '—'),
         ];
       }

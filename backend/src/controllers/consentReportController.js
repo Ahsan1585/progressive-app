@@ -242,31 +242,35 @@ function drawEmptySectionPage(pdfDoc, { title, message }, fonts) {
   return page;
 }
 
-// Builds the packet for one ACTIVE consent of `patient` and sends it. Shared
-// with patientRecordExportController.exportPatientRecord, which returns this
-// packet (not the parent's complete copy) when a covering consent exists.
-// The caller has already verified the consent belongs to this patient and is
-// active. The PDF is built and the headers set BEFORE the audit row is
-// written, so a failure can never leave a false disclosure entry; errors
-// propagate to the caller's 500 handler.
-async function sendConsentPacket(req, res, { patient, consent, now = new Date() }) {
-  const id = String(patient.id);
-  const staffIds = [req.practitioner?.practitionerId, consent.granted_by]
+// Names of the staff involved, looked up once: the generator and the person
+// who recorded the consent.
+async function loadStaffNames(staffIdCandidates) {
+  const staffIds = staffIdCandidates
     .filter((v) => v != null && /^\d{1,9}$/.test(String(v)))
     .map(Number);
-  const { rows: staffRows } = staffIds.length
+  const { rows } = staffIds.length
     ? await pool.query('SELECT id, first_name, last_name FROM practitioners WHERE id = ANY($1::int[])', [staffIds])
     : { rows: [] };
-  const staffName = (pid) => fullName(staffRows.find((s) => Number(s.id) === Number(pid)));
-  const generatedBy = staffName(req.practitioner?.practitionerId) || req.practitioner?.email || 'Unknown';
+  return (pid) => fullName(rows.find((s) => Number(s.id) === Number(pid)));
+}
+
+// Builds the packet PDF bytes for one ACTIVE consent of `patient`: cover,
+// signed-consent copy, then the approved sections. `recordTypes` narrows what
+// goes in (a release may send less than the consent allows) but is always
+// intersected with what the consent approves, so it can never widen it.
+// Shared by the staff download (sendConsentPacket) and the recipient release
+// download (recordsReleaseController).
+async function buildConsentPacketPdf({ patient, consent, recordTypes, generatedBy, grantedByName, now = new Date() }) {
+  const approved = new Set(sectionsForRecordTypes(consent.record_types));
+  const wanted = recordTypes ? new Set(sectionsForRecordTypes(recordTypes)) : approved;
+  const sections = SECTION_ORDER.filter((t) => approved.has(t) && wanted.has(t));
   const companyName = await getCompanyName();
 
-  const sections = sectionsForRecordTypes(consent.record_types);
   let assessments = [];
   if (sections.length) {
     ({ rows: assessments } = await pool.query(
       'SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date ASC, start_time ASC',
-      [id]
+      [String(patient.id)]
     ));
   }
 
@@ -276,8 +280,9 @@ async function sendConsentPacket(req, res, { patient, consent, now = new Date() 
     bold: await outDoc.embedFont(StandardFonts.HelveticaBold),
   };
 
-  drawPacketCover(outDoc, buildCoverRows({ patient, consent, companyName, generatedBy, generatedAt: now }), fonts);
-  await drawConsentCopyPage(outDoc, buildConsentCopy(consent, { grantedByName: staffName(consent.granted_by) }), fonts);
+  const coverConsent = { ...consent, record_types: sections.length ? sections : consent.record_types };
+  drawPacketCover(outDoc, buildCoverRows({ patient, consent: coverConsent, companyName, generatedBy, generatedAt: now }), fonts);
+  await drawConsentCopyPage(outDoc, buildConsentCopy(consent, { grantedByName }), fonts);
 
   for (const section of sections) {
     if (assessments.length === 0) {
@@ -292,8 +297,24 @@ async function sendConsentPacket(req, res, { patient, consent, now = new Date() 
       drawBillingSection(outDoc, assessments, fonts);
     }
   }
+  return outDoc.save();
+}
 
-  const pdfBytes = await outDoc.save();
+// Builds the packet for one ACTIVE consent of `patient` and sends it. Shared
+// with patientRecordExportController.exportPatientRecord, which returns this
+// packet (not the parent's complete copy) when a covering consent exists.
+// The caller has already verified the consent belongs to this patient and is
+// active. The PDF is built and the headers set BEFORE the audit row is
+// written, so a failure can never leave a false disclosure entry; errors
+// propagate to the caller's 500 handler.
+async function sendConsentPacket(req, res, { patient, consent, now = new Date() }) {
+  const id = String(patient.id);
+  const staffName = await loadStaffNames([req.practitioner?.practitionerId, consent.granted_by]);
+  const generatedBy = staffName(req.practitioner?.practitionerId) || req.practitioner?.email || 'Unknown';
+
+  const pdfBytes = await buildConsentPacketPdf({
+    patient, consent, generatedBy, grantedByName: staffName(consent.granted_by), now,
+  });
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="consent-report-${safeFilenamePart(patient.last_name)}-${recipientSlug(consent.recipient_name)}.pdf"`);
@@ -339,6 +360,8 @@ const generateConsentReport = async (req, res) => {
 module.exports = {
   generateConsentReport,
   sendConsentPacket,
+  buildConsentPacketPdf,
+  loadStaffNames,
   sectionsForRecordTypes,
   buildCoverRows,
   buildConsentCopy,

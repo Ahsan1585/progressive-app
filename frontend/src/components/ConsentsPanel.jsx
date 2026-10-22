@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Download } from 'lucide-react';
+import { X, Loader2, Download, Send } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +51,19 @@ const errMsg = (err, fallback) => err.response?.data?.message || err.response?.d
 const daysUntil = (s) => {
   if (!s) return null;
   return Math.ceil((new Date(s).getTime() - Date.now()) / 86400000);
+};
+
+const SECTION_TYPES = ['session_logs', 'sevf_forms', 'invoices'];
+// What a consent lets staff send: full export means all three sections.
+const sendableTypes = (recordTypes) => (
+  (recordTypes || []).includes('full_record_export') ? SECTION_TYPES : SECTION_TYPES.filter((t) => (recordTypes || []).includes(t))
+);
+const RELEASE_STATUS = {
+  sent: { label: 'Sent, not opened yet', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  downloaded: { label: 'Downloaded', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  failed: { label: 'Email failed', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+  revoked: { label: 'Link revoked', cls: 'bg-slate-50 text-slate-600 border-slate-200' },
+  expired: { label: 'Link expired', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
 };
 
 const selectCls = 'w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700';
@@ -288,8 +301,13 @@ function PendingList({ onOpenChild }) {
   });
 }
 
-function ChildConsents({ child }) {
+function ChildConsents({ child, onChanged }) {
   const [consents, setConsents] = useState([]);
+  const [releases, setReleases] = useState([]);
+  const [sendingFor, setSendingFor] = useState(null); // consent id whose send form is open
+  const [sendTypes, setSendTypes] = useState([]);
+  const [sendBusy, setSendBusy] = useState(false);
+  const [sendError, setSendError] = useState(null); // { id, message }
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null); // null | 'request' | 'paper'
@@ -305,10 +323,12 @@ function ChildConsents({ child }) {
     Promise.all([
       api.get(`/api/patients/${child.id}/consents`),
       api.get(`/api/patients/${child.id}/consent-requests`),
+      api.get(`/api/patients/${child.id}/releases`).catch(() => ({ data: { releases: [] } })),
     ])
-      .then(([c, r]) => {
+      .then(([c, r, rel]) => {
         setConsents(c.data.consents || []);
         setRequests(r.data.requests || []);
+        setReleases(rel.data.releases || []);
       })
       .catch(() => showAlert('Failed to load consents.'))
       .finally(() => setLoading(false));
@@ -321,6 +341,7 @@ function ChildConsents({ child }) {
       await api.delete(`/api/patients/${child.id}/consents/${id}`);
       setConfirmRevoke(null);
       load();
+      if (onChanged) onChanged();
     } catch (err) {
       showAlert(errMsg(err, 'Failed to revoke consent.'));
     } finally {
@@ -342,6 +363,43 @@ function ChildConsents({ child }) {
       load();
     } catch (err) {
       setReqError({ id, message: errMsg(err, `Failed to ${action} request.`) });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openSend = (c) => {
+    setNotice('');
+    setSendError(null);
+    setSendTypes(sendableTypes(c.record_types));
+    setSendingFor(c.id);
+  };
+
+  const sendRecords = async (c) => {
+    setSendBusy(true);
+    setSendError(null);
+    try {
+      await api.post(`/api/patients/${child.id}/consents/${c.id}/releases`, { recordTypes: sendTypes });
+      setSendingFor(null);
+      setNotice(`Secure link emailed to ${c.recipient_email}. They confirm a one-time code before downloading.`);
+      load();
+      if (onChanged) onChanged();
+    } catch (err) {
+      setSendError({ id: c.id, message: errMsg(err, 'Failed to send records.') });
+      load();
+    } finally {
+      setSendBusy(false);
+    }
+  };
+
+  const revokeRelease = async (releaseId) => {
+    setBusyId(`rel-${releaseId}`);
+    try {
+      await api.delete(`/api/patients/${child.id}/releases/${releaseId}`);
+      load();
+      if (onChanged) onChanged();
+    } catch (err) {
+      showAlert(errMsg(err, 'Failed to revoke the link.'));
     } finally {
       setBusyId(null);
     }
@@ -388,7 +446,7 @@ function ChildConsents({ child }) {
           mode={form}
           child={child}
           onCancel={() => setForm(null)}
-          onDone={(msg) => { setForm(null); setNotice(msg); load(); }}
+          onDone={(msg) => { setForm(null); setNotice(msg); load(); if (onChanged) onChanged(); }}
         />
       ) : (
         <div className="flex gap-2 flex-wrap">
@@ -463,10 +521,79 @@ function ChildConsents({ child }) {
                     <p className="text-xs text-slate-500">
                       Includes only what the parent approved: {typesText(c.record_types)}, plus the signed consent copy.
                     </p>
+                    {releases.filter((r) => r.consent_id === c.id).map((r) => {
+                      const rs = RELEASE_STATUS[r.status] || RELEASE_STATUS.sent;
+                      const live = r.status === 'sent' || r.status === 'downloaded';
+                      return (
+                        <div key={r.id} className="flex items-center justify-between gap-2 flex-wrap text-xs text-slate-600 bg-slate-50 rounded-lg px-2.5 py-1.5">
+                          <span>
+                            Sent {fmtDate(r.created_at)} to {r.recipient_email}
+                            {r.download_count > 0 ? ` · downloaded ${r.download_count}x` : ''}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className={`${badgeCls} ${rs.cls}`}>{rs.label}</span>
+                            {live && (
+                              <button
+                                type="button"
+                                className="text-rose-600 hover:underline cursor-pointer disabled:opacity-50"
+                                disabled={busyId === `rel-${r.id}`}
+                                onClick={() => revokeRelease(r.id)}
+                              >
+                                Revoke link
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
                     {reportError && reportError.id === c.id && (
                       <p role="alert" className="text-xs text-rose-600">{reportError.message}</p>
                     )}
-                    <div className="flex justify-end">
+                    {sendError && sendError.id === c.id && (
+                      <p role="alert" className="text-xs text-rose-600">{sendError.message}</p>
+                    )}
+                    {sendingFor === c.id && (
+                      <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-3 space-y-2">
+                        {c.recipient_email ? (
+                          <>
+                            <p className="text-sm text-slate-700">
+                              Email a secure link to <b>{c.recipient_email}</b>. They must enter a one-time code sent to that same address before anything downloads.
+                            </p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                              {sendableTypes(c.record_types).map((t) => (
+                                <label key={t} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="size-4 accent-blue-600"
+                                    checked={sendTypes.includes(t)}
+                                    onChange={() => setSendTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))}
+                                  />
+                                  {TYPE_LABEL[t]}
+                                </label>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-sm text-amber-700">
+                            This consent was recorded without a recipient email, so records cannot be sent from here. Record a new consent that includes the recipient's email.
+                          </p>
+                        )}
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setSendingFor(null)} disabled={sendBusy}>Cancel</Button>
+                          {c.recipient_email && (
+                            <Button size="sm" onClick={() => sendRecords(c)} disabled={sendBusy || sendTypes.length === 0}>
+                              {sendBusy ? <Loader2 className="size-3.5 animate-spin" /> : <><Send className="size-3.5" /> Send records now</>}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2 flex-wrap">
+                      {sendingFor !== c.id && (
+                        <Button size="sm" onClick={() => openSend(c)}>
+                          <Send className="size-3.5" /> Send records
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" disabled={reportBusyId === c.id} onClick={() => generateReport(c)}>
                         {reportBusyId === c.id ? (
                           <><Loader2 className="size-3.5 animate-spin" /> Preparing...</>
@@ -501,7 +628,7 @@ function ChildConsents({ child }) {
   );
 }
 
-export function ConsentsPanel({ child = null, onClose, onOpenChild }) {
+export function ConsentsPanel({ child = null, onClose, onOpenChild, onChanged }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
@@ -521,7 +648,7 @@ export function ConsentsPanel({ child = null, onClose, onOpenChild }) {
           </button>
         </div>
         {child ? (
-          <ChildConsents child={child} />
+          <ChildConsents child={child} onChanged={onChanged} />
         ) : (
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
             <PendingList onOpenChild={onOpenChild} />

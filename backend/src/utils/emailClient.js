@@ -687,7 +687,72 @@ const sendMfaResetCompletedEmail = async (toEmail) => {
   }
 };
 
+// "Send records" release link (recordsReleaseController). Link-only, neutral
+// copy: the organization name is the only company detail and nothing about
+// any child is included. THROWS on any failure so staff are told the send
+// failed instead of believing the recipient has a link.
+const sendRecordsReleaseEmail = async (toEmail, { releaseUrl, organizationName, expiresAt } = {}) => {
+  if (!resend) {
+    throw new Error('Email is not configured (RESEND_API_KEY not set); records release email was not sent.');
+  }
+  const org = organizationName ? escapeHtml(organizationName) : 'An early intervention provider';
+  const expires = expiresAt
+    ? new Date(expiresAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : null;
+  const bodyHtml = `
+    <p style="margin:0 0 4px;">${org} has shared records with you under a parent's written consent. Follow the secure link below, then confirm a one-time code we email you, to download them.</p>
+    ${ctaButton(releaseUrl, 'Open Secure Records')}
+    ${linkFallback(releaseUrl)}
+    <p style="margin:20px 0 0; font-size:12.5px; color:${COLORS.slate};">${escapeHtml(REDISCLOSURE_NOTICE)}</p>
+  `;
+  const html = emailShell({
+    preheader: 'Records have been shared with you securely.',
+    eyebrow: 'Secure Records',
+    heading: 'Records are ready for you',
+    bodyHtml,
+    footnote: `This private link${expires ? ` expires on ${expires} and` : ''} works only with the code sent to this address. Downloads are logged.`,
+  });
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'Secure records have been shared with you',
+    html,
+  });
+  if (result?.error) {
+    throw new Error(`Records release email failed: ${result.error.message || result.error.name || 'unknown error'}`);
+  }
+};
+
+// One-time code for the recipient gateway. Code only: no link, no names.
+const sendRecordsReleaseCodeEmail = async (toEmail, { code, minutes = 15 } = {}) => {
+  if (!resend) {
+    throw new Error('Email is not configured (RESEND_API_KEY not set); verification code was not sent.');
+  }
+  const bodyHtml = `
+    <p style="margin:0 0 12px;">Enter this code on the secure records page to continue:</p>
+    <p style="margin:0; font-size:32px; font-weight:700; letter-spacing:6px; color:${COLORS.navy || '#132A3E'};">${escapeHtml(String(code))}</p>
+  `;
+  const html = emailShell({
+    preheader: 'Your one-time verification code.',
+    eyebrow: 'Verification Code',
+    heading: 'Your verification code',
+    bodyHtml,
+    footnote: `This code expires in ${minutes} minutes. If you did not request it, ignore this email.`,
+  });
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'Your verification code for secure records',
+    html,
+  });
+  if (result?.error) {
+    throw new Error(`Verification code email failed: ${result.error.message || result.error.name || 'unknown error'}`);
+  }
+};
+
 module.exports = {
+  sendRecordsReleaseEmail,
+  sendRecordsReleaseCodeEmail,
   sendMfaResetEmail,
   sendMfaResetCompletedEmail,
   sendConsentRequestEmail,

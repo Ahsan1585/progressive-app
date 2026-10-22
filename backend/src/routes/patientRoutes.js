@@ -17,6 +17,7 @@ const { requireConsentAccess } = require('../middleware/consentAccess');
 const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest } = require('../controllers/correctionRequestController');
 const { exportPatientRecord, overrideExportPatientRecord } = require('../controllers/patientRecordExportController');
 const { generateConsentReport } = require('../controllers/consentReportController');
+const { createRelease, listReleases, revokeRelease } = require('../controllers/recordsReleaseController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
 
 // Staff Directory > All Children — office-wide (not ownership-scoped), placed
@@ -109,6 +110,11 @@ router.delete('/:id/consents/:consentId', protect, loadPermissions, requireConse
 // (patient_record_rights; admins pass), NOT requireConsentAccess: preparing
 // a third-party disclosure is an office records-rights action.
 router.get('/:id/consents/:consentId/report', protect, loadPermissions, requirePermission('patient_record_rights'), generateConsentReport);
+// In-app "Send records" (agency only): emails the consent's recipient a secure
+// link gated by an emailed one-time code. Same gate as the packet download.
+router.post('/:id/consents/:consentId/releases', protect, loadPermissions, requirePermission('patient_record_rights'), requireConsentAccess, createRelease);
+router.get('/:id/releases', protect, loadPermissions, requirePermission('patient_record_rights'), requireConsentAccess, listReleases);
+router.delete('/:id/releases/:releaseId', protect, loadPermissions, requirePermission('patient_record_rights'), requireConsentAccess, revokeRelease);
 router.get('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, listConsentRequests);
 router.post('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, createConsentRequest);
 router.post('/:id/consent-requests/:requestId/resend', protect, loadPermissions, requireConsentAccess, resendConsentRequest);
