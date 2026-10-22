@@ -36,6 +36,9 @@ const SELECTABLE_IDENTITY_METHODS = Object.entries(IDENTITY_METHOD_LABELS).filte
   ([k]) => k !== "electronic_dob"
 );
 
+// One address, matching the server's rule: no spaces or commas, one @, dotted domain.
+const isValidEmail = (v: string) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(v.trim());
+
 function todayStr(): string {
   const d = new Date();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -157,7 +160,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
   };
 
   const commitRequest = async () => {
-    if (!recipientName.trim() || !purpose.trim() || selectedTypes.length === 0 || !expiresAt) {
+    if (!recipientName.trim() || !isValidEmail(recipientEmail) || !purpose.trim() || selectedTypes.length === 0 || !expiresAt) {
       setReqShowValidation(true);
       return;
     }
@@ -165,7 +168,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
     try {
       await api.post(`/api/patients/${patientId}/consent-requests`, {
         recipientName: recipientName.trim(),
-        recipientEmail: recipientEmail.trim() || undefined,
+        recipientEmail: recipientEmail.trim(),
         purpose: purpose.trim(),
         recordTypes: selectedTypes,
         expiresAt: new Date(expiresAt).toISOString(),
@@ -212,6 +215,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
   const commitNew = async () => {
     if (!recipientName.trim() || !purpose.trim() || selectedTypes.length === 0) return;
     if (
+      !isValidEmail(recipientEmail) ||
       !identityMethod ||
       (identityMethod === "other" && !identityNote.trim()) ||
       !signedOn ||
@@ -225,7 +229,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
     try {
       await api.post(`/api/patients/${patientId}/consents`, {
         recipientName: recipientName.trim(),
-        recipientEmail: recipientEmail.trim() || undefined,
+        recipientEmail: recipientEmail.trim(),
         purpose: purpose.trim(),
         recordTypes: selectedTypes,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
@@ -417,7 +421,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               placeholder="e.g. ABC Billing Agency"
               disabled={isSaving}
             />
-            <Label htmlFor="consent-recipient-email">Recipient email (optional)</Label>
+            <Label htmlFor="consent-recipient-email">Recipient email (required)</Label>
             <Input
               id="consent-recipient-email"
               type="email"
@@ -425,11 +429,14 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               onChange={(e) => setRecipientEmail(e.target.value)}
               placeholder="e.g. billing@abcagency.org"
               disabled={isSaving}
+              aria-invalid={showValidation && !isValidEmail(recipientEmail)}
             />
             <p className="text-xs text-ink-muted">
-              If this consent is for emailing records to the recipient, enter the exact address you'll send to — a
-              send is only allowed when it matches.
+              The exact address the records will be sent to. A send is only allowed to this address.
             </p>
+            {showValidation && !isValidEmail(recipientEmail) && (
+              <p role="alert" className="text-xs font-semibold text-red-600">Enter one valid email address.</p>
+            )}
             <Label htmlFor="consent-purpose">Purpose</Label>
             <Input
               id="consent-purpose"
@@ -565,7 +572,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               disabled={isSending}
               aria-invalid={reqShowValidation && !recipientName.trim()}
             />
-            <Label htmlFor="req-recipient-email">Recipient email (optional)</Label>
+            <Label htmlFor="req-recipient-email">Recipient email (required)</Label>
             <Input
               id="req-recipient-email"
               type="email"
@@ -573,6 +580,7 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               onChange={(e) => setRecipientEmail(e.target.value)}
               placeholder="e.g. billing@abcagency.org"
               disabled={isSending}
+              aria-invalid={reqShowValidation && !isValidEmail(recipientEmail)}
             />
             <Label htmlFor="req-purpose">Purpose</Label>
             <Input
@@ -601,9 +609,9 @@ export function PatientConsents({ patientId }: PatientConsentsProps) {
               min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}
               disabled={isSending}
             />
-            {reqShowValidation && (!recipientName.trim() || !purpose.trim() || selectedTypes.length === 0 || !expiresAt) && (
+            {reqShowValidation && (!recipientName.trim() || !isValidEmail(recipientEmail) || !purpose.trim() || selectedTypes.length === 0 || !expiresAt) && (
               <p role="alert" className="text-xs font-semibold text-red-600">
-                Enter a recipient and purpose, pick at least one record type, and set an expiry date.
+                Enter a recipient, a valid recipient email and a purpose, pick at least one record type, and set an expiry date.
               </p>
             )}
             <Button className="w-full" onClick={commitRequest} loading={isSending}>

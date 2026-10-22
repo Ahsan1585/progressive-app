@@ -15,6 +15,9 @@ const LIMITS = {
   identityVerifiedNote: 1000,
 };
 
+// One address: no whitespace or commas, one @, a dotted domain.
+const SIMPLE_EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+
 const NJ_TZ = 'America/New_York';
 // Today's calendar date in New Jersey, as YYYY-MM-DD.
 const njToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: NJ_TZ }).format(now);
@@ -54,6 +57,12 @@ function tooLong(field, value) {
 function validateConsentDetails({ recipientName, recipientEmail, purpose, recordTypes, expiresAt, proofNote, identityVerifiedNote } = {}, now = new Date()) {
   if (!recipientName || !String(recipientName).trim()) return { error: 'recipientName is required.' };
   if (!purpose || !String(purpose).trim()) return { error: 'purpose is required.' };
+  // The parent authorizes a specific recipient, so the address records will
+  // go to is part of what they approve and is fixed on the consent. (Consents
+  // recorded before this rule may have none; the send step handles those.)
+  const emailText = recipientEmail === undefined || recipientEmail === null ? '' : String(recipientEmail).trim();
+  if (!emailText) return { error: 'recipientEmail is required: the address the records will be sent to.' };
+  if (!SIMPLE_EMAIL.test(emailText)) return { error: 'recipientEmail must be a single valid email address.' };
   for (const [field, value] of Object.entries({ recipientName, recipientEmail, purpose, proofNote, identityVerifiedNote })) {
     const err = tooLong(field, value);
     if (err) return { error: err };
@@ -87,7 +96,7 @@ function validateConsentDetails({ recipientName, recipientEmail, purpose, record
   return {
     value: {
       recipientName: String(recipientName).trim(),
-      recipientEmail: recipientEmail && String(recipientEmail).trim() ? String(recipientEmail).trim() : null,
+      recipientEmail: emailText,
       purpose: String(purpose).trim(),
       recordTypes,
       expiresAt: resolvedExpiresAt,

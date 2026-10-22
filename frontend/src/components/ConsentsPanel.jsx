@@ -101,7 +101,8 @@ function ConsentForm({ mode, child, onDone, onCancel }) {
   const submit = async () => {
     const e = {};
     if (!recipientName.trim()) e.recipientName = 'Enter who the records will be shared with.';
-    if (recipientEmail.trim() && !/^\S+@\S+\.\S+$/.test(recipientEmail.trim())) e.recipientEmail = 'Enter a valid email address.';
+    if (!recipientEmail.trim()) e.recipientEmail = 'Enter the email address the records will be sent to.';
+    else if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(recipientEmail.trim())) e.recipientEmail = 'Enter a single valid email address.';
     if (!purpose.trim()) e.purpose = 'Enter the purpose of the disclosure.';
     if (types.length === 0) e.types = 'Select at least one type of record.';
     if (!expiresAt) e.expiresAt = 'Choose an expiry date.';
@@ -122,7 +123,7 @@ function ConsentForm({ mode, child, onDone, onCancel }) {
       if (isPaper) {
         await api.post(`/api/patients/${child.id}/consents`, {
           recipientName: recipientName.trim(),
-          recipientEmail: recipientEmail.trim() || undefined,
+          recipientEmail: recipientEmail.trim(),
           purpose: purpose.trim(),
           recordTypes: types,
           expiresAt,
@@ -135,7 +136,7 @@ function ConsentForm({ mode, child, onDone, onCancel }) {
       } else {
         await api.post(`/api/patients/${child.id}/consent-requests`, {
           recipientName: recipientName.trim(),
-          recipientEmail: recipientEmail.trim() || undefined,
+          recipientEmail: recipientEmail.trim(),
           purpose: purpose.trim(),
           recordTypes: types,
           expiresAt,
@@ -169,7 +170,7 @@ function ConsentForm({ mode, child, onDone, onCancel }) {
         <Field label="Share records with (recipient)" error={errors.recipientName}>
           <Input value={recipientName} onChange={(ev) => setRecipientName(ev.target.value)} placeholder="e.g. ABC Billing Services" />
         </Field>
-        <Field label="Recipient email (optional)" error={errors.recipientEmail}>
+        <Field label="Recipient email (records are sent here)" error={errors.recipientEmail}>
           <Input type="email" value={recipientEmail} onChange={(ev) => setRecipientEmail(ev.target.value)} />
         </Field>
       </div>

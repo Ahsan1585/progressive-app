@@ -34,7 +34,7 @@ describe('listPatientConsents', () => {
 });
 
 describe('createConsent (paper path)', () => {
-  const base = { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id' };
+  const base = { recipientName: 'ABC', recipientEmail: 'billing@abc.org', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id' };
   const mk = (extra = {}) => ({ practitioner: { practitionerId: 7 }, params: { id: '42' }, body: { ...base, ...paper(), ...extra } });
 
   test('rejects an invalid record_types value with 400 before touching the DB', async () => {
@@ -148,7 +148,7 @@ describe('createConsent (paper path)', () => {
 });
 
 describe('createConsent: a paper consent approving the full record is admin-only', () => {
-  const body = (recordTypes) => ({ recipientName: 'ABC', purpose: 'Transition', recordTypes, identityVerifiedMethod: 'photo_id', ...paper() });
+  const body = (recordTypes) => ({ recipientName: 'ABC', recipientEmail: 'billing@abc.org', purpose: 'Transition', recordTypes, identityVerifiedMethod: 'photo_id', ...paper() });
   const mk = (recordTypes, isAdmin) => ({ practitioner: { practitionerId: 7 }, params: { id: '42' }, isAdmin, body: body(recordTypes) });
 
   test.each([[false], [undefined], ['true']])('non-admin (isAdmin=%p) -> 403, nothing stored or audited', async (isAdmin) => {
@@ -176,7 +176,7 @@ describe('createConsent: a paper consent approving the full record is admin-only
 });
 
 describe('createConsent identity verification (FERPA 99.30)', () => {
-  const base = { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'] };
+  const base = { recipientName: 'ABC', recipientEmail: 'billing@abc.org', purpose: 'Billing', recordTypes: ['sevf_forms'] };
   const mk = (extra) => ({ practitioner: { practitionerId: 7 }, params: { id: '42' }, body: { ...base, ...paper(), ...extra } });
 
   test('400 when identityVerifiedMethod is missing', async () => {
@@ -213,7 +213,7 @@ describe('createConsent identity verification (FERPA 99.30)', () => {
 });
 
 describe('createConsent length limits (shared validation)', () => {
-  const base = { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id' };
+  const base = { recipientName: 'ABC', recipientEmail: 'billing@abc.org', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id' };
   const mk = (extra) => ({ practitioner: { practitionerId: 7 }, params: { id: '42' }, body: { ...base, ...paper(), ...extra } });
   test.each([
     ['proofNote', { proofNote: 'x'.repeat(1001) }, /proofNote.*1000/],
@@ -238,7 +238,7 @@ describe('createConsent length limits (shared validation)', () => {
 });
 
 describe('bad ids are 404, never 500, and never reach the DB', () => {
-  const body = { recipientName: 'ABC', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id', ...paper() };
+  const body = { recipientName: 'ABC', recipientEmail: 'billing@abc.org', purpose: 'Billing', recordTypes: ['sevf_forms'], identityVerifiedMethod: 'photo_id', ...paper() };
   test.each(['abc', '1; drop', '-1', '1.5', ''])('non-numeric patient id %p', async (id) => {
     for (const [fn, extra] of [[listPatientConsents, {}], [createConsent, { body }], [revokeConsent, { params: { id, consentId: '5' } }]]) {
       const res = mkRes();

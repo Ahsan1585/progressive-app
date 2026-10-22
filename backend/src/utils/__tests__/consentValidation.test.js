@@ -2,7 +2,7 @@ const { validateConsentDetails } = require('../consentValidation');
 
 const njToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 const njDate = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d);
-const base = (o = {}) => ({ recipientName: 'ABC Billing', purpose: 'Billing', recordTypes: ['sevf_forms'], ...o });
+const base = (o = {}) => ({ recipientName: 'ABC Billing', recipientEmail: 'billing@abc.org', purpose: 'Billing', recordTypes: ['sevf_forms'], ...o });
 const DAY = 24 * 60 * 60 * 1000;
 
 describe('validateConsentDetails expiresAt (date-only = end of that NJ day)', () => {
@@ -53,6 +53,28 @@ describe('validateConsentDetails expiresAt (date-only = end of that NJ day)', ()
     expect(validateConsentDetails(base({ expiresAt: tooFar })).error).toMatch(/5 years/);
     const ok = new Date(Date.now() + 4 * 365 * DAY).toISOString();
     expect(validateConsentDetails(base({ expiresAt: ok })).error).toBeUndefined();
+  });
+});
+
+describe('validateConsentDetails recipientEmail (required on every new consent)', () => {
+  test.each([
+    ['missing', undefined],
+    ['null', null],
+    ['blank', '   '],
+    ['no @', 'billing.abc.org'],
+    ['no domain dot', 'billing@abc'],
+    ['has spaces', 'bill ing@abc.org'],
+    ['two addresses', 'a@abc.org, b@abc.org'],
+  ])('rejects a %s recipient email so the parent approves a specific inbox', (_label, value) => {
+    const r = validateConsentDetails(base({ recipientEmail: value }));
+    expect(r.value).toBeUndefined();
+    expect(r.error).toMatch(/recipientEmail/);
+  });
+
+  test('accepts a valid address and returns it trimmed', () => {
+    const r = validateConsentDetails(base({ recipientEmail: '  Billing@ABC.org ' }));
+    expect(r.error).toBeUndefined();
+    expect(r.value.recipientEmail).toBe('Billing@ABC.org');
   });
 });
 
