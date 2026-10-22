@@ -77,13 +77,9 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
   .split(',')
   .map(o => o.trim())
   .filter(Boolean);
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow same-origin/non-browser requests (no Origin header) and whitelisted origins
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
-  },
-}));
+// Whitelisted frontends, plus this API's own origin (its server-rendered public
+// pages post forms to it); see src/middleware/corsPolicy.js.
+app.use(cors(require('./src/middleware/corsPolicy').buildCorsOptions(allowedOrigins)));
 
 // Stripe webhook signature verification needs the exact raw request body,
 // so this route is mounted with express.raw() BEFORE the app-wide
