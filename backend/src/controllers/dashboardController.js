@@ -595,6 +595,43 @@ const getMonthOverview = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/years — session totals for EVERY year that has sessions,
+// oldest first, for the Overview's "Year" view (all years side by side). Not
+// scoped to any month or year. Years with no sessions at all are simply absent;
+// the front end fills the gaps between the first year and today.
+const getYearsOverview = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT EXTRACT(YEAR FROM a.service_date)::int AS year, COUNT(*)::int AS count,
+              COALESCE(SUM(a.total_time / 60.0 * p.pay_rate), 0)::numeric AS est_billable
+       FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
+       WHERE a.service_date IS NOT NULL
+       GROUP BY 1
+       ORDER BY 1`
+    );
+    const years = rows.map((r) => ({
+      year: r.year,
+      count: r.count,
+      estBillable: Math.round(parseFloat(r.est_billable) * 100) / 100,
+    }));
+    const { rows: rosterRows } = await pool.query(
+      `SELECT COUNT(*)::int AS active_now FROM practitioners
+       WHERE role = 'practitioner' AND is_active = true AND is_platform_support = false`
+    );
+    res.json({
+      success: true,
+      years,
+      totalSessions: years.reduce((sum, y) => sum + y.count, 0),
+      totalEstBillable: Math.round(years.reduce((sum, y) => sum + y.estBillable, 0) * 100) / 100,
+      practitionerRoster: { activeNow: rosterRows[0]?.active_now ?? 0 },
+    });
+  } catch (error) {
+    console.error('getYearsOverview error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load all-years overview' });
+  }
+};
+
 // GET /api/dashboard/year?year=YYYY — strategic rollup, 12-month trend +
 // YoY comparison + roster snapshot. Deliberately does NOT run
 // computeSessionCompliance across a full year of sessions (too expensive
@@ -1043,6 +1080,7 @@ module.exports = {
   getSessionDetail,
   getMonthOverview,
   getYearOverview,
+  getYearsOverview,
   getAccountsPayable,
   getDashboardLayout,
   saveDashboardLayout,

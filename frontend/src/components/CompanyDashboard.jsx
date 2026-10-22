@@ -6,7 +6,7 @@ import {
   CalendarRange, Calendar, X, Check, MessageCircle, GripVertical,
 } from 'lucide-react';
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useMessaging } from '@/context/useMessaging';
@@ -791,7 +791,97 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
   );
 }
 
+// All twelve calendar months of a year, empty ones included. The API returns
+// only the months that have sessions, with timestamps, so the slots are built
+// here from the "YYYY-MM" part of each row.
+function fillYearMonths(year, rows) {
+  const byMonth = new Map((rows || []).map((r) => [String(r.month).slice(0, 7), r.count]));
+  return MONTH_NAMES.map((name, i) => {
+    const key = `${year}-${String(i + 1).padStart(2, '0')}`;
+    return { key, label: name.slice(0, 3), full: `${name} ${year}`, count: byMonth.get(key) || 0 };
+  });
+}
+
+// One year of monthly volume. The answer for a year never depends on the month
+// picker, so this fetches by year; a stale response (picker moved on) is dropped.
+function useYearData(year) {
+  const [state, setState] = useState({ year: null, data: null });
+  useEffect(() => {
+    let stale = false;
+    api.get('/api/dashboard/year', { params: { year } })
+      .then((res) => { if (!stale) setState({ year, data: res.data }); })
+      .catch(() => { if (!stale) setState({ year, data: null }); });
+    return () => { stale = true; };
+  }, [year]);
+  return { data: state.year === year ? state.data : null, loading: state.year !== year };
+}
+
+// Bars on the dark panel for any series of {key, label, full, count}: twelve
+// months of a year, or one bar per year. Every slot gets a faint track, so an
+// empty period reads as empty rather than missing. highlightKey picks one bar
+// out in bright teal; without it every bar is teal.
+function VolumeBars({ data, highlightKey, maxBarSize = 44 }) {
+  const bars = data.map((d) => ({
+    ...d,
+    fill: !highlightKey || d.key === highlightKey ? '#2dd4bf' : '#52678a',
+  }));
+  return (
+    <div style={{ height: 240 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={bars} barCategoryGap="22%">
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a3547" />
+          <XAxis dataKey="label" interval={0} tick={{ fontSize: 14, fill: '#e2e8f0', fontWeight: 700 }} axisLine={false} tickLine={false} />
+          <YAxis domain={[0, (max) => Math.max(max, 4)]} tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
+          <Tooltip
+            cursor={{ fill: 'rgba(255,255,255,0.06)' }}
+            contentStyle={{ background: '#111827', border: '1px solid #334155', borderRadius: 10, color: '#f1f5f9' }}
+            labelStyle={{ color: '#f1f5f9', fontWeight: 700 }}
+            itemStyle={{ color: '#e2e8f0' }}
+            labelFormatter={(label, payload) => payload?.[0]?.payload?.full || label}
+            formatter={(v) => [v.toLocaleString(), 'Sessions']}
+          />
+          <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={maxBarSize} background={{ fill: 'rgba(255,255,255,0.05)', radius: 6 }}>
+            {bars.map((d) => <Cell key={d.key} fill={d.fill} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// Jan to Dec of one year.
+function YearBars({ year, rows, highlightKey }) {
+  return <VolumeBars data={fillYearMonths(year, rows)} highlightKey={highlightKey} />;
+}
+
+// Every year from the first one with sessions through the current year (years in
+// between with no sessions included as empty), newest on the right.
+function fillYears(rows, currentYear) {
+  const list = rows || [];
+  const byYear = new Map(list.map((r) => [r.year, r.count]));
+  const first = Math.min(currentYear, ...list.map((r) => r.year));
+  const last = Math.max(currentYear, ...list.map((r) => r.year));
+  const out = [];
+  for (let y = first; y <= last; y += 1) out.push({ key: String(y), label: String(y), full: String(y), count: byYear.get(y) || 0 });
+  return out;
+}
+
+// Session totals for every year on record (the Year tab). Never depends on the
+// month picker; a stale response is dropped.
+function useAllYears() {
+  const [state, setState] = useState({ done: false, data: null });
+  useEffect(() => {
+    let stale = false;
+    api.get('/api/dashboard/years')
+      .then((res) => { if (!stale) setState({ done: true, data: res.data }); })
+      .catch(() => { if (!stale) setState({ done: true, data: null }); });
+    return () => { stale = true; };
+  }, []);
+  return { data: state.data, loading: !state.done };
+}
+
 function MonthTrajectory({ month, onMonthChange, monthValue }) {
+  const yearData = useYearData(month?.year ?? new Date().getFullYear());
   if (!month) return null;
   return (
     <div className="space-y-4">
@@ -819,105 +909,63 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
             <div className="text-[26px] font-extrabold font-mono text-white">{month.patientRosterCount}</div>
           </div>
         </div>
-        {(() => {
-          // Two bars, not a daily trend: this month's total so far vs. last
-          // month's total — the comparison the stat line above already
-          // states in words, shown as a simple colorful bar pair instead
-          // of a 30-point daily series.
-          const priorDate = new Date(month.year, month.month - 2, 1);
-          const priorLabel = priorDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-          const currentLabel = new Date(month.year, month.month - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-          const data = [
-            { label: priorLabel, count: month.volumeVsPriorMonth.prior, fill: '#818cf8' },
-            { label: currentLabel, count: month.volumeVsPriorMonth.current, fill: '#2dd4bf' },
-          ];
-          return (
-            <div style={{ height: 200 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} barCategoryGap="35%">
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a3547" />
-                  <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#e2e8f0', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.06)' }} contentStyle={{ background: '#111827', border: '1px solid #334155', borderRadius: 10, color: '#f1f5f9' }} labelStyle={{ color: '#f1f5f9', fontWeight: 700 }} itemStyle={{ color: '#e2e8f0' }} formatter={(v) => [v.toLocaleString(), 'Sessions']} />
-                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={90}>
-                    {data.map((d, i) => (
-                      <Cell key={`cell-${i}`} fill={d.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          );
-        })()}
+        <div className="text-[15px] font-semibold text-slate-300 mb-2">
+          Sessions per month, {month.year}
+          <span className="text-slate-400 font-normal"> (selected month highlighted)</span>
+        </div>
+        {yearData.loading
+          ? <div className="text-[16px] font-semibold text-slate-300 text-center" style={{ height: 240, paddingTop: 100 }}>Loading...</div>
+          : <YearBars year={month.year} rows={yearData.data?.monthlyVolume} highlightKey={`${month.year}-${String(month.month).padStart(2, '0')}`} />}
       </div>
     </div>
   );
 }
 
 function YearTrajectory() {
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [data, setData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    setIsLoading(true);
-    api.get('/api/dashboard/year', { params: { year } })
-      .then((res) => setData(res.data))
-      .catch(() => setData(null))
-      .finally(() => setIsLoading(false));
-  }, [year]);
+  const currentYear = new Date().getFullYear();
+  const all = useAllYears();
+  // Only for the "state coverage" footnote about the current year.
+  const thisYear = useYearData(currentYear);
+  const series = fillYears(all.data?.years, currentYear);
+  const current = series.find((y) => y.key === String(currentYear))?.count ?? 0;
+  const prior = series.find((y) => y.key === String(currentYear - 1))?.count;
+  const pctChange = prior > 0 ? Math.round(((current - prior) / prior) * 1000) / 10 : null;
 
   return (
     <div className="space-y-4">
-      <input
-        type="number"
-        value={year}
-        onChange={(e) => setYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
-        className="rounded-lg px-3 py-2 text-[15px] font-semibold w-28 bg-white/10 border border-white/20 text-white [color-scheme:dark]"
-      />
-      {isLoading || !data ? (
+      {all.loading || !all.data ? (
         <div className="text-[16px] font-semibold text-slate-300 text-center py-8">Loading...</div>
       ) : (
         <div className="bg-white/[0.04] rounded-2xl border border-white/10 p-6">
           <div className="flex items-center gap-6 flex-wrap mb-4">
             <div>
-              <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white">{data.yoyComparison.current.count.toLocaleString()}</div>
-              <div className={`text-[14px] font-semibold mt-1 ${data.yoyComparison.pctChange >= 0 ? 'text-teal-300' : 'text-rose-300'}`}>
-                {data.yoyComparison.pctChange !== null ? `${Math.abs(data.yoyComparison.pctChange)}% YoY` : 'No prior year to compare'}
+              <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white">{current.toLocaleString()}</div>
+              <div className={`text-[14px] font-semibold mt-1 ${pctChange !== null && pctChange < 0 ? 'text-rose-300' : 'text-teal-300'}`}>
+                {pctChange !== null ? `${Math.abs(pctChange)}% ${pctChange >= 0 ? 'up' : 'down'} on ${currentYear - 1}` : `${currentYear} so far`}
               </div>
             </div>
             <div>
-              <div className="text-[14px] text-slate-300">Est. billable this year</div>
-              <div className="text-[26px] font-extrabold font-mono text-white">{compactMoney(data.yoyComparison.current.estBillable)}</div>
+              <div className="text-[14px] text-slate-300">All years combined</div>
+              <div className="text-[26px] font-extrabold font-mono text-white">{all.data.totalSessions.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-[14px] text-slate-300">Est. billable, all years</div>
+              <div className="text-[26px] font-extrabold font-mono text-white">{compactMoney(all.data.totalEstBillable)}</div>
             </div>
             <div>
               <div className="text-[14px] text-slate-300">Active practitioners</div>
-              <div className="text-[26px] font-extrabold font-mono text-white">{data.practitionerRoster.activeNow}</div>
+              <div className="text-[26px] font-extrabold font-mono text-white">{all.data.practitionerRoster.activeNow}</div>
             </div>
           </div>
-          {data.monthlyVolume.length > 0 && (
-            <div style={{ height: 200 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.monthlyVolume}>
-                  <defs>
-                    <linearGradient id="yearArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2dd4bf" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a3547" />
-                  <XAxis dataKey="month" tickFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })} tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155', borderRadius: 10, color: '#f1f5f9' }} labelStyle={{ color: '#f1f5f9', fontWeight: 700 }} itemStyle={{ color: '#e2e8f0' }} labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
-                  <Area type="monotone" dataKey="count" stroke="#2dd4bf" strokeWidth={2.5} fill="url(#yearArea)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+          <div className="text-[15px] font-semibold text-slate-300 mb-2">
+            Sessions per year
+            <span className="text-slate-400 font-normal"> ({currentYear} highlighted)</span>
+          </div>
+          <VolumeBars data={series} highlightKey={String(currentYear)} maxBarSize={90} />
           <div className="text-[14px] text-slate-400 mt-2.5">
-            {data.fullYearCompliance.coverageRate !== null
-              ? `${data.fullYearCompliance.coverageRate}% of this year's billed sessions have a matching state record on file.`
-              : 'Not enough billed sessions this year to compute coverage.'}
+            {thisYear.data?.fullYearCompliance?.coverageRate != null
+              ? `${thisYear.data.fullYearCompliance.coverageRate}% of ${currentYear}'s billed sessions have a matching state record on file.`
+              : `Not enough billed sessions in ${currentYear} to compute coverage.`}
           </div>
         </div>
       )}
