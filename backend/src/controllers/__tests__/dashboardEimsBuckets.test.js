@@ -11,7 +11,7 @@ jest.mock('../../utils/invoiceData', () => ({
 
 const { pool } = require('../../config/db');
 const { deriveEimsStatus } = require('../../utils/invoiceData');
-const { getPipelineOverview, eimsBucket } = require('../dashboardController');
+const { getPipelineOverview, eimsBucket, pendingEimsBucket } = require('../dashboardController');
 
 beforeEach(() => {
   pool.query.mockReset();
@@ -75,5 +75,92 @@ describe('getPipelineOverview EIMS ring', () => {
       unverified: 1,
       flagged: 3, // Mismatch + Duplicate + the on-hold session
     });
+  });
+});
+
+// Sessions still pending review whose last Compliance Analysis verdict is on
+// file (eims_last_missing / eims_last_flagged). Billing's "N missing in EIMS"
+// badge counts exactly these, so the ring has to as well.
+describe('pendingEimsBucket', () => {
+  test.each([
+    [{ eims_last_missing: true, eims_last_flagged: false }, 'missing'],
+    [{ eims_last_missing: true, eims_last_flagged: true }, 'missing'], // no record at all wins over a field mismatch
+    [{ eims_last_missing: false, eims_last_flagged: true }, 'flagged'],
+    [{ eims_last_missing: false, eims_last_flagged: false }, 'matched'], // checked and clean
+    [{ eims_last_missing: null, eims_last_flagged: false }, 'matched'],
+  ])('%j -> %s', (row, expected) => {
+    expect(pendingEimsBucket(row)).toBe(expected);
+  });
+});
+
+describe('getPipelineOverview includes checked pending sessions', () => {
+  function prime({ billed = [], pending = [], roles = [{ id: 1, role: 'practitioner' }] } = {}) {
+    deriveEimsStatus.mockImplementation(() => ({ tier: 'cleared', label: 'Matched' }));
+    pool.query.mockImplementation(async (sql) => {
+      if (/GROUP BY billing_status/.test(sql)) return { rows: [] };
+      if (/bb\.paid_at IS NOT NULL/.test(sql)) return { rows: [{ count: 0 }] };
+      if (/billing_status = 'pending'/.test(sql)) return { rows: pending };
+      if (/ORDER BY a\.service_date DESC/.test(sql)) return { rows: billed };
+      if (/FROM practitioners/.test(sql)) return { rows: roles };
+      return { rows: [] };
+    });
+  }
+  const run = async (query = {}) => {
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    await getPipelineOverview({ query }, res);
+    return res.json.mock.calls[0][0].eimsMatchRate;
+  };
+
+  test('a pending session found missing shows up under Missing in EIMS, as it does in Billing', async () => {
+    prime({
+      billed: [{ id: 1, billing_status: 'invoiced', practitioner_id: 1 }],
+      pending: [
+        { practitioner_id: 1, eims_last_missing: true, eims_last_flagged: false },
+        { practitioner_id: 1, eims_last_missing: false, eims_last_flagged: true },
+        { practitioner_id: 1, eims_last_missing: false, eims_last_flagged: false },
+      ],
+    });
+    expect(await run()).toEqual({ matched: 2, flagged: 1, missing: 1, unverified: 0 });
+  });
+
+  test('independent practitioners (self-reported) are left out, like the accuracy table', async () => {
+    prime({
+      pending: [{ practitioner_id: 2, eims_last_missing: true, eims_last_flagged: false }],
+      roles: [{ id: 2, role: 'independent_practitioner' }],
+    });
+    expect(await run()).toEqual({ matched: 0, flagged: 0, missing: 0, unverified: 0 });
+  });
+
+  test('the pending query only returns sessions that were actually checked, and follows the month', async () => {
+    prime();
+    await run({ month: '2026-10' });
+    const call = pool.query.mock.calls.find(([sql]) => /billing_status = 'pending'/.test(sql));
+    expect(call[0]).toMatch(/eims_last_flagged IS NOT NULL OR a\.eims_last_missing IS NOT NULL/);
+    expect(call[0]).toMatch(/service_date/);
+    expect(call[1]).toEqual(['2026-10-01', '2026-10-31']);
+  });
+});
+
+// deriveEimsStatus treats a session with no total_time as a zero-length
+// "Cancelled" visit and clears it. If the query that feeds it never loads
+// total_time, EVERY billed session looks cancelled and counts as matched, which
+// is why the ring said ~98% matched and could never show a missing session.
+describe('billed sessions are loaded with their duration', () => {
+  test('the pipeline query selects total_time', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (/bb\.paid_at IS NOT NULL/.test(sql)) return { rows: [{ count: 0 }] };
+      return { rows: [] };
+    });
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    await getPipelineOverview({ query: {} }, res);
+    const q = pool.query.mock.calls.find(([sql]) => /ORDER BY a\.service_date DESC/.test(sql))[0];
+    expect(q).toMatch(/a\.total_time/);
+  });
+
+  test('so does every other query in the dashboard controller that feeds deriveEimsStatus', () => {
+    const src = require('fs').readFileSync(require.resolve('../dashboardController'), 'utf8');
+    const feeders = src.match(/SELECT a\.id, a\.billing_status, a\.eims_missing_status[^`]*`/g) || [];
+    expect(feeders.length).toBeGreaterThanOrEqual(2);
+    feeders.forEach((q) => expect(q).toMatch(/a\.total_time/));
   });
 });

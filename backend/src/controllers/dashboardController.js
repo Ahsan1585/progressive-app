@@ -50,6 +50,20 @@ const eimsBucket = (derived, humanHold) => {
   return 'flagged';
 };
 
+// A session still pending review, with its last Compliance Analysis verdict on
+// file (eims_last_missing / eims_last_flagged, written by the bulk compliance
+// runs). Billing's "N missing in EIMS" and "N not matching EIMS" badges count
+// exactly these, so the ring does too. A pending session that was never checked
+// (both columns null) is not counted either way: "not yet checked" is not
+// evidence of anything. Same rule as the Practitioner accuracy table.
+const pendingEimsBucket = (s) => {
+  if (s.eims_last_missing) return 'missing';   // no EIMS record at all outranks a field mismatch
+  if (s.eims_last_flagged) return 'flagged';
+  return 'matched';                            // checked, and clean
+};
+const PENDING_CHECKED_SQL = `a.billing_status = 'pending'
+         AND (a.eims_last_flagged IS NOT NULL OR a.eims_last_missing IS NOT NULL)`;
+
 // Optional month scope (?month=YYYY-MM) for the cards below the stat row, so they
 // follow the month picker exactly like the stat row does: by the session's
 // service_date. Absent = no scope (all time), which the verdict banner relies
@@ -312,7 +326,7 @@ const getPipelineOverview = async (req, res) => {
     // that session from the match rate and can show a false 100% even
     // with a real backlog of flagged/declined sessions in the queue.
     const { rows: billedSessions } = await pool.query(
-      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time
        FROM assessments a
        WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')
          AND ${inMonthSql(1, 2, 'a.service_date')}
@@ -320,9 +334,17 @@ const getPipelineOverview = async (req, res) => {
        LIMIT 2000`,
       [monthStart, monthEnd]
     );
+    // Pending sessions with a stored compliance verdict (see pendingEimsBucket).
+    const { rows: pendingCheckedSessions } = await pool.query(
+      `SELECT a.practitioner_id, a.eims_last_flagged, a.eims_last_missing
+       FROM assessments a
+       WHERE ${PENDING_CHECKED_SQL}
+         AND ${inMonthSql(1, 2, 'a.service_date')}`,
+      [monthStart, monthEnd]
+    );
     const { rows: practitionerRoleRows } = await pool.query(
       `SELECT id, role FROM practitioners WHERE id = ANY($1::int[])`,
-      [[...new Set(billedSessions.map((s) => s.practitioner_id))]]
+      [[...new Set([...billedSessions, ...pendingCheckedSessions].map((s) => s.practitioner_id))]]
     );
     const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
     const complianceById = await loadComplianceForLines(
@@ -339,6 +361,11 @@ const getPipelineOverview = async (req, res) => {
       const humanHold = ['on_hold', 'rejected', 'declined'].includes(s.billing_status);
       const derived = humanHold ? { tier: 'exception' } : deriveEimsStatus(s, { mode, compliance });
       eimsMatchRate[eimsBucket(derived, humanHold)] += 1;
+    });
+    pendingCheckedSessions.forEach((s) => {
+      // Independent practitioners self-report; their pending sessions are not cross-checked.
+      if (roleById.get(s.practitioner_id) === 'independent_practitioner') return;
+      eimsMatchRate[pendingEimsBucket(s)] += 1;
     });
 
     res.json({
@@ -429,7 +456,7 @@ const getMonthOverview = async (req, res) => {
     // since a human decision overrides that.
     const EXCEPTION_STATUSES = ['on_hold', 'rejected', 'declined'];
     const { rows: billedSessions } = await pool.query(
-      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time
        FROM assessments a
        WHERE a.service_date >= $1 AND a.service_date <= $2
          AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')`,
@@ -494,6 +521,7 @@ const getMonthOverview = async (req, res) => {
     // or inaccuracy.
     pendingCheckedSessions.forEach((s) => {
       if (roleById.get(s.practitioner_id) === 'independent_practitioner') return;
+      eimsMatchRate[pendingEimsBucket(s)] += 1;
       if (!accuracyByPractitioner.has(s.practitioner_id)) {
         accuracyByPractitioner.set(s.practitioner_id, { total: 0, clean: 0, held: 0 });
       }
@@ -1092,6 +1120,7 @@ module.exports = {
   getYearOverview,
   getYearsOverview,
   eimsBucket,
+  pendingEimsBucket,
   getAccountsPayable,
   getDashboardLayout,
   saveDashboardLayout,
