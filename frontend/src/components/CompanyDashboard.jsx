@@ -362,7 +362,7 @@ function ActionQueue({ day, onSelectSession }) {
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} open</div>
       </div>
       {sessions.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">No open holds or returns this month. Nice.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No open holds or returns this month. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {sessions.map((s) => {
@@ -522,7 +522,7 @@ function EimsDonut({ pipeline }) {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
       <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
       <svg viewBox="0 0 120 120" width="200" height="200">
-        <circle cx="60" cy="60" r="46" fill="none" stroke={empty ? '#e2e8f0' : '#f6f7fb'} strokeWidth="16" />
+        <circle cx="60" cy="60" r="46" fill="none" stroke={empty ? '#b8c4d3' : '#f6f7fb'} strokeWidth="16" />
         {/* A segment is drawn only when it has sessions: a zero-length stroke
             with a round cap still paints a dot, which showed as a red blip at
             the top of the ring when Missing was 0. Flat ends so a small segment
@@ -547,7 +547,7 @@ function EimsDonut({ pipeline }) {
         )}
       </svg>
       {/* No billed sessions this month: just the gray ring, with the words under it. */}
-      {empty && <div className="mt-4 mb-2 text-[18px] font-semibold text-slate-500">no sessions</div>}
+      {empty && <div className="mt-4 mb-2 text-[20px] font-bold text-slate-700">no sessions</div>}
       {!empty && (
       <div className="flex flex-col gap-2 mt-4 w-full">
         <div className="flex items-center justify-between text-[16px]">
@@ -582,7 +582,7 @@ function ServicesBreakdown({ data }) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-4">Services provided</div>
-        <div className="text-[15px] text-slate-500 text-center py-8">Loading…</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">Loading…</div>
       </div>
     );
   }
@@ -613,7 +613,7 @@ function ServicesBreakdown({ data }) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">No sessions logged this month yet.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No sessions logged this month yet.</div>
       ) : (
         <>
           <div className="w-full h-3.5 rounded-full overflow-hidden flex mb-5">
@@ -652,7 +652,7 @@ function DocumentsFeed({ documents }) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-4">Invoices &amp; SEVF forms</div>
-        <div className="text-[15px] text-slate-500 text-center py-8">Loading…</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">Loading…</div>
       </div>
     );
   }
@@ -662,7 +662,7 @@ function DocumentsFeed({ documents }) {
       <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">Invoices &amp; SEVF forms</div>
       <p className="text-[14px] text-slate-600 mb-4">Covering this month's sessions</p>
       {documents.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">No invoices or SEVF forms for this month.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No invoices or SEVF forms for this month.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {documents.map((d) => {
@@ -732,7 +732,7 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
       <div className="text-[14px] text-slate-500 mb-3">Sessions from this month that billing sent back, oldest first.</div>
 
       {logs.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">No returned or declined logs this month. Nice.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No returned or declined logs this month. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
           {logs.map((log) => {
@@ -876,7 +876,7 @@ function YearTrajectory() {
         className="border border-slate-200 rounded-lg px-3 py-2 text-[15px] font-semibold text-slate-700 w-28"
       />
       {isLoading || !data ? (
-        <div className="text-[15px] text-slate-500 text-center py-8">Loading...</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">Loading...</div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center gap-6 flex-wrap mb-4">
