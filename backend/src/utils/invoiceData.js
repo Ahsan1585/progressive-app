@@ -181,6 +181,51 @@ async function loadComplianceForLines(assessmentIds, computeFn, { concurrency = 
   return results;
 }
 
+// Same result map as loadComplianceForLines, but without a multi-query lookup
+// per session: sessions are grouped by practitioner and calendar month and each
+// group is answered by ONE batch analysis (the same comparison the Compliance
+// Analysis tab runs). A session the batch did not cover falls back to the
+// per-session check, so no line is ever left unverified by this shortcut.
+// sessions: [{ id, practitioner_id, service_date }]
+async function loadComplianceBatched(sessions, analyzeFn, computeFn, { concurrency = 4 } = {}) {
+  const results = new Map();
+  const groups = new Map();
+  for (const s of sessions) {
+    const month = String(s.service_date || '').slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(month)) continue;
+    const key = `${s.practitioner_id}|${month}`;
+    if (!groups.has(key)) groups.set(key, { practitionerId: s.practitioner_id, month, ids: [] });
+    groups.get(key).ids.push(s.id);
+  }
+  const monthEnd = (m) => {
+    const [y, mm] = m.split('-').map(Number);
+    return `${m}-${String(new Date(Date.UTC(y, mm, 0)).getUTCDate()).padStart(2, '0')}`;
+  };
+  const queue = [...groups.values()];
+  async function worker() {
+    while (queue.length > 0) {
+      const g = queue.shift();
+      try {
+        const analysis = await analyzeFn(g.practitionerId, `${g.month}-01`, monthEnd(g.month));
+        for (const id of g.ids) {
+          const r = analysis?.results?.[id];
+          if (r) results.set(id, { ...r, documentOnFile: analysis.documentOnFile !== false });
+          else if (analysis && analysis.documentOnFile === false) results.set(id, { matched: false, flagged: false, fields: [], documentOnFile: false });
+        }
+      } catch (err) {
+        console.error(`loadComplianceBatched: analysis failed for practitioner ${g.practitionerId} ${g.month}:`, err.message);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
+  const missing = sessions.map((s) => s.id).filter((id) => !results.has(id));
+  if (missing.length > 0) {
+    const fallback = await loadComplianceForLines(missing, computeFn);
+    fallback.forEach((v, k) => results.set(k, v));
+  }
+  return results;
+}
+
 // Maps raw assessment rows (already joined with practitioners/patients, as
 // every billing query already does) into the InvoiceLine[] shape
 // invoiceGenerator.js draws. Resolves service/location/group-size CODES to
@@ -259,6 +304,7 @@ module.exports = {
   deriveEimsStatus,
   deriveLineAnomalies,
   loadComplianceForLines,
+  loadComplianceBatched,
   buildInvoiceLines,
   summarizeInvoiceTotals,
   buildBrand,

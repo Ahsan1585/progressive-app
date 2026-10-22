@@ -3,7 +3,7 @@
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn() } }));
 jest.mock('../billingController', () => ({ computeSessionCompliance: jest.fn() }));
 jest.mock('../../utils/invoiceData', () => ({
-  loadComplianceForLines: jest.fn(),
+  loadComplianceBatched: jest.fn(),
   deriveEimsStatus: jest.fn(),
   formatInvoiceNumber: (id) => `INV-${id}`,
 }));

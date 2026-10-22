@@ -1,13 +1,13 @@
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn() } }));
 jest.mock('../billingController', () => ({ computeSessionCompliance: jest.fn() }));
 jest.mock('../../utils/invoiceData', () => ({
-  loadComplianceForLines: jest.fn(),
+  loadComplianceBatched: jest.fn(),
   deriveEimsStatus: jest.fn(),
   formatInvoiceNumber: (id) => `INV-${String(id).slice(0, 8).toUpperCase()}`,
 }));
 
 const { pool } = require('../../config/db');
-const { loadComplianceForLines, deriveEimsStatus } = require('../../utils/invoiceData');
+const { loadComplianceBatched, deriveEimsStatus } = require('../../utils/invoiceData');
 const { getDocumentsFeed } = require('../dashboardController');
 
 afterEach(() => jest.resetAllMocks());
@@ -29,7 +29,7 @@ describe('getDocumentsFeed', () => {
       .mockResolvedValueOnce({ // lines for batch-indep-02
         rows: [{ id: 20, billing_batch_id: 'batch-indep-02', total_time: 60, pay_rate: '60.00', practitioner_id: 2, role: 'independent_practitioner' }],
       });
-    loadComplianceForLines.mockResolvedValue(new Map());
+    loadComplianceBatched.mockResolvedValue(new Map());
     deriveEimsStatus.mockReturnValue({ tier: 'cleared' });
 
     await getDocumentsFeed(req, res);
@@ -48,7 +48,7 @@ describe('getDocumentsFeed', () => {
         { id: 10, billing_batch_id: 'batch-1', total_time: 60, pay_rate: '50.00', practitioner_id: 1, role: 'practitioner' },
         { id: 11, billing_batch_id: 'batch-1', total_time: 60, pay_rate: '50.00', practitioner_id: 1, role: 'practitioner' },
       ] });
-    loadComplianceForLines.mockResolvedValue(new Map());
+    loadComplianceBatched.mockResolvedValue(new Map());
     // deriveEimsStatus's real tier for an actual field mismatch is
     // 'pending' (see invoiceData.js: compliance.matched && compliance.flagged
     // -> { tier: 'pending', label: 'Mismatch' }) — 'exception' is reserved
@@ -71,7 +71,7 @@ describe('getDocumentsFeed', () => {
       .mockResolvedValueOnce({ rows: [
         { id: 10, billing_batch_id: 'batch-1', total_time: 60, pay_rate: '50.00', practitioner_id: 1, role: 'practitioner' },
       ] });
-    loadComplianceForLines.mockResolvedValue(new Map());
+    loadComplianceBatched.mockResolvedValue(new Map());
     deriveEimsStatus.mockReturnValueOnce({ tier: 'exception' });
 
     await getDocumentsFeed(req, res);
@@ -85,7 +85,7 @@ describe('getDocumentsFeed', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 'batch-empty', practitioner_id: 1, first_name: 'A', last_name: 'B', role: 'practitioner', created_at: '2026-10-14T10:00:00Z' }] })
       .mockResolvedValueOnce({ rows: [] });
-    loadComplianceForLines.mockResolvedValue(new Map());
+    loadComplianceBatched.mockResolvedValue(new Map());
 
     await getDocumentsFeed(req, res);
 
@@ -98,7 +98,7 @@ describe('getDocumentsFeed', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 'batch-1', practitioner_id: 1, first_name: 'A', last_name: 'B', role: 'practitioner', created_at: '2026-10-14T10:00:00Z' }] })
       .mockResolvedValueOnce({ rows: [] });
-    loadComplianceForLines.mockResolvedValue(new Map());
+    loadComplianceBatched.mockResolvedValue(new Map());
 
     await getDocumentsFeed(req, res);
 

@@ -6,7 +6,8 @@
 // tenant filter needed.
 const { pool } = require('../config/db');
 const { computeSessionCompliance } = require('./billingController');
-const { buildInvoiceLines, deriveEimsStatus, loadComplianceForLines, formatInvoiceNumber } = require('../utils/invoiceData');
+const { buildInvoiceLines, deriveEimsStatus, loadComplianceBatched, formatInvoiceNumber } = require('../utils/invoiceData');
+const analyzeFn = (...args) => require('./billingController').runComplianceAnalysisForPractitioner(...args);
 const { serviceCodeLabel, locationCodeLabel } = require('../constants/njeis');
 
 // "What needs you" worklist — on_hold only. Returned (rejected) logs have
@@ -326,7 +327,7 @@ const getPipelineOverview = async (req, res) => {
     // that session from the match rate and can show a false 100% even
     // with a real backlog of flagged/declined sessions in the queue.
     const { rows: billedSessions } = await pool.query(
-      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time, a.service_date
        FROM assessments a
        WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')
          AND ${inMonthSql(1, 2, 'a.service_date')}
@@ -347,8 +348,9 @@ const getPipelineOverview = async (req, res) => {
       [[...new Set([...billedSessions, ...pendingCheckedSessions].map((s) => s.practitioner_id))]]
     );
     const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
-    const complianceById = await loadComplianceForLines(
-      billedSessions.filter((s) => roleById.get(s.practitioner_id) !== 'independent_practitioner').map((s) => s.id),
+    const complianceById = await loadComplianceBatched(
+      billedSessions.filter((s) => roleById.get(s.practitioner_id) !== 'independent_practitioner'),
+      analyzeFn,
       computeSessionCompliance
     );
     const eimsMatchRate = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
@@ -446,7 +448,7 @@ const getMonthOverview = async (req, res) => {
 
     // EIMS match rate for the month — bounded to sessions already past
     // pending (njeis_review/invoiced/completed/self_certified/on_hold/
-    // rejected/declined), reusing the same loadComplianceForLines bounded-
+    // rejected/declined), reusing the same batched compliance loader (one analysis per practitioner-month)
     // concurrency pattern the invoice generator uses. Capped window (one
     // month), not all-time. on_hold/rejected/declined included (same fix
     // as getPipelineOverview/getAccountsPayable — declined was missed in
@@ -456,7 +458,7 @@ const getMonthOverview = async (req, res) => {
     // since a human decision overrides that.
     const EXCEPTION_STATUSES = ['on_hold', 'rejected', 'declined'];
     const { rows: billedSessions } = await pool.query(
-      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time, a.service_date
        FROM assessments a
        WHERE a.service_date >= $1 AND a.service_date <= $2
          AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')`,
@@ -481,8 +483,9 @@ const getMonthOverview = async (req, res) => {
       [[...new Set([...billedSessions.map((s) => s.practitioner_id), ...pendingCheckedSessions.map((s) => s.practitioner_id)])]]
     );
     const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
-    const complianceById = await loadComplianceForLines(
-      billedSessions.filter((s) => roleById.get(s.practitioner_id) !== 'independent_practitioner').map((s) => s.id),
+    const complianceById = await loadComplianceBatched(
+      billedSessions.filter((s) => roleById.get(s.practitioner_id) !== 'independent_practitioner'),
+      analyzeFn,
       computeSessionCompliance
     );
     const eimsMatchRate = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
@@ -574,7 +577,7 @@ const getMonthOverview = async (req, res) => {
     // on_hold/rejected (held back, same as the all-time AP view), with
     // the same human-hold-overrides-EIMS-tier rule.
     const { rows: apSessions } = await pool.query(
-      `SELECT a.id, a.total_time, a.billing_status,
+      `SELECT a.id, a.total_time, a.billing_status, a.service_date,
               a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id,
               p.pay_rate, p.role
        FROM assessments a
@@ -587,8 +590,9 @@ const getMonthOverview = async (req, res) => {
          )`,
       [start, end]
     );
-    const apComplianceById = await loadComplianceForLines(
-      apSessions.filter((s) => s.role !== 'independent_practitioner').map((s) => s.id),
+    const apComplianceById = await loadComplianceBatched(
+      apSessions.filter((s) => s.role !== 'independent_practitioner'),
+      analyzeFn,
       computeSessionCompliance
     );
     let apTotalOwed = 0, apTotalClear = 0, apTotalHeld = 0;
@@ -811,8 +815,9 @@ const getAccountsPayable = async (req, res) => {
       });
     }
 
-    const complianceById = await loadComplianceForLines(
-      unpaidSessions.filter((s) => s.role !== 'independent_practitioner').map((s) => s.id),
+    const complianceById = await loadComplianceBatched(
+      unpaidSessions.filter((s) => s.role !== 'independent_practitioner'),
+      analyzeFn,
       computeSessionCompliance
     );
 
@@ -1011,7 +1016,7 @@ const getDocumentsFeed = async (req, res) => {
     const documents = [];
     for (const batch of batches) {
       const { rows: lines } = await pool.query(
-        `SELECT a.id, a.total_time, p.pay_rate, a.practitioner_id, p.role,
+        `SELECT a.id, a.total_time, a.service_date, p.pay_rate, a.practitioner_id, p.role,
                 a.eims_missing_status, a.eims_entered_at, a.is_override
          FROM assessments a JOIN practitioners p ON p.id = a.practitioner_id
          WHERE a.billing_batch_id = $1 AND a.billing_status != 'voided'`,
@@ -1025,8 +1030,9 @@ const getDocumentsFeed = async (req, res) => {
 
       let status = 'pending';
       if (sessionCount > 0) {
-        const complianceById = await loadComplianceForLines(
-          lines.filter((l) => l.role !== 'independent_practitioner').map((l) => l.id),
+        const complianceById = await loadComplianceBatched(
+          lines.filter((l) => l.role !== 'independent_practitioner'),
+          analyzeFn,
           computeSessionCompliance
         );
         const tiers = lines.map((l) => {
