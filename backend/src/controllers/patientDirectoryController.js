@@ -27,6 +27,8 @@ const listDirectoryPatients = async (req, res) => {
               -- yet: a release that failed to email or was revoked does not count.
               (SELECT jsonb_build_object(
                         'active', count(*),
+                        'expiring_soon', count(*) FILTER (WHERE c.expires_at IS NOT NULL AND c.expires_at <= now() + interval '30 days'),
+                        'next_expiry', min(c.expires_at),
                         'awaiting_send', count(*) FILTER (WHERE NOT EXISTS (
                           SELECT 1 FROM records_releases r
                           WHERE r.consent_id = c.id AND r.revoked_at IS NULL AND r.email_status = 'sent'

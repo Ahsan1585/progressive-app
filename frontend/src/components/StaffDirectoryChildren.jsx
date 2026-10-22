@@ -9,6 +9,7 @@ import { AddPatientModal } from '@/components/AddPatientModal';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { RecordsRequestsPanel } from '@/components/RecordsRequestsPanel';
 import { ConsentsPanel } from '@/components/ConsentsPanel';
+import { ConsentRegister } from '@/components/ConsentRegister';
 import { FullExportOverrideDialog, readBlobError } from '@/components/FullExportOverrideDialog';
 
 const norm = (s) => (s || '').toString().toLowerCase();
@@ -340,6 +341,7 @@ export function StaffDirectoryChildren() {
   const [exportingId, setExportingId] = useState(null);
   const [requestsPanel, setRequestsPanel] = useState(null); // { child: row child or null }
   const [overrideChild, setOverrideChild] = useState(null);
+  const [showRegister, setShowRegister] = useState(false);
   const [consentsPanel, setConsentsPanel] = useState(null); // { child: row child or null (null = pending list) }
 
   const loadChildren = () => {
@@ -471,6 +473,14 @@ export function StaffDirectoryChildren() {
               Pending consents
             </button>
           )}
+          {canManageRecordRights && (
+            <button
+              onClick={() => setShowRegister(true)}
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
+            >
+              Consent register
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -540,6 +550,16 @@ export function StaffDirectoryChildren() {
                           <Send className="size-3" aria-hidden="true" />
                           Signed consent: records not sent
                           {child.consent_summary.awaiting_send > 1 ? ` (${child.consent_summary.awaiting_send})` : ''}
+                        </button>
+                      )}
+                      {canManageRecordRights && child.consent_summary?.expiring_soon > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setConsentsPanel({ child })}
+                          className="mt-1.5 flex items-center gap-1.5 w-fit text-xs font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded-full px-2.5 py-1 hover:bg-rose-100 cursor-pointer"
+                          title="A consent for this child expires within 30 days. Open it to request a renewed signature."
+                        >
+                          Consent expires soon
                         </button>
                       )}
                     </td>
@@ -649,6 +669,16 @@ export function StaffDirectoryChildren() {
 
       {overrideChild && (
         <FullExportOverrideDialog key={overrideChild.child.id} child={overrideChild.child} requiresMfaCode={overrideChild.requiresMfaCode} onClose={() => setOverrideChild(null)} />
+      )}
+      {showRegister && (
+        <ConsentRegister
+          onClose={() => setShowRegister(false)}
+          onOpenChild={(patientId) => {
+            const match = children.find((c) => c.id === Number(patientId));
+            if (match) { setShowRegister(false); setConsentsPanel({ child: match }); }
+            else showAlert('That child is not in the loaded list.');
+          }}
+        />
       )}
       {consentsPanel && (
         <ConsentsPanel

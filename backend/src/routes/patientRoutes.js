@@ -18,6 +18,7 @@ const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrect
 const { exportPatientRecord, overrideExportPatientRecord } = require('../controllers/patientRecordExportController');
 const { generateConsentReport } = require('../controllers/consentReportController');
 const { createRelease, listReleases, revokeRelease } = require('../controllers/recordsReleaseController');
+const { uploadConsentScan, downloadConsentScan } = require('../controllers/consentScanController');
 const { protect, loadPermissions, requirePermission, requireRole } = require('../middleware/authMiddleware');
 
 // Staff Directory > All Children — office-wide (not ownership-scoped), placed
@@ -115,6 +116,9 @@ router.get('/:id/consents/:consentId/report', protect, loadPermissions, requireP
 router.post('/:id/consents/:consentId/releases', protect, loadPermissions, requirePermission('patient_record_rights'), requireConsentAccess, createRelease);
 router.get('/:id/releases', protect, loadPermissions, requirePermission('patient_record_rights'), requireConsentAccess, listReleases);
 router.delete('/:id/releases/:releaseId', protect, loadPermissions, requirePermission('patient_record_rights'), requireConsentAccess, revokeRelease);
+// Optional scan of a signed paper consent (PDF/PNG/JPEG, 10 MB).
+router.post('/:id/consents/:consentId/scan', protect, loadPermissions, requireConsentAccess, uploadConsentScan);
+router.get('/:id/consents/:consentId/scan', protect, loadPermissions, requireConsentAccess, downloadConsentScan);
 router.get('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, listConsentRequests);
 router.post('/:id/consent-requests', protect, loadPermissions, requireConsentAccess, createConsentRequest);
 router.post('/:id/consent-requests/:requestId/resend', protect, loadPermissions, requireConsentAccess, resendConsentRequest);

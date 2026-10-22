@@ -235,6 +235,18 @@ async function drawConsentCopyPage(pdfDoc, copy, fonts) {
   return w.page;
 }
 
+// Just the signed-consent copy page, for the parent's own download. Contains
+// nothing but the consent itself (no child records).
+async function buildConsentCopyPdf({ consent, grantedByName }) {
+  const doc = await PDFDocument.create();
+  const fonts = {
+    regular: await doc.embedFont(StandardFonts.Helvetica),
+    bold: await doc.embedFont(StandardFonts.HelveticaBold),
+  };
+  await drawConsentCopyPage(doc, buildConsentCopy(consent, { grantedByName }), fonts);
+  return doc.save();
+}
+
 function drawEmptySectionPage(pdfDoc, { title, message }, fonts) {
   const page = pdfDoc.addPage([PAGE.width, PAGE.height]);
   page.drawText(title, { x: MARGIN, y: PAGE.height - MARGIN, font: fonts.bold, size: 14, color: DARK });
@@ -361,6 +373,7 @@ module.exports = {
   generateConsentReport,
   sendConsentPacket,
   buildConsentPacketPdf,
+  buildConsentCopyPdf,
   loadStaffNames,
   sectionsForRecordTypes,
   buildCoverRows,

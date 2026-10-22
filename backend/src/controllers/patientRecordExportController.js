@@ -97,6 +97,10 @@ const ACTION_LABELS = {
   records_release_sent: 'Records sent to recipient (secure link)',
   records_release_downloaded: 'Records downloaded by recipient',
   records_release_revoked: 'Records link revoked',
+  records_consent_revoked_by_parent: 'Consent withdrawn by parent',
+  consent_copy_downloaded_by_parent: 'Parent downloaded a copy of the consent',
+  consent_scan_uploaded: 'Scan of paper consent attached',
+  consent_scan_viewed: 'Scan of paper consent viewed',
   // Admin password-confirmed export with no covering consent (the reason is
   // appended by describeAuditRow).
   record_export_override: 'Full record exported with admin approval',

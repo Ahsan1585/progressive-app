@@ -1,10 +1,12 @@
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn(), connect: jest.fn() } }));
 jest.mock('../../utils/auditLog', () => ({ logAudit: jest.fn() }));
 jest.mock('../../utils/companyName', () => ({ getCompanyName: jest.fn() }));
+jest.mock('../../utils/emailClient', () => ({ sendConsentManageEmail: jest.fn(), sendConsentStaffNoticeEmail: jest.fn() }));
 const crypto = require('crypto');
 const { pool } = require('../../config/db');
 const { logAudit } = require('../../utils/auditLog');
 const { getCompanyName } = require('../../utils/companyName');
+const { sendConsentManageEmail, sendConsentStaffNoticeEmail } = require('../../utils/emailClient');
 const { checkConsent } = require('../../utils/recordsConsent');
 const ctrl = require('../consentSigningController');
 
@@ -261,7 +263,7 @@ describe('signConsent', () => {
     const res = mkRes();
     await ctrl.signConsent(mkReq(goodBody()), res);
     const [claimSql, claimParams] = client.query.mock.calls[1];
-    const m = /token_hash = \$(\d+)/.exec(claimSql);
+    const m = /\btoken_hash = \$(\d+)/.exec(claimSql);
     expect(m).not.toBeNull();
     expect(claimParams[Number(m[1]) - 1]).toBe(sha256('tok'));
     expect(res.status).toHaveBeenCalledWith(409);
@@ -408,4 +410,51 @@ describe('pending request vs signed consent through checkConsent', () => {
       .mockResolvedValueOnce({ rows: [{ verify_failed_attempts: 1, verify_locked_at: null }] })
       .mockResolvedValueOnce({ rowCount: 1 });
   }
+});
+
+describe('signConsent: parent manage link and staff notice', () => {
+  const goodBody = () => ({ dob: '2024-03-05', typedName: 'Pat Parent', attested: true });
+  const primeSigned = (staffRows = [{ email: 'staff@agency.org' }]) => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [row()] })
+      .mockResolvedValueOnce({ rows: [{ verify_failed_attempts: 1, verify_locked_at: null }] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rows: staffRows }); // staff email lookup
+    client.query
+      .mockResolvedValueOnce({}).mockResolvedValueOnce({ rows: [{ id: 'req1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] }).mockResolvedValueOnce({ rowCount: 1 }).mockResolvedValueOnce({});
+  };
+  const req = () => ({ ...mkReq(goodBody()), protocol: 'https', get: () => 'api.example.com' });
+
+  test('stores only the hash of a fresh manage token and emails the raw one to the parent', async () => {
+    primeSigned();
+    const res = mkRes();
+    await ctrl.signConsent(req(), res);
+
+    const claimParams = client.query.mock.calls[1][1];
+    const hash = claimParams[5]; // the manage_token_hash param (the looked-up token_hash is [4])
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(hash).not.toBe(claimParams[4]);
+    const [to, opts] = sendConsentManageEmail.mock.calls[0];
+    expect(to).toBe('p@x.com');
+    expect(opts.manageUrl).toMatch(/^https:\/\/api\.example\.com\/api\/consent-manage\/acme\/[a-f0-9]{64}$/);
+    expect(sha256(opts.manageUrl.split('/').pop())).toBe(hash);
+    expect(JSON.stringify(claimParams)).not.toContain(opts.manageUrl.split('/').pop());
+  });
+
+  test('tells the requesting staff member, with no child details', async () => {
+    primeSigned();
+    await ctrl.signConsent(req(), mkRes());
+    expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('staff@agency.org', { kind: 'signed' });
+  });
+
+  test('email failures never undo or fail the signing', async () => {
+    primeSigned();
+    sendConsentManageEmail.mockRejectedValue(new Error('down'));
+    sendConsentStaffNoticeEmail.mockRejectedValue(new Error('down'));
+    const res = mkRes();
+    await ctrl.signConsent(req(), res);
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+    expect(res.status).not.toHaveBeenCalledWith(500);
+  });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Download, Send } from 'lucide-react';
+import { X, Loader2, Download, Send, Paperclip, RefreshCw } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -93,12 +93,12 @@ const REQUEST_STATUS_CLS = {
   cancelled: NEUTRAL,
 };
 
-function ConsentForm({ mode, child, onDone, onCancel }) {
+function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
   const isPaper = mode === 'paper';
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [purpose, setPurpose] = useState('');
-  const [types, setTypes] = useState([]);
+  const [recipientName, setRecipientName] = useState(initial?.recipientName || '');
+  const [recipientEmail, setRecipientEmail] = useState(initial?.recipientEmail || '');
+  const [purpose, setPurpose] = useState(initial?.purpose || '');
+  const [types, setTypes] = useState(initial?.types || []);
   const [expiresAt, setExpiresAt] = useState(defaultExpiry());
   const [signedOn, setSignedOn] = useState('');
   const [method, setMethod] = useState('');
@@ -308,6 +308,9 @@ function ChildConsents({ child, onChanged }) {
   const [sendTypes, setSendTypes] = useState([]);
   const [sendBusy, setSendBusy] = useState(false);
   const [sendError, setSendError] = useState(null); // { id, message }
+  const [renewFrom, setRenewFrom] = useState(null); // consent being renewed (prefills the request form)
+  const [scanBusyId, setScanBusyId] = useState(null);
+  const [scanError, setScanError] = useState(null); // { id, message }
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null); // null | 'request' | 'paper'
@@ -405,6 +408,55 @@ function ChildConsents({ child, onChanged }) {
     }
   };
 
+  // Reads the picked file as a data URL (same as the compliance document
+  // upload) and posts it; the server validates type, size and content.
+  const attachScan = (c, file) => {
+    if (!file) return;
+    setScanError(null);
+    if (file.size > 10 * 1024 * 1024) {
+      setScanError({ id: c.id, message: 'That file is over 10 MB. Attach a PDF, PNG or JPEG of 10 MB or less.' });
+      return;
+    }
+    setScanBusyId(c.id);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setScanBusyId(null);
+      setScanError({ id: c.id, message: 'Could not read that file.' });
+    };
+    reader.onload = async () => {
+      try {
+        await api.post(`/api/patients/${child.id}/consents/${c.id}/scan`, { filename: file.name, fileBase64: reader.result });
+        setNotice('Scan attached to the paper consent.');
+        load();
+      } catch (err) {
+        setScanError({ id: c.id, message: errMsg(err, 'Failed to attach the scan.') });
+      } finally {
+        setScanBusyId(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const viewScan = async (c) => {
+    setScanBusyId(c.id);
+    setScanError(null);
+    try {
+      const response = await api.get(`/api/patients/${child.id}/consents/${c.id}/scan`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', c.paper_scan_filename || 'consent-scan');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setScanError({ id: c.id, message: 'Could not open the scan.' });
+    } finally {
+      setScanBusyId(null);
+    }
+  };
+
   const typesText = (arr) => (arr || []).map((t) => TYPE_LABEL[t] || t).join(', ');
 
   // Same blob-download pattern as the full record export in
@@ -443,15 +495,22 @@ function ChildConsents({ child, onChanged }) {
 
       {form ? (
         <ConsentForm
+          key={renewFrom ? `renew-${renewFrom.id}` : form}
           mode={form}
           child={child}
-          onCancel={() => setForm(null)}
-          onDone={(msg) => { setForm(null); setNotice(msg); load(); if (onChanged) onChanged(); }}
+          initial={renewFrom ? {
+            recipientName: renewFrom.recipient_name,
+            recipientEmail: renewFrom.recipient_email || '',
+            purpose: renewFrom.purpose,
+            types: renewFrom.record_types || [],
+          } : null}
+          onCancel={() => { setForm(null); setRenewFrom(null); }}
+          onDone={(msg) => { setForm(null); setRenewFrom(null); setNotice(msg); load(); if (onChanged) onChanged(); }}
         />
       ) : (
         <div className="flex gap-2 flex-wrap">
-          <Button size="sm" onClick={() => { setNotice(''); setForm('request'); }}>Request parent signature</Button>
-          <Button size="sm" variant="outline" onClick={() => { setNotice(''); setForm('paper'); }}>Record paper consent</Button>
+          <Button size="sm" onClick={() => { setNotice(''); setRenewFrom(null); setForm('request'); }}>Request parent signature</Button>
+          <Button size="sm" variant="outline" onClick={() => { setNotice(''); setRenewFrom(null); setForm('paper'); }}>Record paper consent</Button>
         </div>
       )}
 
@@ -514,7 +573,7 @@ function ChildConsents({ child, onChanged }) {
                 <p className="text-xs text-slate-500">{c.purpose} · {typesText(c.record_types)}</p>
                 <p className="text-xs text-slate-500">
                   Signed {fmtDate(c.signed_on || c.granted_at)}{c.signed_name ? ` by ${c.signed_name}` : ''} · expires {fmtDate(c.expires_at)}
-                  {c.revoked_at ? ` · revoked ${fmtDate(c.revoked_at)}` : ''}
+                  {c.revoked_at ? ` · revoked ${fmtDate(c.revoked_at)}${c.revoked_via === 'parent' ? ' by the parent' : ''}` : ''}
                 </p>
                 {st.label === 'Active' && (
                   <div className="space-y-1.5">
@@ -549,6 +608,22 @@ function ChildConsents({ child, onChanged }) {
                     {reportError && reportError.id === c.id && (
                       <p role="alert" className="text-xs text-rose-600">{reportError.message}</p>
                     )}
+                    {(() => {
+                      const left = daysUntil(c.expires_at);
+                      if (left === null || left > 60) return null;
+                      return (
+                        <div className="flex items-center justify-between gap-2 flex-wrap text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-2.5 py-1.5">
+                          <span>{left <= 0 ? 'Expires today.' : `Expires in ${left} day${left === 1 ? '' : 's'}.`} Ask the parent to sign again to keep sharing.</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setNotice(''); setRenewFrom(c); setForm('request'); }}
+                          >
+                            <RefreshCw className="size-3.5" /> Request renewal
+                          </Button>
+                        </div>
+                      );
+                    })()}
                     {sendError && sendError.id === c.id && (
                       <p role="alert" className="text-xs text-rose-600">{sendError.message}</p>
                     )}
@@ -601,6 +676,29 @@ function ChildConsents({ child, onChanged }) {
                           <><Download className="size-3.5" /> Generate report</>
                         )}
                       </Button>
+                    </div>
+                  </div>
+                )}
+                {c.source === 'paper' && (
+                  <div className="space-y-1">
+                    {scanError && scanError.id === c.id && <p role="alert" className="text-xs text-rose-600">{scanError.message}</p>}
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
+                      {c.has_scan && (
+                        <Button size="sm" variant="outline" disabled={scanBusyId === c.id} onClick={() => viewScan(c)}>
+                          <Paperclip className="size-3.5" /> View scan
+                        </Button>
+                      )}
+                      <label className={`inline-flex items-center gap-1.5 text-xs font-semibold border border-slate-200 rounded-md px-2.5 h-8 bg-white text-slate-700 ${scanBusyId === c.id ? 'opacity-50' : 'cursor-pointer hover:bg-slate-50'}`}>
+                        {scanBusyId === c.id ? <Loader2 className="size-3.5 animate-spin" /> : <Paperclip className="size-3.5" />}
+                        {c.has_scan ? 'Replace scan' : 'Attach scan (optional)'}
+                        <input
+                          type="file"
+                          accept="application/pdf,image/png,image/jpeg"
+                          className="sr-only"
+                          disabled={scanBusyId === c.id}
+                          onChange={(ev) => { attachScan(c, ev.target.files?.[0]); ev.target.value = ''; }}
+                        />
+                      </label>
                     </div>
                   </div>
                 )}

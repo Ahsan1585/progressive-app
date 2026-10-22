@@ -21,7 +21,12 @@ const listPatientConsents = async (req, res) => {
       'SELECT * FROM records_consents WHERE patient_id = $1 ORDER BY granted_at DESC',
       [id]
     );
-    res.json({ success: true, consents });
+    // The scan's storage path stays server-side; the client only learns
+    // whether one exists (it is fetched through the scan endpoint).
+    res.json({
+      success: true,
+      consents: consents.map(({ paper_scan_path: scanPath, ...rest }) => ({ ...rest, has_scan: !!scanPath })),
+    });
   } catch (error) {
     console.error('Error listing consents:', error);
     res.status(500).json({ success: false, error: 'Failed to load consents.' });
@@ -97,7 +102,7 @@ const revokeConsent = async (req, res) => {
   if (!isValidIntId(consentId)) return res.status(404).json({ success: false, error: 'Consent not found.' });
   try {
     const { rows } = await pool.query(
-      'UPDATE records_consents SET revoked_at = now(), revoked_by = $1 WHERE id = $2 AND patient_id = $3 AND revoked_at IS NULL RETURNING id',
+      "UPDATE records_consents SET revoked_at = now(), revoked_by = $1, revoked_via = 'staff' WHERE id = $2 AND patient_id = $3 AND revoked_at IS NULL RETURNING id",
       [practitionerId, consentId, id]
     );
     if (!rows[0]) return res.status(404).json({ success: false, error: 'Consent not found.' });

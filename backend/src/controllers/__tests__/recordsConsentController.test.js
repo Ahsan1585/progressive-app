@@ -29,7 +29,16 @@ describe('listPatientConsents', () => {
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toMatch(/FROM records_consents WHERE patient_id = \$1 ORDER BY granted_at DESC/);
     expect(params).toEqual(['42']);
-    expect(res.json).toHaveBeenCalledWith({ success: true, consents: consentRows });
+    expect(res.json).toHaveBeenCalledWith({ success: true, consents: [{ ...consentRows[0], has_scan: false }] });
+  });
+
+  test('never sends the scan storage path, only whether a scan exists', async () => {
+    const res = mkRes();
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 2, paper_scan_path: 'consent-scans/2-abc.pdf' }, { id: 3, paper_scan_path: null }] });
+    await listPatientConsents({ practitioner: { practitionerId: 7 }, params: { id: '42' } }, res);
+    const { consents } = res.json.mock.calls[0][0];
+    expect(consents.map((c) => c.has_scan)).toEqual([true, false]);
+    expect(JSON.stringify(consents)).not.toContain('consent-scans');
   });
 });
 

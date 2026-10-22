@@ -27,6 +27,7 @@ const {
 const { getCompanyName } = require('../utils/companyName');
 const { isValidIntId } = require('../utils/consentValidation');
 const { safeFilenamePart } = require('../utils/pdfText');
+const { sendPage: send, rejectPage: reject } = require('../utils/publicHtml');
 const { buildConsentPacketPdf, loadStaffNames, recipientSlug } = require('./consentReportController');
 
 const RELEASE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -193,46 +194,6 @@ const revokeRelease = async (req, res) => {
 // Public recipient gateway (mounted at /api/released-records, tenant from slug).
 // Server-rendered HTML with plain forms: no scripts, nothing cached.
 // ---------------------------------------------------------------------------
-
-const NO_STORE_HEADERS = {
-  'Cache-Control': 'no-store',
-  Pragma: 'no-cache',
-  'X-Robots-Tag': 'noindex, nofollow',
-};
-
-function page(title, bodyHtml) {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="robots" content="noindex, nofollow" />
-<title>${escapeHtml(title)}</title>
-<style>
-  body { margin:0; background:#F7FAF9; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#132A3E; }
-  main { max-width:560px; margin:40px auto; padding:32px 24px; background:#fff; border-radius:16px; border-top:5px solid #0E6E67; box-sizing:border-box; }
-  h1 { font-size:23px; margin:0 0 14px; }
-  p { color:#5C6B73; line-height:1.6; font-size:14.5px; }
-  .notice { border:1px solid #E2EAE8; border-radius:8px; padding:12px 14px; color:#132A3E; font-size:13px; line-height:1.55; }
-  .err { border:1px solid #F0B4B4; background:#FDF2F2; color:#9B1C1C; border-radius:8px; padding:10px 14px; font-size:13.5px; }
-  button, .btn { display:block; width:100%; margin:12px 0; padding:14px 20px; background:#0E6E67; color:#fff; border:0; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
-  input[name=code] { width:100%; box-sizing:border-box; padding:14px; font-size:24px; letter-spacing:8px; text-align:center; border:1px solid #C9D6D3; border-radius:10px; }
-  @media (max-width:600px) { main { margin:16px; } }
-</style>
-</head>
-<body><main>${bodyHtml}</main></body>
-</html>`;
-}
-
-function send(res, status, title, bodyHtml) {
-  res.set(NO_STORE_HEADERS);
-  res.set('Content-Type', 'text/html; charset=utf-8');
-  return res.status(status).send(page(title, bodyHtml));
-}
-
-function reject(res, status, message) {
-  return send(res, status, 'Link unavailable', `<h1>Link unavailable</h1><p>${escapeHtml(message)}</p>`);
-}
 
 // Returns { release } or { status, message }. Also loads the consent so a
 // revoked/expired consent ends access even while the link itself is alive.

@@ -107,6 +107,8 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/shared-documents', sharedDocumentRoutes);
 app.use('/api/released-records', recordsReleaseRoutes);
+app.use('/api/consent-manage', require('./src/routes/consentManageRoutes'));
+app.use('/api/consent-register', require('./src/routes/consentRegisterRoutes'));
 app.use('/api/inspection-requests', inspectionRequestRoutes);
 app.use('/api/consent-requests', require('./src/routes/consentRequestRoutes'));
 app.use('/api/consent-signing', require('./src/routes/consentSigningRoutes'));
@@ -715,6 +717,20 @@ async function sweepAllTenantsOverdueInvoices() {
   }
 }
 
+// Consent expiry reminders (30 and 7 days out), looped across every tenant the
+// same way. Idempotent: each stage is recorded on the consent.
+async function sweepAllTenantsConsentExpiry() {
+  const { sweepConsentExpiry } = require('./src/utils/consentExpirySweep');
+  const { rows: companies } = await platformPool.query("SELECT slug, tenant_db_name FROM companies WHERE status IN ('trial', 'active')");
+  for (const { slug, tenant_db_name } of companies) {
+    try {
+      await runWithTenant(tenant_db_name, () => sweepConsentExpiry());
+    } catch (err) {
+      console.error(`Consent expiry sweep failed for tenant "${slug}":`, err.message);
+    }
+  }
+}
+
 // NOTE: the dropdown-options cache is no longer loaded here at boot — there
 // is no tenant context available at this point, so it's lazily populated
 // per tenant on first authenticated request instead (see authMiddleware.js
@@ -736,6 +752,11 @@ runMigrations()
       sweepAllTenantsOverdueInvoices().catch((err) => console.error('Startup overdue-invoice sweep failed:', err));
       setInterval(() => {
         sweepAllTenantsOverdueInvoices().catch((err) => console.error('Scheduled overdue-invoice sweep failed:', err));
+      }, 6 * 60 * 60 * 1000);
+
+      sweepAllTenantsConsentExpiry().catch((err) => console.error('Startup consent expiry sweep failed:', err));
+      setInterval(() => {
+        sweepAllTenantsConsentExpiry().catch((err) => console.error('Scheduled consent expiry sweep failed:', err));
       }, 6 * 60 * 60 * 1000);
     });
   })

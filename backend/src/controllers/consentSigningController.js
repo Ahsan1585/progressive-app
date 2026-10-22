@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { getCompanyName } = require('../utils/companyName');
+const { sendConsentManageEmail, sendConsentStaffNoticeEmail } = require('../utils/emailClient');
 
 const MAX_VERIFY_ATTEMPTS = 5;
 const ATTESTATION_TEXT = 'I am the parent or legal guardian of this child. I authorize the disclosure described above. I understand I may revoke this consent at any time by contacting the agency, and that my electronic signature has the same legal effect as my handwritten signature.';
@@ -22,6 +23,35 @@ const hashToken = (token) => crypto.createHash('sha256').update(String(token || 
 // resolves req.ip to the address our load balancer saw.
 const clientIp = (req) => req.ip || null;
 const MAX_NAME_LENGTH = 120;
+
+// Where the parent manages (views / withdraws / downloads) a signed consent.
+// Server-rendered by consentManageController, so it points at this API.
+function buildManageUrl(req, companySlug, rawToken) {
+  const host = typeof req.get === 'function' ? req.get('host') : null;
+  const origin = String(process.env.BACKEND_PUBLIC_URL || (host ? `${req.protocol || 'https'}://${host}` : '')).replace(/\/+$/, '');
+  return `${origin}/api/consent-manage/${encodeURIComponent(companySlug)}/${rawToken}`;
+}
+
+// After a signing is committed: give the parent their manage link and tell the
+// staff member who asked. Both are best-effort; the consent is already on file
+// and neither email carries child details.
+async function notifyAfterSigning(req, request, rawManageToken) {
+  try {
+    await sendConsentManageEmail(request.parent_email, {
+      manageUrl: buildManageUrl(req, req.params.companySlug, rawManageToken),
+      organizationName: await getCompanyName(),
+    });
+  } catch (err) {
+    console.error('Failed to send consent manage email:', err.message);
+  }
+  try {
+    const found = await pool.query('SELECT email FROM practitioners WHERE id = $1 AND is_active IS NOT FALSE', [request.requested_by]);
+    const email = found?.rows?.[0]?.email;
+    if (email) await sendConsentStaffNoticeEmail(email, { kind: 'signed' });
+  } catch (err) {
+    console.error('Failed to send consent signed notice:', err.message);
+  }
+}
 
 // patients.dob is a pg `date`: node-pg hands back a local-midnight Date (or
 // a string in tests). Normalize to YYYY-MM-DD for comparison.
@@ -177,6 +207,10 @@ const signConsent = async (req, res) => {
     const ip = clientIp(req);
     const userAgent = req.headers?.['user-agent'] || null;
 
+    // Long-lived link the parent can use later to view, download or withdraw
+    // this consent. Only its hash is stored; the raw token goes in one email.
+    const rawManageToken = crypto.randomBytes(32).toString('hex');
+
     client = await pool.connect();
     await client.query('BEGIN');
     // Claim first: only one concurrent sign can flip pending -> signed; the
@@ -185,10 +219,11 @@ const signConsent = async (req, res) => {
     // lookup and claim cannot sign.
     const { rows: claimed } = await client.query(
       `UPDATE records_consent_requests
-       SET status = 'signed', signed_at = now(), signed_ip = $2, signed_user_agent = $3, signed_name = $4
+       SET status = 'signed', signed_at = now(), signed_ip = $2, signed_user_agent = $3, signed_name = $4,
+           manage_token_hash = $6
        WHERE id = $1 AND status = 'pending' AND token_hash = $5 AND request_expires_at > now()
        RETURNING id`,
-      [request.id, ip, userAgent, name, request.token_hash]
+      [request.id, ip, userAgent, name, request.token_hash, hashToken(rawManageToken)]
     );
     if (!claimed[0]) {
       await client.query('ROLLBACK');
@@ -225,6 +260,7 @@ const signConsent = async (req, res) => {
     });
 
     res.json({ success: true });
+    await notifyAfterSigning(req, request, rawManageToken);
   } catch (error) {
     if (client) {
       try { await client.query('ROLLBACK'); } catch { /* connection already broken */ }

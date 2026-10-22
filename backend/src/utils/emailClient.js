@@ -750,7 +750,86 @@ const sendRecordsReleaseCodeEmail = async (toEmail, { code, minutes = 15 } = {})
   }
 };
 
+// Parent manage link, sent right after a consent is signed. Link-only,
+// neutral copy (Resend has no BAA): the parent confirms the child's date of
+// birth on the page before anything is shown. THROWS on failure; the caller
+// treats this as best-effort because the consent is already on file.
+const sendConsentManageEmail = async (toEmail, { manageUrl, organizationName } = {}) => {
+  if (!resend) {
+    throw new Error('Email is not configured (RESEND_API_KEY not set); consent manage email was not sent.');
+  }
+  const org = organizationName ? escapeHtml(organizationName) : 'Your early intervention provider';
+  const bodyHtml = `
+    <p style="margin:0 0 4px;">Thank you. ${org} has your signed consent on file. You can use the private link below at any time to view it, download a copy, or withdraw it.</p>
+    ${ctaButton(manageUrl, 'View or Withdraw My Consent')}
+    ${linkFallback(manageUrl)}
+    <p style="margin:20px 0 0; font-size:12.5px; color:${COLORS.slate};">Keep this email. For your privacy you will be asked to confirm your child's date of birth on the next page.</p>
+  `;
+  const html = emailShell({
+    preheader: 'Your signed consent: view, download, or withdraw it.',
+    eyebrow: 'Consent Confirmation',
+    heading: 'Your consent is on file',
+    bodyHtml,
+    footnote: 'This link is private to you. Withdrawing consent stops future sharing; it does not undo records already shared.',
+  });
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: 'Your signed consent: view, download, or withdraw it',
+    html,
+  });
+  if (result?.error) {
+    throw new Error(`Consent manage email failed: ${result.error.message || result.error.name || 'unknown error'}`);
+  }
+};
+
+// Heads-up to staff about consent activity. Neutral by design: no child,
+// parent or recipient names (Resend has no BAA), only that something needs a
+// look in the app. kind: 'signed' | 'withdrawn' | 'expiring'.
+const STAFF_NOTICE_COPY = {
+  signed: {
+    subject: 'A parent signed a consent',
+    heading: 'A consent was signed',
+    body: 'A parent signed a records consent. Open Staff Directory, then All Children, to see it and send the records.',
+  },
+  withdrawn: {
+    subject: 'A parent withdrew a consent',
+    heading: 'A consent was withdrawn',
+    body: 'A parent withdrew a records consent. Sharing under it has stopped and any secure links sent under it no longer work. Open Staff Directory, then All Children, for details.',
+  },
+  expiring: {
+    subject: 'Consents are expiring soon',
+    heading: 'Consents are expiring soon',
+    body: 'One or more records consents will expire soon. Open Staff Directory, then All Children, to request a renewed signature before they lapse.',
+  },
+};
+const sendConsentStaffNoticeEmail = async (toEmail, { kind } = {}) => {
+  const copy = STAFF_NOTICE_COPY[kind];
+  if (!copy) throw new Error(`Unknown consent notice kind: ${kind}`);
+  if (!resend) {
+    throw new Error('Email is not configured (RESEND_API_KEY not set); consent notice was not sent.');
+  }
+  const html = emailShell({
+    preheader: copy.subject,
+    eyebrow: 'Consent Update',
+    heading: copy.heading,
+    bodyHtml: `<p style="margin:0;">${escapeHtml(copy.body)}</p>`,
+    footnote: 'You are receiving this because you manage records consents in Izaya EIS. No child information is included in this email.',
+  });
+  const result = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    to: toEmail,
+    subject: copy.subject,
+    html,
+  });
+  if (result?.error) {
+    throw new Error(`Consent notice email failed: ${result.error.message || result.error.name || 'unknown error'}`);
+  }
+};
+
 module.exports = {
+  sendConsentManageEmail,
+  sendConsentStaffNoticeEmail,
   sendRecordsReleaseEmail,
   sendRecordsReleaseCodeEmail,
   sendMfaResetEmail,
