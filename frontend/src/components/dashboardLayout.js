@@ -54,3 +54,25 @@ export function resolveCardLayout(saved) {
   if (!isValidCardLayout(saved) || isUntouchedLegacyLayout(saved)) return DEFAULT_CARD_LAYOUT;
   return saved;
 }
+
+// Moves one card next to another, returning a NEW layout (the input is never
+// changed). pos is 'before' or 'after' the target. With sideBySide, a full-width
+// card dropped beside a half-width one becomes half width too, so it can actually
+// sit next to it. Unknown keys, or dropping a card on itself, return the layout
+// unchanged. Never loses or duplicates a card.
+export function moveCard(layout, draggedKey, targetKey, pos, { sideBySide = false } = {}) {
+  if (draggedKey === targetKey) return layout;
+  const dragged = layout.find((c) => c.key === draggedKey);
+  if (!dragged || !layout.some((c) => c.key === targetKey)) return layout;
+  const rest = layout.filter((c) => c.key !== draggedKey);
+  const idx = rest.findIndex((c) => c.key === targetKey);
+  rest.splice(pos === 'after' ? idx + 1 : idx, 0, sideBySide ? { ...dragged, width: 'half' } : dragged);
+  return rest;
+}
+
+// Moves one card to the very end (dropping on the empty zone below the cards).
+export function moveCardToEnd(layout, draggedKey) {
+  const dragged = layout.find((c) => c.key === draggedKey);
+  if (!dragged || layout[layout.length - 1].key === draggedKey) return layout;
+  return [...layout.filter((c) => c.key !== draggedKey), dragged];
+}

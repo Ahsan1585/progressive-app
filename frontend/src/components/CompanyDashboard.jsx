@@ -1,4 +1,4 @@
-import { DEFAULT_CARD_LAYOUT, resolveCardLayout } from '@/components/dashboardLayout';
+import { DEFAULT_CARD_LAYOUT, resolveCardLayout, moveCard, moveCardToEnd } from '@/components/dashboardLayout';
 import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import {
@@ -1071,16 +1071,28 @@ function CustomizeToggle({ active, onToggle }) {
 // than a fixed-column grid, since a grid can't let some rows have one
 // full-width item and others have two half-width items without naming
 // explicit row/column spans per card.
-function DraggableCard({ cardKey, width, isCustomizing, onDragStart, onDragOver, onDrop, onToggleWidth, children }) {
+function DraggableCard({ cardKey, width, isCustomizing, isDragging, dropPos, onDragStart, onDragOver, onDrop, onDragEnd, onToggleWidth, children }) {
   return (
     <div
       draggable={isCustomizing}
       onDragStart={isCustomizing ? (e) => onDragStart(e, cardKey) : undefined}
-      onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, cardKey); } : undefined}
-      onDrop={isCustomizing ? (e) => onDrop(e, cardKey) : undefined}
-      onDragEnd={isCustomizing ? onDrop : undefined}
-      className={`relative w-full ${width === 'half' ? '@4xl:w-[calc(50%-0.75rem)] [&>div:last-child]:h-full [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child>:last-child]:flex-1' : ''} ${isCustomizing ? 'outline outline-2 outline-dashed outline-slate-300 outline-offset-2 rounded-2xl cursor-grab active:cursor-grabbing' : ''}`}
+      onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, cardKey, width); } : undefined}
+      onDrop={isCustomizing ? (e) => { e.preventDefault(); onDrop(e, cardKey, width); } : undefined}
+      onDragEnd={isCustomizing ? onDragEnd : undefined}
+      className={`relative w-full ${width === 'half' ? '@4xl:w-[calc(50%-0.75rem)] [&>div:last-child]:h-full [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child>:last-child]:flex-1' : ''} ${isCustomizing ? 'outline outline-2 outline-dashed outline-slate-300 outline-offset-2 rounded-2xl cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-40' : ''}`}
     >
+      {/* Where the dragged card will land: a bar on the near edge of this card
+          (left/right beside a half-width card, top/bottom above or below a full one). */}
+      {isCustomizing && dropPos && (
+        <div
+          aria-hidden="true"
+          className={`absolute z-20 rounded bg-teal-400 pointer-events-none ${
+            width === 'half'
+              ? `top-0 bottom-0 w-2 ${dropPos === 'before' ? '-left-[18px]' : '-right-[18px]'}`
+              : `left-0 right-0 h-2 ${dropPos === 'before' ? '-top-[18px]' : '-bottom-[18px]'}`
+          }`}
+        />
+      )}
       {isCustomizing && (
         <div className="absolute -top-3 right-3 flex items-center gap-1 z-10">
           <button
@@ -1121,6 +1133,8 @@ export function CompanyDashboard() {
   const [cardLayout, setCardLayout, persistCardLayout] = useDashboardLayout();
   const [isCustomizing, setIsCustomizing] = useState(false);
   const dragKeyRef = useRef(null);
+  const [draggingKey, setDraggingKey] = useState(null);
+  const [dropHint, setDropHint] = useState(null); // { key, pos: 'before' | 'after' } | null
 
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
@@ -1147,21 +1161,44 @@ export function CompanyDashboard() {
     return () => { stale = true; };
   }, [monthValue]);
 
-  const handleDragStart = (e, key) => { dragKeyRef.current = key; };
-  const handleDragOver = (e, overKey) => {
-    const draggedKey = dragKeyRef.current;
-    if (!draggedKey || draggedKey === overKey) return;
-    const current = [...cardLayout];
-    const fromIdx = current.findIndex((c) => c.key === draggedKey);
-    const toIdx = current.findIndex((c) => c.key === overKey);
-    if (fromIdx === -1 || toIdx === -1) return;
-    const [moved] = current.splice(fromIdx, 1);
-    current.splice(toIdx, 0, moved);
-    setCardLayout(current);
+  // Cards are placed by dropping them, not shuffled live under the cursor: while
+  // dragging, a bar shows where the card will land, and the move (and the save)
+  // happens once, on drop. A half-width target is approached from the side (left
+  // or right half), a full-width one from above or below.
+  const clearDrag = () => { dragKeyRef.current = null; setDraggingKey(null); setDropHint(null); };
+  const handleDragStart = (e, key) => {
+    dragKeyRef.current = key;
+    setDraggingKey(key);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', key); // Firefox will not start a drag without data
   };
-  const handleDrop = () => {
-    dragKeyRef.current = null;
-    persistCardLayout(cardLayout);
+  const dropPosFor = (e, targetWidth) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (targetWidth === 'half') return e.clientX < r.left + r.width / 2 ? 'before' : 'after';
+    return e.clientY < r.top + r.height / 2 ? 'before' : 'after';
+  };
+  const handleDragOver = (e, overKey, overWidth) => {
+    const draggedKey = dragKeyRef.current;
+    if (!draggedKey || draggedKey === overKey) { setDropHint((h) => (h ? null : h)); return; }
+    const pos = dropPosFor(e, overWidth);
+    setDropHint((h) => (h && h.key === overKey && h.pos === pos ? h : { key: overKey, pos }));
+  };
+  const handleDrop = (e, overKey, overWidth) => {
+    const draggedKey = dragKeyRef.current;
+    if (draggedKey && draggedKey !== overKey) {
+      const next = moveCard(cardLayout, draggedKey, overKey, dropPosFor(e, overWidth), { sideBySide: overWidth === 'half' });
+      if (next !== cardLayout) { setCardLayout(next); persistCardLayout(next); }
+    }
+    clearDrag();
+  };
+  const handleDropAtEnd = (e) => {
+    e.preventDefault();
+    const draggedKey = dragKeyRef.current;
+    if (draggedKey) {
+      const next = moveCardToEnd(cardLayout, draggedKey);
+      if (next !== cardLayout) { setCardLayout(next); persistCardLayout(next); }
+    }
+    clearDrag();
   };
   const handleResetLayout = () => {
     setCardLayout(DEFAULT_CARD_LAYOUT);
@@ -1287,22 +1324,45 @@ export function CompanyDashboard() {
       </div>
 
       <div className="@container">
-      <div className="flex flex-wrap gap-6">
+      {isCustomizing && (
+        <div className="rounded-xl bg-slate-900 text-white px-4 py-3 text-[15px] flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-extrabold">Customizing</span>
+          <span className="text-slate-300">
+            Drag a card and drop it where you want it: the teal bar shows where it will land. Drop it beside a half-width card to place it next to it. Use Full / Half on a card to resize it.
+          </span>
+        </div>
+      )}
+        {/* Zoomed out while customizing so most of the cards fit on screen and can
+            be dragged between rows. `zoom` shrinks the layout itself (a transform
+            would leave the original space behind). */}
+        <div className="flex flex-wrap gap-6" style={isCustomizing ? { zoom: 0.62 } : undefined}>
         {cardLayout.map(({ key, width }) => (
           <DraggableCard
             key={key}
             cardKey={key}
             width={width}
             isCustomizing={isCustomizing}
+            isDragging={draggingKey === key}
+            dropPos={dropHint && dropHint.key === key ? dropHint.pos : null}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
+            onDragEnd={clearDrag}
             onToggleWidth={handleToggleWidth}
           >
             {cardsByKey[key]}
           </DraggableCard>
         ))}
-      </div>
+        {isCustomizing && (
+          <div
+            onDragOver={(e) => { if (dragKeyRef.current) { e.preventDefault(); setDropHint((h) => (h ? null : h)); } }}
+            onDrop={handleDropAtEnd}
+            className="w-full rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 text-[18px] font-bold text-center py-8"
+          >
+            Drop here to move a card to the end
+          </div>
+        )}
+        </div>
       </div>
 
       <SessionDetailDialog assessmentId={selectedSessionId} onClose={() => setSelectedSessionId(null)} />
