@@ -27,8 +27,8 @@ test('one email per staff member per stage, however many consents', async () => 
   sendConsentStaffNoticeEmail.mockResolvedValue();
   const out = await sweepConsentExpiry();
   expect(sendConsentStaffNoticeEmail).toHaveBeenCalledTimes(2);
-  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('a@x.org', { kind: 'expiring' });
-  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('b@x.org', { kind: 'expiring' });
+  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('a@x.org', { kind: 'expiring', audience: 'office' });
+  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('b@x.org', { kind: 'expiring', audience: 'office' });
   expect(out.notified).toBe(3);
 });
 
@@ -53,7 +53,7 @@ test('a consent whose granting staff member has no usable email falls back to th
   primeDb({ due30: [{ id: 9, email: null }], admins: [{ email: 'boss@x.org' }] });
   sendConsentStaffNoticeEmail.mockResolvedValue();
   await sweepConsentExpiry();
-  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('boss@x.org', { kind: 'expiring' });
+  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('boss@x.org', { kind: 'expiring', audience: 'office' });
 });
 
 test('nothing due: no emails, no writes', async () => {
@@ -71,4 +71,13 @@ test('only active, unexpired, non-independent consents are selected', async () =
   expect(select).toMatch(/revoked_at IS NULL/);
   expect(select).toMatch(/expires_at > now\(\)/);
   expect(select).toMatch(/independent_practitioner/);
+});
+
+test('a practitioner is reminded in app wording (they only have the mobile app); office roles in dashboard wording', async () => {
+  primeDb({ due30: [{ id: 1, email: 'prac@x.org', role: 'practitioner' }, { id: 2, email: 'staff@x.org', role: 'staff' }, { id: 3, email: 'boss@x.org', role: 'ceo' }] });
+  sendConsentStaffNoticeEmail.mockResolvedValue();
+  await sweepConsentExpiry();
+  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('prac@x.org', { kind: 'expiring', audience: 'practitioner' });
+  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('staff@x.org', { kind: 'expiring', audience: 'office' });
+  expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('boss@x.org', { kind: 'expiring', audience: 'office' });
 });

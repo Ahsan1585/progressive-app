@@ -785,27 +785,38 @@ const sendConsentManageEmail = async (toEmail, { manageUrl, organizationName } =
 
 // Heads-up to staff about consent activity. Neutral by design: no child,
 // parent or recipient names (Resend has no BAA), only that something needs a
-// look in the app. kind: 'signed' | 'withdrawn' | 'expiring'.
+// look. kind: 'signed' | 'withdrawn' | 'expiring'.
+//
+// Who can look where differs by role, so the wording depends on the audience:
+//  - 'office' (ceo / staff / records office): the web dashboard, Staff
+//    Directory > All Children. They are the ones who can send records.
+//  - 'practitioner': the mobile app only, on the child's Consents screen.
+//    They cannot send records; their office does.
 const STAFF_NOTICE_COPY = {
   signed: {
     subject: 'A parent signed a consent',
     heading: 'A consent was signed',
-    body: 'A parent signed a records consent. Open Staff Directory, then All Children, to see it and send the records.',
+    office: 'A parent signed a records consent. Open Staff Directory, then All Children, to see it and send the records.',
+    practitioner: 'A parent signed a records consent you requested. Open the Izaya EIS app, go to the child, then Consents, to see it. Your office sends the records.',
   },
   withdrawn: {
     subject: 'A parent withdrew a consent',
     heading: 'A consent was withdrawn',
-    body: 'A parent withdrew a records consent. Sharing under it has stopped and any secure links sent under it no longer work. Open Staff Directory, then All Children, for details.',
+    office: 'A parent withdrew a records consent. Sharing under it has stopped and any secure links sent under it no longer work. Open Staff Directory, then All Children, for details.',
+    practitioner: 'A parent withdrew a records consent. Sharing under it has stopped. Open the Izaya EIS app, go to the child, then Consents, for details. Your office has been told.',
   },
   expiring: {
     subject: 'Consents are expiring soon',
     heading: 'Consents are expiring soon',
-    body: 'One or more records consents will expire soon. Open Staff Directory, then All Children, to request a renewed signature before they lapse.',
+    office: 'One or more records consents will expire soon. Open Staff Directory, then All Children, to request a renewed signature before they lapse.',
+    practitioner: 'A records consent you requested will expire soon. Open the Izaya EIS app, go to the child, then Consents, to ask the parent to sign again before it lapses.',
   },
 };
-const sendConsentStaffNoticeEmail = async (toEmail, { kind } = {}) => {
+const STAFF_NOTICE_AUDIENCES = ['office', 'practitioner'];
+const sendConsentStaffNoticeEmail = async (toEmail, { kind, audience = 'office' } = {}) => {
   const copy = STAFF_NOTICE_COPY[kind];
   if (!copy) throw new Error(`Unknown consent notice kind: ${kind}`);
+  if (!STAFF_NOTICE_AUDIENCES.includes(audience)) throw new Error(`Unknown consent notice audience: ${audience}`);
   if (!resend) {
     throw new Error('Email is not configured (RESEND_API_KEY not set); consent notice was not sent.');
   }
@@ -813,7 +824,7 @@ const sendConsentStaffNoticeEmail = async (toEmail, { kind } = {}) => {
     preheader: copy.subject,
     eyebrow: 'Consent Update',
     heading: copy.heading,
-    bodyHtml: `<p style="margin:0;">${escapeHtml(copy.body)}</p>`,
+    bodyHtml: `<p style="margin:0;">${escapeHtml(copy[audience])}</p>`,
     footnote: 'You are receiving this because you manage records consents in Izaya EIS. No child information is included in this email.',
   });
   const result = await resend.emails.send({

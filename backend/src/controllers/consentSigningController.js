@@ -12,7 +12,8 @@ const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { getCompanyName } = require('../utils/companyName');
-const { sendConsentManageEmail, sendConsentStaffNoticeEmail } = require('../utils/emailClient');
+const { sendConsentManageEmail } = require('../utils/emailClient');
+const { notifyConsentStaff } = require('../utils/consentNotify');
 
 const MAX_VERIFY_ATTEMPTS = 5;
 const ATTESTATION_TEXT = 'I am the parent or legal guardian of this child. I authorize the disclosure described above. I understand I may revoke this consent at any time by contacting the agency, and that my electronic signature has the same legal effect as my handwritten signature.';
@@ -34,7 +35,8 @@ function buildManageUrl(req, companySlug, rawToken) {
 
 // After a signing is committed: give the parent their manage link and tell the
 // staff member who asked. Both are best-effort; the consent is already on file
-// and neither email carries child details.
+// and neither email carries child details. (Staff are told through
+// notifyConsentStaff, worded for where each person can actually look.)
 async function notifyAfterSigning(req, request, rawManageToken) {
   try {
     await sendConsentManageEmail(request.parent_email, {
@@ -44,13 +46,7 @@ async function notifyAfterSigning(req, request, rawManageToken) {
   } catch (err) {
     console.error('Failed to send consent manage email:', err.message);
   }
-  try {
-    const found = await pool.query('SELECT email FROM practitioners WHERE id = $1 AND is_active IS NOT FALSE', [request.requested_by]);
-    const email = found?.rows?.[0]?.email;
-    if (email) await sendConsentStaffNoticeEmail(email, { kind: 'signed' });
-  } catch (err) {
-    console.error('Failed to send consent signed notice:', err.message);
-  }
+  await notifyConsentStaff('signed', request.requested_by);
 }
 
 // patients.dob is a pg `date`: node-pg hands back a local-midnight Date (or

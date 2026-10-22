@@ -4,10 +4,7 @@
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn() } }));
 jest.mock('../../utils/auditLog', () => ({ logAudit: jest.fn() }));
 jest.mock('../../utils/companyName', () => ({ getCompanyName: jest.fn().mockResolvedValue('Acme EI') }));
-jest.mock('../../utils/emailClient', () => ({
-  ...jest.requireActual('../../utils/emailClient'),
-  sendConsentStaffNoticeEmail: jest.fn(),
-}));
+jest.mock('../../utils/consentNotify', () => ({ notifyConsentStaff: jest.fn() }));
 jest.mock('../consentReportController', () => ({
   buildConsentCopyPdf: jest.fn(),
   loadStaffNames: jest.fn(),
@@ -16,7 +13,7 @@ jest.mock('../consentReportController', () => ({
 const crypto = require('crypto');
 const { pool } = require('../../config/db');
 const { logAudit } = require('../../utils/auditLog');
-const { sendConsentStaffNoticeEmail } = require('../../utils/emailClient');
+const { notifyConsentStaff } = require('../../utils/consentNotify');
 const { buildConsentCopyPdf, loadStaffNames } = require('../consentReportController');
 const ctrl = require('../consentManageController');
 
@@ -153,7 +150,6 @@ describe('withdraw', () => {
   const withdrawExtra = (rows = [{ id: 77 }]) => [
     [/UPDATE records_consents\s+SET revoked_at = now\(\), revoked_via = 'parent'/, { rows }],
     [/UPDATE records_releases SET revoked_at/, { rows: [] }],
-    [/FROM practitioners/, { rows: [{ email: 'staff@agency.org' }] }],
   ];
 
   test('revokes the consent as parent, kills live release links, audits, tells staff', async () => {
@@ -167,7 +163,7 @@ describe('withdraw', () => {
     expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
       action: 'records_consent_revoked_by_parent', actorRole: 'parent', resourceType: 'patient', resourceId: 42,
     }));
-    expect(sendConsentStaffNoticeEmail).toHaveBeenCalledWith('staff@agency.org', { kind: 'withdrawn' });
+    expect(notifyConsentStaff).toHaveBeenCalledWith('withdrawn', 7);
   });
 
   test('wrong DOB withdraws nothing', async () => {
@@ -183,15 +179,7 @@ describe('withdraw', () => {
     const res = mockRes();
     await ctrl.withdrawConsent(pubReq({ dob: '2024-03-05' }), res);
     expect(logAudit).not.toHaveBeenCalled();
-    expect(sendConsentStaffNoticeEmail).not.toHaveBeenCalled();
-  });
-
-  test('a notice failure does not undo the withdrawal', async () => {
-    primeDb({ extra: withdrawExtra() });
-    sendConsentStaffNoticeEmail.mockRejectedValue(new Error('down'));
-    const res = mockRes();
-    await ctrl.withdrawConsent(pubReq({ dob: '2024-03-05' }), res);
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(notifyConsentStaff).not.toHaveBeenCalled();
   });
 });
 

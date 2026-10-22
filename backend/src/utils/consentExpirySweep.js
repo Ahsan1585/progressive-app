@@ -11,7 +11,7 @@ const { pool } = require('../config/db');
 const { sendConsentStaffNoticeEmail } = require('./emailClient');
 
 const BASE_SELECT = `
-  SELECT c.id, pr.email
+  SELECT c.id, pr.email, pr.role
   FROM records_consents c
   LEFT JOIN practitioners pr ON pr.id = c.granted_by AND pr.is_active = true
   WHERE c.revoked_at IS NULL
@@ -47,27 +47,31 @@ async function sweepConsentExpiry() {
     const { rows } = await pool.query(stage.select);
     if (!rows.length) continue;
 
-    // email -> consent ids; a consent with no usable granting-staff email goes
-    // to the active admins instead.
-    const byEmail = new Map();
+    // (email, audience) -> consent ids. A practitioner is told in app wording
+    // (they only have the mobile app); a consent with no usable granting-staff
+    // email goes to the active admins in dashboard wording.
+    const byTarget = new Map();
     let admins = null;
     for (const row of rows) {
-      let targets = row.email ? [row.email] : null;
-      if (!targets) {
+      let targets;
+      if (row.email) {
+        targets = [{ email: row.email, audience: row.role === 'practitioner' ? 'practitioner' : 'office' }];
+      } else {
         if (admins === null) admins = await activeAdminEmails();
-        targets = admins;
+        targets = admins.map((email) => ({ email, audience: 'office' }));
       }
-      for (const email of targets) {
-        if (!byEmail.has(email)) byEmail.set(email, []);
-        byEmail.get(email).push(row.id);
+      for (const t of targets) {
+        const key = `${t.audience}|${t.email}`;
+        if (!byTarget.has(key)) byTarget.set(key, { ...t, ids: [] });
+        byTarget.get(key).ids.push(row.id);
       }
     }
 
     const sentIds = new Set();
     const failedIds = new Set();
-    for (const [email, ids] of byEmail) {
+    for (const { email, audience, ids } of byTarget.values()) {
       try {
-        await sendConsentStaffNoticeEmail(email, { kind: 'expiring' });
+        await sendConsentStaffNoticeEmail(email, { kind: 'expiring', audience });
         ids.forEach((id) => sentIds.add(id));
       } catch (err) {
         console.error('Consent expiry reminder failed:', err.message);

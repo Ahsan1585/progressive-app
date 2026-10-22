@@ -13,7 +13,8 @@
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
-const { escapeHtml, sendConsentStaffNoticeEmail } = require('../utils/emailClient');
+const { escapeHtml } = require('../utils/emailClient');
+const { notifyConsentStaff } = require('../utils/consentNotify');
 const { sendPage, rejectPage } = require('../utils/publicHtml');
 const { safeFilenamePart } = require('../utils/pdfText');
 const { buildConsentCopyPdf, loadStaffNames } = require('./consentReportController');
@@ -206,13 +207,7 @@ const withdrawConsent = async (req, res) => {
       action: 'records_consent_revoked_by_parent', resourceType: 'patient', resourceId: request.patient_id,
       details: { consentId: consent.id, requestId: request.id },
     });
-    try {
-      const staff = await pool.query('SELECT email FROM practitioners WHERE id = $1 AND is_active IS NOT FALSE', [request.requested_by]);
-      const email = staff?.rows?.[0]?.email;
-      if (email) await sendConsentStaffNoticeEmail(email, { kind: 'withdrawn' });
-    } catch (err) {
-      console.error('Failed to send consent withdrawn notice:', err.message);
-    }
+    await notifyConsentStaff('withdrawn', request.requested_by);
 
     sendPage(res, 200, 'Your consent', detailsPage({ ...consent, revoked_at: new Date() }, req.body.dob, 'Your consent has been withdrawn.'));
   } catch (error) {
