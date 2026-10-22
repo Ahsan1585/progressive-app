@@ -3,6 +3,7 @@ const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { generateSignaturePng } = require('../utils/fakeSignature');
 const { BILLING_INVOICES_BUCKET, NJEIS_FORMS_BUCKET, deleteAllTenantFiles, listFilesDetailed, removeFiles } = require('../config/storage');
+const { replaceWithRealisticAgency, SEED_PASSWORD: AGENCY_PASSWORD } = require('../testdata/loadAgency');
 
 const SEED_PASSWORD = 'TestData@2026';
 
@@ -1435,7 +1436,55 @@ const wipeGeneratedLiveSessions = async (req, res) => {
   }
 };
 
+// The phrase a caller must send to confirm the replace, so it cannot fire by accident.
+const CONFIRM_PHRASE = 'REPLACE-AGENCY-DATA';
+
+/**
+ * POST /api/dev/reset-to-realistic-agency   { confirm: 'REPLACE-AGENCY-DATA', seed?, today? }
+ * CEO-only, and only mounted when ENABLE_TEST_SEED=true. DESTRUCTIVE: deletes every
+ * generated practitioner, child, session, billing batch, consent and EIMS state record on
+ * this tenant and loads the realistic small-agency dataset (see testdata/realisticAgency.js)
+ * in its place, in one transaction. Office accounts (ceo / staff), roles, company settings
+ * and dropdown options are kept. Stored invoice/SEVF files are removed from cloud storage
+ * only AFTER the database commit succeeds, so a failed load never strands the tenant
+ * without its files.
+ */
+const resetToRealisticAgency = async (req, res) => {
+  if ((req.body || {}).confirm !== CONFIRM_PHRASE) {
+    return res.status(400).json({ error: `This replaces all agency data. Send { "confirm": "${CONFIRM_PHRASE}" } to proceed.` });
+  }
+  const { seed, today } = req.body;
+  try {
+    const result = await replaceWithRealisticAgency(pool, { seed, today });
+
+    let filesDeleted = true;
+    try {
+      await deleteAllTenantFiles(BILLING_INVOICES_BUCKET);
+      await deleteAllTenantFiles(NJEIS_FORMS_BUCKET);
+    } catch (storageError) {
+      filesDeleted = false;
+      console.error('resetToRealisticAgency: storage cleanup failed (database load already committed):', storageError.message);
+    }
+
+    logAudit({
+      req, action: 'reset_to_realistic_agency', resourceType: 'test_data',
+      details: { practitioners: result.practitioners, patients: result.patients, sessions: result.sessions, wiped: result.wiped, filesDeleted },
+    });
+    res.json({
+      success: true,
+      ...result,
+      filesDeleted,
+      credentials: { emailPattern: 'first.last@izayaedge-demo.test', password: AGENCY_PASSWORD },
+    });
+  } catch (error) {
+    console.error('Failed to reset to realistic agency:', error);
+    res.status(500).json({ error: 'Failed to load the realistic agency; the database was rolled back.', detail: error.message });
+  }
+};
+
 module.exports = {
+  resetToRealisticAgency,
+  CONFIRM_PHRASE,
   seedComparisonTestData,
   wipeAllSeedData,
   hardDeletePractitioner,

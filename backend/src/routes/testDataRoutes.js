@@ -10,6 +10,7 @@ const {
   randomizeSeedPractitionerDetails,
   randomizeSeedSignatures,
   generateLiveSessions,
+  resetToRealisticAgency,
   wipeGeneratedLiveSessions,
   refreshGeneratedSignatures,
   backfillGeneratedCompletedAt,
@@ -30,6 +31,7 @@ if (process.env.ENABLE_TEST_SEED === 'true') {
   router.post('/randomize-seed-practitioner-details', protect, requireRole(['ceo']), randomizeSeedPractitionerDetails);
   router.post('/randomize-seed-signatures', protect, requireRole(['ceo']), randomizeSeedSignatures);
   router.post('/generate-live-sessions', protect, requireRole(['ceo']), generateLiveSessions);
+  router.post('/reset-to-realistic-agency', protect, requireRole(['ceo']), resetToRealisticAgency);
   router.post('/wipe-generated-live-sessions', protect, requireRole(['ceo']), wipeGeneratedLiveSessions);
   router.post('/refresh-generated-signatures', protect, requireRole(['ceo']), refreshGeneratedSignatures);
   router.post('/backfill-generated-completed-at', protect, requireRole(['ceo']), backfillGeneratedCompletedAt);
