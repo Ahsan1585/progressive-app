@@ -77,36 +77,36 @@ export function FullExportOverrideDialog({ child, requiresMfaCode = false, onClo
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="staff-type fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form onSubmit={submit} className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-slate-800">Export full record without parent consent</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{child.first_name} {child.last_name}</p>
+            <h3 className="text-[22px] font-extrabold tracking-tight leading-tight text-slate-900">Export full record without parent consent</h3>
+            <p className="text-[14px] text-slate-600 mt-0.5">{child.first_name} {child.last_name}</p>
           </div>
-          <button type="button" onClick={close} aria-label="Close" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+          <button type="button" onClick={close} aria-label="Close" className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
             <X className="size-4" />
           </button>
         </div>
         <div className="px-6 py-4 space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-[16px] text-slate-600">
             No parent consent covers a full record export for this child. As an admin you can continue by confirming your password and giving a reason. This is recorded in the audit log.
           </p>
           <div>
-            <label htmlFor="full-export-reason" className="block text-xs font-medium text-slate-700 mb-1">Reason</label>
+            <label htmlFor="full-export-reason" className="block text-[14px] font-medium text-slate-700 mb-1">Reason</label>
             <select
               id="full-export-reason"
               value={reason}
               onChange={(ev) => setReason(ev.target.value)}
               required
-              className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800"
+              className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-[16px] text-slate-800"
             >
               <option value="">Select a reason</option>
               {REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
           <div>
-            <label htmlFor="full-export-password" className="block text-xs font-medium text-slate-700 mb-1">Your password</label>
+            <label htmlFor="full-export-password" className="block text-[14px] font-medium text-slate-700 mb-1">Your password</label>
             <Input
               id="full-export-password"
               type="password"
@@ -118,7 +118,7 @@ export function FullExportOverrideDialog({ child, requiresMfaCode = false, onClo
           </div>
           {requiresMfaCode && (
             <div>
-              <label htmlFor="full-export-code" className="block text-xs font-medium text-slate-700 mb-1">Authenticator code</label>
+              <label htmlFor="full-export-code" className="block text-[14px] font-medium text-slate-700 mb-1">Authenticator code</label>
               <Input
                 id="full-export-code"
                 inputMode="numeric"
@@ -128,10 +128,10 @@ export function FullExportOverrideDialog({ child, requiresMfaCode = false, onClo
                 onChange={(ev) => setCode(ev.target.value.replace(/\D/g, '').slice(0, 6))}
                 required
               />
-              <p className="text-xs text-slate-500 mt-1">From your authenticator app</p>
+              <p className="text-[14px] text-slate-600 mt-1">From your authenticator app</p>
             </div>
           )}
-          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {error && <p role="alert" className="text-[16px] text-red-600">{error}</p>}
         </div>
         <div className="px-6 py-3 border-t border-slate-100 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={close} disabled={busy}>Cancel</Button>

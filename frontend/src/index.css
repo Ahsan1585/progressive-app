@@ -138,3 +138,23 @@
     input, select, textarea { font-size: 16px !important; }
     }
 }
+
+/* Staff Directory: the same larger, easier-to-read type scale as the Overview
+   dashboard. Shared controls are enlarged only inside this scope, so the rest of
+   the app is unchanged. Unlayered on purpose: it must win over the utility
+   classes baked into the shared Input/Button/Select components. */
+.staff-type [data-slot="input"],
+.staff-type [data-slot="textarea"],
+.staff-type [data-slot="select-trigger"] {
+  font-size: 16px;
+}
+.staff-type [data-slot="input"] {
+  min-height: 2.5rem;
+}
+.staff-type [data-slot="button"] {
+  font-size: 15px;
+  font-weight: 600;
+}
+.staff-type [data-slot="badge"] {
+  font-size: 13px;
+}

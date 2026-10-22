@@ -32,7 +32,7 @@ const fmtDate = (s) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 const typesText = (arr) => (arr || []).map((t) => TYPE_LABEL[t] || t).join(', ');
-const badgeCls = 'text-xs font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap';
+const badgeCls = 'text-[14px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap';
 
 const csvCell = (v) => {
   let s = String(v ?? '');
@@ -84,18 +84,18 @@ export function ConsentRegister({ onClose, onOpenChild }) {
   const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, rows.filter(f.test).length])), [rows]);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="staff-type fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-5xl max-h-[88vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-slate-800">Consent register</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Every records-sharing consent on file. Select a row to open that child.</p>
+            <h3 className="text-[22px] font-extrabold tracking-tight leading-tight text-slate-900">Consent register</h3>
+            <p className="text-[14px] text-slate-600 mt-0.5">Every records-sharing consent on file. Select a row to open that child.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" disabled={shown.length === 0} onClick={() => downloadCsv(shown)}>
               <Download className="size-3.5" /> Export CSV
             </Button>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer" aria-label="Close">
+            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer" aria-label="Close">
               <X className="size-4" />
             </button>
           </div>
@@ -107,7 +107,7 @@ export function ConsentRegister({ onClose, onOpenChild }) {
               key={f.key}
               type="button"
               onClick={() => setFilter(f.key)}
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer ${filter === f.key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              className={`text-[14px] font-semibold px-2.5 py-1 rounded-full border cursor-pointer ${filter === f.key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
             >
               {f.label} ({counts[f.key] ?? 0})
             </button>
@@ -119,12 +119,12 @@ export function ConsentRegister({ onClose, onOpenChild }) {
 
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <div className="text-center text-sm text-slate-400 py-10">Loading...</div>
+            <div className="text-center text-[16px] text-slate-500 py-10">Loading...</div>
           ) : shown.length === 0 ? (
-            <div className="text-center text-sm text-slate-400 py-10">{rows.length === 0 ? 'No consents on file yet.' : 'No consents match.'}</div>
+            <div className="text-center text-[16px] text-slate-500 py-10">{rows.length === 0 ? 'No consents on file yet.' : 'No consents match.'}</div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-left text-xs font-semibold text-slate-500">
+            <table className="w-full text-[16px]">
+              <thead className="sticky top-0 bg-slate-50 text-left text-[14px] font-semibold text-slate-600">
                 <tr>
                   <th className="px-4 py-2">Child</th>
                   <th className="px-4 py-2">Shared with</th>
@@ -142,34 +142,34 @@ export function ConsentRegister({ onClose, onOpenChild }) {
                     <tr key={c.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => onOpenChild(c.patientId)}>
                       <td className="px-4 py-2.5 font-medium text-slate-800">
                         {c.patientName}
-                        <div className="text-xs font-normal text-slate-500 font-mono">{c.childId}</div>
+                        <div className="text-[14px] font-normal text-slate-600 font-mono">{c.childId}</div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-700">
                         {c.recipientName}
-                        <div className="text-xs text-slate-500">{c.recipientEmail || 'No email on file'}</div>
+                        <div className="text-[14px] text-slate-600">{c.recipientEmail || 'No email on file'}</div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-600">
                         {typesText(c.recordTypes)}
-                        <div className="text-xs text-slate-400">{c.source === 'electronic' ? 'Electronic' : c.source === 'paper' ? `Paper${c.hasScan ? ', scan on file' : ''}` : 'Earlier entry'}</div>
+                        <div className="text-[14px] text-slate-500">{c.source === 'electronic' ? 'Electronic' : c.source === 'paper' ? `Paper${c.hasScan ? ', scan on file' : ''}` : 'Earlier entry'}</div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{fmtDate(c.signedOn)}</td>
                       <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{fmtDate(c.expiresAt)}</td>
                       <td className="px-4 py-2.5">
                         <span className={`${badgeCls} ${st.cls}`}>{st.label}</span>
                         {c.status === 'revoked' && c.revokedBy && (
-                          <div className="text-xs text-slate-500 mt-1">by {c.revokedBy === 'parent' ? 'the parent' : 'staff'}</div>
+                          <div className="text-[14px] text-slate-600 mt-1">by {c.revokedBy === 'parent' ? 'the parent' : 'staff'}</div>
                         )}
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         {c.awaitingSend ? (
                           <span className={`${badgeCls} bg-amber-100 text-amber-900 border-amber-400`}>Not sent</span>
                         ) : c.sentCount > 0 ? (
-                          <span className="text-xs text-slate-600">
+                          <span className="text-[14px] text-slate-600">
                             {c.sentCount}x, last {fmtDate(c.lastSentAt)}
                             {c.downloads > 0 ? `, ${c.downloads} download${c.downloads === 1 ? '' : 's'}` : ''}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">-</span>
+                          <span className="text-[14px] text-slate-500">-</span>
                         )}
                       </td>
                     </tr>

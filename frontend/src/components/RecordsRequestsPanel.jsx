@@ -28,14 +28,14 @@ function Countdown({ request }) {
   if (request.overdue) {
     const n = Math.abs(request.daysRemaining);
     return (
-      <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-rose-50 text-rose-700 border-rose-200">
+      <span className="text-[14px] font-semibold px-2 py-0.5 rounded-full border bg-rose-50 text-rose-700 border-rose-200">
         Overdue by {n} day{n === 1 ? '' : 's'}
       </span>
     );
   }
   const urgent = request.daysRemaining <= 3;
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${urgent ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+    <span className={`text-[14px] font-semibold px-2 py-0.5 rounded-full border ${urgent ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
       {request.daysRemaining === 0 ? 'Due today' : `${request.daysRemaining} day${request.daysRemaining === 1 ? '' : 's'} left`}
     </span>
   );
@@ -102,27 +102,27 @@ export function RecordsRequestsPanel({ childList = [], initialChild = null, onCl
     }
   };
 
-  const selectCls = 'w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700';
+  const selectCls = 'w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-[16px] text-slate-700';
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="staff-type fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-800">Records requests</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h3 className="text-[22px] font-extrabold tracking-tight leading-tight text-slate-900">Records requests</h3>
+            <p className="text-[14px] text-slate-600 mt-0.5">
               Parent requests to inspect a child's records - due within 10 days (34 CFR 303.405)
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer" aria-label="Close">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer" aria-label="Close">
             <X className="size-4" />
           </button>
         </div>
 
         <div className="px-6 py-4 border-b border-slate-100 space-y-2">
-          <label className="text-xs font-semibold text-slate-600">Log a new request</label>
+          <label className="text-[14px] font-semibold text-slate-600">Log a new request</label>
           {initialChild ? (
-            <p className="text-sm text-slate-700">{initialChild.first_name} {initialChild.last_name}</p>
+            <p className="text-[16px] text-slate-700">{initialChild.first_name} {initialChild.last_name}</p>
           ) : (
             <select className={selectCls} value={patientId} onChange={(e) => setPatientId(e.target.value)}>
               <option value="">Select child...</option>
@@ -135,11 +135,11 @@ export function RecordsRequestsPanel({ childList = [], initialChild = null, onCl
             <Input placeholder="Requester name" value={name} onChange={(e) => setName(e.target.value)} />
             <Input placeholder="Relationship (e.g. Mother)" value={relationship} onChange={(e) => setRelationship(e.target.value)} />
             <div>
-              <label className="text-[11px] text-slate-500">Date received</label>
+              <label className="text-[13px] text-slate-600">Date received</label>
               <Input type="date" value={requestedAt} max={todayStr()} onChange={(e) => setRequestedAt(e.target.value)} />
             </div>
             <div>
-              <label className="text-[11px] text-slate-500">Identity verified by</label>
+              <label className="text-[13px] text-slate-600">Identity verified by</label>
               <select className={selectCls} value={method} onChange={(e) => setMethod(e.target.value)}>
                 <option value="">Select method...</option>
                 {IDENTITY_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -158,17 +158,17 @@ export function RecordsRequestsPanel({ childList = [], initialChild = null, onCl
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           {loading ? (
-            <div className="text-center text-sm text-slate-400 py-6">Loading...</div>
+            <div className="text-center text-[16px] text-slate-500 py-6">Loading...</div>
           ) : requests.length === 0 ? (
-            <div className="text-center text-sm text-slate-400 py-6">No open records requests.</div>
+            <div className="text-center text-[16px] text-slate-500 py-6">No open records requests.</div>
           ) : (
             requests.map((r) => (
               <div key={r.id} className="border border-slate-200 rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-slate-800">{r.patient_last_name}, {r.patient_first_name}</span>
+                  <span className="text-[16px] font-semibold text-slate-800">{r.patient_last_name}, {r.patient_first_name}</span>
                   <Countdown request={r} />
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-[14px] text-slate-600">
                   {r.requested_by_name}{r.requested_by_relationship ? ` (${r.requested_by_relationship})` : ''} · received {fmtDate(r.requested_at)} · due {fmtDate(r.due_at)}
                 </p>
                 <Textarea

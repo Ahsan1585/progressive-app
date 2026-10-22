@@ -58,8 +58,8 @@ function ChildrenStatCards({ children }) {
             </svg>
           </div>
           <div>
-            <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{t.count}</div>
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t.label}</div>
+            <div className="text-[32px] font-extrabold text-slate-900 leading-none font-mono tabular-nums">{t.count}</div>
+            <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">{t.label}</div>
           </div>
         </div>
       ))}
@@ -122,7 +122,7 @@ function AddPractitionerCombobox({ options, onSelect, disabled }) {
         onClick={openPanel}
         disabled={disabled}
         title="Add a practitioner to this child's care team"
-        className={`inline-flex items-center gap-1 text-xs font-semibold border border-dashed border-slate-300 rounded-full px-2 py-1 cursor-pointer text-slate-500 hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${disabled ? 'opacity-50 cursor-wait' : ''}`}
+        className={`inline-flex items-center gap-1 text-[14px] font-semibold border border-dashed border-slate-300 rounded-full px-2 py-1 cursor-pointer text-slate-600 hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${disabled ? 'opacity-50 cursor-wait' : ''}`}
       >
         <Plus className="size-3.5" /> Add
       </button>
@@ -140,19 +140,19 @@ function AddPractitionerCombobox({ options, onSelect, disabled }) {
               placeholder="Search practitioners..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-7 text-xs"
+              className="h-7 text-[14px]"
             />
           </div>
           <div className="max-h-52 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-slate-400">No practitioners match.</div>
+              <div className="px-3 py-2 text-[14px] text-slate-500">No practitioners match.</div>
             ) : (
               filtered.map((o) => (
                 <button
                   key={o.id}
                   type="button"
                   onClick={() => { setOpen(false); onSelect(o.id); }}
-                  className="w-full text-left px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 text-slate-700"
+                  className="w-full text-left px-3 py-1.5 text-[14px] cursor-pointer hover:bg-blue-50 text-slate-700"
                 >
                   {o.first_name} {o.last_name}
                 </button>
@@ -230,24 +230,24 @@ function CorrectionRequestsDialog({ child, onClose }) {
       accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       denied: 'bg-rose-50 text-rose-700 border-rose-200',
     };
-    return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>{status}</span>;
+    return <span className={`text-[14px] font-semibold px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>{status}</span>;
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="staff-type fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-800">Correction requests</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{child.first_name} {child.last_name}</p>
+            <h3 className="text-[22px] font-extrabold tracking-tight leading-tight text-slate-900">Correction requests</h3>
+            <p className="text-[14px] text-slate-600 mt-0.5">{child.first_name} {child.last_name}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
             <X className="size-4" />
           </button>
         </div>
 
         <div className="px-6 py-4 border-b border-slate-100 space-y-2">
-          <label className="text-xs font-semibold text-slate-600">Log a new request</label>
+          <label className="text-[14px] font-semibold text-slate-600">Log a new request</label>
           <Textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
@@ -263,20 +263,20 @@ function CorrectionRequestsDialog({ child, onClose }) {
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           {loading ? (
-            <div className="text-center text-sm text-slate-400 py-6">Loading...</div>
+            <div className="text-center text-[16px] text-slate-500 py-6">Loading...</div>
           ) : requests.length === 0 ? (
-            <div className="text-center text-sm text-slate-400 py-6">No correction requests for this child yet.</div>
+            <div className="text-center text-[16px] text-slate-500 py-6">No correction requests for this child yet.</div>
           ) : (
             requests.map((r) => (
               <div key={r.id} className="border border-slate-200 rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">
+                  <span className="text-[14px] text-slate-600">
                     Requested {new Date(r.requested_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     {r.requested_by_first_name ? ` by ${r.requested_by_first_name} ${r.requested_by_last_name}` : ''}
                   </span>
                   {statusBadge(r.status)}
                 </div>
-                <p className="text-sm text-slate-700">{r.request_note}</p>
+                <p className="text-[16px] text-slate-700">{r.request_note}</p>
                 {r.status === 'pending' ? (
                   <div className="space-y-2 pt-1">
                     <Textarea
@@ -304,7 +304,7 @@ function CorrectionRequestsDialog({ child, onClose }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-500 pt-1">
+                  <div className="text-[14px] text-slate-600 pt-1">
                     {r.status === 'accepted' ? 'Accepted' : 'Denied'} {r.reviewed_at ? `on ${new Date(r.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                     {r.reviewed_by_first_name ? ` by ${r.reviewed_by_first_name} ${r.reviewed_by_last_name}` : ''}
                     {r.decision_note ? ` — "${r.decision_note}"` : ''}
@@ -455,12 +455,12 @@ export function StaffDirectoryChildren() {
           <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h2 className="text-base font-bold text-slate-800">All Children</h2>
-          <span className="text-xs text-slate-400 font-medium">{visibleChildren.length} of {children.length} registered</span>
+          <h2 className="text-[26px] font-extrabold tracking-tight leading-tight text-slate-900">All Children</h2>
+          <span className="text-[14px] text-slate-500 font-medium">{visibleChildren.length} of {children.length} registered</span>
           {canManageRecordRights && (
             <button
               onClick={() => setRequestsPanel({ child: null })}
-              className="ml-auto text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
+              className="ml-auto text-[14px] font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
             >
               Records requests
             </button>
@@ -468,7 +468,7 @@ export function StaffDirectoryChildren() {
           {canManageRecordRights && (
             <button
               onClick={() => setConsentsPanel({ child: null })}
-              className="text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
+              className="text-[14px] font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
             >
               Pending consents
             </button>
@@ -476,7 +476,7 @@ export function StaffDirectoryChildren() {
           {canManageRecordRights && (
             <button
               onClick={() => setShowRegister(true)}
-              className="text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
+              className="text-[14px] font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-white cursor-pointer"
             >
               Consent register
             </button>
@@ -485,7 +485,7 @@ export function StaffDirectoryChildren() {
 
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[220px] max-w-sm">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <Input
               type="text"
               placeholder="Search by child name or Child ID..."
@@ -495,7 +495,7 @@ export function StaffDirectoryChildren() {
             />
           </div>
           <div className="relative flex-1 min-w-[220px] max-w-sm">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <Input
               type="text"
               placeholder="Search by assigned practitioner..."
@@ -508,22 +508,22 @@ export function StaffDirectoryChildren() {
       </div>
 
       {loading ? (
-        <div className="p-8 text-center text-sm text-slate-400">Loading children...</div>
+        <div className="p-8 text-center text-[16px] text-slate-500">Loading children...</div>
       ) : visibleChildren.length === 0 ? (
-        <div className="p-8 text-center text-sm text-slate-400">
+        <div className="p-8 text-center text-[16px] text-slate-500">
           {childSearch.trim() || practitionerSearch.trim() ? 'No children match your search.' : 'No children registered yet.'}
         </div>
       ) : (
         <div className="overflow-auto max-h-[calc(100vh-460px)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-[16px]">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-6 py-3">Child</th>
-                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Child ID</th>
-                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">DOB</th>
-                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">County</th>
-                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Assigned Practitioner</th>
-                <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Registered</th>
+                <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-6 py-3">Child</th>
+                <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">Child ID</th>
+                <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">DOB</th>
+                <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">County</th>
+                <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">Assigned Practitioner</th>
+                <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">Registered</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -544,7 +544,7 @@ export function StaffDirectoryChildren() {
                         <button
                           type="button"
                           onClick={() => setConsentsPanel({ child })}
-                          className="mt-1.5 flex items-center gap-1.5 w-fit text-xs font-bold text-blue-900 bg-blue-100 border border-blue-400 rounded-full pl-2 pr-2.5 py-1 hover:bg-blue-200 cursor-pointer"
+                          className="mt-1.5 flex items-center gap-1.5 w-fit text-[14px] font-bold text-blue-900 bg-blue-100 border border-blue-400 rounded-full pl-2 pr-2.5 py-1 hover:bg-blue-200 cursor-pointer"
                           title="A consent request was emailed to the parent and has not been signed yet. Open it to resend or cancel."
                         >
                           <Clock className="size-3" aria-hidden="true" />
@@ -556,7 +556,7 @@ export function StaffDirectoryChildren() {
                         <button
                           type="button"
                           onClick={() => setConsentsPanel({ child })}
-                          className="mt-1.5 flex items-center gap-1.5 w-fit text-xs font-bold text-amber-900 bg-amber-100 border border-amber-400 rounded-full pl-2 pr-2.5 py-1 hover:bg-amber-200 cursor-pointer"
+                          className="mt-1.5 flex items-center gap-1.5 w-fit text-[14px] font-bold text-amber-900 bg-amber-100 border border-amber-400 rounded-full pl-2 pr-2.5 py-1 hover:bg-amber-200 cursor-pointer"
                           title="The parent has signed a consent. Open it and press Send records to email the records."
                         >
                           <Send className="size-3" aria-hidden="true" />
@@ -568,14 +568,14 @@ export function StaffDirectoryChildren() {
                         <button
                           type="button"
                           onClick={() => setConsentsPanel({ child })}
-                          className="mt-1.5 flex items-center gap-1.5 w-fit text-xs font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded-full px-2.5 py-1 hover:bg-rose-100 cursor-pointer"
+                          className="mt-1.5 flex items-center gap-1.5 w-fit text-[14px] font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded-full px-2.5 py-1 hover:bg-rose-100 cursor-pointer"
                           title="A consent for this child expires within 30 days. Open it to request a renewed signature."
                         >
                           Consent expires soon
                         </button>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-600 font-mono text-xs">{child.child_id}</td>
+                    <td className="px-4 py-3 text-slate-600 font-mono text-[14px]">{child.child_id}</td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDob(child.dob)}</td>
                     <td className="px-4 py-3 text-slate-600">{child.county}</td>
                     <td className="px-4 py-3">
@@ -584,7 +584,7 @@ export function StaffDirectoryChildren() {
                         {team.map((p) => (
                             <span
                               key={p.id}
-                              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-full pl-2.5 pr-1.5 py-1"
+                              className="inline-flex items-center gap-1.5 text-[14px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-full pl-2.5 pr-1.5 py-1"
                             >
                               {p.first_name} {p.last_name}
                               {p.position_title && <span className="font-normal text-slate-700">({p.position_title})</span>}

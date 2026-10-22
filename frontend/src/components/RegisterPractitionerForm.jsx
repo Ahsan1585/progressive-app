@@ -82,7 +82,7 @@ function StatusFilterPills({ value, onChange }) {
         <button
           key={opt.key}
           onClick={() => onChange(opt.key)}
-          className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 text-[14px] font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
             value === opt.key
               ? `bg-white ${opt.text} shadow-[0_1px_2px_rgba(15,23,42,0.06),0_3px_8px_-2px_rgba(15,23,42,0.25)] ring-1 ${opt.ring}`
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -122,8 +122,8 @@ function RosterStatCards({ list, totalLabel, totalIconPath }) {
             </svg>
           </div>
           <div>
-            <div className="text-xl font-bold text-slate-900 leading-tight font-mono tabular-nums">{t.count}</div>
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t.label}</div>
+            <div className="text-[32px] font-extrabold text-slate-900 leading-none font-mono tabular-nums">{t.count}</div>
+            <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">{t.label}</div>
           </div>
         </div>
       ))}
@@ -954,12 +954,12 @@ export const RegisterPractitionerForm = () => {
     const allSelectableChecked = selectableIds.length > 0 && selectableIds.every((id) => rosterSelectedForInvite.has(id));
     return (
     loadingStaff ? (
-      <div className="p-8 text-center text-sm text-slate-400">Loading staff...</div>
+      <div className="p-8 text-center text-[16px] text-slate-500">Loading staff...</div>
     ) : rows.length === 0 ? (
-      <div className="p-8 text-center text-sm text-slate-400">{emptyMessage}</div>
+      <div className="p-8 text-center text-[16px] text-slate-500">{emptyMessage}</div>
     ) : (
       <div className="overflow-auto max-h-[calc(100vh-420px)]">
-        <table className="w-full text-sm">
+        <table className="w-full text-[16px]">
           <thead className="sticky top-0 z-10 bg-slate-50">
             <tr className="bg-slate-50 border-b border-slate-100">
               {selectable && (
@@ -974,10 +974,10 @@ export const RegisterPractitionerForm = () => {
                   />
                 </th>
               )}
-              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-6 py-3">Name</th>
-              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Email</th>
-              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Position</th>
-              <th className="text-left text-xs font-bold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
+              <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-6 py-3">Name</th>
+              <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">Email</th>
+              <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">Position</th>
+              <th className="text-left text-[14px] font-bold text-slate-600 uppercase tracking-wide px-4 py-3">Role</th>
               {/* Actions column — anyone who can reach this screen is office
                   staff (it needs staff_directory_view), so the column always
                   renders; each button inside is permission-gated on its own. */}
@@ -1012,7 +1012,7 @@ export const RegisterPractitionerForm = () => {
                     />
                     {member.first_name} {member.last_name}
                     {isDeactivated && (
-                      <span className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wide">
+                      <span className="inline-block flex-shrink-0 whitespace-nowrap text-[13px] font-bold border rounded-md px-2 py-0.5 bg-slate-100 text-slate-600 border-slate-200 uppercase tracking-wide">
                         Deactivated
                       </span>
                     )}
@@ -1025,7 +1025,7 @@ export const RegisterPractitionerForm = () => {
                           — no badge, the plain "Pending Activation" state. */}
                     {member.is_pending_activation && (member.invite_delivery_status === 'bounced' || member.invite_delivery_status === 'complained') && (
                       <span
-                        className="inline-flex items-center gap-1 flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-red-50 text-red-700 border-red-200 uppercase tracking-wide cursor-help"
+                        className="inline-flex items-center gap-1 flex-shrink-0 whitespace-nowrap text-[13px] font-bold border rounded-md px-2 py-0.5 bg-red-50 text-red-700 border-red-200 uppercase tracking-wide cursor-help"
                         title={member.invite_delivery_detail
                           || "The activation email couldn't be delivered. Check the email address for typos (via Edit), then re-send the invite."}
                       >
@@ -1035,7 +1035,7 @@ export const RegisterPractitionerForm = () => {
                     )}
                     {member.is_pending_activation && !member.invite_sent_at && (
                       <span
-                        className="inline-block flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-orange-50 text-orange-700 border-orange-200 uppercase tracking-wide"
+                        className="inline-block flex-shrink-0 whitespace-nowrap text-[13px] font-bold border rounded-md px-2 py-0.5 bg-orange-50 text-orange-700 border-orange-200 uppercase tracking-wide"
                         title="This account was created but no activation email has been sent yet"
                       >
                         Not Yet Invited
@@ -1045,7 +1045,7 @@ export const RegisterPractitionerForm = () => {
                       <button
                         type="button"
                         onClick={() => setReviewingContact(member)}
-                        className="inline-flex items-center gap-1 flex-shrink-0 whitespace-nowrap text-[10px] font-semibold border rounded-md px-1.5 py-0.5 bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wide cursor-pointer hover:bg-amber-100 transition-colors"
+                        className="inline-flex items-center gap-1 flex-shrink-0 whitespace-nowrap text-[13px] font-bold border rounded-md px-2 py-0.5 bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wide cursor-pointer hover:bg-amber-100 transition-colors"
                         title="Review contact info change"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -1080,12 +1080,12 @@ export const RegisterPractitionerForm = () => {
                 </td>
                 <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <span className="mr-1 whitespace-nowrap rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600" title="Two-step verification">
+                      <span className="mr-1 whitespace-nowrap rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[13px] font-semibold uppercase tracking-wide text-slate-600" title="Two-step verification">
                         MFA {member.mfa_enabled ? 'On' : 'Off'}
                       </span>
                       {me?.isAdmin && member.id !== myId && (
                         mfaResetId === member.id ? (
-                          <span className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+                          <span className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[14px] text-slate-700">
                             <span className="max-w-[14rem] text-left">{member.first_name} will need to set up two-step verification again at next login.</span>
                             <button onClick={() => handleMfaReset(member)} disabled={mfaResettingId === member.id}
                               className="font-semibold text-red-600 hover:underline disabled:opacity-50 cursor-pointer">
@@ -1095,7 +1095,7 @@ export const RegisterPractitionerForm = () => {
                           </span>
                         ) : (
                           <button onClick={() => setMfaResetId(member.id)}
-                            className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
+                            className="rounded-lg px-2 py-1 text-[14px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
                             Reset MFA
                           </button>
                         )
@@ -1191,7 +1191,7 @@ export const RegisterPractitionerForm = () => {
     return (
       <div className="flex items-center gap-3 flex-wrap rounded-lg border border-teal-200 bg-teal-50/60 px-4 py-2.5">
         <Mail className="size-4 text-teal-700 flex-shrink-0" />
-        <span className="text-sm text-teal-900">
+        <span className="text-[16px] text-teal-900">
           {eligibleIds.length} {eligibleIds.length === 1 ? 'person needs' : 'people need'} an activation invite
           {failedCount > 0 && <span> ({failedCount} whose last invite failed to deliver)</span>}
           {selectedCount > 0 && <span className="font-semibold"> · {selectedCount} selected</span>}
@@ -1200,7 +1200,7 @@ export const RegisterPractitionerForm = () => {
           <button
             type="button"
             onClick={() => toggleRosterInviteSelectAll(eligibleIds)}
-            className="text-xs font-semibold text-teal-700 hover:text-teal-900 cursor-pointer"
+            className="text-[14px] font-semibold text-teal-700 hover:text-teal-900 cursor-pointer"
           >
             {selectedCount === eligibleIds.length ? 'Clear selection' : 'Select all'}
           </button>
@@ -1214,7 +1214,7 @@ export const RegisterPractitionerForm = () => {
             {rosterIsSendingInvites ? 'Sending…' : `Send Invite${selectedCount === 1 ? '' : 's'} to ${selectedCount} Selected`}
           </Button>
         </div>
-        {rosterInviteError && <p className="w-full text-xs text-red-600">{rosterInviteError}</p>}
+        {rosterInviteError && <p className="w-full text-[14px] text-red-600">{rosterInviteError}</p>}
       </div>
     );
   };
@@ -1223,11 +1223,11 @@ export const RegisterPractitionerForm = () => {
     <div className="space-y-6">
 
       {/* ── TAB SWITCHER ── */}
-      <div className="inline-flex items-center gap-1 p-1 bg-slate-200 rounded-xl shadow-inner">
+      <div className="inline-flex flex-wrap max-w-full items-center gap-1 p-1 bg-slate-200 rounded-xl shadow-inner">
         {hasPermission('staff_directory_view') && (
         <button
           onClick={() => setActiveTab('roster')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[16px] font-semibold transition-all cursor-pointer ${
             activeTab === 'roster'
               ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-blue-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1242,7 +1242,7 @@ export const RegisterPractitionerForm = () => {
         {(hasPermission('staff_directory_view') || hasPermission('practitioner_manage')) && (
         <button
           onClick={() => setActiveTab('practitioners')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[16px] font-semibold transition-all cursor-pointer ${
             activeTab === 'practitioners'
               ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-teal-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1257,7 +1257,7 @@ export const RegisterPractitionerForm = () => {
         )}
         <button
           onClick={() => setActiveTab('register')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[16px] font-semibold transition-all cursor-pointer ${
             activeTab === 'register'
               ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-emerald-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1276,7 +1276,7 @@ export const RegisterPractitionerForm = () => {
         {me?.isPlatformSupport && (
         <button
           onClick={() => { resetBulkImport(); setActiveTab('bulkRegister'); }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[16px] font-semibold transition-all cursor-pointer ${
             activeTab === 'bulkRegister'
               ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-violet-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1288,7 +1288,7 @@ export const RegisterPractitionerForm = () => {
         )}
         <button
           onClick={() => setActiveTab('children')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[16px] font-semibold transition-all cursor-pointer ${
             activeTab === 'children'
               ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-blue-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1302,7 +1302,7 @@ export const RegisterPractitionerForm = () => {
         {canApproveActions && (
           <button
             onClick={() => setActiveTab('actionRequired')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[16px] font-semibold transition-all cursor-pointer ${
               activeTab === 'actionRequired'
                 ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-orange-500/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1330,14 +1330,14 @@ export const RegisterPractitionerForm = () => {
             <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <h2 className="text-base font-bold text-slate-800">Staff Roster</h2>
+            <h2 className="text-[26px] font-extrabold tracking-tight leading-tight text-slate-900">Staff Roster</h2>
             <StatusFilterPills value={statusFilter} onChange={setStatusFilter} />
-            <span className="text-xs text-slate-400 font-medium">{visibleStaff.length} member{visibleStaff.length !== 1 ? 's' : ''}</span>
+            <span className="text-[14px] text-slate-500 font-medium">{visibleStaff.length} member{visibleStaff.length !== 1 ? 's' : ''}</span>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[220px] max-w-sm">
-              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <Input
                 type="text"
                 placeholder="Search by name, email, or position..."
@@ -1385,14 +1385,14 @@ export const RegisterPractitionerForm = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5l6.74-6.76z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8L2 22M17.5 15H9" />
             </svg>
-            <h2 className="text-base font-bold text-slate-800">Practitioners</h2>
+            <h2 className="text-[26px] font-extrabold tracking-tight leading-tight text-slate-900">Practitioners</h2>
             <StatusFilterPills value={statusFilter} onChange={setStatusFilter} />
-            <span className="text-xs text-slate-400 font-medium">{visiblePractitioners.length} practitioner{visiblePractitioners.length !== 1 ? 's' : ''}</span>
+            <span className="text-[14px] text-slate-500 font-medium">{visiblePractitioners.length} practitioner{visiblePractitioners.length !== 1 ? 's' : ''}</span>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[220px] max-w-sm">
-              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <Input
                 type="text"
                 placeholder="Search by name, email, or position..."
@@ -1419,8 +1419,8 @@ export const RegisterPractitionerForm = () => {
       {/* ── SECTION 2: REGISTER NEW ACCOUNT ── */}
       {activeTab === 'register' && (
       <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <h2 className="text-[28px] font-extrabold tracking-tight leading-tight text-slate-900 mb-6 flex items-center gap-2">
+          <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
           Register New User
@@ -1429,7 +1429,7 @@ export const RegisterPractitionerForm = () => {
         <form onSubmit={handleRegisterPractitioner} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">First Name</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">First Name</Label>
               <Input
                 type="text"
                 required
@@ -1439,7 +1439,7 @@ export const RegisterPractitionerForm = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Last Name</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Last Name</Label>
               <Input
                 type="text"
                 required
@@ -1451,7 +1451,7 @@ export const RegisterPractitionerForm = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-slate-700">Email Address</Label>
+            <Label className="text-[16px] font-semibold text-slate-700">Email Address</Label>
             <Input
               type="email"
               required
@@ -1462,7 +1462,7 @@ export const RegisterPractitionerForm = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-slate-700">Discipline / Position Title</Label>
+            <Label className="text-[16px] font-semibold text-slate-700">Discipline / Position Title</Label>
             <select
               value={regForm.positionTitle}
               onChange={(e) => {
@@ -1483,7 +1483,7 @@ export const RegisterPractitionerForm = () => {
                   setRegForm({...regForm, positionTitle: nextPositionTitle});
                 }
               }}
-              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required={regForm.role === 'practitioner'}
             >
               <option value="" disabled>Select a discipline...</option>
@@ -1501,12 +1501,12 @@ export const RegisterPractitionerForm = () => {
 
           {regForm.positionTitle !== 'Office Staff' && (
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-slate-700">
+            <Label className="text-[16px] font-semibold text-slate-700">
               Service Types {(canManageRoles ? regForm.role : 'practitioner') === 'practitioner' && '*'}
             </Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 border border-slate-200 rounded-md bg-slate-50">
               {SERVICE_TYPE_OPTIONS.map(opt => (
-                <label key={opt.code} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <label key={opt.code} className="flex items-center gap-2 text-[16px] text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={regForm.serviceTypes.includes(opt.code)}
@@ -1528,7 +1528,7 @@ export const RegisterPractitionerForm = () => {
               unchanged, since that path doesn't go through the roles table. */}
           {canManageRoles && (
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Account Role</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Account Role</Label>
               <select
                 value={regForm.role === 'practitioner' ? 'practitioner' : regForm.roleId}
                 onChange={(e) => {
@@ -1539,7 +1539,7 @@ export const RegisterPractitionerForm = () => {
                     setRegForm({...regForm, role: 'staff', roleId: val});
                   }
                 }}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 {/* An empty-value option is always present so the <select>'s
@@ -1557,7 +1557,7 @@ export const RegisterPractitionerForm = () => {
           )}
 
           <div className="space-y-2">
-            <Label className="text-sm font-semibold text-slate-700">Full Address</Label>
+            <Label className="text-[16px] font-semibold text-slate-700">Full Address</Label>
             <Input
               type="text"
               value={regForm.address}
@@ -1569,7 +1569,7 @@ export const RegisterPractitionerForm = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Phone Number</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Phone Number</Label>
               <Input
                 type="tel"
                 value={regForm.phoneNumber}
@@ -1579,7 +1579,7 @@ export const RegisterPractitionerForm = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">SSN / EIN (optional)</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">SSN / EIN (optional)</Label>
               <PasswordInput
                 inputMode="numeric"
                 value={regForm.ssn}
@@ -1593,7 +1593,7 @@ export const RegisterPractitionerForm = () => {
           {regForm.positionTitle !== 'Office Staff' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -1632,25 +1632,25 @@ export const RegisterPractitionerForm = () => {
       {/* ── SECTION 2b: BULK REGISTER (Excel upload) ── */}
       {activeTab === 'bulkRegister' && me?.isPlatformSupport && (
       <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
-          <Upload className="w-5 h-5 text-slate-400" />
+        <h2 className="text-[28px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1 flex items-center gap-2">
+          <Upload className="w-5 h-5 text-slate-500" />
           Bulk Register Practitioners
         </h2>
-        <p className="text-sm text-slate-500 mb-6">
+        <p className="text-[16px] text-slate-600 mb-6">
           Upload an Excel roster to invite several practitioners at once. Each row gets a normal invite-link email — same as registering one at a time.
         </p>
 
         {bulkError && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 font-medium">{bulkError}</div>
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-[16px] text-red-700 font-medium">{bulkError}</div>
         )}
 
         {bulkStep === 'upload' && openBulkBatch && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
-            <p className="text-sm font-semibold text-amber-800">
+            <p className="text-[16px] font-semibold text-amber-800">
               You have {openBulkBatch.skipped_rows.filter((r) => !r.dismissed).length} unresolved row{openBulkBatch.skipped_rows.filter((r) => !r.dismissed).length === 1 ? '' : 's'} from an import
               {openBulkBatch.file_name ? ` of "${openBulkBatch.file_name}"` : ''} on {new Date(openBulkBatch.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}.
             </p>
-            <p className="text-xs text-amber-700 mt-1 mb-3">These rows were never registered — fix them below, or discard the import if you no longer need to.</p>
+            <p className="text-[14px] text-amber-700 mt-1 mb-3">These rows were never registered — fix them below, or discard the import if you no longer need to.</p>
             <div className="flex gap-2">
               <Button type="button" onClick={handleResumeBulkBatch} className="bg-amber-600 text-white hover:bg-amber-700">
                 Resume
@@ -1665,8 +1665,8 @@ export const RegisterPractitionerForm = () => {
         {bulkStep === 'upload' && (
           <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl px-4 py-12 cursor-pointer hover:border-violet-300 hover:bg-violet-50/40 transition-colors">
             {bulkIsUploading ? <Loader2 className="w-8 h-8 text-violet-400 animate-spin" /> : <Upload className="w-8 h-8 text-slate-300" />}
-            <span className="text-sm font-semibold text-violet-700">{bulkIsUploading ? 'Reading file...' : 'Click to attach an Excel roster'}</span>
-            <span className="text-xs text-slate-400">.xlsx or .xls, up to 10MB — needs First Name, Last Name, Email, Pay Rate, Position Title, and Service Type(s) columns</span>
+            <span className="text-[16px] font-semibold text-violet-700">{bulkIsUploading ? 'Reading file...' : 'Click to attach an Excel roster'}</span>
+            <span className="text-[14px] text-slate-500">.xlsx or .xls, up to 10MB — needs First Name, Last Name, Email, Pay Rate, Position Title, and Service Type(s) columns</span>
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBulkFileSelect} disabled={bulkIsUploading} />
           </label>
         )}
@@ -1675,12 +1675,12 @@ export const RegisterPractitionerForm = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">Match columns</h3>
-                <p className="text-xs text-slate-500 mt-1">
+                <h3 className="text-[16px] font-bold text-slate-800">Match columns</h3>
+                <p className="text-[14px] text-slate-600 mt-1">
                   {bulkFileName} &middot; {bulkMappingInfo.rowCount} row{bulkMappingInfo.rowCount === 1 ? '' : 's'} found. Confirm which column in the file feeds each field below.
                 </p>
               </div>
-              <button type="button" onClick={resetBulkImport} className="text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer">
+              <button type="button" onClick={resetBulkImport} className="text-[14px] font-semibold text-slate-600 hover:text-slate-800 cursor-pointer">
                 Choose a different file
               </button>
             </div>
@@ -1706,7 +1706,7 @@ export const RegisterPractitionerForm = () => {
                   const suggestedArr = Array.isArray(suggested) ? suggested : [];
                   const isAutoDetected = !requiredMissing && currentArr.length === suggestedArr.length && currentArr.every((h, i) => h === suggestedArr[i]);
                   const status = isDisabled
-                    ? { text: 'Off — not matched', className: 'text-slate-500 bg-slate-50 border-slate-200' }
+                    ? { text: 'Off — not matched', className: 'text-slate-600 bg-slate-50 border-slate-200' }
                     : requiredMissing
                     ? { text: 'Required — pick a column', className: 'text-red-600 bg-red-50 border-red-200' }
                     : isAutoDetected
@@ -1750,17 +1750,17 @@ export const RegisterPractitionerForm = () => {
                         <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-4' : ''}`} />
                       </button>
                       <div className="w-44 flex-shrink-0 pt-1">
-                        <p className={`text-sm font-semibold ${isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
-                        <span className={`inline-block mt-0.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
+                        <p className={`text-[16px] font-semibold ${isDisabled ? 'text-slate-500' : 'text-slate-800'}`}>{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
+                        <span className={`inline-block mt-0.5 text-[13px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
                         {nonEmptyCount > 1 && (
-                          <p className="text-[10px] text-slate-400 mt-1">{nonEmptyCount} columns combined</p>
+                          <p className="text-[13px] text-slate-500 mt-1">{nonEmptyCount} columns combined</p>
                         )}
                       </div>
                       <div className="flex-1 space-y-1.5">
                         {slots.map((slotValue, index) => (
                           <div key={index} className="flex items-center gap-1.5">
                             <select
-                              className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm ${isDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'}`}
+                              className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-[16px] ${isDisabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                               value={slotValue}
                               disabled={isDisabled}
                               onChange={(e) => updateSlot(index, e.target.value)}
@@ -1775,7 +1775,7 @@ export const RegisterPractitionerForm = () => {
                                 type="button"
                                 onClick={() => removeSlot(index)}
                                 title="Remove this column"
-                                className="flex-shrink-0 w-7 h-7 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center cursor-pointer"
+                                className="flex-shrink-0 w-7 h-7 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center cursor-pointer"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
@@ -1786,7 +1786,7 @@ export const RegisterPractitionerForm = () => {
                           <button
                             type="button"
                             onClick={addSlot}
-                            className="text-xs font-semibold text-violet-600 hover:text-violet-700 cursor-pointer inline-flex items-center gap-1 pt-0.5"
+                            className="text-[14px] font-semibold text-violet-600 hover:text-violet-700 cursor-pointer inline-flex items-center gap-1 pt-0.5"
                           >
                             <Plus className="w-3 h-3" /> Add another column
                           </button>
@@ -1799,7 +1799,7 @@ export const RegisterPractitionerForm = () => {
                 const current = bulkMapping[field.key] || '';
                 const requiredMissing = field.required && !current;
                 const status = isDisabled
-                  ? { text: 'Off — not matched', className: 'text-slate-500 bg-slate-50 border-slate-200' }
+                  ? { text: 'Off — not matched', className: 'text-slate-600 bg-slate-50 border-slate-200' }
                   : requiredMissing
                   ? { text: 'Required — pick a column', className: 'text-red-600 bg-red-50 border-red-200' }
                   : current === suggested
@@ -1825,11 +1825,11 @@ export const RegisterPractitionerForm = () => {
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-4' : ''}`} />
                     </button>
                     <div className="w-44 flex-shrink-0">
-                      <p className={`text-sm font-semibold ${isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
-                      <span className={`inline-block mt-0.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
+                      <p className={`text-[16px] font-semibold ${isDisabled ? 'text-slate-500' : 'text-slate-800'}`}>{field.label}{field.required && <span className="text-red-500"> *</span>}</p>
+                      <span className={`inline-block mt-0.5 text-[13px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${status.className}`}>{status.text}</span>
                     </div>
                     <select
-                      className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-sm ${isDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'}`}
+                      className={`flex-1 h-9 rounded-md border border-slate-300 px-2.5 text-[16px] ${isDisabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                       value={current}
                       disabled={isDisabled}
                       onChange={(e) => setBulkMapping((prev) => ({ ...prev, [field.key]: e.target.value }))}
@@ -1862,13 +1862,13 @@ export const RegisterPractitionerForm = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                <div className="text-2xl font-bold text-emerald-700">{bulkResults.created.length}</div>
-                <div className="text-xs font-semibold text-emerald-700">Registered</div>
+                <div className="text-[34px] font-extrabold text-emerald-700">{bulkResults.created.length}</div>
+                <div className="text-[14px] font-semibold text-emerald-700">Registered</div>
               </div>
               {bulkResults.skipped.length > 0 && (
                 <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
-                  <div className="text-2xl font-bold text-amber-700">{bulkResults.skipped.length}</div>
-                  <div className="text-xs font-semibold text-amber-700">Skipped</div>
+                  <div className="text-[34px] font-extrabold text-amber-700">{bulkResults.skipped.length}</div>
+                  <div className="text-[14px] font-semibold text-amber-700">Skipped</div>
                 </div>
               )}
             </div>
@@ -1879,12 +1879,12 @@ export const RegisterPractitionerForm = () => {
               return (
                 <div className="border border-slate-200 rounded-lg overflow-hidden">
                   <div className="px-4 py-2 bg-slate-50 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Send activation invites</span>
+                    <span className="text-[14px] font-bold uppercase tracking-wide text-slate-600">Send activation invites</span>
                     {notYetInvitedIds.length > 0 && (
                       <button
                         type="button"
                         onClick={() => toggleBulkInviteSelectAll(notYetInvitedIds)}
-                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
+                        className="text-[14px] font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
                       >
                         {notYetInvitedIds.every((id) => bulkSelectedForInvite.has(id)) ? 'Deselect all' : 'Select all'}
                       </button>
@@ -1894,7 +1894,7 @@ export const RegisterPractitionerForm = () => {
                     {bulkResults.created.map((c) => {
                       const invited = bulkInvitedIds.has(c.id);
                       return (
-                        <label key={c.id} className={`flex items-center gap-3 px-4 py-2.5 text-sm ${invited ? '' : 'cursor-pointer hover:bg-slate-50'}`}>
+                        <label key={c.id} className={`flex items-center gap-3 px-4 py-2.5 text-[16px] ${invited ? '' : 'cursor-pointer hover:bg-slate-50'}`}>
                           <input
                             type="checkbox"
                             checked={invited || bulkSelectedForInvite.has(c.id)}
@@ -1902,9 +1902,9 @@ export const RegisterPractitionerForm = () => {
                             onChange={() => toggleBulkInviteSelection(c.id)}
                             className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
                           />
-                          <span className="flex-1 text-slate-700">{c.first_name} {c.last_name} <span className="text-slate-400">— {c.email}</span></span>
+                          <span className="flex-1 text-slate-700">{c.first_name} {c.last_name} <span className="text-slate-500">— {c.email}</span></span>
                           {invited && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border text-emerald-700 bg-emerald-50 border-emerald-200">Invited</span>
+                            <span className="text-[13px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border text-emerald-700 bg-emerald-50 border-emerald-200">Invited</span>
                           )}
                         </label>
                       );
@@ -1930,45 +1930,45 @@ export const RegisterPractitionerForm = () => {
 
             {bulkResults.skipped.length > 0 && (
               <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <div className="px-4 py-2 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <div className="px-4 py-2 bg-slate-50 text-[14px] font-bold uppercase tracking-wide text-slate-600">
                   Skipped rows — fix and register below
                 </div>
                 <div className="divide-y divide-slate-100">
                   {bulkFixups.map((row, i) => (
                     <div key={i} className="px-4 py-4 space-y-3">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 inline-block">{bulkResults.skipped[i]?.reason}</p>
+                        <p className="text-[14px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 inline-block">{bulkResults.skipped[i]?.reason}</p>
                         <button
                           type="button"
                           onClick={() => handleDismissBulkFixup(i)}
                           title="Drop this row without registering it"
-                          className="flex-shrink-0 text-xs font-semibold text-slate-400 hover:text-red-600 cursor-pointer"
+                          className="flex-shrink-0 text-[14px] font-semibold text-slate-500 hover:text-red-600 cursor-pointer"
                         >
                           Dismiss
                         </button>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                        <Input placeholder="First Name" value={row.firstName} onChange={(e) => updateBulkFixup(i, 'firstName', e.target.value)} className="text-sm" />
-                        <Input placeholder="Last Name" value={row.lastName} onChange={(e) => updateBulkFixup(i, 'lastName', e.target.value)} className="text-sm" />
-                        <Input type="email" placeholder="Email" value={row.email} onChange={(e) => updateBulkFixup(i, 'email', e.target.value)} className="text-sm" />
-                        <Input type="number" step="0.01" placeholder="Hourly Pay Rate" value={row.payRate} onChange={(e) => updateBulkFixup(i, 'payRate', e.target.value)} className="text-sm" />
+                        <Input placeholder="First Name" value={row.firstName} onChange={(e) => updateBulkFixup(i, 'firstName', e.target.value)} className="text-[16px]" />
+                        <Input placeholder="Last Name" value={row.lastName} onChange={(e) => updateBulkFixup(i, 'lastName', e.target.value)} className="text-[16px]" />
+                        <Input type="email" placeholder="Email" value={row.email} onChange={(e) => updateBulkFixup(i, 'email', e.target.value)} className="text-[16px]" />
+                        <Input type="number" step="0.01" placeholder="Hourly Pay Rate" value={row.payRate} onChange={(e) => updateBulkFixup(i, 'payRate', e.target.value)} className="text-[16px]" />
                         <select
                           value={row.positionTitle}
                           onChange={(e) => updateBulkFixup(i, 'positionTitle', e.target.value)}
-                          className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[16px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="" disabled>Select a discipline...</option>
                           {DISCIPLINE_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
                         </select>
-                        <Input placeholder="Address (optional)" value={row.address} onChange={(e) => updateBulkFixup(i, 'address', e.target.value)} className="text-sm" />
-                        <Input placeholder="Phone Number (optional)" value={row.phoneNumber} onChange={(e) => updateBulkFixup(i, 'phoneNumber', e.target.value)} className="text-sm" />
-                        <Input placeholder="SSN / EIN (optional)" value={row.ssn} onChange={(e) => updateBulkFixup(i, 'ssn', e.target.value)} className="text-sm" />
+                        <Input placeholder="Address (optional)" value={row.address} onChange={(e) => updateBulkFixup(i, 'address', e.target.value)} className="text-[16px]" />
+                        <Input placeholder="Phone Number (optional)" value={row.phoneNumber} onChange={(e) => updateBulkFixup(i, 'phoneNumber', e.target.value)} className="text-[16px]" />
+                        <Input placeholder="SSN / EIN (optional)" value={row.ssn} onChange={(e) => updateBulkFixup(i, 'ssn', e.target.value)} className="text-[16px]" />
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-slate-600 mb-1.5">Service Types</p>
+                        <p className="text-[14px] font-semibold text-slate-600 mb-1.5">Service Types</p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2.5 border border-slate-200 rounded-md bg-slate-50">
                           {SERVICE_TYPE_OPTIONS.map((opt) => (
-                            <label key={opt.code} className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                            <label key={opt.code} className="flex items-center gap-1.5 text-[14px] text-slate-700 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={row.serviceTypes.includes(opt.code)}
@@ -2017,7 +2017,7 @@ export const RegisterPractitionerForm = () => {
 
       {/* ── DEACTIVATE CONFIRM DIALOG ── */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="staff-type fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-full max-w-sm mx-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -2026,11 +2026,11 @@ export const RegisterPractitionerForm = () => {
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800">Deactivate User Account</h3>
-                <p className="text-xs text-slate-500 mt-0.5">This action cannot be undone.</p>
+                <h3 className="text-[22px] font-extrabold tracking-tight leading-tight text-slate-900">Deactivate User Account</h3>
+                <p className="text-[14px] text-slate-600 mt-0.5">This action cannot be undone.</p>
               </div>
             </div>
-            <p className="text-sm text-slate-600">
+            <p className="text-[16px] text-slate-600">
               Are you sure you want to deactivate{' '}
               <span className="font-semibold text-slate-800">{confirmDelete.first_name} {confirmDelete.last_name}</span>?
               They will no longer be able to log in. All of their historical logs, billing records, and invoices will remain fully intact.
@@ -2038,14 +2038,14 @@ export const RegisterPractitionerForm = () => {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="flex-1 px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex-1 px-4 py-2 text-[16px] font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirmed}
                 disabled={deletingId === confirmDelete.id}
-                className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-60"
+                className="flex-1 px-4 py-2 text-[16px] font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-60"
               >
                 {deletingId === confirmDelete.id ? 'Deactivating...' : 'Yes, Deactivate'}
               </button>
@@ -2078,17 +2078,17 @@ export const RegisterPractitionerForm = () => {
           </DialogHeader>
           {reviewingContact && (
             <div className="space-y-4">
-              <p className="text-sm text-slate-500">
+              <p className="text-[16px] text-slate-600">
                 Submitted by the practitioner{reviewingContact.pending_submitted_at ? ` on ${new Date(reviewingContact.pending_submitted_at).toLocaleDateString()}` : ''}. Review and accept to apply it to their record, or reject to discard.
               </p>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-[16px]">
                 <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Current</p>
+                  <p className="text-[14px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Current</p>
                   <p className="text-slate-700">{reviewingContact.phone_number || '—'}</p>
                   <p className="text-slate-700">{reviewingContact.address || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Requested</p>
+                  <p className="text-[14px] font-semibold text-amber-600 uppercase tracking-wide mb-1">Requested</p>
                   <p className="text-slate-900 font-medium">{reviewingContact.pending_phone_number || '—'}</p>
                   <p className="text-slate-900 font-medium">{reviewingContact.pending_address || '—'}</p>
                 </div>
@@ -2117,16 +2117,16 @@ export const RegisterPractitionerForm = () => {
 
       {/* ── EDIT PROFILE DIALOG ── */}
       {editingMember && editForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="staff-type fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
-              <h3 className="text-base font-bold text-slate-800">
+              <h3 className="text-[22px] font-extrabold tracking-tight leading-tight text-slate-900">
                 Edit Profile — {editingMember.first_name} {editingMember.last_name}
               </h3>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">First Name</Label>
+                  <Label className="text-[16px] font-semibold text-slate-700">First Name</Label>
                   <Input
                     type="text"
                     required
@@ -2135,7 +2135,7 @@ export const RegisterPractitionerForm = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">Last Name</Label>
+                  <Label className="text-[16px] font-semibold text-slate-700">Last Name</Label>
                   <Input
                     type="text"
                     required
@@ -2146,7 +2146,7 @@ export const RegisterPractitionerForm = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Email Address</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Email Address</Label>
                 <Input
                   type="email"
                   required
@@ -2156,11 +2156,11 @@ export const RegisterPractitionerForm = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Discipline / Position Title</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Discipline / Position Title</Label>
                 <select
                   value={editForm.positionTitle}
                   onChange={(e) => setEditForm({...editForm, positionTitle: e.target.value})}
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required={editingMember.role === 'practitioner'}
                 >
                   <option value="" disabled>Select a discipline...</option>
@@ -2177,12 +2177,12 @@ export const RegisterPractitionerForm = () => {
 
               {editForm.positionTitle !== 'Office Staff' && (
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">
+                <Label className="text-[16px] font-semibold text-slate-700">
                   Service Types {editingMember.role === 'practitioner' && '*'}
                 </Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 border border-slate-200 rounded-md bg-slate-50">
                   {SERVICE_TYPE_OPTIONS.map(opt => (
-                    <label key={opt.code} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <label key={opt.code} className="flex items-center gap-2 text-[16px] text-slate-700 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editForm.serviceTypes.includes(opt.code)}
@@ -2197,7 +2197,7 @@ export const RegisterPractitionerForm = () => {
               )}
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Full Address</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Full Address</Label>
                 <Input
                   type="text"
                   value={editForm.address}
@@ -2208,7 +2208,7 @@ export const RegisterPractitionerForm = () => {
 
               <div className={`grid gap-4 ${editForm.positionTitle === 'Office Staff' ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">Phone Number</Label>
+                  <Label className="text-[16px] font-semibold text-slate-700">Phone Number</Label>
                   <Input
                     type="tel"
                     value={editForm.phoneNumber}
@@ -2218,7 +2218,7 @@ export const RegisterPractitionerForm = () => {
                 </div>
                 {editForm.positionTitle !== 'Office Staff' && (
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
+                  <Label className="text-[16px] font-semibold text-slate-700">Hourly Pay Rate ($)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -2233,7 +2233,7 @@ export const RegisterPractitionerForm = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">SSN / EIN (optional)</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">SSN / EIN (optional)</Label>
                 <PasswordInput
                   inputMode="numeric"
                   value={editForm.ssn}
@@ -2247,7 +2247,7 @@ export const RegisterPractitionerForm = () => {
                 <button
                   type="button"
                   onClick={() => { setEditingMember(null); setEditForm(null); }}
-                  className="flex-1 px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                  className="flex-1 px-4 py-2 text-[16px] font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>

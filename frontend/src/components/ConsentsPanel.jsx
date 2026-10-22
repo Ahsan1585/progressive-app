@@ -81,16 +81,16 @@ const readAsDataUrl = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-const selectCls = 'w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700';
-const badgeCls = 'text-xs font-semibold px-2 py-0.5 rounded-full border';
+const selectCls = 'w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-[16px] text-slate-700';
+const badgeCls = 'text-[14px] font-semibold px-2 py-0.5 rounded-full border';
 const NEUTRAL = 'bg-slate-50 text-slate-600 border-slate-200';
 
 function Field({ label, error, children }) {
   return (
     <div>
-      <label className="block text-[11px] font-semibold text-slate-600 mb-1">{label}</label>
+      <label className="block text-[13px] font-semibold text-slate-600 mb-1">{label}</label>
       {children}
-      {error && <p role="alert" className="text-xs text-rose-600 mt-1">{error}</p>}
+      {error && <p role="alert" className="text-[14px] text-rose-600 mt-1">{error}</p>}
     </div>
   );
 }
@@ -196,8 +196,8 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
   return (
     <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50/50">
       <div>
-        <h4 className="text-sm font-bold text-slate-800">{isPaper ? 'Record paper consent' : 'Request parent signature'}</h4>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <h4 className="text-[16px] font-bold text-slate-800">{isPaper ? 'Record paper consent' : 'Request parent signature'}</h4>
+        <p className="text-[14px] text-slate-600 mt-0.5">
           {isPaper
             ? 'Use this only for a consent the agency already holds, signed on paper. Do not use it to sign on the parent\'s behalf.'
             : 'A secure signing link is emailed to the parent or guardian. They confirm the child\'s date of birth before signing.'}
@@ -206,15 +206,15 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
 
       {!isPaper && (child.parent_email ? (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5" role="note">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-800">Signing link will be sent to</p>
-          <p className="text-sm font-semibold text-slate-900 break-all">{child.parent_email}</p>
-          {child.parent_name && <p className="text-xs text-slate-600">Parent or guardian on file: {child.parent_name}</p>}
-          <p className="text-xs text-slate-500 mt-0.5">This is the parent email on the child's record. To change it, edit the child first.</p>
+          <p className="text-[13px] font-semibold uppercase tracking-wide text-blue-800">Signing link will be sent to</p>
+          <p className="text-[16px] font-semibold text-slate-900 break-all">{child.parent_email}</p>
+          {child.parent_name && <p className="text-[14px] text-slate-600">Parent or guardian on file: {child.parent_name}</p>}
+          <p className="text-[14px] text-slate-600 mt-0.5">This is the parent email on the child's record. To change it, edit the child first.</p>
         </div>
       ) : (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5" role="alert">
-          <p className="text-sm font-semibold text-amber-900">No parent or guardian email is on file for this child.</p>
-          <p className="text-xs text-amber-800">Add one to the child's record first, otherwise the signing link has nowhere to go.</p>
+          <p className="text-[16px] font-semibold text-amber-900">No parent or guardian email is on file for this child.</p>
+          <p className="text-[14px] text-amber-800">Add one to the child's record first, otherwise the signing link has nowhere to go.</p>
         </div>
       ))}
 
@@ -232,7 +232,7 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
       <Field label="Records covered" error={errors.types}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {RECORD_TYPES.map((t) => (
-            <label key={t.value} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <label key={t.value} className="flex items-center gap-2 text-[16px] text-slate-700 cursor-pointer">
               <input type="checkbox" checked={types.includes(t.value)} onChange={() => toggleType(t.value)} className="size-4 accent-blue-600" />
               {t.label}
             </label>
@@ -273,21 +273,21 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
               type="file"
               accept="application/pdf,image/png,image/jpeg"
               onChange={(ev) => setScanFile(ev.target.files?.[0] || null)}
-              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-50"
+              className="block w-full text-[16px] text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-[14px] file:font-semibold file:text-slate-700 hover:file:bg-slate-50"
             />
-            <p className="text-xs text-slate-400 mt-1">PDF, PNG or JPEG, up to 10 MB. You can also add or replace it later from the consent.</p>
+            <p className="text-[14px] text-slate-500 mt-1">PDF, PNG or JPEG, up to 10 MB. You can also add or replace it later from the consent.</p>
           </Field>
           <div>
-            <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+            <label className="flex items-start gap-2 text-[16px] text-slate-700 cursor-pointer">
               <input type="checkbox" checked={attested} onChange={(ev) => setAttested(ev.target.checked)} className="mt-0.5 size-4 accent-blue-600" />
               A signed paper consent is on file
             </label>
-            {errors.attested && <p role="alert" className="text-xs text-rose-600 mt-1">{errors.attested}</p>}
+            {errors.attested && <p role="alert" className="text-[14px] text-rose-600 mt-1">{errors.attested}</p>}
           </div>
         </>
       )}
 
-      {serverError && <p role="alert" className="text-sm text-rose-600">{serverError}</p>}
+      {serverError && <p role="alert" className="text-[16px] text-rose-600">{serverError}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onCancel} disabled={submitting}>Cancel</Button>
         <Button size="sm" onClick={submit} disabled={submitting}>
@@ -309,11 +309,11 @@ function PendingList({ onOpenChild }) {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-center text-sm text-slate-400 py-6">Loading...</div>;
-  if (rows.length === 0) return <div className="text-center text-sm text-slate-400 py-6">No consents are awaiting a parent signature.</div>;
+  if (loading) return <div className="text-center text-[16px] text-slate-500 py-6">Loading...</div>;
+  if (rows.length === 0) return <div className="text-center text-[16px] text-slate-500 py-6">No consents are awaiting a parent signature.</div>;
 
   const shown = rows.filter((r) => !r.status || r.status === 'pending' || r.status === 'expired');
-  if (shown.length === 0) return <div className="text-center text-sm text-slate-400 py-6">No consents are awaiting a parent signature.</div>;
+  if (shown.length === 0) return <div className="text-center text-[16px] text-slate-500 py-6">No consents are awaiting a parent signature.</div>;
 
   return shown.map((r) => {
     const isPending = !r.status || r.status === 'pending';
@@ -327,7 +327,7 @@ function PendingList({ onOpenChild }) {
         className="w-full text-left border border-slate-200 rounded-xl p-3 hover:bg-slate-50 cursor-pointer space-y-1"
       >
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <span className="text-sm font-semibold text-slate-800">{r.patientName}</span>
+          <span className="text-[16px] font-semibold text-slate-800">{r.patientName}</span>
           <span className="flex items-center gap-1.5">
             {soon && <span className={`${badgeCls} bg-amber-50 text-amber-700 border-amber-200`}>Expires soon</span>}
             {isPending ? (
@@ -341,7 +341,7 @@ function PendingList({ onOpenChild }) {
             )}
           </span>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-[14px] text-slate-600">
           Recipient: {r.recipientName} · requested {fmtDate(r.requestedAt || r.createdAt)}
         </p>
       </button>
@@ -540,7 +540,7 @@ function ChildConsents({ child, onChanged }) {
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-      {notice && <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{notice}</p>}
+      {notice && <p className="text-[16px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{notice}</p>}
 
       {form ? (
         <ConsentForm
@@ -564,29 +564,29 @@ function ChildConsents({ child, onChanged }) {
       )}
 
       <section className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Open signature requests</h4>
+        <h4 className="text-[14px] font-bold uppercase tracking-wide text-slate-600">Open signature requests</h4>
         {loading ? (
-          <div className="text-sm text-slate-400 py-2">Loading...</div>
+          <div className="text-[16px] text-slate-500 py-2">Loading...</div>
         ) : requests.length === 0 ? (
-          <div className="text-sm text-slate-400">No signature requests.</div>
+          <div className="text-[16px] text-slate-500">No signature requests.</div>
         ) : (
           requests.map((r) => (
             <div key={r.id} className="border border-slate-200 rounded-xl p-3 space-y-1.5">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-slate-800">{r.recipientName}</span>
+                <span className="text-[16px] font-semibold text-slate-800">{r.recipientName}</span>
                 <span className={`${badgeCls} ${REQUEST_STATUS_CLS[r.status] || NEUTRAL}`}>
                   {r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : ''}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-[14px] text-slate-600">
                 {r.purpose} · {typesText(r.recordTypes)}
               </p>
-              {r.parentEmail && <p className="text-xs text-slate-500">Link sent to {r.parentEmail}</p>}
-              <p className="text-xs text-slate-500">
+              {r.parentEmail && <p className="text-[14px] text-slate-600">Link sent to {r.parentEmail}</p>}
+              <p className="text-[14px] text-slate-600">
                 Sent {fmtDate(r.requestedAt || r.createdAt)} · {r.status === 'signed' ? `signed ${fmtDate(r.signedAt)}` : `request expires ${fmtDate(r.requestExpiresAt)}`}
               </p>
               {reqError && reqError.id === r.id && (
-                <p role="alert" className="text-xs text-rose-600">{reqError.message}</p>
+                <p role="alert" className="text-[14px] text-rose-600">{reqError.message}</p>
               )}
               {r.status === 'pending' && (
                 <div className="flex justify-end gap-2">
@@ -600,19 +600,19 @@ function ChildConsents({ child, onChanged }) {
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Consents</h4>
-        <p className="text-xs text-slate-400">
+        <h4 className="text-[14px] font-bold uppercase tracking-wide text-slate-600">Consents</h4>
+        <p className="text-[14px] text-slate-500">
           To produce the child's complete record instead, use the Export full record button (first icon) on the child's row.
         </p>
         {loading ? null : consents.length === 0 ? (
-          <div className="text-sm text-slate-400">No consents on file for this child.</div>
+          <div className="text-[16px] text-slate-500">No consents on file for this child.</div>
         ) : (
           consents.map((c) => {
             const st = consentStatus(c);
             return (
               <div key={c.id} className="border border-slate-200 rounded-xl p-3 space-y-1.5">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-slate-800">{c.recipient_name}</span>
+                  <span className="text-[16px] font-semibold text-slate-800">{c.recipient_name}</span>
                   <span className="flex items-center gap-1.5">
                     {c.source && (
                       <span className={`${badgeCls} ${NEUTRAL}`}>{c.source === 'electronic' ? 'Electronic' : 'Paper'}</span>
@@ -620,21 +620,21 @@ function ChildConsents({ child, onChanged }) {
                     <span className={`${badgeCls} ${st.cls}`}>{st.label}</span>
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">{c.purpose} · {typesText(c.record_types)}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-[14px] text-slate-600">{c.purpose} · {typesText(c.record_types)}</p>
+                <p className="text-[14px] text-slate-600">
                   Signed {fmtDate(c.signed_on || c.granted_at)}{c.signed_name ? ` by ${c.signed_name}` : ''} · expires {fmtDate(c.expires_at)}
                   {c.revoked_at ? ` · revoked ${fmtDate(c.revoked_at)}${c.revoked_via === 'parent' ? ' by the parent' : ''}` : ''}
                 </p>
                 {st.label === 'Active' && (
                   <div className="space-y-1.5">
-                    <p className="text-xs text-slate-500">
+                    <p className="text-[14px] text-slate-600">
                       Includes only what the parent approved: {typesText(c.record_types)}, plus the signed consent copy.
                     </p>
                     {releases.filter((r) => r.consent_id === c.id).map((r) => {
                       const rs = RELEASE_STATUS[r.status] || RELEASE_STATUS.sent;
                       const live = r.status === 'sent' || r.status === 'downloaded';
                       return (
-                        <div key={r.id} className="flex items-center justify-between gap-2 flex-wrap text-xs text-slate-600 bg-slate-50 rounded-lg px-2.5 py-1.5">
+                        <div key={r.id} className="flex items-center justify-between gap-2 flex-wrap text-[14px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-1.5">
                           <span>
                             Sent {fmtDate(r.created_at)} to {r.recipient_email}
                             {r.download_count > 0 ? ` · downloaded ${r.download_count}x` : ''}
@@ -656,13 +656,13 @@ function ChildConsents({ child, onChanged }) {
                       );
                     })}
                     {reportError && reportError.id === c.id && (
-                      <p role="alert" className="text-xs text-rose-600">{reportError.message}</p>
+                      <p role="alert" className="text-[14px] text-rose-600">{reportError.message}</p>
                     )}
                     {(() => {
                       const left = daysUntil(c.expires_at);
                       if (left === null || left > 60) return null;
                       return (
-                        <div className="flex items-center justify-between gap-2 flex-wrap text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-2.5 py-1.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap text-[14px] bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-2.5 py-1.5">
                           <span>{left <= 0 ? 'Expires today.' : `Expires in ${left} day${left === 1 ? '' : 's'}.`} Ask the parent to sign again to keep sharing.</span>
                           <Button
                             size="sm"
@@ -675,18 +675,18 @@ function ChildConsents({ child, onChanged }) {
                       );
                     })()}
                     {sendError && sendError.id === c.id && (
-                      <p role="alert" className="text-xs text-rose-600">{sendError.message}</p>
+                      <p role="alert" className="text-[14px] text-rose-600">{sendError.message}</p>
                     )}
                     {sendingFor === c.id && (
                       <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-3 space-y-2">
                         {c.recipient_email ? (
                           <>
-                            <p className="text-sm text-slate-700">
+                            <p className="text-[16px] text-slate-700">
                               Email a secure link to <b>{c.recipient_email}</b>. They must enter a one-time code sent to that same address before anything downloads.
                             </p>
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
                               {sendableTypes(c.record_types).map((t) => (
-                                <label key={t} className="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
+                                <label key={t} className="flex items-center gap-1.5 text-[16px] text-slate-700 cursor-pointer">
                                   <input
                                     type="checkbox"
                                     className="size-4 accent-blue-600"
@@ -699,7 +699,7 @@ function ChildConsents({ child, onChanged }) {
                             </div>
                           </>
                         ) : (
-                          <p className="text-sm text-amber-700">
+                          <p className="text-[16px] text-amber-700">
                             This consent was recorded without a recipient email, so records cannot be sent from here. Record a new consent that includes the recipient's email.
                           </p>
                         )}
@@ -731,14 +731,14 @@ function ChildConsents({ child, onChanged }) {
                 )}
                 {c.source === 'paper' && (
                   <div className="space-y-1">
-                    {scanError && scanError.id === c.id && <p role="alert" className="text-xs text-rose-600">{scanError.message}</p>}
+                    {scanError && scanError.id === c.id && <p role="alert" className="text-[14px] text-rose-600">{scanError.message}</p>}
                     <div className="flex items-center justify-end gap-2 flex-wrap">
                       {c.has_scan && (
                         <Button size="sm" variant="outline" disabled={scanBusyId === c.id} onClick={() => viewScan(c)}>
                           <Paperclip className="size-3.5" /> View scan
                         </Button>
                       )}
-                      <label className={`inline-flex items-center gap-1.5 text-xs font-semibold border border-slate-200 rounded-md px-2.5 h-8 bg-white text-slate-700 ${scanBusyId === c.id ? 'opacity-50' : 'cursor-pointer hover:bg-slate-50'}`}>
+                      <label className={`inline-flex items-center gap-1.5 text-[14px] font-semibold border border-slate-200 rounded-md px-2.5 h-8 bg-white text-slate-700 ${scanBusyId === c.id ? 'opacity-50' : 'cursor-pointer hover:bg-slate-50'}`}>
                         {scanBusyId === c.id ? <Loader2 className="size-3.5 animate-spin" /> : <Paperclip className="size-3.5" />}
                         {c.has_scan ? 'Replace scan' : 'Attach scan (optional)'}
                         <input
@@ -755,7 +755,7 @@ function ChildConsents({ child, onChanged }) {
                 {!c.revoked_at && (
                   confirmRevoke === c.id ? (
                     <div className="flex items-center justify-end gap-2 flex-wrap">
-                      <span className="text-xs text-slate-600">Revoke this consent? Records can no longer be shared under it.</span>
+                      <span className="text-[14px] text-slate-600">Revoke this consent? Records can no longer be shared under it.</span>
                       <Button size="sm" variant="outline" onClick={() => setConfirmRevoke(null)} disabled={busyId === c.id}>Keep</Button>
                       <Button size="sm" onClick={() => revoke(c.id)} disabled={busyId === c.id}>
                         {busyId === c.id ? <Loader2 className="size-3.5 animate-spin" /> : 'Yes, revoke'}
@@ -778,20 +778,20 @@ function ChildConsents({ child, onChanged }) {
 
 export function ConsentsPanel({ child = null, onClose, onOpenChild, onChanged }) {
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="staff-type fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-800">
+            <h3 className="text-[22px] font-extrabold tracking-tight leading-tight text-slate-900">
               {child ? `Consents - ${child.first_name} ${child.last_name}` : 'Pending consents'}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-[14px] text-slate-600 mt-0.5">
               {child
                 ? 'Parent permission to share this child\'s records (FERPA / 34 CFR 303.414)'
                 : 'Consent requests waiting on a parent signature. Select one to open that child.'}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer" aria-label="Close">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer" aria-label="Close">
             <X className="size-4" />
           </button>
         </div>
