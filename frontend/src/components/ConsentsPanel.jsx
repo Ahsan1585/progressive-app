@@ -66,6 +66,21 @@ const RELEASE_STATUS = {
   expired: { label: 'Link expired', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
 };
 
+const MAX_SCAN_BYTES = 10 * 1024 * 1024;
+const SCAN_TYPES = ['application/pdf', 'image/png', 'image/jpeg'];
+const scanProblem = (file) => {
+  if (!file) return '';
+  if (!SCAN_TYPES.includes(file.type)) return 'Attach a PDF, PNG or JPEG.';
+  if (file.size > MAX_SCAN_BYTES) return 'That file is over 10 MB.';
+  return '';
+};
+const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(new Error('Could not read that file.'));
+  reader.readAsDataURL(file);
+});
+
 const selectCls = 'w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700';
 const badgeCls = 'text-xs font-semibold px-2 py-0.5 rounded-full border';
 const NEUTRAL = 'bg-slate-50 text-slate-600 border-slate-200';
@@ -105,6 +120,7 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
   const [methodNote, setMethodNote] = useState('');
   const [proofNote, setProofNote] = useState('');
   const [attested, setAttested] = useState(false);
+  const [scanFile, setScanFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -126,6 +142,7 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
       if (!method) e.method = 'Select how the parent/guardian identity was verified.';
       if (method === 'other' && !methodNote.trim()) e.methodNote = 'Describe how identity was verified.';
       if (!attested) e.attested = 'Confirm that a signed paper consent is on file.';
+      if (scanFile && scanProblem(scanFile)) e.scan = scanProblem(scanFile);
     }
     setErrors(e);
     setServerError('');
@@ -134,7 +151,7 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
     setSubmitting(true);
     try {
       if (isPaper) {
-        await api.post(`/api/patients/${child.id}/consents`, {
+        const created = await api.post(`/api/patients/${child.id}/consents`, {
           recipientName: recipientName.trim(),
           recipientEmail: recipientEmail.trim(),
           purpose: purpose.trim(),
@@ -146,6 +163,19 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
           signedOn,
           paperAttested: true,
         });
+        // The consent is already on file. A scan that fails to attach must not
+        // look like a failed consent, so it is reported separately.
+        if (scanFile) {
+          try {
+            await api.post(`/api/patients/${child.id}/consents/${created.data.consent.id}/scan`, {
+              filename: scanFile.name,
+              fileBase64: await readAsDataUrl(scanFile),
+            });
+          } catch (scanErr) {
+            onDone(`Paper consent recorded, but the scan could not be attached (${errMsg(scanErr, 'upload failed')}). Use Attach scan on the consent below to try again.`);
+            return;
+          }
+        }
       } else {
         await api.post(`/api/patients/${child.id}/consent-requests`, {
           recipientName: recipientName.trim(),
@@ -228,6 +258,15 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
           </div>
           <Field label="Proof note (optional)">
             <Textarea rows={2} value={proofNote} onChange={(ev) => setProofNote(ev.target.value)} placeholder="Where the signed paper copy is kept" />
+          </Field>
+          <Field label="Scan of the signed paper form (optional)" error={errors.scan}>
+            <input
+              type="file"
+              accept="application/pdf,image/png,image/jpeg"
+              onChange={(ev) => setScanFile(ev.target.files?.[0] || null)}
+              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-50"
+            />
+            <p className="text-xs text-slate-400 mt-1">PDF, PNG or JPEG, up to 10 MB. You can also add or replace it later from the consent.</p>
           </Field>
           <div>
             <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
