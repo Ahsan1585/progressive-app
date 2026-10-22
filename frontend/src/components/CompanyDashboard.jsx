@@ -696,14 +696,14 @@ function TrajectoryTabs({ active, onChange }) {
     { key: 'year', label: 'Year', icon: Calendar },
   ];
   return (
-    <div className="inline-flex bg-slate-50 rounded-[10px] p-[3px] gap-0.5">
+    <div className="inline-flex bg-white/10 rounded-[10px] p-[3px] gap-0.5">
       {tabs.map((t) => (
         <button
           key={t.key}
           type="button"
           onClick={() => onChange(t.key)}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[15px] font-bold transition-colors cursor-pointer ${
-            active === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+            active === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'
           }`}
         >
           <t.icon className="size-3.5" /> {t.label}
@@ -799,13 +799,13 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
         type="month"
         value={monthValue}
         onChange={(e) => onMonthChange(e.target.value)}
-        className="border border-slate-200 rounded-lg px-3 py-2 text-[15px] font-semibold text-slate-700"
+        className="rounded-lg px-3 py-2 text-[15px] font-semibold bg-white/10 border border-white/20 text-white [color-scheme:dark]"
       />
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <div className="bg-white/[0.04] rounded-2xl border border-white/10 p-6">
         <div className="flex items-center gap-6 flex-wrap mb-4">
           <div>
-            <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono">{month.volumeVsPriorMonth.current.toLocaleString()}</div>
-            <div className={`text-[14px] font-semibold mt-1 ${month.volumeVsPriorMonth.pctChange >= 0 ? 'text-teal-700' : 'text-rose-700'}`}>
+            <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white">{month.volumeVsPriorMonth.current.toLocaleString()}</div>
+            <div className={`text-[14px] font-semibold mt-1 ${month.volumeVsPriorMonth.pctChange >= 0 ? 'text-teal-300' : 'text-rose-300'}`}>
               {month.volumeVsPriorMonth.pctChange !== null ? (
                 <span className="inline-flex items-center gap-1">
                   {month.volumeVsPriorMonth.pctChange >= 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
@@ -815,8 +815,8 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
             </div>
           </div>
           <div>
-            <div className="text-[14px] text-slate-600">Children seen</div>
-            <div className="text-[26px] font-extrabold font-mono">{month.patientRosterCount}</div>
+            <div className="text-[14px] text-slate-300">Children seen</div>
+            <div className="text-[26px] font-extrabold font-mono text-white">{month.patientRosterCount}</div>
           </div>
         </div>
         {(() => {
@@ -835,10 +835,10 @@ function MonthTrajectory({ month, onMonthChange, monthValue }) {
             <div style={{ height: 200 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data} barCategoryGap="35%">
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#475569', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip cursor={{ fill: '#f6f7fb' }} formatter={(v) => [v.toLocaleString(), 'Sessions']} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a3547" />
+                  <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#e2e8f0', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.06)' }} contentStyle={{ background: '#111827', border: '1px solid #334155', borderRadius: 10, color: '#f1f5f9' }} labelStyle={{ color: '#f1f5f9', fontWeight: 700 }} itemStyle={{ color: '#e2e8f0' }} formatter={(v) => [v.toLocaleString(), 'Sessions']} />
                   <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={90}>
                     {data.map((d, i) => (
                       <Cell key={`cell-${i}`} fill={d.fill} />
@@ -873,26 +873,26 @@ function YearTrajectory() {
         type="number"
         value={year}
         onChange={(e) => setYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
-        className="border border-slate-200 rounded-lg px-3 py-2 text-[15px] font-semibold text-slate-700 w-28"
+        className="rounded-lg px-3 py-2 text-[15px] font-semibold w-28 bg-white/10 border border-white/20 text-white [color-scheme:dark]"
       />
       {isLoading || !data ? (
-        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">Loading...</div>
+        <div className="text-[16px] font-semibold text-slate-300 text-center py-8">Loading...</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-white/[0.04] rounded-2xl border border-white/10 p-6">
           <div className="flex items-center gap-6 flex-wrap mb-4">
             <div>
-              <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono">{data.yoyComparison.current.count.toLocaleString()}</div>
-              <div className={`text-[14px] font-semibold mt-1 ${data.yoyComparison.pctChange >= 0 ? 'text-teal-700' : 'text-rose-700'}`}>
+              <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white">{data.yoyComparison.current.count.toLocaleString()}</div>
+              <div className={`text-[14px] font-semibold mt-1 ${data.yoyComparison.pctChange >= 0 ? 'text-teal-300' : 'text-rose-300'}`}>
                 {data.yoyComparison.pctChange !== null ? `${Math.abs(data.yoyComparison.pctChange)}% YoY` : 'No prior year to compare'}
               </div>
             </div>
             <div>
-              <div className="text-[14px] text-slate-600">Est. billable this year</div>
-              <div className="text-[26px] font-extrabold font-mono">{compactMoney(data.yoyComparison.current.estBillable)}</div>
+              <div className="text-[14px] text-slate-300">Est. billable this year</div>
+              <div className="text-[26px] font-extrabold font-mono text-white">{compactMoney(data.yoyComparison.current.estBillable)}</div>
             </div>
             <div>
-              <div className="text-[14px] text-slate-600">Active practitioners</div>
-              <div className="text-[26px] font-extrabold font-mono">{data.practitionerRoster.activeNow}</div>
+              <div className="text-[14px] text-slate-300">Active practitioners</div>
+              <div className="text-[26px] font-extrabold font-mono text-white">{data.practitionerRoster.activeNow}</div>
             </div>
           </div>
           {data.monthlyVolume.length > 0 && (
@@ -901,20 +901,20 @@ function YearTrajectory() {
                 <AreaChart data={data.monthlyVolume}>
                   <defs>
                     <linearGradient id="yearArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0d9488" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#0d9488" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#2dd4bf" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e8f0" />
-                  <XAxis dataKey="month" tickFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
-                  <Area type="monotone" dataKey="count" stroke="#0d9488" strokeWidth={2.5} fill="url(#yearArea)" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a3547" />
+                  <XAxis dataKey="month" tickFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })} tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155', borderRadius: 10, color: '#f1f5f9' }} labelStyle={{ color: '#f1f5f9', fontWeight: 700 }} itemStyle={{ color: '#e2e8f0' }} labelFormatter={(d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
+                  <Area type="monotone" dataKey="count" stroke="#2dd4bf" strokeWidth={2.5} fill="url(#yearArea)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
-          <div className="text-[14px] text-slate-500 mt-2.5">
+          <div className="text-[14px] text-slate-400 mt-2.5">
             {data.fullYearCompliance.coverageRate !== null
               ? `${data.fullYearCompliance.coverageRate}% of this year's billed sessions have a matching state record on file.`
               : 'Not enough billed sessions this year to compute coverage.'}
@@ -1114,12 +1114,14 @@ export function CompanyDashboard() {
       </div>
     ),
     trajectory_chart: (
-      <div>
+      // Dark panel: everything inside (tabs, picker, tiles, chart, tooltip) is
+      // styled for a black background, not just placed on top of one.
+      <div className="rounded-[24px] bg-[#0b0f14] p-6 sm:p-8 text-white">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-          <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900">Where this is headed</div>
+          <div className="text-[30px] font-extrabold tracking-tight leading-tight text-white">Where this is headed</div>
           <TrajectoryTabs active={trajectoryTab} onChange={setTrajectoryTab} />
         </div>
-        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">The volume trend, and how it's reconciling against the state.</p>
+        <p className="text-[17px] text-slate-300 mb-5 max-w-3xl">The volume trend, and how it's reconciling against the state.</p>
         {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
         {trajectoryTab === 'year' && <YearTrajectory />}
       </div>
