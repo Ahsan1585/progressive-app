@@ -111,7 +111,7 @@ function buildCoverRows({ patient, consent, companyName, generatedBy, generatedA
 
 // The signed-consent copy as plain data (drawn by drawConsentCopyPage).
 // Nothing here is invented: missing provenance is reported as missing.
-function buildConsentCopy(consent, { grantedByName } = {}) {
+function buildConsentCopy(consent, { grantedByName, scanStatus } = {}) {
   const staff = grantedByName || 'agency staff';
   const recipient = consent.recipient_email && consent.recipient_email !== consent.recipient_name
     ? `${consent.recipient_name || '—'} <${consent.recipient_email}>`
@@ -143,8 +143,14 @@ function buildConsentCopy(consent, { grantedByName } = {}) {
       ['How obtained:', `Paper consent signed on ${formatDateOnly(consent.signed_on)}, confirmed on file by ${staff}`],
       ['Identity verified by:', consent.identity_verified_note ? `${idLabel}: ${consent.identity_verified_note}` : idLabel],
       ['Proof note:', consent.proof_note || '—'],
-      ['Attestation:', 'Paper consent confirmed on file by the agency'],
     );
+    // Only when the consent has a scan: say whether the recipient gets it.
+    if (scanStatus === 'attached') {
+      rows.push(['Signed paper form:', 'A scan of the signed paper form follows this page.']);
+    } else if (scanStatus === 'unavailable') {
+      rows.push(['Signed paper form:', 'A scan of the signed paper form is on file but could not be attached to this packet.']);
+    }
+    rows.push(['Attestation:', 'Paper consent confirmed on file by the agency']);
   } else {
     // source NULL: logged by staff before e-signing / paper attestation existed.
     rows.push(
@@ -161,6 +167,55 @@ function buildConsentCopy(consent, { grantedByName } = {}) {
     signature,
     rows: rows.map(([label, value]) => [label, safe(value)]),
   };
+}
+
+// The optional scan of a signed PAPER consent (consentScanController), merged
+// into the packet so the recipient sees the parent's actual signature. Prepared
+// before any page is drawn so the consent page can say whether it follows, but
+// its pages are only added after the consent page. Anything that goes wrong
+// (storage error, corrupt file, too many pages, not a PDF or image) yields
+// 'unavailable': the packet still builds and says so, rather than one bad
+// scan blocking the recipient.
+const MAX_SCAN_PAGES = 25;
+const isPdf = (b) => b.length > 4 && b.subarray(0, 5).toString('latin1') === '%PDF-';
+const isPng = (b) => b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+const isJpeg = (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+
+async function prepareScan(outDoc, consent, fonts) {
+  if (consent.source !== 'paper' || !consent.paper_scan_path) return { status: null, draw: () => {} };
+  try {
+    // Lazy: only paper consents with a scan ever need cloud storage.
+    const { NJEIS_FORMS_BUCKET, downloadFile } = require('../config/storage');
+    const buffer = await downloadFile(NJEIS_FORMS_BUCKET, consent.paper_scan_path);
+
+    if (isPdf(buffer)) {
+      const src = await PDFDocument.load(buffer);
+      const count = src.getPageCount();
+      if (count < 1 || count > MAX_SCAN_PAGES) throw new Error(`scan has ${count} pages`);
+      const pages = await outDoc.copyPages(src, src.getPageIndices());
+      return { status: 'attached', draw: () => pages.forEach((pg) => outDoc.addPage(pg)) };
+    }
+    if (isPng(buffer) || isJpeg(buffer)) {
+      const image = isPng(buffer) ? await outDoc.embedPng(buffer) : await outDoc.embedJpg(buffer);
+      return {
+        status: 'attached',
+        draw: () => {
+          const page = outDoc.addPage([PAGE.width, PAGE.height]);
+          page.drawText('Scan of the signed paper consent', { x: MARGIN, y: PAGE.height - MARGIN, font: fonts.bold, size: 12, color: DARK });
+          const maxW = CONTENT_WIDTH;
+          const maxH = PAGE.height - MARGIN * 2 - 30;
+          const scale = Math.min(maxW / image.width, maxH / image.height);
+          const w = image.width * scale;
+          const h = image.height * scale;
+          page.drawImage(image, { x: MARGIN, y: PAGE.height - MARGIN - 20 - h, width: w, height: h });
+        },
+      };
+    }
+    throw new Error('scan is not a PDF, PNG or JPEG');
+  } catch (err) {
+    console.error('Consent scan could not be attached to the packet:', err.message);
+    return { status: 'unavailable', draw: () => {} };
+  }
 }
 
 // Label/value rows with wrapping and simple page overflow.
@@ -292,9 +347,11 @@ async function buildConsentPacketPdf({ patient, consent, recordTypes, generatedB
     bold: await outDoc.embedFont(StandardFonts.HelveticaBold),
   };
 
+  const scan = await prepareScan(outDoc, consent, fonts);
   const coverConsent = { ...consent, record_types: sections.length ? sections : consent.record_types };
   drawPacketCover(outDoc, buildCoverRows({ patient, consent: coverConsent, companyName, generatedBy, generatedAt: now }), fonts);
-  await drawConsentCopyPage(outDoc, buildConsentCopy(consent, { grantedByName }), fonts);
+  await drawConsentCopyPage(outDoc, buildConsentCopy(consent, { grantedByName, scanStatus: scan.status }), fonts);
+  scan.draw();
 
   for (const section of sections) {
     if (assessments.length === 0) {
