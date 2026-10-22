@@ -507,18 +507,13 @@ function EimsDonut({ pipeline }) {
   const rate = pipeline?.eimsMatchRate;
   if (!rate) return null;
   const total = rate.matched + rate.flagged + rate.missing + rate.unverified;
-  if (total === 0) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
-        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
-        <div className="text-[15px] text-slate-500 py-8">No billed sessions this month.</div>
-      </div>
-    );
-  }
+  // No billed sessions in the month: the same ring and legend, grayed out, so
+  // the card keeps its shape instead of collapsing to a sentence.
+  const empty = total === 0;
 
-  const matchedPct = Math.round((rate.matched / total) * 100);
+  const matchedPct = empty ? null : Math.round((rate.matched / total) * 100);
   const C = 2 * Math.PI * 46;
-  const seg = (count) => (count / total) * C;
+  const seg = (count) => (empty ? 0 : (count / total) * C);
   const matchedLen = seg(rate.matched);
   const flaggedLen = seg(rate.flagged);
   const missingLen = seg(rate.missing + rate.unverified);
@@ -527,7 +522,7 @@ function EimsDonut({ pipeline }) {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
       <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
       <svg viewBox="0 0 120 120" width="200" height="200">
-        <circle cx="60" cy="60" r="46" fill="none" stroke="#f6f7fb" strokeWidth="16" />
+        <circle cx="60" cy="60" r="46" fill="none" stroke={empty ? '#e2e8f0' : '#f6f7fb'} strokeWidth="16" />
         {/* A segment is drawn only when it has sessions: a zero-length stroke
             with a round cap still paints a dot, which showed as a red blip at
             the top of the ring when Missing was 0. Flat ends so a small segment
@@ -544,10 +539,10 @@ function EimsDonut({ pipeline }) {
           <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
             strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" />
         )}
-        <text x="60" y="56" textAnchor="middle" fontSize="27" fontWeight="800" fill="#0f172a">{matchedPct}%</text>
-        <text x="60" y="73" textAnchor="middle" fontSize="10" fontWeight="600" fill="#475569">matched</text>
+        <text x="60" y="56" textAnchor="middle" fontSize="27" fontWeight="800" fill={empty ? '#94a3b8' : '#0f172a'}>{empty ? '—' : `${matchedPct}%`}</text>
+        <text x="60" y="73" textAnchor="middle" fontSize="10" fontWeight="600" fill={empty ? '#64748b' : '#475569'}>{empty ? 'no sessions' : 'matched'}</text>
       </svg>
-      <div className="flex flex-col gap-2 mt-4 w-full">
+      <div className={`flex flex-col gap-2 mt-4 w-full ${empty ? 'opacity-50' : ''}`}>
         <div className="flex items-center justify-between text-[16px]">
           <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#0d9488' }} />Matched</div>
           <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.matched.toLocaleString()}</span>
