@@ -36,7 +36,12 @@ const listDirectoryPatients = async (req, res) => {
                       )
                FROM records_consents c
                WHERE c.patient_id = pt.id AND c.revoked_at IS NULL AND (c.expires_at IS NULL OR c.expires_at > now())
-              ) AS consent_summary
+              ) AS consent_summary,
+              -- Signature requests that went out and are still waiting on the parent
+              -- (a link past its window no longer counts).
+              (SELECT count(*) FROM records_consent_requests q
+               WHERE q.patient_id = pt.id AND q.status = 'pending' AND q.request_expires_at > now()
+              )::int AS pending_requests
        FROM patients pt
        LEFT JOIN patient_practitioners pp ON pp.patient_id = pt.id
        LEFT JOIN practitioners p ON p.id = pp.practitioner_id

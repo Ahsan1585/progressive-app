@@ -412,6 +412,7 @@ function ChildConsents({ child, onChanged }) {
         setNotice('Request cancelled.');
       }
       load();
+      if (onChanged) onChanged();
     } catch (err) {
       setReqError({ id, message: errMsg(err, `Failed to ${action} request.`) });
     } finally {

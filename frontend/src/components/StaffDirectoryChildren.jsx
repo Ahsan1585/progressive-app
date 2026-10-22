@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Download, FileEdit, Loader2, X, Plus, FileSignature, Send } from 'lucide-react';
+import { Search, Download, FileEdit, Loader2, X, Plus, FileSignature, Send, Clock } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -540,6 +540,18 @@ export function StaffDirectoryChildren() {
                   >
                     <td className="px-6 py-3 font-medium text-slate-800">
                       {child.first_name} {child.middle_name ? `${child.middle_name} ` : ''}{child.last_name}
+                      {canManageRecordRights && child.pending_requests > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setConsentsPanel({ child })}
+                          className="mt-1.5 flex items-center gap-1.5 w-fit text-xs font-bold text-blue-900 bg-blue-100 border border-blue-400 rounded-full pl-2 pr-2.5 py-1 hover:bg-blue-200 cursor-pointer"
+                          title="A consent request was emailed to the parent and has not been signed yet. Open it to resend or cancel."
+                        >
+                          <Clock className="size-3" aria-hidden="true" />
+                          Consent request sent: awaiting parent
+                          {child.pending_requests > 1 ? ` (${child.pending_requests})` : ''}
+                        </button>
+                      )}
                       {canManageRecordRights && child.consent_summary?.awaiting_send > 0 && (
                         <button
                           type="button"
