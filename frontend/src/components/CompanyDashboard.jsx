@@ -820,15 +820,25 @@ function useYearData(year) {
 // months of a year, or one bar per year. Every slot gets a faint track, so an
 // empty period reads as empty rather than missing. highlightKey picks one bar
 // out in bright teal; without it every bar is teal.
-function VolumeBars({ data, highlightKey, maxBarSize = 44 }) {
+function VolumeBars({ data, highlightKey, maxBarSize = 44, onSelect }) {
   const bars = data.map((d) => ({
     ...d,
     fill: !highlightKey || d.key === highlightKey ? '#2dd4bf' : '#52678a',
   }));
   return (
-    <div style={{ height: 240 }}>
+    <div style={{ height: 240, cursor: onSelect ? 'pointer' : 'default' }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={bars} barCategoryGap="22%">
+        <BarChart
+          data={bars}
+          barCategoryGap="22%"
+          // Clicking anywhere in a column picks it, so an empty month (no visible
+          // bar) can still be selected. v3 reports an index; older versions a payload.
+          onClick={onSelect ? (state) => {
+            const i = Number(state?.activeTooltipIndex);
+            const key = state?.activePayload?.[0]?.payload?.key ?? (Number.isInteger(i) ? bars[i]?.key : undefined);
+            if (key) onSelect(key);
+          } : undefined}
+        >
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a3547" />
           <XAxis dataKey="label" interval={0} tick={{ fontSize: 14, fill: '#e2e8f0', fontWeight: 700 }} axisLine={false} tickLine={false} />
           <YAxis domain={[0, (max) => Math.max(max, 4)]} tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -850,8 +860,21 @@ function VolumeBars({ data, highlightKey, maxBarSize = 44 }) {
 }
 
 // Jan to Dec of one year.
-function YearBars({ year, rows, highlightKey }) {
-  return <VolumeBars data={fillYearMonths(year, rows)} highlightKey={highlightKey} />;
+function YearBars({ year, rows, highlightKey, onSelect }) {
+  return <VolumeBars data={fillYearMonths(year, rows)} highlightKey={highlightKey} onSelect={onSelect} />;
+}
+
+// The month-over-month line under the session count. A prior month with no
+// sessions is said plainly ("No sessions in February to compare") instead of
+// the misleading "No prior month": the month exists, it just has nothing to
+// divide by.
+function monthComparison(volume, priorName) {
+  if (volume.pctChange !== null && volume.pctChange !== undefined) {
+    const up = volume.pctChange >= 0;
+    return { tone: up ? 'up' : 'down', text: `${Math.abs(volume.pctChange)}% ${up ? 'more' : 'fewer'} than ${priorName}` };
+  }
+  if (volume.prior === 0) return { tone: 'flat', text: `No sessions in ${priorName} to compare` };
+  return { tone: 'flat', text: 'Nothing to compare against' };
 }
 
 // Every year from the first one with sessions through the current year (years in
@@ -880,42 +903,49 @@ function useAllYears() {
   return { data: state.data, loading: !state.done };
 }
 
-function MonthTrajectory({ month, onMonthChange, monthValue }) {
+function MonthTrajectory({ month, onMonthChange }) {
   const yearData = useYearData(month?.year ?? new Date().getFullYear());
   if (!month) return null;
+  const selectedKey = `${month.year}-${String(month.month).padStart(2, '0')}`;
+  const selectedName = `${MONTH_NAMES[month.month - 1]} ${month.year}`;
+  const priorName = MONTH_NAMES[(month.month + 10) % 12]; // the month before, wrapping Jan -> Dec
+  const cmp = monthComparison(month.volumeVsPriorMonth, priorName);
+  const yearTotal = (yearData.data?.monthlyVolume || [])
+    .filter((r) => String(r.month).slice(0, 4) === String(month.year))
+    .reduce((sum, r) => sum + r.count, 0);
+
   return (
     <div className="space-y-4">
-      <input
-        type="month"
-        value={monthValue}
-        onChange={(e) => onMonthChange(e.target.value)}
-        className="rounded-lg px-3 py-2 text-[15px] font-semibold bg-white/10 border border-white/20 text-white [color-scheme:dark]"
-      />
       <div className="bg-white/[0.04] rounded-2xl border border-white/10 p-6">
-        <div className="flex items-center gap-6 flex-wrap mb-4">
+        <div className="flex items-start gap-x-8 gap-y-4 flex-wrap mb-5">
           <div>
-            <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white">{month.volumeVsPriorMonth.current.toLocaleString()}</div>
-            <div className={`text-[14px] font-semibold mt-1 ${month.volumeVsPriorMonth.pctChange >= 0 ? 'text-teal-300' : 'text-rose-300'}`}>
-              {month.volumeVsPriorMonth.pctChange !== null ? (
-                <span className="inline-flex items-center gap-1">
-                  {month.volumeVsPriorMonth.pctChange >= 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
-                  {Math.abs(month.volumeVsPriorMonth.pctChange)}% vs prior month
-                </span>
-              ) : 'No prior month to compare'}
+            <div className="text-[14px] text-slate-300">Sessions in {selectedName}</div>
+            <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white mt-1">{month.volumeVsPriorMonth.current.toLocaleString()}</div>
+            <div className={`text-[14px] font-semibold mt-1.5 ${cmp.tone === 'down' ? 'text-rose-300' : cmp.tone === 'up' ? 'text-teal-300' : 'text-slate-400'}`}>
+              <span className="inline-flex items-center gap-1">
+                {cmp.tone === 'up' && <TrendingUp className="size-3.5" />}
+                {cmp.tone === 'down' && <TrendingDown className="size-3.5" />}
+                {cmp.text}
+              </span>
             </div>
           </div>
           <div>
-            <div className="text-[14px] text-slate-300">Children seen</div>
-            <div className="text-[26px] font-extrabold font-mono text-white">{month.patientRosterCount}</div>
+            <div className="text-[14px] text-slate-300">Children seen in {MONTH_NAMES[month.month - 1]}</div>
+            <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white mt-1">{month.patientRosterCount.toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-[14px] text-slate-300">Sessions in {month.year}</div>
+            <div className="text-[38px] leading-none font-extrabold tracking-tight font-mono text-white mt-1">{yearData.loading ? '—' : yearTotal.toLocaleString()}</div>
+            <div className="text-[14px] font-semibold mt-1.5 text-slate-400">all twelve months</div>
           </div>
         </div>
         <div className="text-[15px] font-semibold text-slate-300 mb-2">
           Sessions per month, {month.year}
-          <span className="text-slate-400 font-normal"> (selected month highlighted)</span>
+          <span className="text-slate-400 font-normal"> (click a month to select it)</span>
         </div>
         {yearData.loading
           ? <div className="text-[16px] font-semibold text-slate-300 text-center" style={{ height: 240, paddingTop: 100 }}>Loading...</div>
-          : <YearBars year={month.year} rows={yearData.data?.monthlyVolume} highlightKey={`${month.year}-${String(month.month).padStart(2, '0')}`} />}
+          : <YearBars year={month.year} rows={yearData.data?.monthlyVolume} highlightKey={selectedKey} onSelect={onMonthChange} />}
       </div>
     </div>
   );
@@ -1170,7 +1200,7 @@ export function CompanyDashboard() {
           <TrajectoryTabs active={trajectoryTab} onChange={setTrajectoryTab} />
         </div>
         <p className="text-[17px] text-slate-300 mb-5 max-w-3xl">The volume trend, and how it's reconciling against the state.</p>
-        {trajectoryTab === 'month' && <MonthTrajectory month={month} monthValue={monthValue} onMonthChange={setMonthValue} />}
+        {trajectoryTab === 'month' && <MonthTrajectory month={month} onMonthChange={setMonthValue} />}
         {trajectoryTab === 'year' && <YearTrajectory />}
       </div>
     ),
