@@ -51,7 +51,7 @@ function ChildrenStatCards({ children }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
       {tiles.map((t) => (
-        <div key={t.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3.5">
+        <div key={t.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center justify-center gap-3.5">
           <div className="size-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: t.gradient }}>
             <svg className="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d={t.path} />
