@@ -523,7 +523,8 @@ function buildAgency(options = {}) {
       cursor = start + minutes + (location === '8' ? 5 : 15 + int(0, 15));
       const status = r.kind === 'IFSP' ? 'IFSP' : r.kind === 'TPC' ? 'TPC' : r.kind === 'makeup' ? '4' : '1';
       const serviceCode = r.kind === 'EV' ? 'EV' : r.kind === 'IFSP' ? 'IFSP' : r.kind === 'TPC' ? 'TPC' : r.svc.discipline;
-      const groupSize = r.kind === 'EV' ? 'evaluation' : (r.kind === 'IFSP' || r.kind === 'TPC' || consult) ? 'consultation' : 'individual';
+      // The app offers two group sizes (individual, consultation); an evaluation is logged as individual.
+      const groupSize = (r.kind === 'IFSP' || r.kind === 'TPC' || consult) ? 'consultation' : 'individual';
       const templates = NOTE_TEMPLATES[r.kind === 'EV' ? 'EV' : r.kind === 'IFSP' ? 'IFSP' : r.kind === 'TPC' ? 'TPC' : r.svc.discipline] || NOTE_TEMPLATES.DI;
       sessions.push({
         providerKey: r.providerKey, childKey: r.childKey, serviceDate: date,
@@ -619,6 +620,13 @@ function buildAgency(options = {}) {
     };
   };
   const billable = sessions.filter((s) => BILLABLE_STATUS.has(s.visitStatus) && s.totalMinutes > 0);
+  // Cancelled and missed visits are recorded in EIMS too, with a service status and no
+  // times (that is how the state's service log tracks them). Nearly all of the ones the
+  // provider logged in the app were also entered there.
+  sessions.filter((s) => s.totalMinutes === 0).forEach((s) => {
+    if (chance(0.015)) return; // the odd one never made it into EIMS
+    eimsRows.push(eimsRowFor(s));
+  });
   billable.forEach((s) => {
     if (s.missingFromEims) return;
     eimsRows.push(eimsRowFor(s));

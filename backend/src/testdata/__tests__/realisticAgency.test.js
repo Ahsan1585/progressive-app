@@ -315,6 +315,15 @@ describe('the EIMS export the agency would have', () => {
     expect(sessions.filter((s) => s.missingFromEims).length).toBeGreaterThan(0);
   });
 
+  test('cancelled and missed visits that were logged are in EIMS too, with a status and no times', () => {
+    const logged = sessions.filter((s) => s.totalMinutes === 0);
+    expect(logged.length).toBeGreaterThan(100);
+    const rows = agency.eimsRows.filter((r) => /Cancelled|Missed/.test(r.visitStatusLabel));
+    expect(rows.length / logged.length).toBeGreaterThan(0.9);
+    expect(rows.every((r) => r.startTime == null && r.endTime == null)).toBe(true);
+    expect(new Set(rows.map((r) => r.visitStatusLabel)).size).toBe(3);
+  });
+
   test('a few visits exist only in EIMS (entered there, never logged in the app)', () => {
     expect(agency.eimsRows.filter((r) => r.eimsOnly).length).toBeGreaterThan(0);
   });
