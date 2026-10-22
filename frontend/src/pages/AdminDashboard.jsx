@@ -308,7 +308,7 @@ const AdminDashboard = () => {
             {visibleTabs.includes('company') && (
               <button
                 onClick={() => { setActiveTab('company'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold text-left leading-snug ${
                   activeTab === 'company'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -323,7 +323,7 @@ const AdminDashboard = () => {
             {visibleTabs.includes('subscription') && (
               <button
                 onClick={() => { setActiveTab('subscription'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold text-left leading-snug ${
                   activeTab === 'subscription'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -338,7 +338,7 @@ const AdminDashboard = () => {
             {visibleTabs.includes('auditLog') && (
               <button
                 onClick={() => { setActiveTab('auditLog'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold text-left leading-snug ${
                   activeTab === 'auditLog'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -353,7 +353,7 @@ const AdminDashboard = () => {
             {visibleTabs.includes('roles') && (
               <button
                 onClick={() => { setActiveTab('roles'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold text-left leading-snug ${
                   activeTab === 'roles'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
