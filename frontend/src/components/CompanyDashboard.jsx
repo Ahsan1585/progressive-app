@@ -190,6 +190,13 @@ function SessionDetailDialog({ assessmentId, onClose }) {
 // surface at the top without the viewer having to sort for it. Excludes
 // independent practitioners — their "match" is self-reported, not a real
 // cross-reference, so mixing them in would compare two different things.
+// The accuracy list is a scroll window: this many practitioners are visible at
+// once, the rest are a scroll away. Rows and header have a fixed height and a
+// one-line name, so the window shows exactly this many rows.
+const ACCURACY_VISIBLE_ROWS = 6;
+const ACCURACY_ROW_PX = 74;
+const ACCURACY_HEADER_PX = 44;
+
 function PractitionerAccuracyTable({ month }) {
   const rows = month?.practitionerAccuracy || [];
   const [sortBy, setSortBy] = useState('accuracyPct'); // 'accuracyPct' | 'sessionsChecked' | 'heldOrReturned'
@@ -233,10 +240,13 @@ function PractitionerAccuracyTable({ month }) {
       {rows.length === 0 ? (
         <div className="text-[15px] text-slate-500 text-center py-10">No agency practitioner sessions checked against EIMS this month yet.</div>
       ) : (
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-auto"
+          style={rows.length > ACCURACY_VISIBLE_ROWS ? { maxHeight: ACCURACY_HEADER_PX + ACCURACY_VISIBLE_ROWS * ACCURACY_ROW_PX } : undefined}
+        >
           <table className="w-full text-[15px]">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-slate-50 border-b border-slate-100" style={{ height: ACCURACY_HEADER_PX }}>
                 <th className="text-left text-[14px] font-bold uppercase text-slate-600 px-5 py-2.5">Practitioner</th>
                 <SortHeader label="Accuracy" sortKey="accuracyPct" />
                 <SortHeader label="Checked" sortKey="sessionsChecked" />
@@ -247,10 +257,10 @@ function PractitionerAccuracyTable({ month }) {
               {sorted.map((r) => {
                 const tone = tierTone(r.accuracyPct);
                 return (
-                  <tr key={r.practitionerId} className="hover:bg-slate-50">
-                    <td className="px-5 py-3">
-                      <div className="text-[17px] font-bold text-slate-900">{r.name}</div>
-                      {r.discipline && <div className="text-[13px] text-slate-600">{r.discipline}</div>}
+                  <tr key={r.practitionerId} className="hover:bg-slate-50" style={{ height: ACCURACY_ROW_PX }}>
+                    <td className="px-5 py-3 max-w-[280px]">
+                      <div className="text-[17px] font-bold text-slate-900 truncate" title={r.name}>{r.name}</div>
+                      {r.discipline && <div className="text-[13px] text-slate-600 truncate" title={r.discipline}>{r.discipline}</div>}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2.5">
@@ -269,6 +279,11 @@ function PractitionerAccuracyTable({ month }) {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {rows.length > ACCURACY_VISIBLE_ROWS && (
+        <div className="px-5 py-2.5 text-[14px] font-semibold text-slate-600 border-t border-slate-100 bg-slate-50">
+          Showing {ACCURACY_VISIBLE_ROWS} of {rows.length} practitioners. Scroll the list to see the rest.
         </div>
       )}
     </div>
