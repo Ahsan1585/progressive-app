@@ -280,7 +280,7 @@ function PractitionerAccuracyTable({ month }) {
 function VerdictBanner({ day, ap }) {
   if (!day || !ap) {
     return (
-      <section className="rounded-[24px] p-8 sm:p-10 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
+      <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
         <div className="text-[15px] text-white/80">Loading today's picture...</div>
       </section>
     );
@@ -300,26 +300,26 @@ function VerdictBanner({ day, ap }) {
       : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held pending verification.`;
 
   return (
-    <section className="rounded-[24px] p-8 sm:p-10 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
+    <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
       <div className="flex items-start justify-between gap-6 flex-wrap">
         <div className="flex-1 min-w-[260px]">
-          <div className="flex items-center gap-2 text-[14px] font-extrabold uppercase tracking-[0.14em] mb-3" style={{ color: '#fcd34d' }}>
+          <div className="flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.14em] mb-2.5" style={{ color: '#fcd34d' }}>
             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
             {isHealthy ? 'All clear' : 'Needs a look today'}
           </div>
-          <h1 className="text-[32px] sm:text-[46px] font-extrabold leading-[1.08] tracking-tight mb-4" style={{ textWrap: 'balance' }}>{headline}</h1>
-          <p className="text-[18px] sm:text-[20px] leading-relaxed max-w-3xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
+          <h1 className="text-[26px] sm:text-[36px] font-extrabold leading-[1.1] tracking-tight mb-3" style={{ textWrap: 'balance' }}>{headline}</h1>
+          <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-3xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
             <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners.
             {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
           </p>
         </div>
         {totalOwed > 0 && (
-          <div className="min-w-[240px]">
-            <div className="flex items-end justify-between text-[16px] font-semibold mb-2">
+          <div className="min-w-[200px]">
+            <div className="flex items-end justify-between text-[15px] font-semibold mb-2">
               <span className="text-white/80">Cleared</span>
-              <span className="text-[30px] leading-none font-extrabold font-mono tabular-nums">{clearPct}%</span>
+              <span className="text-[26px] leading-none font-extrabold font-mono tabular-nums">{clearPct}%</span>
             </div>
-            <div className="w-[240px] h-3 rounded-full bg-white/15 overflow-hidden">
+            <div className="w-[200px] h-3 rounded-full bg-white/15 overflow-hidden">
               <div className="h-full rounded-full bg-emerald-400" style={{ width: `${clearPct}%` }} />
             </div>
           </div>
@@ -403,18 +403,41 @@ function ActionQueue({ day, onSelectSession }) {
   );
 }
 
-function BillingFunnel({ pipeline }) {
-  if (!pipeline) return null;
+// The four funnel stages and their bars. Shared by the monthly "Billing
+// pipeline" card and the all-time panel beside the banner, so both always read
+// the same way. Bars are scaled to Logged, which is the largest stage.
+function FunnelRows({ pipeline }) {
   const { logged, reviewed, invoiced, paid } = pipeline;
   const held = (pipeline.exceptions?.on_hold || 0) + (pipeline.exceptions?.rejected || 0);
 
   const stages = [
-    { label: 'Logged', value: logged, gradient: 'linear-gradient(90deg, #60a5fa, #2563eb)' },
-    { label: 'Reviewed', value: reviewed, gradient: 'linear-gradient(90deg, #a78bfa, #7c3aed)', sub: held > 0 ? `${held.toLocaleString()} held back` : null },
-    { label: 'Invoiced', value: invoiced, gradient: 'linear-gradient(90deg, #2dd4bf, #0d9488)' },
-    { label: 'Paid', value: paid, gradient: 'linear-gradient(90deg, #fbbf24, #d97706)' },
+    { label: 'Logged', value: logged },
+    { label: 'Reviewed', value: reviewed, sub: held > 0 ? `${held.toLocaleString()} held back` : null },
+    { label: 'Invoiced', value: invoiced },
+    { label: 'Paid', value: paid },
   ];
   const max = Math.max(logged, 1);
+
+  return stages.map((s) => (
+    <div key={s.label} className="flex items-center gap-4 mb-4 last:mb-0">
+      <div className="w-[116px] flex-shrink-0">
+        <div className="text-[16px] font-bold text-slate-700">{s.label}</div>
+        {s.sub && <div className="text-[13px] font-bold text-rose-700 mt-0.5">{s.sub}</div>}
+      </div>
+      <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full bg-teal-500"
+          style={{ width: `${Math.max((s.value / max) * 100, s.value > 0 ? 2 : 0)}%` }}
+        />
+      </div>
+      <div className="w-16 flex-shrink-0 text-right text-[20px] font-extrabold text-slate-900 font-mono tabular-nums">{s.value.toLocaleString()}</div>
+    </div>
+  ));
+}
+
+function BillingFunnel({ pipeline }) {
+  if (!pipeline) return null;
+  const { logged, invoiced, paid } = pipeline;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
@@ -422,27 +445,63 @@ function BillingFunnel({ pipeline }) {
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Billing pipeline</div>
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} total</div>
       </div>
-      {stages.map((s) => (
-        <div key={s.label} className="flex items-center gap-4 mb-4 last:mb-0">
-          <div className="w-[116px] flex-shrink-0">
-            <div className="text-[16px] font-bold text-slate-700">{s.label}</div>
-            {s.sub && <div className="text-[13px] font-bold text-rose-700 mt-0.5">{s.sub}</div>}
-          </div>
-          <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full bg-teal-500"
-              style={{ width: `${Math.max((s.value / max) * 100, s.value > 0 ? 2 : 0)}%` }}
-            />
-          </div>
-          <div className="w-16 flex-shrink-0 text-right text-[20px] font-extrabold text-slate-900 font-mono tabular-nums">{s.value.toLocaleString()}</div>
-        </div>
-      ))}
+      <FunnelRows pipeline={pipeline} />
       <div className="text-[14px] text-slate-500 mt-3.5 pt-3 border-t border-dashed border-slate-200">
         {paid === 0
           ? "Nothing from this month has been marked paid yet."
           : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of invoiced sessions are confirmed paid.`}
       </div>
     </div>
+  );
+}
+
+// The overall picture, every month combined, beside the verdict banner. The
+// cards below follow the month picker; this one deliberately never does, so
+// the month-by-month view always has the whole history to be read against.
+function AllTimeStatus({ pipeline }) {
+  const shell = 'rounded-[24px] bg-white border border-slate-200 shadow-sm p-6 min-w-0 flex flex-col';
+  if (!pipeline) {
+    return (
+      <section className={shell}>
+        <div className="text-[15px] text-slate-500">Loading all months...</div>
+      </section>
+    );
+  }
+  const { logged, paid, invoiced } = pipeline;
+  const ex = pipeline.exceptions || {};
+  const rate = pipeline.eimsMatchRate;
+  const eimsTotal = rate ? rate.matched + rate.flagged + rate.missing + rate.unverified : 0;
+  const eimsPct = eimsTotal > 0 ? Math.round((rate.matched / eimsTotal) * 100) : null;
+  const facts = [
+    { label: 'On hold', value: (ex.on_hold || 0).toLocaleString(), tone: (ex.on_hold || 0) > 0 ? 'text-amber-700' : 'text-slate-900' },
+    { label: 'Returned', value: (ex.rejected || 0).toLocaleString(), tone: (ex.rejected || 0) > 0 ? 'text-rose-700' : 'text-slate-900' },
+    { label: 'Declined', value: (ex.declined || 0).toLocaleString(), tone: (ex.declined || 0) > 0 ? 'text-rose-700' : 'text-slate-900' },
+    { label: 'EIMS matched', value: eimsPct === null ? '—' : `${eimsPct}%`, tone: 'text-teal-700' },
+  ];
+
+  return (
+    <section className={shell}>
+      <div className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-teal-700 mb-1">All months combined</div>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Status of every log</div>
+        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} total</div>
+      </div>
+      <p className="text-[15px] text-slate-600 mb-4">Every session ever logged, across all months.</p>
+      <FunnelRows pipeline={pipeline} />
+      <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-dashed border-slate-200">
+        {facts.map((f) => (
+          <div key={f.label} className="rounded-xl bg-slate-50 px-2.5 py-2 min-w-0">
+            <div className={`text-[20px] leading-none font-extrabold font-mono tabular-nums ${f.tone}`}>{f.value}</div>
+            <div className="text-[13px] font-semibold text-slate-600 mt-1 truncate">{f.label}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-[13px] text-slate-500 mt-3">
+        {paid === 0
+          ? 'Nothing has been marked paid yet.'
+          : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of all invoiced sessions are confirmed paid.`}
+      </div>
+    </section>
   );
 }
 
@@ -940,6 +999,7 @@ export function CompanyDashboard() {
   // in the selected month. Only the verdict banner (day / ap) above the picker
   // stays an all-time, today's-picture view.
   const [pipeline, setPipeline] = useState(null);
+  const [allTime, setAllTime] = useState(null); // every month combined; never follows the picker
   const [returnedLogs, setReturnedLogs] = useState(null);
   const [monthDay, setMonthDay] = useState(null); // the "What needs you" list for the selected month
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -952,6 +1012,8 @@ export function CompanyDashboard() {
   useEffect(() => {
     api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
     api.get('/api/dashboard/ap').then((res) => setAp(res.data)).catch(() => setAp(null));
+    // No month param = all history combined.
+    api.get('/api/dashboard/pipeline').then((res) => setAllTime(res.data)).catch(() => setAllTime(null));
   }, []);
 
   // One fetch per card for the selected month. `stale` drops a response that
@@ -1055,7 +1117,14 @@ export function CompanyDashboard() {
 
   return (
     <div className="space-y-6">
-      <VerdictBanner day={day} ap={ap} />
+      {/* Side by side once the dashboard area is wide enough (container query,
+          so an open sidebar cannot squeeze them); stacked otherwise. */}
+      <div className="@container">
+        <div className="grid gap-6 @4xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <VerdictBanner day={day} ap={ap} />
+          <AllTimeStatus pipeline={allTime} />
+        </div>
+      </div>
 
       <div>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
