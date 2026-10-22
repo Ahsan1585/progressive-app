@@ -536,7 +536,6 @@ function EimsDonut({ pipeline }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
-      <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 self-start mb-4">EIMS match status</div>
       <svg viewBox="0 0 120 120" width="200" height="200">
         <circle cx="60" cy="60" r="46" fill="none" stroke={empty ? '#b8c4d3' : '#f6f7fb'} strokeWidth="16" />
         {/* A segment is drawn only when it has sessions: a zero-length stroke
