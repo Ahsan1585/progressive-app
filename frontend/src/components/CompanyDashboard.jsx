@@ -292,7 +292,7 @@ function PractitionerAccuracyTable({ month }) {
 
 // --- Verdict banner: a plain-language judgment, not a stat tile, with
 // the supporting numbers underneath it rather than standing alone. ---
-function VerdictBanner({ day, ap }) {
+function VerdictBanner({ day, ap, monthLabel }) {
   if (!day || !ap) {
     return (
       <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
@@ -309,7 +309,7 @@ function VerdictBanner({ day, ap }) {
 
   const isHealthy = flaggedCount === 0 && totalHeld === 0;
   const headline = isHealthy
-    ? 'Billing is healthy. Nothing is waiting on you today.'
+    ? `Billing is healthy. Nothing is waiting on you for ${monthLabel}.`
     : flaggedCount > 0 && totalHeld === 0
       ? `Billing is healthy. ${flaggedCount} session${flaggedCount === 1 ? ' is' : 's are'} stuck and need${flaggedCount === 1 ? 's' : ''} a decision.`
       : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held pending verification.`;
@@ -319,7 +319,7 @@ function VerdictBanner({ day, ap }) {
       <div>
         <div className="flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.14em] mb-3" style={{ color: '#fcd34d' }}>
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
-          {isHealthy ? 'All clear' : 'Needs a look today'}
+          {isHealthy ? 'All clear' : `Needs a look: ${monthLabel}`}
         </div>
         <h1 className="text-[26px] sm:text-[34px] font-extrabold leading-[1.12] tracking-tight mb-4" style={{ textWrap: 'balance' }}>{headline}</h1>
         <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
@@ -1147,8 +1147,8 @@ export function CompanyDashboard() {
   const [trajectoryTab, setTrajectoryTab] = useState('month');
   // Everything below the stat row follows the month picker, so the cards agree
   // with each other and with the stat row: the sessions whose service date is
-  // in the selected month. Only the verdict banner (day / ap) above the picker
-  // stays an all-time, today's-picture view.
+  // in the selected month. The verdict banner (day / ap) follows it too; only the
+  // all-months status panel (allTime) never moves.
   const [pipeline, setPipeline] = useState(null);
   const [allTime, setAllTime] = useState(null); // every month combined; never follows the picker
   const [returnedLogs, setReturnedLogs] = useState(null);
@@ -1164,8 +1164,6 @@ export function CompanyDashboard() {
   const [dropHint, setDropHint] = useState(null); // { key, pos: 'before' | 'after' } | null
 
   useEffect(() => {
-    api.get('/api/dashboard/day').then((res) => setDay(res.data)).catch(() => setDay(null));
-    api.get('/api/dashboard/ap').then((res) => setAp(res.data)).catch(() => setAp(null));
     // No month param = all history combined.
     api.get('/api/dashboard/pipeline').then((res) => setAllTime(res.data)).catch(() => setAllTime(null));
   }, []);
@@ -1182,7 +1180,8 @@ export function CompanyDashboard() {
     load('/api/dashboard/month', setMonth, () => setMonth(null));
     load('/api/dashboard/services', setServices, () => setServices(null));
     load('/api/dashboard/pipeline', setPipeline, () => setPipeline(null));
-    load('/api/dashboard/day', setMonthDay, () => setMonthDay(null));
+    load('/api/dashboard/day', (d) => { setMonthDay(d); setDay(d); }, () => { setMonthDay(null); setDay(null); });
+    load('/api/dashboard/ap', setAp, () => setAp(null));
     load('/api/dashboard/returned-logs', setReturnedLogs, () => setReturnedLogs(null));
     load('/api/dashboard/documents', (d) => setDocuments(d.documents), () => setDocuments([]));
     return () => { stale = true; };
@@ -1305,7 +1304,7 @@ export function CompanyDashboard() {
           so an open sidebar cannot squeeze them); stacked otherwise. */}
       <div className="@container">
         <div className="grid gap-6 @4xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <VerdictBanner day={day} ap={ap} />
+          <VerdictBanner day={day} ap={ap} monthLabel={new Date(`${monthValue}-01T12:00:00`).toLocaleString('en-US', { month: 'long', year: 'numeric' })} />
           <AllTimeStatus pipeline={allTime} />
         </div>
       </div>

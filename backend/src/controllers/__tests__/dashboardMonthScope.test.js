@@ -11,7 +11,7 @@ jest.mock('../../utils/invoiceData', () => ({
 
 const { pool } = require('../../config/db');
 const {
-  getDayOverview, getReturnedLogs, getPipelineOverview, getDocumentsFeed,
+  getDayOverview, getReturnedLogs, getPipelineOverview, getDocumentsFeed, getAccountsPayable,
 } = require('../dashboardController');
 
 beforeEach(() => {
@@ -126,5 +126,21 @@ describe('the pipeline funnel never shrinks going down', () => {
     expect(out.logged).toBeGreaterThanOrEqual(out.reviewed);
     expect(out.reviewed).toBeGreaterThanOrEqual(out.invoiced);
     expect(out.invoiced).toBeGreaterThanOrEqual(out.paid);
+  });
+});
+
+describe('getAccountsPayable (the banner money)', () => {
+  test('month=2026-02 limits what is owed and held to that month', async () => {
+    pool.query.mockResolvedValue({ rows: [] });
+    await getAccountsPayable({ query: { month: '2026-02' } }, mkRes());
+    const q = pool.query.mock.calls[0];
+    expect(q[0]).toMatch(/a\.service_date >= \$1::date/);
+    expect(q[1]).toEqual(['2026-02-01', '2026-02-28']);
+  });
+
+  test('no month keeps it all-time', async () => {
+    pool.query.mockResolvedValue({ rows: [] });
+    await getAccountsPayable({ query: {} }, mkRes());
+    expect(pool.query.mock.calls[0][1]).toEqual([null, null]);
   });
 });

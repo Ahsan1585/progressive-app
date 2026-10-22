@@ -780,6 +780,9 @@ const getYearOverview = async (req, res) => {
 // from TOTAL DUE NOW is held here too, for the same reason.
 const getAccountsPayable = async (req, res) => {
   try {
+    // ?month=YYYY-MM limits the money to that month's sessions (the verdict
+    // banner follows the month picker); without it, everything unpaid.
+    const [monthStart, monthEnd] = monthScope(req);
     // Includes on_hold/rejected, not just invoiced/completed — a session
     // billing set aside is still a session the practitioner performed and
     // is still owed for, it just isn't cleared to pay yet. Excluding it
@@ -796,7 +799,8 @@ const getAccountsPayable = async (req, res) => {
        WHERE (
          (a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NULL)
          OR a.billing_status IN ('on_hold', 'rejected')
-       )`
+       ) AND ${inMonthSql(1, 2, 'a.service_date')}`,
+      [monthStart, monthEnd]
     );
 
     if (unpaidSessions.length === 0) {
