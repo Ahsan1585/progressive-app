@@ -200,14 +200,23 @@ function ConsentForm({ mode, child, onDone, onCancel, initial = null }) {
         <p className="text-xs text-slate-500 mt-0.5">
           {isPaper
             ? 'Use this only for a consent the agency already holds, signed on paper. Do not use it to sign on the parent\'s behalf.'
-            : child.parent_email
-              ? `A secure signing link will be emailed to ${child.parent_email}. The parent confirms the child's date of birth before signing.`
-              : 'A secure signing link is emailed to the parent email on the child record.'}
+            : 'A secure signing link is emailed to the parent or guardian. They confirm the child\'s date of birth before signing.'}
         </p>
-        {!isPaper && !child.parent_email && (
-          <p className="text-xs text-amber-700 mt-1">No parent email is on file for this child. Add one first.</p>
-        )}
       </div>
+
+      {!isPaper && (child.parent_email ? (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5" role="note">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-800">Signing link will be sent to</p>
+          <p className="text-sm font-semibold text-slate-900 break-all">{child.parent_email}</p>
+          {child.parent_name && <p className="text-xs text-slate-600">Parent or guardian on file: {child.parent_name}</p>}
+          <p className="text-xs text-slate-500 mt-0.5">This is the parent email on the child's record. To change it, edit the child first.</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5" role="alert">
+          <p className="text-sm font-semibold text-amber-900">No parent or guardian email is on file for this child.</p>
+          <p className="text-xs text-amber-800">Add one to the child's record first, otherwise the signing link has nowhere to go.</p>
+        </div>
+      ))}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Share records with (recipient)" error={errors.recipientName}>
@@ -571,6 +580,7 @@ function ChildConsents({ child, onChanged }) {
               <p className="text-xs text-slate-500">
                 {r.purpose} · {typesText(r.recordTypes)}
               </p>
+              {r.parentEmail && <p className="text-xs text-slate-500">Link sent to {r.parentEmail}</p>}
               <p className="text-xs text-slate-500">
                 Sent {fmtDate(r.requestedAt || r.createdAt)} · {r.status === 'signed' ? `signed ${fmtDate(r.signedAt)}` : `request expires ${fmtDate(r.requestExpiresAt)}`}
               </p>
