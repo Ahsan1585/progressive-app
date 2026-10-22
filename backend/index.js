@@ -49,6 +49,7 @@ const roleRoutes = require('./src/routes/roleRoutes');
 const testDataRoutes = require('./src/routes/testDataRoutes');
 const sessionDraftsRoutes = require('./src/routes/sessionDraftsRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
+const demoBookingRoutes = require('./src/routes/demoBookingRoutes');
 const marketingRoutes = require('./src/routes/marketingRoutes');
 const telepracticeSignatureRoutes = require('./src/routes/telepracticeSignatureRoutes');
 const instagramRoutes = require('./src/routes/instagramRoutes');
@@ -135,6 +136,7 @@ app.use('/api/platform/billing', platformBillingRoutes);
 app.use('/api/platform', platformAdminRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/demo', demoBookingRoutes);
 app.use('/api/marketing', marketingRoutes);
 app.use('/api/instagram', instagramRoutes);
 

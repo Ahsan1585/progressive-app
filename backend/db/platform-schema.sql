@@ -161,3 +161,22 @@ CREATE TABLE IF NOT EXISTS platform_audit_logs (
 );
 CREATE INDEX IF NOT EXISTS platform_audit_logs_created_at_idx ON platform_audit_logs (created_at DESC);
 CREATE INDEX IF NOT EXISTS platform_audit_logs_target_company_slug_idx ON platform_audit_logs (target_company_slug);
+
+CREATE TABLE IF NOT EXISTS demo_bookings (
+  id serial PRIMARY KEY,
+  slot_start timestamptz NOT NULL,
+  slot_end timestamptz NOT NULL,
+  full_name text NOT NULL,
+  work_email text NOT NULL,
+  agency_name text NOT NULL,
+  practitioner_count integer,
+  message text,
+  source text,
+  utm jsonb,
+  status text NOT NULL DEFAULT 'booked' CHECK (status IN ('booked', 'cancelled')),
+  cancel_token text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  cancelled_at timestamptz
+);
+-- One live booking per slot: the database itself blocks double booking.
+CREATE UNIQUE INDEX IF NOT EXISTS demo_bookings_one_per_slot ON demo_bookings (slot_start) WHERE status = 'booked';

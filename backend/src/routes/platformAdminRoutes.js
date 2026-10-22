@@ -3,6 +3,7 @@ const router = express.Router();
 const { listCompanies, listPromoCodes, createPromoCode, deactivatePromoCode, setTrialEndDate, getCompanyPricing, setCompanyPricing } = require('../controllers/platformAdminController');
 const { createCompany, impersonateCompany, ensureSupportAccount, deleteCompanyData, deleteCompanyRecord } = require('../controllers/platformProvisioningController');
 const { listUnsubscribes } = require('../controllers/marketingController');
+const { listDemoBookings } = require('../controllers/demoBookingController');
 const { requirePlatformAdminAuth } = require('../middleware/platformAdminAuthMiddleware');
 
 router.get('/companies', requirePlatformAdminAuth, listCompanies);
@@ -18,5 +19,6 @@ router.get('/promo-codes', requirePlatformAdminAuth, listPromoCodes);
 router.post('/promo-codes', requirePlatformAdminAuth, createPromoCode);
 router.post('/promo-codes/:id/deactivate', requirePlatformAdminAuth, deactivatePromoCode);
 router.get('/marketing/unsubscribes', requirePlatformAdminAuth, listUnsubscribes);
+router.get('/demo-bookings', requirePlatformAdminAuth, listDemoBookings);
 
 module.exports = router;

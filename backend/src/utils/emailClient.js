@@ -838,6 +838,116 @@ const sendConsentStaffNoticeEmail = async (toEmail, { kind, audience = 'office' 
   }
 };
 
+// Demo call booked from the marketing site's /book page. Two emails: the
+// prospect gets a confirmation with a calendar invite, the meeting link and a
+// cancel link; the team gets the details. Prospect-supplied text is escaped.
+// No child or family data is involved (this is a sales call booking).
+const demoWhen = (slotStart) => {
+  const day = slotStart.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' });
+  const time = slotStart.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  return { day, time, label: `${day} at ${time} ET` };
+};
+
+const sendDemoBookingEmails = async ({
+  fullName, workEmail, agencyName, practitionerCount, message, slotStart, slotEnd, meetingUrl, cancelUrl, bookingId,
+}) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping demo booking emails.');
+    return;
+  }
+  const { buildDemoIcs } = require('./demoIcs');
+  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const team = process.env.DEMO_TEAM_EMAIL || process.env.CONTACT_TO_EMAIL || 'support@izayaedge.com';
+  const when = demoWhen(slotStart);
+  const ics = buildDemoIcs({
+    bookingId, slotStart, slotEnd, attendeeEmail: workEmail, attendeeName: fullName, organizerEmail: team, meetingUrl,
+  });
+  const row = (label, value) => (value ? `
+    <tr>
+      <td style="padding:9px 0; font-family:${SANS}; font-size:12.5px; color:${COLORS.slate}; width:120px; vertical-align:top;">${label}</td>
+      <td style="padding:9px 0; font-family:${SANS}; font-size:13.5px; font-weight:600; color:${COLORS.navy};">${value}</td>
+    </tr>` : '');
+  const table = (rows) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0; border-top:1px solid ${COLORS.line}; border-bottom:1px solid ${COLORS.line};">${rows}</table>`;
+
+  const prospectHtml = emailShell({
+    preheader: `Your Izaya EIS demo: ${when.label}`,
+    eyebrow: 'Demo booked',
+    heading: 'Your demo is booked',
+    bodyHtml: `
+      <p style="margin:0;">Hi ${escapeHtml(fullName)}, thanks for booking a call. We'll walk your team through a full billing month in Izaya EIS.</p>
+      ${table(row('When', when.label) + row('Length', '30 minutes') + row('Join', meetingUrl ? `<a href="${escapeHtml(meetingUrl)}" style="color:${COLORS.teal};">${escapeHtml(meetingUrl)}</a>` : 'We will email the meeting link shortly.'))}
+      <p style="margin:0; font-size:13px;">A calendar invite is attached. Can't make it? <a href="${escapeHtml(cancelUrl)}" style="color:${COLORS.teal};">Cancel this booking</a> and pick a new time.</p>
+    `,
+    footnote: '',
+  });
+  await resend.emails.send({
+    from, to: workEmail, replyTo: team,
+    subject: `Your Izaya EIS demo: ${when.label}`,
+    html: prospectHtml,
+    attachments: [{ filename: 'izaya-demo.ics', content: Buffer.from(ics).toString('base64'), contentType: 'text/calendar; method=REQUEST' }],
+  });
+
+  const teamHtml = emailShell({
+    preheader: `New demo booking: ${agencyName}, ${when.label}`,
+    eyebrow: 'Demo booking',
+    heading: 'New demo booked',
+    bodyHtml: `
+      ${table(
+        row('When', when.label)
+        + row('Name', escapeHtml(fullName))
+        + row('Work email', `<a href="mailto:${escapeHtml(workEmail)}" style="color:${COLORS.teal};">${escapeHtml(workEmail)}</a>`)
+        + row('Agency', escapeHtml(agencyName))
+        + row('Practitioners', practitionerCount ? String(practitionerCount) : '')
+      )}
+      ${message ? `<p style="margin:0; white-space:pre-wrap;">${escapeHtml(message)}</p>` : ''}
+    `,
+    footnote: '',
+  });
+  await resend.emails.send({
+    from, to: team, replyTo: workEmail,
+    subject: `Demo booked: ${agencyName}, ${when.label}`,
+    html: teamHtml,
+    attachments: [{ filename: 'izaya-demo.ics', content: Buffer.from(ics).toString('base64'), contentType: 'text/calendar; method=REQUEST' }],
+  });
+};
+
+const sendDemoBookingCancelledEmails = async ({ fullName, workEmail, agencyName, slotStart, slotEnd, bookingId }) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set — skipping demo cancellation emails.');
+    return;
+  }
+  const { buildDemoIcs } = require('./demoIcs');
+  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const team = process.env.DEMO_TEAM_EMAIL || process.env.CONTACT_TO_EMAIL || 'support@izayaedge.com';
+  const when = demoWhen(slotStart);
+  const ics = buildDemoIcs({ bookingId, slotStart, slotEnd, attendeeEmail: workEmail, attendeeName: fullName, organizerEmail: team, cancelled: true });
+  const attachments = [{ filename: 'izaya-demo.ics', content: Buffer.from(ics).toString('base64'), contentType: 'text/calendar; method=CANCEL' }];
+  await resend.emails.send({
+    from, to: workEmail, replyTo: team,
+    subject: `Cancelled: your Izaya EIS demo on ${when.label}`,
+    html: emailShell({
+      preheader: 'Your demo was cancelled',
+      eyebrow: 'Demo cancelled',
+      heading: 'Your demo is cancelled',
+      bodyHtml: `<p style="margin:0;">Your call on ${when.label} is cancelled. You can book a new time on our site whenever it suits you.</p>`,
+      footnote: '',
+    }),
+    attachments,
+  });
+  await resend.emails.send({
+    from, to: team,
+    subject: `Demo cancelled: ${agencyName}, ${when.label}`,
+    html: emailShell({
+      preheader: `Demo cancelled: ${agencyName}`,
+      eyebrow: 'Demo cancelled',
+      heading: 'A demo was cancelled',
+      bodyHtml: `<p style="margin:0;">${escapeHtml(fullName)} (${escapeHtml(agencyName)}) cancelled the call on ${when.label}.</p>`,
+      footnote: '',
+    }),
+    attachments,
+  });
+};
+
 module.exports = {
   sendConsentManageEmail,
   sendConsentStaffNoticeEmail,
@@ -856,6 +966,8 @@ module.exports = {
   sendSevfToAgencyEmail,
   sendSessionScheduledEmail,
   sendContactRequestEmail,
+  sendDemoBookingEmails,
+  sendDemoBookingCancelledEmails,
   sendParentSignatureRequestEmail,
   generalizeSessionLocation,
   escapeHtml,
