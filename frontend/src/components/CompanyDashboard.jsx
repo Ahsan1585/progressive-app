@@ -539,10 +539,17 @@ function EimsDonut({ pipeline }) {
           <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
             strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" />
         )}
-        <text x="60" y="56" textAnchor="middle" fontSize="27" fontWeight="800" fill={empty ? '#94a3b8' : '#0f172a'}>{empty ? '—' : `${matchedPct}%`}</text>
-        <text x="60" y="73" textAnchor="middle" fontSize="10" fontWeight="600" fill={empty ? '#64748b' : '#475569'}>{empty ? 'no sessions' : 'matched'}</text>
+        {!empty && (
+          <>
+            <text x="60" y="56" textAnchor="middle" fontSize="27" fontWeight="800" fill="#0f172a">{`${matchedPct}%`}</text>
+            <text x="60" y="73" textAnchor="middle" fontSize="10" fontWeight="600" fill="#475569">matched</text>
+          </>
+        )}
       </svg>
-      <div className={`flex flex-col gap-2 mt-4 w-full ${empty ? 'opacity-50' : ''}`}>
+      {/* No billed sessions this month: just the gray ring, with the words under it. */}
+      {empty && <div className="mt-4 mb-2 text-[18px] font-semibold text-slate-500">no sessions</div>}
+      {!empty && (
+      <div className="flex flex-col gap-2 mt-4 w-full">
         <div className="flex items-center justify-between text-[16px]">
           <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#0d9488' }} />Matched</div>
           <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.matched.toLocaleString()}</span>
@@ -556,6 +563,7 @@ function EimsDonut({ pipeline }) {
           <span className="font-mono font-extrabold text-[18px] text-slate-900">{(rate.missing + rate.unverified).toLocaleString()}</span>
         </div>
       </div>
+      )}
     </div>
   );
 }
