@@ -531,7 +531,8 @@ function EimsDonut({ pipeline }) {
   const seg = (count) => (empty ? 0 : (count / total) * C);
   const matchedLen = seg(rate.matched);
   const flaggedLen = seg(rate.flagged);
-  const missingLen = seg(rate.missing + rate.unverified);
+  const missingLen = seg(rate.missing);
+  const unverifiedLen = seg(rate.unverified);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
@@ -550,9 +551,13 @@ function EimsDonut({ pipeline }) {
           <circle cx="60" cy="60" r="46" fill="none" stroke="#d97706" strokeWidth="16"
             strokeDasharray={`${flaggedLen} ${C - flaggedLen}`} strokeDashoffset={-matchedLen} transform="rotate(-90 60 60)" />
         )}
-        {rate.missing + rate.unverified > 0 && (
+        {rate.missing > 0 && (
           <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
             strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" />
+        )}
+        {rate.unverified > 0 && (
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#94a3b8" strokeWidth="16"
+            strokeDasharray={`${unverifiedLen} ${C - unverifiedLen}`} strokeDashoffset={-(matchedLen + flaggedLen + missingLen)} transform="rotate(-90 60 60)" />
         )}
         {!empty && (
           <>
@@ -574,8 +579,12 @@ function EimsDonut({ pipeline }) {
           <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.flagged.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between text-[16px]">
-          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#e11d48' }} />Missing / unverified</div>
-          <span className="font-mono font-extrabold text-[18px] text-slate-900">{(rate.missing + rate.unverified).toLocaleString()}</span>
+          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#e11d48' }} />Missing in EIMS</div>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.missing.toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between text-[16px]">
+          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#94a3b8' }} />Unverified (no state file)</div>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.unverified.toLocaleString()}</span>
         </div>
       </div>
       )}

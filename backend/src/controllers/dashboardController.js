@@ -33,6 +33,23 @@ const DASHBOARD_CARD_KEYS = [
 ];
 const DASHBOARD_CARD_WIDTHS = ['full', 'half'];
 
+// Which slice of the EIMS match ring a session belongs to:
+//   matched    EIMS verified it, an admin approved it, or it needs no check
+//   missing    no EIMS record for it ("Missing"), including one already sent to
+//              an admin for approval ("Awaiting"): still missing from EIMS
+//   unverified it could not be checked (no state file uploaded)
+//   flagged    everything else that needs a look: a field mismatch, a duplicate,
+//              a rejection, or a human hold/return/decline (which always wins,
+//              whatever EIMS says)
+// Used by both the pipeline and the month overview so they cannot disagree.
+const eimsBucket = (derived, humanHold) => {
+  if (humanHold) return 'flagged';
+  if (derived.tier === 'cleared') return 'matched';
+  if (derived.label === 'Missing' || derived.label === 'Awaiting') return 'missing';
+  if (derived.tier === 'unverified') return 'unverified';
+  return 'flagged';
+};
+
 // Optional month scope (?month=YYYY-MM) for the cards below the stat row, so they
 // follow the month picker exactly like the stat row does: by the session's
 // service_date. Absent = no scope (all time), which the verdict banner relies
@@ -319,13 +336,9 @@ const getPipelineOverview = async (req, res) => {
       // Same override as getAccountsPayable: a human hold/return/decline
       // always counts as unresolved here, regardless of what the EIMS
       // tier alone would derive to.
-      const tier = ['on_hold', 'rejected', 'declined'].includes(s.billing_status)
-        ? 'exception'
-        : deriveEimsStatus(s, { mode, compliance }).tier;
-      if (tier === 'cleared') eimsMatchRate.matched += 1;
-      else if (tier === 'pending') eimsMatchRate.flagged += 1;
-      else if (tier === 'exception') eimsMatchRate.flagged += 1;
-      else eimsMatchRate.unverified += 1;
+      const humanHold = ['on_hold', 'rejected', 'declined'].includes(s.billing_status);
+      const derived = humanHold ? { tier: 'exception' } : deriveEimsStatus(s, { mode, compliance });
+      eimsMatchRate[eimsBucket(derived, humanHold)] += 1;
     });
 
     res.json({
@@ -456,13 +469,10 @@ const getMonthOverview = async (req, res) => {
       const isIndependent = roleById.get(s.practitioner_id) === 'independent_practitioner';
       const mode = isIndependent ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
-      const tier = EXCEPTION_STATUSES.includes(s.billing_status)
-        ? 'exception'
-        : deriveEimsStatus(s, { mode, compliance }).tier;
-      if (tier === 'cleared') eimsMatchRate.matched += 1;
-      else if (tier === 'pending') eimsMatchRate.flagged += 1;
-      else if (tier === 'exception') eimsMatchRate.flagged += 1;
-      else eimsMatchRate.unverified += 1;
+      const humanHold = EXCEPTION_STATUSES.includes(s.billing_status);
+      const derived = humanHold ? { tier: 'exception' } : deriveEimsStatus(s, { mode, compliance });
+      const tier = derived.tier;
+      eimsMatchRate[eimsBucket(derived, humanHold)] += 1;
 
       // Independent practitioners self-report into EIMS — their "cleared"
       // tier means "said they entered it," not a real cross-referenced
@@ -1081,6 +1091,7 @@ module.exports = {
   getMonthOverview,
   getYearOverview,
   getYearsOverview,
+  eimsBucket,
   getAccountsPayable,
   getDashboardLayout,
   saveDashboardLayout,
