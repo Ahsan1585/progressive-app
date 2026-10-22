@@ -300,31 +300,29 @@ function VerdictBanner({ day, ap }) {
       : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held pending verification.`;
 
   return (
-    <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
-      <div className="flex items-start justify-between gap-6 flex-wrap">
-        <div className="flex-1 min-w-[260px]">
-          <div className="flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.14em] mb-2.5" style={{ color: '#fcd34d' }}>
-            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
-            {isHealthy ? 'All clear' : 'Needs a look today'}
-          </div>
-          <h1 className="text-[26px] sm:text-[36px] font-extrabold leading-[1.1] tracking-tight mb-3" style={{ textWrap: 'balance' }}>{headline}</h1>
-          <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-3xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
-            <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners.
-            {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
-          </p>
+    <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm flex flex-col min-w-0" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
+      <div>
+        <div className="flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.14em] mb-3" style={{ color: '#fcd34d' }}>
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fcd34d' }} />
+          {isHealthy ? 'All clear' : 'Needs a look today'}
         </div>
-        {totalOwed > 0 && (
-          <div className="min-w-[200px]">
-            <div className="flex items-end justify-between text-[15px] font-semibold mb-2">
-              <span className="text-white/80">Cleared</span>
-              <span className="text-[26px] leading-none font-extrabold font-mono tabular-nums">{clearPct}%</span>
-            </div>
-            <div className="w-[200px] h-3 rounded-full bg-white/15 overflow-hidden">
-              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${clearPct}%` }} />
-            </div>
-          </div>
-        )}
+        <h1 className="text-[26px] sm:text-[34px] font-extrabold leading-[1.12] tracking-tight mb-4" style={{ textWrap: 'balance' }}>{headline}</h1>
+        <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
+          <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners.
+          {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
+        </p>
       </div>
+      {totalOwed > 0 && (
+        <div className="mt-auto pt-8">
+          <div className="flex items-end justify-between text-[15px] font-semibold mb-2">
+            <span className="text-white/80">Cleared to pay</span>
+            <span className="text-[28px] leading-none font-extrabold font-mono tabular-nums">{clearPct}%</span>
+          </div>
+          <div className="w-full h-3 rounded-full bg-white/15 overflow-hidden">
+            <div className="h-full rounded-full bg-emerald-400" style={{ width: `${clearPct}%` }} />
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -476,7 +474,7 @@ function AllTimeStatus({ pipeline }) {
     { label: 'On hold', value: (ex.on_hold || 0).toLocaleString(), tone: (ex.on_hold || 0) > 0 ? 'text-amber-700' : 'text-slate-900' },
     { label: 'Returned', value: (ex.rejected || 0).toLocaleString(), tone: (ex.rejected || 0) > 0 ? 'text-rose-700' : 'text-slate-900' },
     { label: 'Declined', value: (ex.declined || 0).toLocaleString(), tone: (ex.declined || 0) > 0 ? 'text-rose-700' : 'text-slate-900' },
-    { label: 'EIMS matched', value: eimsPct === null ? '—' : `${eimsPct}%`, tone: 'text-teal-700' },
+    { label: 'EIMS match', value: eimsPct === null ? '—' : `${eimsPct}%`, tone: 'text-teal-700' },
   ];
 
   return (
@@ -486,11 +484,11 @@ function AllTimeStatus({ pipeline }) {
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Status of every log</div>
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} total</div>
       </div>
-      <p className="text-[15px] text-slate-600 mb-4">Every session ever logged, across all months.</p>
+      <p className="text-[15px] text-slate-600 mb-3">Every session ever logged, across all months.</p>
       <FunnelRows pipeline={pipeline} />
-      <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-dashed border-slate-200">
+      <div className="grid grid-cols-4 gap-2 mt-3 pt-4 border-t border-dashed border-slate-200">
         {facts.map((f) => (
-          <div key={f.label} className="rounded-xl bg-slate-50 px-2.5 py-2 min-w-0">
+          <div key={f.label} className="rounded-xl bg-slate-50 px-3 py-2 min-w-0">
             <div className={`text-[20px] leading-none font-extrabold font-mono tabular-nums ${f.tone}`}>{f.value}</div>
             <div className="text-[13px] font-semibold text-slate-600 mt-1 truncate">{f.label}</div>
           </div>
