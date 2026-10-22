@@ -44,7 +44,7 @@ async function loadRequest(req, res) {
   const { token } = req.params;
   if (!TOKEN_RE.test(String(token || ''))) { rejectPage(res, 404, 'This link is not valid.'); return null; }
   const { rows } = await pool.query(
-    `SELECT r.*, p.dob AS patient_dob
+    `SELECT r.*, p.dob AS patient_dob, p.first_name AS patient_first_name, p.last_name AS patient_last_name
      FROM records_consent_requests r
      JOIN patients p ON p.id = r.patient_id
      WHERE r.manage_token_hash = $1`,
@@ -119,9 +119,11 @@ function consentState(consent) {
   return 'active';
 }
 
+const childNameOf = (request) => `${request.patient_first_name || ''} ${request.patient_last_name || ''}`.trim();
+
 const hiddenDob = (dob) => `<input type="hidden" name="dob" value="${escapeHtml(String(dob).trim())}" />`;
 
-function detailsPage(consent, dob, message) {
+function detailsPage(consent, dob, message, childName) {
   const state = consentState(consent);
   const types = (consent.record_types || []).map((t) => TYPE_LABEL[t] || t).join(', ');
   const statusLine = {
@@ -133,6 +135,7 @@ function detailsPage(consent, dob, message) {
     <h1>Your consent</h1>
     ${message ? `<p class="notice" role="status">${escapeHtml(message)}</p>` : ''}
     <dl>
+      ${childName ? `<dt>Child</dt><dd>${escapeHtml(childName)}</dd>` : ''}
       <dt>Records may be shared with</dt><dd>${escapeHtml(consent.recipient_name)}</dd>
       <dt>For the purpose of</dt><dd>${escapeHtml(consent.purpose)}</dd>
       <dt>Records covered</dt><dd>${escapeHtml(types)}</dd>
@@ -174,7 +177,7 @@ const viewConsent = async (req, res) => {
   try {
     const ctx = await verified(req, res, 'view');
     if (!ctx) return;
-    sendPage(res, 200, 'Your consent', detailsPage(ctx.consent, req.body.dob));
+    sendPage(res, 200, 'Your consent', detailsPage(ctx.consent, req.body.dob, null, childNameOf(ctx.request)));
   } catch (error) {
     console.error('viewConsent error:', error);
     rejectPage(res, 500, 'Something went wrong. Please try again later.');
@@ -197,7 +200,7 @@ const withdrawConsent = async (req, res) => {
     );
     if (!rows[0]) {
       // Already withdrawn: show the current state, log nothing twice.
-      return sendPage(res, 200, 'Your consent', detailsPage({ ...consent, revoked_at: consent.revoked_at || new Date() }, req.body.dob));
+      return sendPage(res, 200, 'Your consent', detailsPage({ ...consent, revoked_at: consent.revoked_at || new Date() }, req.body.dob, null, childNameOf(request)));
     }
     // Every secure records link sent under this consent stops working now.
     await pool.query('UPDATE records_releases SET revoked_at = now() WHERE consent_id = $1 AND revoked_at IS NULL', [consent.id]);
@@ -209,7 +212,7 @@ const withdrawConsent = async (req, res) => {
     });
     await notifyConsentStaff('withdrawn', request.requested_by);
 
-    sendPage(res, 200, 'Your consent', detailsPage({ ...consent, revoked_at: new Date() }, req.body.dob, 'Your consent has been withdrawn.'));
+    sendPage(res, 200, 'Your consent', detailsPage({ ...consent, revoked_at: new Date() }, req.body.dob, 'Your consent has been withdrawn.', childNameOf(request)));
   } catch (error) {
     console.error('withdrawConsent error:', error);
     rejectPage(res, 500, 'Something went wrong. Please try again later.');
@@ -224,7 +227,7 @@ const downloadCopy = async (req, res) => {
     const { request, consent } = ctx;
 
     const staffName = await loadStaffNames([consent.granted_by]);
-    const pdfBytes = await buildConsentCopyPdf({ consent, grantedByName: staffName(consent.granted_by) });
+    const pdfBytes = await buildConsentCopyPdf({ consent, grantedByName: staffName(consent.granted_by), childName: childNameOf(request) });
 
     logAudit({
       req, actorId: null, actorRole: 'parent',

@@ -220,6 +220,7 @@ const ConsentSign = () => {
           <p className="mt-2 text-sm text-slate-500">You can safely close this page.</p>
         </div>
         <div className="mt-6 divide-y divide-slate-100 rounded-lg border border-slate-100 text-left">
+          {s.childName && <Row label="Child" value={s.childName} />}
           <Row label="Shared with" value={s.recipientName} />
           <Row label="Records" value={recordLabels(s.recordTypes)} />
           <Row label="Valid until" value={fmtDate(s.consentExpiresAt)} />
@@ -238,6 +239,7 @@ const ConsentSign = () => {
       </p>
 
       <div className="my-6 divide-y divide-slate-100 rounded-lg border border-slate-100">
+        {d.childName && <Row label="Child" value={d.childName} />}
         <Row label="Organization" value={d.organizationName} />
         <Row label="Share with" value={d.recipientName} />
         <Row label="Purpose" value={d.purpose} />

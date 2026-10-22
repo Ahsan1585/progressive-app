@@ -23,7 +23,8 @@ const row = (o = {}) => ({
   id: 'req1', patient_id: 42, token_hash: sha256('tok'), status: 'pending', request_expires_at: future(),
   consent_expires_at: future(365 * 24 * 3600 * 1000), recipient_name: 'ABC Billing', recipient_email: 'billing@abc.org',
   purpose: 'Billing', record_types: ['sevf_forms'], requested_by: 7, parent_email: 'p@x.com',
-  patient_dob: '2024-03-05', verify_failed_attempts: 0, verify_locked_at: null, ...o,
+  patient_dob: '2024-03-05', patient_first_name: 'Timmy', patient_last_name: 'Tester',
+  verify_failed_attempts: 0, verify_locked_at: null, ...o,
 });
 const CLAIM_SQL = /SET verify_failed_attempts = verify_failed_attempts \+ 1/;
 const RESET_SQL = /SET verify_failed_attempts = 0/;
@@ -59,7 +60,7 @@ describe('getConsentSigningState', () => {
     expect(res.status).toHaveBeenCalledWith(404);
     const payload = res.json.mock.calls[0][0];
     expect(payload.error).toBe(code);
-    expect(JSON.stringify(payload)).not.toMatch(/ABC|Billing|sevf|42/);
+    expect(JSON.stringify(payload)).not.toMatch(/ABC|Billing|sevf|42|Timmy|Tester/);
   });
 
   test('423 when locked', async () => {
@@ -67,6 +68,25 @@ describe('getConsentSigningState', () => {
     const res = mkRes();
     await ctrl.getConsentSigningState(mkReq(), res);
     expect(res.status).toHaveBeenCalledWith(423);
+  });
+});
+
+describe('the child is named only after the date of birth is verified', () => {
+  test('a wrong DOB reveals no child name', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [row()] })
+      .mockResolvedValueOnce({ rows: [{ verify_failed_attempts: 1, verify_locked_at: null }] });
+    const res = mkRes();
+    await ctrl.verifyConsentSigningIdentity(mkReq({ dob: '2020-01-01' }), res);
+    expect(JSON.stringify(res.json.mock.calls[0][0])).not.toMatch(/Timmy|Tester/);
+  });
+
+  test('a name with only a first name is still shown cleanly', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [row({ patient_last_name: null })] })
+      .mockResolvedValueOnce({ rows: [{ verify_failed_attempts: 1, verify_locked_at: null }] })
+      .mockResolvedValueOnce({ rowCount: 1 });
+    const res = mkRes();
+    await ctrl.verifyConsentSigningIdentity(mkReq({ dob: '2024-03-05' }), res);
+    expect(res.json.mock.calls[0][0].childName).toBe('Timmy');
   });
 });
 
@@ -80,6 +100,7 @@ describe('verifyConsentSigningIdentity', () => {
     const payload = res.json.mock.calls[0][0];
     expect(payload).toEqual({
       success: true,
+      childName: 'Timmy Tester',
       recipientName: 'ABC Billing', purpose: 'Billing', recordTypes: ['sevf_forms'],
       consentExpiresAt: expect.any(String),
       organizationName: 'Acme EI',

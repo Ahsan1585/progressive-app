@@ -111,13 +111,15 @@ function buildCoverRows({ patient, consent, companyName, generatedBy, generatedA
 
 // The signed-consent copy as plain data (drawn by drawConsentCopyPage).
 // Nothing here is invented: missing provenance is reported as missing.
-function buildConsentCopy(consent, { grantedByName, scanStatus } = {}) {
+function buildConsentCopy(consent, { grantedByName, scanStatus, childName } = {}) {
   const staff = grantedByName || 'agency staff';
   const recipient = consent.recipient_email && consent.recipient_email !== consent.recipient_name
     ? `${consent.recipient_name || '—'} <${consent.recipient_email}>`
     : (consent.recipient_name || consent.recipient_email || '—');
   const method = consent.source === 'electronic' || consent.source === 'paper' ? consent.source : 'legacy';
   const rows = [
+    // Whose records the consent is about, so the page stands on its own.
+    ...(childName ? [['Child:', childName]] : []),
     ['Shared with:', recipient],
     ['Purpose:', consent.purpose || '—'],
     ['Records approved:', recordLabels(consent.record_types)],
@@ -292,13 +294,13 @@ async function drawConsentCopyPage(pdfDoc, copy, fonts) {
 
 // Just the signed-consent copy page, for the parent's own download. Contains
 // nothing but the consent itself (no child records).
-async function buildConsentCopyPdf({ consent, grantedByName }) {
+async function buildConsentCopyPdf({ consent, grantedByName, childName }) {
   const doc = await PDFDocument.create();
   const fonts = {
     regular: await doc.embedFont(StandardFonts.Helvetica),
     bold: await doc.embedFont(StandardFonts.HelveticaBold),
   };
-  await drawConsentCopyPage(doc, buildConsentCopy(consent, { grantedByName }), fonts);
+  await drawConsentCopyPage(doc, buildConsentCopy(consent, { grantedByName, childName }), fonts);
   return doc.save();
 }
 
@@ -350,7 +352,7 @@ async function buildConsentPacketPdf({ patient, consent, recordTypes, generatedB
   const scan = await prepareScan(outDoc, consent, fonts);
   const coverConsent = { ...consent, record_types: sections.length ? sections : consent.record_types };
   drawPacketCover(outDoc, buildCoverRows({ patient, consent: coverConsent, companyName, generatedBy, generatedAt: now }), fonts);
-  await drawConsentCopyPage(outDoc, buildConsentCopy(consent, { grantedByName, scanStatus: scan.status }), fonts);
+  await drawConsentCopyPage(outDoc, buildConsentCopy(consent, { grantedByName, scanStatus: scan.status, childName: fullName(patient) }), fonts);
   scan.draw();
 
   for (const section of sections) {

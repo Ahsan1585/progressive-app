@@ -62,7 +62,7 @@ function dobToIso(value) {
 
 async function lookupByToken(token) {
   const { rows } = await pool.query(
-    `SELECT r.*, p.dob AS patient_dob
+    `SELECT r.*, p.dob AS patient_dob, p.first_name AS patient_first_name, p.last_name AS patient_last_name
      FROM records_consent_requests r
      JOIN patients p ON p.id = r.patient_id
      WHERE r.token_hash = $1`,
@@ -160,8 +160,11 @@ const verifyConsentSigningIdentity = async (req, res) => {
 
     const organizationName = await getCompanyName();
     res.set('Cache-Control', 'no-store');
+    // Named only now that the date of birth has been confirmed.
+    const childName = `${request.patient_first_name || ''} ${request.patient_last_name || ''}`.trim();
     res.json({
       success: true,
+      childName,
       recipientName: request.recipient_name,
       purpose: request.purpose,
       recordTypes: request.record_types,

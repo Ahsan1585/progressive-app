@@ -13,6 +13,7 @@ jest.mock('../patientRecordExportController', () => ({
   drawBillingSection: jest.fn(),
 }));
 
+const zlib = require('zlib');
 const { PDFDocument } = require('pdf-lib');
 const { pool } = require('../../config/db');
 const { downloadFile } = require('../../config/storage');
@@ -121,4 +122,31 @@ describe('consent page wording', () => {
     const copy = buildConsentCopy(paperConsent({ source: 'electronic' }), { scanStatus: 'attached' });
     expect(Object.fromEntries(copy.rows)['Signed paper form:']).toBeUndefined();
   });
+});
+
+// Decoded text of one page: pdf-lib writes standard-font text as hex strings in
+// Flate-compressed content streams.
+async function pageText(bytes, index) {
+  const doc = await PDFDocument.load(bytes);
+  const contents = doc.getPage(index).node.Contents();
+  const streams = contents.constructor.name === 'PDFArray' ? contents.asArray().map((r) => doc.context.lookup(r)) : [contents];
+  return streams.map((st) => {
+    const raw = Buffer.from(st.getContents());
+    try { return zlib.inflateSync(raw).toString('latin1'); } catch { return raw.toString('latin1'); }
+  }).join(' ');
+}
+const hex = (text) => Buffer.from(text, 'latin1').toString('hex').toUpperCase();
+
+describe('the consent page in a packet names the child', () => {
+  test('page 2 (the consent copy) carries the child name, not only the cover', async () => {
+    const bytes = await build(paperConsent({ paper_scan_path: null }));
+    const consentPage = (await pageText(bytes, 1)).toUpperCase();
+    expect(consentPage).toContain(hex('Child:'));
+    expect(consentPage).toContain(hex('Timmy OBrien'));
+  });
+});
+
+test('sanity: the text decoder reads the cover page (which already names the child)', async () => {
+  const bytes = await build(paperConsent({ paper_scan_path: null }));
+  expect((await pageText(bytes, 0)).toUpperCase()).toContain(hex('Timmy OBrien'));
 });

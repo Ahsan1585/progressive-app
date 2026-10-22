@@ -26,7 +26,8 @@ const past = () => new Date(Date.now() - 1e6).toISOString();
 
 const requestRow = (o = {}) => ({
   id: 'req1', patient_id: 42, consent_id: 77, requested_by: 7, manage_token_hash: sha(RAW),
-  manage_failed_attempts: 0, manage_locked_at: null, patient_dob: '2024-03-05', ...o,
+  manage_failed_attempts: 0, manage_locked_at: null, patient_dob: '2024-03-05',
+  patient_first_name: 'Timmy', patient_last_name: 'Tester', ...o,
 });
 const consentRow = (o = {}) => ({
   id: 77, patient_id: 42, recipient_name: 'ABC Billing', recipient_email: 'billing@abc.org', purpose: 'Billing',
@@ -70,7 +71,7 @@ describe('landing', () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const page = html(res);
     expect(page).toMatch(/type="date"/);
-    expect(page).not.toMatch(/ABC Billing|billing@abc/);
+    expect(page).not.toMatch(/ABC Billing|billing@abc|Timmy|Tester/);
     expect(res.headers['Cache-Control']).toBe('no-store');
     expect(pool.query.mock.calls.every(([sql]) => !/^\s*UPDATE/.test(sql))).toBe(true);
   });
@@ -101,6 +102,7 @@ describe('view', () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const page = html(res);
     expect(page).toMatch(/ABC Billing/);
+    expect(page).toMatch(/Timmy Tester/);
     expect(page).toMatch(/Withdraw my consent/);
     expect(page).toMatch(/Download a copy/);
   });
@@ -190,6 +192,7 @@ describe('copy', () => {
     buildConsentCopyPdf.mockResolvedValue(new Uint8Array([37, 80, 68, 70]));
     const res = mockRes();
     await ctrl.downloadCopy(pubReq({ dob: '2024-03-05' }), res);
+    expect(buildConsentCopyPdf).toHaveBeenCalledWith(expect.objectContaining({ childName: 'Timmy Tester' }));
     expect(res.headers['Content-Type']).toBe('application/pdf');
     expect(res.headers['Cache-Control']).toBe('no-store');
     expect(Buffer.isBuffer(res.send.mock.calls[0][0])).toBe(true);
