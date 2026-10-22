@@ -1071,7 +1071,34 @@ function CustomizeToggle({ active, onToggle }) {
 // than a fixed-column grid, since a grid can't let some rows have one
 // full-width item and others have two half-width items without naming
 // explicit row/column spans per card.
-function DraggableCard({ cardKey, width, isCustomizing, isDragging, dropPos, onDragStart, onDragOver, onDrop, onDragEnd, onToggleWidth, children }) {
+// While arranging, each card is shown as a compact numbered tile instead of its
+// full content, so all of them fit on one screen and every drop spot is in view.
+// Pressing Done shows the real cards in the arranged order.
+const CARD_META = {
+  billing_pipeline: { title: 'Billing pipeline', hint: 'Logged, reviewed, invoiced, paid' },
+  action_queue: { title: 'What needs you', hint: 'Sessions on hold waiting for a decision' },
+  services_breakdown: { title: 'Services provided', hint: 'Sessions by type, status, location' },
+  documents_feed: { title: 'Invoices & SEVF forms', hint: 'Recent documents and their status' },
+  accuracy_table: { title: 'Practitioner accuracy', hint: 'Who is submitting clean logs' },
+  eims_status: { title: 'EIMS match status', hint: 'Matched, mismatched, missing' },
+  returned_logs: { title: 'Returned logs', hint: 'Logs billing sent back' },
+  trajectory_chart: { title: 'Where this is headed', hint: 'Monthly and yearly volume' },
+};
+
+function LayoutTile({ cardKey, index }) {
+  const meta = CARD_META[cardKey] || { title: cardKey, hint: '' };
+  return (
+    <div className="h-full min-h-[96px] rounded-2xl border-2 border-slate-300 bg-white px-5 py-4 pr-24 flex items-center gap-4 shadow-sm">
+      <div className="size-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-[18px] font-extrabold font-mono flex-shrink-0">{index + 1}</div>
+      <div className="min-w-0">
+        <div className="text-[20px] font-extrabold tracking-tight leading-tight text-slate-900 truncate">{meta.title}</div>
+        <div className="text-[14px] text-slate-600 truncate">{meta.hint}</div>
+      </div>
+    </div>
+  );
+}
+
+function DraggableCard({ cardKey, width, isCustomizing, compact, isDragging, dropPos, onDragStart, onDragOver, onDrop, onDragEnd, onToggleWidth, children }) {
   return (
     <div
       draggable={isCustomizing}
@@ -1079,7 +1106,7 @@ function DraggableCard({ cardKey, width, isCustomizing, isDragging, dropPos, onD
       onDragOver={isCustomizing ? (e) => { e.preventDefault(); onDragOver(e, cardKey, width); } : undefined}
       onDrop={isCustomizing ? (e) => { e.preventDefault(); onDrop(e, cardKey, width); } : undefined}
       onDragEnd={isCustomizing ? onDragEnd : undefined}
-      className={`relative w-full ${width === 'half' ? '@4xl:w-[calc(50%-0.75rem)] [&>div:last-child]:h-full [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child>:last-child]:flex-1' : ''} ${isCustomizing ? 'outline outline-2 outline-dashed outline-slate-300 outline-offset-2 rounded-2xl cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-40' : ''}`}
+      className={`relative w-full ${width === 'half' ? `${compact ? 'w-[calc(50%-0.75rem)]' : '@4xl:w-[calc(50%-0.75rem)]'} [&>div:last-child]:h-full [&>div:last-child]:flex [&>div:last-child]:flex-col [&>div:last-child>:last-child]:flex-1` : ''} ${isCustomizing && !compact ? 'outline outline-2 outline-dashed outline-slate-300 outline-offset-2 rounded-2xl' : ''} ${isCustomizing ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-40' : ''}`}
     >
       {/* Where the dragged card will land: a bar on the near edge of this card
           (left/right beside a half-width card, top/bottom above or below a full one). */}
@@ -1094,7 +1121,7 @@ function DraggableCard({ cardKey, width, isCustomizing, isDragging, dropPos, onD
         />
       )}
       {isCustomizing && (
-        <div className="absolute -top-3 right-3 flex items-center gap-1 z-10">
+        <div className={`absolute ${compact ? 'top-1/2 -translate-y-1/2' : '-top-3'} right-3 flex items-center gap-1 z-10`}>
           <button
             type="button"
             onClick={() => onToggleWidth(cardKey)}
@@ -1134,6 +1161,7 @@ export function CompanyDashboard() {
   const [isCustomizing, setIsCustomizing] = useState(false);
   const dragKeyRef = useRef(null);
   const [draggingKey, setDraggingKey] = useState(null);
+  const editorRef = useRef(null);
   const [dropHint, setDropHint] = useState(null); // { key, pos: 'before' | 'after' } | null
 
   useEffect(() => {
@@ -1200,6 +1228,11 @@ export function CompanyDashboard() {
     }
     clearDrag();
   };
+  // Bring the arranging area into view when Customize is switched on.
+  useEffect(() => {
+    if (isCustomizing) editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isCustomizing]);
+
   const handleResetLayout = () => {
     setCardLayout(DEFAULT_CARD_LAYOUT);
     persistCardLayout(DEFAULT_CARD_LAYOUT);
@@ -1323,25 +1356,25 @@ export function CompanyDashboard() {
         </div>
       </div>
 
-      <div className="@container">
+      <div className="@container" ref={editorRef}>
       {isCustomizing && (
-        <div className="rounded-xl bg-slate-900 text-white px-4 py-3 text-[15px] flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="font-extrabold">Customizing</span>
-          <span className="text-slate-300">
-            Drag a card and drop it where you want it: the teal bar shows where it will land. Drop it beside a half-width card to place it next to it. Use Full / Half on a card to resize it.
+        <div className="rounded-xl bg-slate-900 text-white px-5 py-4 mb-5 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="text-[18px] font-extrabold">Arrange your dashboard</span>
+          <span className="text-[15px] text-slate-300">
+            Drag a tile to where you want it. A teal bar shows where it will land; drop it beside a Half tile to sit next to it, and use Full / Half to resize. Press Done to see your dashboard.
           </span>
         </div>
       )}
-        {/* Zoomed out while customizing so most of the cards fit on screen and can
-            be dragged between rows. `zoom` shrinks the layout itself (a transform
-            would leave the original space behind). */}
-        <div className="flex flex-wrap gap-6" style={isCustomizing ? { zoom: 0.62 } : undefined}>
-        {cardLayout.map(({ key, width }) => (
+        {/* While customizing the cards are compact numbered tiles, so every card and
+            every drop spot is visible at once. */}
+        <div className="flex flex-wrap gap-6">
+        {cardLayout.map(({ key, width }, index) => (
           <DraggableCard
             key={key}
             cardKey={key}
             width={width}
             isCustomizing={isCustomizing}
+            compact={isCustomizing}
             isDragging={draggingKey === key}
             dropPos={dropHint && dropHint.key === key ? dropHint.pos : null}
             onDragStart={handleDragStart}
@@ -1350,14 +1383,14 @@ export function CompanyDashboard() {
             onDragEnd={clearDrag}
             onToggleWidth={handleToggleWidth}
           >
-            {cardsByKey[key]}
+            {isCustomizing ? <LayoutTile cardKey={key} index={index} /> : cardsByKey[key]}
           </DraggableCard>
         ))}
         {isCustomizing && (
           <div
             onDragOver={(e) => { if (dragKeyRef.current) { e.preventDefault(); setDropHint((h) => (h ? null : h)); } }}
             onDrop={handleDropAtEnd}
-            className="w-full rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 text-[18px] font-bold text-center py-8"
+            className="w-full rounded-2xl border-2 border-dashed border-slate-300 text-slate-600 text-[16px] font-bold text-center py-5"
           >
             Drop here to move a card to the end
           </div>
