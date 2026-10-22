@@ -7,11 +7,13 @@ const { isValidIntId } = require('../utils/consentValidation');
 //
 //  - admin (req.isAdmin) or a role holding `patient_record_rights`: any
 //    child (only checks the child exists, so a bad id is a clean 404).
-//  - practitioner / independent_practitioner: only a child on their own
-//    caseload. Same ownership rule as every other per-patient endpoint: a
-//    practitioner whose link was ended by an office reassignment
-//    (deactivated_reason = 'reassigned') loses access immediately
-//    (303.404); a child they self-discharged stays theirs.
+//  - independent_practitioner: only their own child (they are their own
+//    office). Same ownership rule as every other per-patient endpoint: a link
+//    ended by a reassignment (deactivated_reason = 'reassigned') loses access
+//    immediately (303.404); a child they self-discharged stays theirs.
+//  - agency practitioners (role 'practitioner'): NO access. Consents are
+//    handled by the office only, so a practitioner is refused even for a child
+//    on their own caseload unless they were also given patient_record_rights.
 //  - everyone else: 403.
 const FORBIDDEN = { error: 'Forbidden: insufficient permissions' };
 
@@ -25,7 +27,7 @@ const requireConsentAccess = async (req, res, next) => {
       if (!rows[0]) return res.status(404).json({ success: false, error: 'Patient not found.' });
       return next();
     }
-    if (['practitioner', 'independent_practitioner'].includes(req.practitioner?.role)) {
+    if (req.practitioner?.role === 'independent_practitioner') {
       const { rows } = await pool.query(
         "SELECT 1 FROM patient_practitioners WHERE patient_id = $1 AND practitioner_id = $2 AND deactivated_reason IS DISTINCT FROM 'reassigned'",
         [patientId, req.practitioner.practitionerId]

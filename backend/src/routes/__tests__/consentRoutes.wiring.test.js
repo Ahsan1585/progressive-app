@@ -44,7 +44,7 @@ describe('patientRoutes consent disclosure packet', () => {
     const gate = r.handles[2];
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     const next = jest.fn();
-    // A caseload practitioner (who passes requireConsentAccess) does NOT pass here.
+    // A user with neither admin nor patient_record_rights does NOT pass here.
     gate({ isAdmin: false, permissions: new Set() }, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
     gate({ isAdmin: false, permissions: new Set(['patient_record_rights']) }, res, next);

@@ -51,40 +51,48 @@ describe('requireConsentAccess (consent endpoints authorization matrix)', () => 
     expect(next).toHaveBeenCalled();
   });
 
-  test('a practitioner may act on a child in their own active caseload', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+  test('an agency practitioner is refused even for a child on their own caseload (consents are the office\'s job)', async () => {
     const next = jest.fn();
-    await requireConsentAccess(mkReq({ role: 'practitioner' }), mkRes(), next);
-    expect(next).toHaveBeenCalled();
-    const [sql, params] = pool.query.mock.calls[0];
-    expect(sql).toMatch(/patient_practitioners/);
-    expect(sql).toContain("deactivated_reason IS DISTINCT FROM 'reassigned'");
-    expect(params).toEqual(['42', 7]);
+    const res = mkRes();
+    await requireConsentAccess(mkReq({ role: 'practitioner' }), res, next);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+    expect(pool.query).not.toHaveBeenCalled();
   });
 
-  test('an independent practitioner may act on their own child', async () => {
+  test('an agency practitioner who was also given patient_record_rights is the office, so they may act', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 42 }] });
+    const next = jest.fn();
+    await requireConsentAccess(mkReq({ role: 'practitioner', permissions: ['patient_record_rights'] }), mkRes(), next);
+    expect(next).toHaveBeenCalled();
+  });
+
+  test('an independent practitioner keeps access to their own child (their own ownership query)', async () => {
     pool.query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
     const next = jest.fn();
     await requireConsentAccess(mkReq({ role: 'independent_practitioner' }), mkRes(), next);
     expect(next).toHaveBeenCalled();
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/patient_practitioners/);
+    expect(params).toEqual(['42', 7]);
   });
 
-  test("a practitioner gets 403 for another practitioner's child", async () => {
+  test("an independent practitioner gets 403 for a child that is not theirs", async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     const next = jest.fn();
     const res = mkRes();
-    await requireConsentAccess(mkReq({ role: 'practitioner' }), res, next);
+    await requireConsentAccess(mkReq({ role: 'independent_practitioner' }), res, next);
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  test('a reassigned-away practitioner gets 403 (the ownership query excludes reassigned rows)', async () => {
+  test('a reassigned-away independent practitioner gets 403 (the ownership query excludes reassigned rows)', async () => {
     // The DB applies the exclusion; the row for a reassigned practitioner is
     // filtered out, so the query comes back empty.
     pool.query.mockResolvedValueOnce({ rows: [] });
     const next = jest.fn();
     const res = mkRes();
-    await requireConsentAccess(mkReq({ role: 'practitioner', practitionerId: 9 }), res, next);
+    await requireConsentAccess(mkReq({ role: 'independent_practitioner', practitionerId: 9 }), res, next);
     expect(pool.query.mock.calls[0][0]).toContain("deactivated_reason IS DISTINCT FROM 'reassigned'");
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
@@ -103,7 +111,7 @@ describe('requireConsentAccess (consent endpoints authorization matrix)', () => 
     const err = new Error('boom');
     pool.query.mockRejectedValueOnce(err);
     const next = jest.fn();
-    await requireConsentAccess(mkReq({ role: 'practitioner' }), mkRes(), next);
+    await requireConsentAccess(mkReq({ role: 'independent_practitioner' }), mkRes(), next);
     expect(next).toHaveBeenCalledWith(err);
   });
 });

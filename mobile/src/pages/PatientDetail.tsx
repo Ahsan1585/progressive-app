@@ -393,7 +393,9 @@ export default function PatientDetail() {
           </div>
         )}
 
-        {patient && (
+        {/* Records-sharing consents are handled by the office. Only independent
+            practitioners (their own office) manage them from the app. */}
+        {patient && isIndependentPractitioner && (
           <div id="consents" className="mb-4 rounded-card border border-border bg-surface p-4 shadow-[var(--elev-rest)]">
             <PatientConsents patientId={patient.id} />
           </div>
