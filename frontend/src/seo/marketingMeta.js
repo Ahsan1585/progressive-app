@@ -14,10 +14,31 @@ const SITE_URL = 'https://izayaedge.com';
 
 export const MARKETING_META = {
   '/': {
-    title: 'Izaya EIS | NJ Early Intervention Billing Software',
+    title: 'Early Intervention Billing Software for NJ Agencies | Izaya EIS',
     description:
-      'Izaya EISimplified™ is the billing platform built for early intervention agencies. Practitioners log a session on their phone — the system handles validation, SEVF, and invoicing automatically.',
+      'Close your NJ early intervention billing in hours, not weeks. EIMS matching, SEVFs and invoices, service logs, and consents in one platform. Start a 30-day free pilot.',
     path: '/eis',
+    // Software structured data so search engines can classify the product and
+    // who it serves. Only claims the product measurably backs.
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'Izaya EIS',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web, iOS, Android',
+      url: 'https://izayaedge.com/eis',
+      description:
+        'Early intervention software for New Jersey agencies: practitioners log sessions in about 30 seconds, errors are caught against EIMS records before billing, and SEVFs and invoices are generated for the agency.',
+      audience: { '@type': 'Audience', audienceType: 'New Jersey early intervention agencies' },
+      areaServed: { '@type': 'State', name: 'New Jersey' },
+      featureList: [
+        'EIMS reconciliation',
+        'SEVF and invoice generation',
+        'Practitioner session logging',
+        'Consent and records management',
+      ],
+      publisher: { '@type': 'Organization', name: 'Izaya Consulting LLC', url: 'https://izayaedge.com' },
+    },
   },
   '/how-it-works': {
     title: 'How It Works | Izaya EIS',

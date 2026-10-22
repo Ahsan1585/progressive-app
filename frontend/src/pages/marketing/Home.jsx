@@ -50,10 +50,10 @@ export default function Home() {
       <section className="mk-home-hero">
         <div className="mk-home-hero-inner">
           <div>
-            <div className="mk-eyebrow">Smart billing platform</div>
-            <h1>Weeks of billing work,<br /><span className="mk-accent">done in minutes.</span></h1>
+            <div className="mk-eyebrow">Built for New Jersey early intervention agencies</div>
+            <h1>Early intervention software that <span className="mk-accent">bills in hours</span> and runs your whole agency.</h1>
             <p className="mk-home-hero-sub">
-              Izaya EISimplified™ is the billing platform built for early intervention agencies. Your practitioners log a session — the system handles validation, SEVF, and invoicing.
+              Practitioners log a session in 30 seconds. Izaya EIS catches errors, matches EIMS, and builds your SEVFs and invoices.
             </p>
             <div className="mk-home-hero-ctas">
               <Link to="/contact" className="mk-btn-primary">
@@ -191,7 +191,7 @@ export default function Home() {
         <div className="mk-section-inner">
           <div className="mk-cta-band">
             <div>
-              <h2>Weeks of billing work.<br />Done in minutes.</h2>
+              <h2>Early intervention billing in hours,<br />not weeks.</h2>
               <p>Let us show you how Izaya EISimplified™ can transform your billing workflow — from session log to SEVF and invoice.</p>
             </div>
             <div className="mk-cta-band-actions">
