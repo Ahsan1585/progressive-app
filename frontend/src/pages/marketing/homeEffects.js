@@ -121,7 +121,7 @@ export function initHome() {
   }
   function runCatch(){
     const tiles = $$('.tile', tilesEl), note = $('#flagNote'), count = $('#catchCount');
-    const finish = () => { tiles[6].classList.remove('flag'); tiles[6].classList.add('ok'); note.classList.add('show','fixed'); $('#flagText').textContent = 'Note 07 corrected by the practitioner and approved'; count.textContent = '10 of 10 clean'; };
+    const finish = () => { tiles[6].classList.remove('flag'); tiles[6].classList.add('ok'); note.classList.add('show','is-fixed'); $('#flagText').textContent = 'Note 07 corrected by the practitioner and approved'; count.textContent = '10 of 10 clean'; };
     if (reduce){ tiles.forEach((t) => t.classList.add('ok')); finish(); return; }
     tiles.forEach((t,i) => T.timeout(() => {
       if (i === 6){ t.classList.add('flag'); note.classList.add('show'); }
@@ -154,8 +154,8 @@ export function initHome() {
         el.classList.add('on');
         $$('[data-count]', el).forEach(countUp);
         if (el.classList.contains('c-c')){
-          if (reduce) dotsEl.classList.add('lit','fixed');
-          else { dotsEl.classList.add('lit'); T.timeout(() => dotsEl.classList.add('fixed'), 1600); }
+          if (reduce) dotsEl.classList.add('lit','is-fixed');
+          else { dotsEl.classList.add('lit'); T.timeout(() => dotsEl.classList.add('is-fixed'), 1600); }
         }
       }
       watchIO.unobserve(el);

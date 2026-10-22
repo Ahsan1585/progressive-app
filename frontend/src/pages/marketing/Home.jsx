@@ -247,7 +247,7 @@ export default function Home() {
             <h2 className="scene-title">Log<span className="accent">.</span></h2>
             <p className="scene-cap">A session is logged once, on any phone.</p>
             <div className="log-wrap">
-              <div className="ring">
+              <div className="eh-ring">
                 <svg viewBox="0 0 200 200" aria-hidden="true"><circle className="track" cx="100" cy="100" r="90"></circle><circle className="bar" cx="100" cy="100" r="90"></circle></svg>
                 <div className="ring-center"><div><strong className="mono" id="logTimer">0</strong><span>of 10 captured</span></div></div>
               </div>
@@ -291,7 +291,7 @@ export default function Home() {
                 <div className="sheet"><small>Invoice</small><b>INV-2026</b><i className="ln w70"></i><i className="ln w85"></i><i className="ln w55"></i><i className="ln"></i><i className="ln w70"></i><div className="tot"><span>Time + amount</span><span className="stamp"><Ic n="check-circle-2" />Ready</span></div></div>
               </div>
               <div className="eims">
-                <div className="ring">
+                <div className="eh-ring">
                   <svg viewBox="0 0 160 160" aria-hidden="true"><circle className="track" cx="80" cy="80" r="70"></circle><circle className="bar" cx="80" cy="80" r="70"></circle></svg>
                   <div className="ring-center"><div><strong className="mono">11/11</strong><span>fields match</span></div></div>
                 </div>
@@ -447,7 +447,7 @@ export default function Home() {
 
         <div className="cell c-b tone-dark" data-watch>
           <h3>Matched to EIMS.</h3>
-          <div className="ring">
+          <div className="eh-ring">
             <svg viewBox="0 0 160 160" aria-hidden="true"><circle className="track" cx="80" cy="80" r="70"></circle><circle className="bar" cx="80" cy="80" r="70"></circle></svg>
             <div className="ring-center"><div><strong className="mono">11/11</strong><span>fields per note</span></div></div>
           </div>

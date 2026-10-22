@@ -27,7 +27,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+// renderToString (not renderToStaticMarkup): it keeps React's text-node
+// markers, so hydrateRoot can adopt the prerendered DOM. Static markup merges
+// adjacent text ("© " + year) into one node, which React reports as a
+// hydration mismatch and then throws the prerendered page away.
+import { renderToString } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom';
 import { MARKETING_META } from '../src/seo/marketingMeta.js';
 
@@ -140,7 +144,7 @@ async function main() {
     // basename "/eis" makes the router see a location that doesn't start
     // with its own basename, so it matches nothing and renders null. This
     // bit us during the first build (silently: no error, just empty output).
-    const bodyHtml = renderToStaticMarkup(
+    const bodyHtml = renderToString(
       React.createElement(
         StaticRouter,
         { basename: BASE, location: `${BASE}${routePath === '/' ? '' : routePath}` },
