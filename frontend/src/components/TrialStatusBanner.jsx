@@ -28,8 +28,8 @@ export function TrialStatusBanner() {
       <div className="flex gap-3 items-start bg-red-50 border border-red-200 rounded-xl px-5 py-4 mb-4">
         <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
         <div>
-          <h4 className="text-base font-bold text-slate-800 mb-1">Your free trial has ended</h4>
-          <p className="text-sm text-slate-600 leading-relaxed">
+          <h4 className="text-[18px] font-bold text-slate-800 mb-1">Your free trial has ended</h4>
+          <p className="text-[16px] text-slate-600 leading-relaxed">
             {userRole === 'ceo'
               ? 'Add a payment method under Subscription & Billing to keep using Izaya EIS.'
               : 'Ask your admin to add a payment method under Subscription & Billing to keep using Izaya EIS.'}
@@ -43,8 +43,8 @@ export function TrialStatusBanner() {
     <div className="flex gap-3 items-start bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-4">
       <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
       <div>
-        <h4 className="text-base font-bold text-slate-800 mb-1">Free trial</h4>
-        <p className="text-sm text-slate-600 leading-relaxed">
+        <h4 className="text-[18px] font-bold text-slate-800 mb-1">Free trial</h4>
+        <p className="text-[16px] text-slate-600 leading-relaxed">
           {daysLeft === 0 ? 'Your free trial ends today.' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left in your free trial.`}
         </p>
       </div>

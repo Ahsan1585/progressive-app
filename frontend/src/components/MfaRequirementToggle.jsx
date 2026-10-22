@@ -36,11 +36,11 @@ export function MfaRequirementToggle() {
 
   return (
     <div className="space-y-3 border-t border-slate-100 pt-6">
-      <h2 className="text-base font-bold text-slate-800">Security</h2>
+      <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Security</h2>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p id="mfa-required-label" className="text-sm font-semibold text-slate-800">Require two-step verification for everyone</p>
-          <p className="mt-0.5 text-xs text-slate-500">Controls whether people must set up two-step verification when they sign in. Turning this off does not turn it off for people who already set it up: they keep their own setting under Security.</p>
+          <p id="mfa-required-label" className="text-[16px] font-semibold text-slate-800">Require two-step verification for everyone</p>
+          <p className="mt-0.5 text-[14px] text-slate-600">Controls whether people must set up two-step verification when they sign in. Turning this off does not turn it off for people who already set it up: they keep their own setting under Security.</p>
         </div>
         <button
           type="button" role="switch" aria-checked={required} aria-labelledby="mfa-required-label"
@@ -51,7 +51,7 @@ export function MfaRequirementToggle() {
         </button>
       </div>
       {confirming && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 space-y-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[16px] text-slate-700 space-y-3">
           <p>Turn this on? Everyone in your company who has not set up two-step verification will be required to do so at their next login.</p>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={busy}>Cancel</Button>
@@ -60,7 +60,7 @@ export function MfaRequirementToggle() {
         </div>
       )}
       {message && (
-        <p role={message.type === 'error' ? 'alert' : 'status'} className={`text-sm ${message.type === 'error' ? 'text-red-600' : 'text-emerald-700'}`}>{message.text}</p>
+        <p role={message.type === 'error' ? 'alert' : 'status'} className={`text-[16px] ${message.type === 'error' ? 'text-red-600' : 'text-emerald-700'}`}>{message.text}</p>
       )}
     </div>
   );

@@ -126,6 +126,13 @@ const AdminDashboard = () => {
       .catch(() => {});
   }, []);
 
+  // Scope for the larger admin type scale (see index.css); on <body> so dialogs
+  // rendered in portals are covered, and removed again on leaving the admin area.
+  useEffect(() => {
+    document.body.classList.add('admin-type');
+    return () => document.body.classList.remove('admin-type');
+  }, []);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -212,14 +219,14 @@ const AdminDashboard = () => {
                 className="h-10 w-auto max-w-[110px] rounded-lg object-contain flex-shrink-0 border border-slate-700 bg-white p-1"
               />
             )}
-            <h1 className="min-w-0 text-lg font-bold text-white tracking-tight leading-tight">
+            <h1 className="min-w-0 text-[21px] font-extrabold text-white tracking-tight leading-tight">
               {/* Agency names vary a lot in length — this header has plenty of
                   vertical room, so let the name wrap freely across as many
                   lines as it needs rather than ellipsis-truncating it (a
                   cut-off name reads as broken, not just long). Falls back to
                   a generic label, never a real former customer's name. */}
               <div>{companySettings?.display_name || 'Your Agency'}</div>
-              <div className="truncate text-sm font-medium text-slate-400">Admin Portal</div>
+              <div className="truncate text-[16px] font-medium text-slate-500">Admin Portal</div>
             </h1>
           </div>
         </div>
@@ -229,7 +236,7 @@ const AdminDashboard = () => {
           {visibleTabs.includes('overview') && (
             <button
               onClick={() => { setActiveTab('overview'); setSidebarOpen(false); }}
-              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                 activeTab === 'overview'
                   ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                   : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -245,7 +252,7 @@ const AdminDashboard = () => {
           {visibleTabs.includes('practitioners') && (
             <button
               onClick={() => { setActiveTab('practitioners'); setSidebarOpen(false); }}
-              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                 activeTab === 'practitioners'
                   ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                   : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -261,7 +268,7 @@ const AdminDashboard = () => {
           {visibleTabs.includes('reports') && (
             <button
               onClick={() => { setActiveTab('reports'); setSidebarOpen(false); }}
-              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                 activeTab === 'reports'
                   ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                   : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -277,7 +284,7 @@ const AdminDashboard = () => {
           {visibleTabs.includes('billing') && (
             <button
               onClick={() => { setActiveTab('billing'); setSidebarOpen(false); }}
-              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+              className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                 activeTab === 'billing'
                   ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                   : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -297,11 +304,11 @@ const AdminDashboard = () => {
             hide Audit Log / Roles from someone who has those but not Company. */}
         {['company', 'subscription', 'auditLog', 'roles'].some(t => visibleTabs.includes(t)) && (
           <div className="p-4 border-t border-slate-800">
-            <p className="px-4 pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">Useful Links</p>
+            <p className="px-4 pb-2 text-[14px] font-semibold text-slate-600 uppercase tracking-wide">Useful Links</p>
             {visibleTabs.includes('company') && (
               <button
                 onClick={() => { setActiveTab('company'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                   activeTab === 'company'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -316,7 +323,7 @@ const AdminDashboard = () => {
             {visibleTabs.includes('subscription') && (
               <button
                 onClick={() => { setActiveTab('subscription'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                   activeTab === 'subscription'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -331,7 +338,7 @@ const AdminDashboard = () => {
             {visibleTabs.includes('auditLog') && (
               <button
                 onClick={() => { setActiveTab('auditLog'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                   activeTab === 'auditLog'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -346,7 +353,7 @@ const AdminDashboard = () => {
             {visibleTabs.includes('roles') && (
               <button
                 onClick={() => { setActiveTab('roles'); setSidebarOpen(false); }}
-                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                className={`w-full cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[15px] font-semibold ${
                   activeTab === 'roles'
                     ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                     : 'text-slate-300 hover:bg-slate-900 hover:text-white'
@@ -364,7 +371,7 @@ const AdminDashboard = () => {
 
         <div className="p-4 border-t border-slate-800 flex flex-col items-center">
           <BrandLockup size="sm" align="center" dark />
-          <p className="text-xs text-slate-400 text-center font-medium mt-1.5">Securely Powered by Izaya</p>
+          <p className="text-[14px] text-slate-500 text-center font-medium mt-1.5">Securely Powered by Izaya</p>
         </div>
       </aside>
 
@@ -373,7 +380,7 @@ const AdminDashboard = () => {
         <header className="print:hidden relative h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm shrink-0 z-10">
           <div className="flex items-center gap-3">
             <button
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
               onClick={toggleSidebar}
               aria-label="Toggle menu"
               title="Toggle menu"
@@ -398,12 +405,12 @@ const AdminDashboard = () => {
                   className="h-8 w-auto max-w-[90px] flex-shrink-0 rounded-md border border-slate-200 object-contain bg-white p-0.5"
                 />
               )}
-              <span className="truncate text-sm font-semibold text-slate-800">
+              <span className="truncate text-[16px] font-semibold text-slate-800">
                 {companySettings?.display_name || 'Progressive Steps'}
               </span>
             </div>
           </div>
-          <h2 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-slate-800 capitalize tracking-tight whitespace-nowrap">
+          <h2 className="absolute left-1/2 -translate-x-1/2 text-[22px] font-extrabold text-slate-900 capitalize tracking-tight whitespace-nowrap">
             {TAB_TITLES[activeTab] || 'Billing & Invoices'}
           </h2>
           <div className="flex items-center gap-3">
@@ -414,17 +421,17 @@ const AdminDashboard = () => {
                   profilePicture={adminProfile.profile_picture}
                   size="size-6"
                 />
-                <span className="text-sm font-semibold text-slate-700">
+                <span className="text-[16px] font-semibold text-slate-700">
                   {adminProfile.first_name} {adminProfile.last_name}
                 </span>
-                <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">
+                <span className="text-[14px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">
                   {me?.isAdmin ? 'Admin' : (me?.roleName || 'Staff')}
                 </span>
               </div>
             )}
             <button
               onClick={() => setSecurityOpen(true)}
-              className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
+              className="flex items-center gap-1.5 text-[16px] font-medium text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
               title="Security"
             >
               <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -434,7 +441,7 @@ const AdminDashboard = () => {
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
+              className="flex items-center gap-1.5 text-[16px] font-medium text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 md:px-4 py-2 rounded-lg transition-all min-h-[44px] cursor-pointer"
               title="Sign Out"
             >
               <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -446,7 +453,7 @@ const AdminDashboard = () => {
         </header>
 
         {me?.isImpersonating && (
-          <div className="print:hidden shrink-0 flex items-center justify-between gap-3 bg-amber-500 text-amber-950 px-4 md:px-8 py-2 text-sm font-semibold">
+          <div className="print:hidden shrink-0 flex items-center justify-between gap-3 bg-amber-500 text-amber-950 px-4 md:px-8 py-2 text-[16px] font-semibold">
             <span>
               Viewing {companySettings?.display_name || 'this company'} as Izaya Support
               {me.impersonatedBy ? ` (${me.impersonatedBy})` : ''}
@@ -454,7 +461,7 @@ const AdminDashboard = () => {
             <button
               type="button"
               onClick={handleExitImpersonation}
-              className="flex-shrink-0 rounded-md border border-amber-950/30 bg-white/60 px-3 py-1 text-xs font-bold uppercase tracking-wide hover:bg-white cursor-pointer"
+              className="flex-shrink-0 rounded-md border border-amber-950/30 bg-white/60 px-3 py-1 text-[14px] font-bold uppercase tracking-wide hover:bg-white cursor-pointer"
             >
               Exit to Platform Admin
             </button>

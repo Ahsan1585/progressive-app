@@ -77,7 +77,7 @@ const NewRoleCard = ({ onCreated, onCancel }) => {
 
   return (
     <div className="bg-teal-50/40 border border-dashed border-teal-200 rounded-2xl p-5">
-      <label className="block text-sm font-bold text-slate-700 mb-1.5" htmlFor="new-role-name">New role name</label>
+      <label className="block text-[16px] font-bold text-slate-700 mb-1.5" htmlFor="new-role-name">New role name</label>
       <div className="flex items-center gap-2">
         <Input
           id="new-role-name"
@@ -95,8 +95,8 @@ const NewRoleCard = ({ onCreated, onCancel }) => {
           Cancel
         </Button>
       </div>
-      {error && <p className="text-xs text-red-600 mt-1.5">{error}</p>}
-      <p className="text-xs text-slate-500 mt-2">Starts with just "View staff directory" checked — grant more permissions below once it's created.</p>
+      {error && <p className="text-[14px] text-red-600 mt-1.5">{error}</p>}
+      <p className="text-[14px] text-slate-600 mt-2">Starts with just "View staff directory" checked — grant more permissions below once it's created.</p>
     </div>
   );
 };
@@ -108,9 +108,9 @@ const RoleCard = ({ role, savingId, onToggle, onDelete }) => {
     <div className="bg-white border border-slate-200 rounded-2xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-base font-bold text-slate-800">{role.name}</span>
+          <span className="text-[18px] font-bold text-slate-800">{role.name}</span>
           {role.is_system && (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[14px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full">
               <ShieldCheck className="w-3 h-3" /> Fixed — full access
             </span>
           )}
@@ -122,7 +122,7 @@ const RoleCard = ({ role, savingId, onToggle, onDelete }) => {
             aria-label={`Delete ${role.name}`}
             title="Delete role"
             disabled={isSaving}
-            className="w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-wait"
+            className="w-9 h-9 rounded-md border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-wait"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -130,19 +130,19 @@ const RoleCard = ({ role, savingId, onToggle, onDelete }) => {
       </div>
 
       {role.is_system ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-[16px] text-slate-600">
           The Admin role always has access to every feature and cannot be edited or deleted.
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
           {PERMISSION_GROUPS.map((group) => (
             <div key={group.label}>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">{group.label}</div>
+              <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">{group.label}</div>
               <div className="space-y-1">
                 {group.keys.map((key) => {
                   const inputId = `role-${role.id}-${key}`;
                   return (
-                    <label key={key} htmlFor={inputId} className="flex items-center gap-2 text-sm text-slate-700 py-1 cursor-pointer">
+                    <label key={key} htmlFor={inputId} className="flex items-center gap-2 text-[16px] text-slate-700 py-1 cursor-pointer">
                       <input
                         id={inputId}
                         type="checkbox"
@@ -223,16 +223,16 @@ const RoleManagement = () => {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center py-24 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    return <div className="flex items-center justify-center py-24 text-slate-500"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-xs font-bold tracking-wide uppercase text-teal-600 mb-1.5">Admin Settings</p>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">Roles &amp; Permissions</h1>
-          <p className="text-base text-slate-600 max-w-2xl leading-relaxed">
+          <p className="text-[14px] font-bold tracking-wide uppercase text-teal-600 mb-1.5">Admin Settings</p>
+          <h1 className="text-[34px] font-extrabold text-slate-900 mb-2 tracking-tight leading-tight">Roles &amp; Permissions</h1>
+          <p className="text-[18px] text-slate-600 max-w-2xl leading-relaxed">
             Control what each role can see and do across the app. Changes take effect immediately for anyone holding that role — they don't need to log back in.
           </p>
         </div>
@@ -255,7 +255,7 @@ const RoleManagement = () => {
           <RoleCard key={role.id} role={role} savingId={savingId} onToggle={togglePermission} onDelete={deleteRole} />
         ))}
         {roles.length === 0 && (
-          <div className="text-center py-8 text-sm text-slate-500">No roles found.</div>
+          <div className="text-center py-8 text-[16px] text-slate-600">No roles found.</div>
         )}
       </div>
     </div>

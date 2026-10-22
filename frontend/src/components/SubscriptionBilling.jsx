@@ -29,7 +29,7 @@ const STATUS_STYLES = {
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
   overdue: 'bg-red-50 text-red-700 border-red-200',
   failed: 'bg-red-50 text-red-700 border-red-200',
-  void: 'bg-slate-100 text-slate-500 border-slate-200',
+  void: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 // --- Card (Stripe Elements) setup form — mounted only once a publishable
@@ -84,7 +84,7 @@ function CardSetupForm({ onSaved, setToast }) {
         {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
         Save Payment Method
       </Button>
-      <div className="flex items-center justify-center gap-1.5 mt-3 text-sm text-slate-500">
+      <div className="flex items-center justify-center gap-1.5 mt-3 text-[16px] text-slate-600">
         <ShieldCheck className="w-4 h-4" /> Processed securely by Stripe — card details never touch Izaya's servers
       </div>
     </form>
@@ -141,11 +141,11 @@ function GooglePaySetupForm({ totalAmount, onSaved, setToast }) {
   }, [stripe]);
 
   if (checking) {
-    return <div className="text-sm text-slate-500 text-center py-6">Checking Google Pay availability…</div>;
+    return <div className="text-[16px] text-slate-600 text-center py-6">Checking Google Pay availability…</div>;
   }
   if (!paymentRequest) {
     return (
-      <div className="text-sm text-slate-600 text-center py-6 px-4 leading-relaxed">
+      <div className="text-[16px] text-slate-600 text-center py-6 px-4 leading-relaxed">
         Google Pay isn't available in this browser. Try Chrome on a device with a saved Google Pay card, or use the Card tab instead.
       </div>
     );
@@ -306,23 +306,23 @@ export const SubscriptionBilling = () => {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center py-24 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    return <div className="flex items-center justify-center py-24 text-slate-500"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
   if (!summary) return null;
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-bold tracking-wide uppercase text-teal-600 mb-1.5">Admin Settings</p>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">Subscription &amp; Billing</h1>
-        <p className="text-base text-slate-600 max-w-2xl leading-relaxed">
+        <p className="text-[14px] font-bold tracking-wide uppercase text-teal-600 mb-1.5">Admin Settings</p>
+        <h1 className="text-[34px] font-extrabold text-slate-900 mb-2 tracking-tight leading-tight">Subscription &amp; Billing</h1>
+        <p className="text-[18px] text-slate-600 max-w-2xl leading-relaxed">
           Your plan is <span className="font-semibold text-slate-800">{money(summary.pricePerPractitioner)} per active practitioner</span> per month, and includes {summary.includedStaffSeats} office staff seats.
           Additional office staff seats are {money(summary.extraStaffSeatPrice)}/month each. Charges are based on who actually logged a session this month.
         </p>
       </div>
 
       {toast && (
-        <div className={`text-sm rounded-lg border px-4 py-3 ${toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-teal-50 border-teal-200 text-teal-700'}`}>
+        <div className={`text-[16px] rounded-lg border px-4 py-3 ${toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-teal-50 border-teal-200 text-teal-700'}`}>
           {toast.message}
         </div>
       )}
@@ -330,37 +330,37 @@ export const SubscriptionBilling = () => {
       {/* METRICS */}
       <div>
         <div className="flex items-center gap-2.5 mb-1.5">
-          <h2 className="text-lg font-bold text-slate-800">Current Billing Period</h2>
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full">
+          <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Current Billing Period</h2>
+          <span className="inline-flex items-center gap-1.5 text-[14px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />In progress
           </span>
         </div>
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-[16px] text-slate-600 mb-4">
           These 3 cards update live as sessions get logged this month ({formatPeriod(summary.periodStart, summary.periodEnd)}) and reset on the 1st. Past closed months are in Invoice History below.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] font-semibold text-slate-600">Active Practitioners</span>
+            <span className="text-[14px] font-semibold text-slate-600">Active Practitioners</span>
             <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center"><Users className="w-4 h-4 text-sky-600" /></div>
           </div>
-          <div className="text-4xl font-bold text-slate-900 tracking-tight">{summary.activePractitionerCount}</div>
-          <div className="text-sm text-slate-500 mt-1.5">of {summary.totalPractitionerCount} total practitioners &middot; {formatPeriod(summary.periodStart, summary.periodEnd)}</div>
-          <div className="text-xs font-semibold text-slate-400 mt-1.5">{money(summary.pricePerPractitioner)} / mo per active practitioner</div>
+          <div className="text-[46px] leading-none font-extrabold text-slate-900 tracking-tight">{summary.activePractitionerCount}</div>
+          <div className="text-[16px] text-slate-600 mt-1.5">of {summary.totalPractitionerCount} total practitioners &middot; {formatPeriod(summary.periodStart, summary.periodEnd)}</div>
+          <div className="text-[14px] font-semibold text-slate-500 mt-1.5">{money(summary.pricePerPractitioner)} / mo per active practitioner</div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] font-semibold text-slate-600">Office Staff</span>
+            <span className="text-[14px] font-semibold text-slate-600">Office Staff</span>
             <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center"><UserCog className="w-4 h-4 text-violet-600" /></div>
           </div>
-          <div className="text-4xl font-bold text-slate-900 tracking-tight">
-            {summary.officeStaffCount}<span className="text-slate-300 text-2xl"> / {summary.includedStaffSeats}</span>
+          <div className="text-[46px] leading-none font-extrabold text-slate-900 tracking-tight">
+            {summary.officeStaffCount}<span className="text-slate-300 text-[34px]"> / {summary.includedStaffSeats}</span>
           </div>
-          <div className="text-sm text-slate-500 mt-1.5">
+          <div className="text-[16px] text-slate-600 mt-1.5">
             {summary.extraStaffSeats > 0 ? `${summary.extraStaffSeats} extra office staff` : 'included in your plan'}
           </div>
-          <div className="text-xs font-semibold text-slate-400 mt-1.5">{summary.includedStaffSeats} seats included &middot; {money(summary.extraStaffSeatPrice)} / mo per extra seat</div>
+          <div className="text-[14px] font-semibold text-slate-500 mt-1.5">{summary.includedStaffSeats} seats included &middot; {money(summary.extraStaffSeatPrice)} / mo per extra seat</div>
         </div>
         </div>
       </div>
@@ -373,25 +373,25 @@ export const SubscriptionBilling = () => {
             <div>
               <div className="flex items-center gap-2.5 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center"><DollarSign className="w-4 h-4 text-teal-600" /></div>
-                <span className="text-[13px] font-semibold text-slate-600">
+                <span className="text-[14px] font-semibold text-slate-600">
                   {outstandingInvoices.length > 1 ? 'Total Amount Due' : 'Current Bill Due'}
                 </span>
               </div>
-              <div className="text-4xl font-bold text-teal-700 tracking-tight mt-1.5">{money(outstandingTotal)}</div>
+              <div className="text-[46px] leading-none font-extrabold text-teal-700 tracking-tight mt-1.5">{money(outstandingTotal)}</div>
               {outstandingInvoices.length === 1 ? (
-                <div className="text-sm text-slate-500 mt-1.5">For {formatPeriod(outstandingInvoices[0].period_start, outstandingInvoices[0].period_end)} &middot; due {formatDate(outstandingDueDate)}</div>
+                <div className="text-[16px] text-slate-600 mt-1.5">For {formatPeriod(outstandingInvoices[0].period_start, outstandingInvoices[0].period_end)} &middot; due {formatDate(outstandingDueDate)}</div>
               ) : (
-                <div className="text-sm text-slate-500 mt-1.5">Combines {outstandingInvoices.length} unpaid invoices &middot; oldest due {formatDate(outstandingDueDate)}</div>
+                <div className="text-[16px] text-slate-600 mt-1.5">Combines {outstandingInvoices.length} unpaid invoices &middot; oldest due {formatDate(outstandingDueDate)}</div>
               )}
             </div>
             <div className="flex flex-col items-end gap-3">
               {hasOverdueInvoice && (
-                <span className="text-xs font-bold border px-2.5 py-1 rounded-full bg-red-50 text-red-700 border-red-200">Overdue</span>
+                <span className="text-[14px] font-bold border px-2.5 py-1 rounded-full bg-red-50 text-red-700 border-red-200">Overdue</span>
               )}
               {hasFailedInvoice && (
-                <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES.failed}`}>Failed</span>
+                <span className={`text-[14px] font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES.failed}`}>Failed</span>
               )}
-              <Button size="lg" onClick={handlePayOutstanding} disabled={isPayingBill} className="h-12 px-8 text-base">
+              <Button size="lg" onClick={handlePayOutstanding} disabled={isPayingBill} className="h-12 px-8 text-[18px]">
                 {isPayingBill ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : null}
                 Pay {money(outstandingTotal)}
               </Button>
@@ -403,14 +403,14 @@ export const SubscriptionBilling = () => {
               always answered right here rather than requiring a trip to
               Invoice History. */}
           <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">How this total is calculated</div>
+            <div className="text-[14px] font-bold uppercase tracking-wide text-slate-500">How this total is calculated</div>
             {outstandingInvoices.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between text-sm">
+              <div key={inv.id} className="flex items-center justify-between text-[16px]">
                 <div className="flex items-center gap-2">
                   <span className="text-slate-600">{formatPeriod(inv.period_start, inv.period_end)}</span>
-                  {inv.status === 'overdue' && <span className="text-[10px] font-bold uppercase text-red-600">Overdue</span>}
-                  {inv.status === 'failed' && <span className="text-[10px] font-bold uppercase text-red-600">Failed</span>}
-                  {inv.status === 'pending' && <span className="text-[11px] font-semibold text-slate-400">Due {formatDate(invoiceDueDate(inv.period_end))}</span>}
+                  {inv.status === 'overdue' && <span className="text-[14px] font-bold uppercase text-red-600">Overdue</span>}
+                  {inv.status === 'failed' && <span className="text-[14px] font-bold uppercase text-red-600">Failed</span>}
+                  {inv.status === 'pending' && <span className="text-[14px] font-semibold text-slate-500">Due {formatDate(invoiceDueDate(inv.period_end))}</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-slate-800">{money(inv.total_amount)}</span>
@@ -418,7 +418,7 @@ export const SubscriptionBilling = () => {
                     type="button"
                     onClick={() => handleDownloadInvoicePdf(inv)}
                     disabled={downloadingId === inv.id}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[14px] font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-wait cursor-pointer"
                   >
                     {downloadingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} PDF
                   </button>
@@ -426,7 +426,7 @@ export const SubscriptionBilling = () => {
               </div>
             ))}
             {outstandingInvoices.length > 1 && (
-              <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between text-[16px] font-bold pt-2 border-t border-slate-200">
                 <span className="text-slate-700">Total due now</span>
                 <span className="text-teal-700">{money(outstandingTotal)}</span>
               </div>
@@ -440,8 +440,8 @@ export const SubscriptionBilling = () => {
         <div className="flex gap-3.5 items-start bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
           <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-base font-bold text-slate-800 mb-1">Next Bill Coming</h4>
-            <p className="text-sm text-slate-600 leading-relaxed">
+            <h4 className="text-[18px] font-bold text-slate-800 mb-1">Next Bill Coming</h4>
+            <p className="text-[16px] text-slate-600 leading-relaxed">
               Your {formatPeriod(summary.periodStart, summary.periodEnd)} bill will be generated and due {formatDate(upcomingBillDueDate)}, on top of the bill still outstanding above.
             </p>
           </div>
@@ -452,8 +452,8 @@ export const SubscriptionBilling = () => {
       <div className="flex gap-3.5 items-start bg-sky-50 border border-sky-200 rounded-xl px-5 py-4">
         <Info className="w-5 h-5 text-sky-600 flex-shrink-0 mt-0.5" />
         <div>
-          <h4 className="text-base font-bold text-slate-800 mb-1.5">How this charge is calculated</h4>
-          <p className="text-sm text-slate-600 leading-relaxed">
+          <h4 className="text-[18px] font-bold text-slate-800 mb-1.5">How this charge is calculated</h4>
+          <p className="text-[16px] text-slate-600 leading-relaxed">
             A practitioner counts as <b className="text-slate-900 font-semibold">active for the entire month</b> the moment they submit one session log — even a single log on the last day of the month bills the full {money(summary.pricePerPractitioner)}.
             Charges are not prorated. Removing a practitioner takes effect the following billing cycle; it does not refund the current one.
             Your first {summary.includedStaffSeats} office staff seats are included at no extra cost — each additional office account beyond that is {money(summary.extraStaffSeatPrice)}/month.
@@ -466,16 +466,16 @@ export const SubscriptionBilling = () => {
         <div className="space-y-5">
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-800">Practitioner Activity</h3>
+              <h3 className="text-[22px] font-extrabold text-slate-900 tracking-tight leading-tight">Practitioner Activity</h3>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />{summary.activePractitionerCount} active</span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />{summary.totalPractitionerCount - summary.activePractitionerCount} no activity</span>
+                <span className="inline-flex items-center gap-1.5 text-[14px] font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />{summary.activePractitionerCount} active</span>
+                <span className="inline-flex items-center gap-1.5 text-[14px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />{summary.totalPractitionerCount - summary.activePractitionerCount} no activity</span>
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-[16px]">
                 <thead>
-                  <tr className="text-left text-[11.5px] font-bold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                  <tr className="text-left text-[14px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-200">
                     <th className="pb-2.5 pr-2">Practitioner</th>
                     <th className="pb-2.5 pr-2">Logs This Month</th>
                     <th className="pb-2.5">Status</th>
@@ -486,22 +486,22 @@ export const SubscriptionBilling = () => {
                     <tr key={p.id} className="border-b border-slate-50 last:border-b-0">
                       <td className="py-3 pr-2">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-100 to-sky-100 text-teal-700 flex items-center justify-center text-[11px] font-bold flex-shrink-0">{initials(p.firstName, p.lastName)}</div>
+                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-100 to-sky-100 text-teal-700 flex items-center justify-center text-[14px] font-bold flex-shrink-0">{initials(p.firstName, p.lastName)}</div>
                           <span className="font-semibold text-slate-800 text-[15px]">{p.firstName} {p.lastName}</span>
                         </div>
                       </td>
                       <td className="py-3 pr-2 text-slate-600">{p.logCount} log{p.logCount === 1 ? '' : 's'}</td>
                       <td className="py-3">
                         {p.active ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />Active</span>
+                          <span className="inline-flex items-center gap-1.5 text-[14px] font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" />Active</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />No activity</span>
+                          <span className="inline-flex items-center gap-1.5 text-[14px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />No activity</span>
                         )}
                       </td>
                     </tr>
                   ))}
                   {summary.practitioners.length === 0 && (
-                    <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-sm">No practitioners on staff yet.</td></tr>
+                    <tr><td colSpan={3} className="py-6 text-center text-slate-500 text-[16px]">No practitioners on staff yet.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -509,16 +509,16 @@ export const SubscriptionBilling = () => {
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Invoice History</h3>
+            <h3 className="text-[22px] font-extrabold text-slate-900 mb-4 tracking-tight leading-tight">Invoice History</h3>
             {invoices.length === 0 ? (
-              <div className="text-center py-8 text-sm text-slate-500">
+              <div className="text-center py-8 text-[16px] text-slate-600">
                 No invoices yet — your first monthly invoice will appear here once a billing period closes.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-[16px]">
                   <thead>
-                    <tr className="text-left text-[11.5px] font-bold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                    <tr className="text-left text-[14px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-200">
                       <th className="pb-2.5 pr-2">Period</th>
                       <th className="pb-2.5 pr-2">Active Practitioners</th>
                       <th className="pb-2.5 pr-2">Amount</th>
@@ -533,14 +533,14 @@ export const SubscriptionBilling = () => {
                         <td className="py-3 pr-2 text-slate-600">{inv.active_practitioner_count}</td>
                         <td className="py-3 pr-2 font-bold text-slate-900 text-[15px]">{money(inv.total_amount)}</td>
                         <td className="py-3 pr-2">
-                          <span className={`text-xs font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[inv.status] || STATUS_STYLES.pending}`}>{inv.status}</span>
+                          <span className={`text-[14px] font-bold border px-2.5 py-1 rounded-full capitalize ${STATUS_STYLES[inv.status] || STATUS_STYLES.pending}`}>{inv.status}</span>
                         </td>
                         <td className="py-3 text-left">
                           <button
                             type="button"
                             onClick={() => handleDownloadInvoicePdf(inv)}
                             disabled={downloadingId === inv.id}
-                            className="inline-flex items-center gap-1 text-sm font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-wait"
+                            className="inline-flex items-center gap-1 text-[16px] font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-wait"
                           >
                             {downloadingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} PDF
                           </button>
@@ -557,17 +557,17 @@ export const SubscriptionBilling = () => {
         {/* RIGHT: next charge + payment method */}
         <div className="space-y-5">
           <div className="rounded-2xl p-6 text-white bg-gradient-to-br from-slate-800 to-slate-950">
-            <div className="text-xs font-bold uppercase tracking-wide text-teal-400 mb-2">Next Invoice</div>
-            <div className="text-2xl font-bold mb-1.5 tracking-tight">{formatDate(summary.nextBillingDate)}</div>
-            <div className="text-sm text-white/70">Your next invoice will be generated and, if a payment method is on file, charged automatically on this date.</div>
+            <div className="text-[14px] font-bold uppercase tracking-wide text-teal-400 mb-2">Next Invoice</div>
+            <div className="text-[34px] font-extrabold mb-1.5 tracking-tight">{formatDate(summary.nextBillingDate)}</div>
+            <div className="text-[16px] text-white/70">Your next invoice will be generated and, if a payment method is on file, charged automatically on this date.</div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Payment Method</h3>
+            <h3 className="text-[22px] font-extrabold text-slate-900 mb-4 tracking-tight leading-tight">Payment Method</h3>
 
             {!config?.stripeConfigured && (
-              <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-3 mb-4 leading-relaxed">
-                Stripe isn't connected yet. Add <code className="font-mono text-[13px] bg-amber-100 px-1 rounded">STRIPE_SECRET_KEY</code> and <code className="font-mono text-[13px] bg-amber-100 px-1 rounded">STRIPE_PUBLISHABLE_KEY</code> to the backend environment to enable card and Google Pay collection here — no other changes needed.
+              <div className="text-[16px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-3 mb-4 leading-relaxed">
+                Stripe isn't connected yet. Add <code className="font-mono text-[14px] bg-amber-100 px-1 rounded">STRIPE_SECRET_KEY</code> and <code className="font-mono text-[14px] bg-amber-100 px-1 rounded">STRIPE_PUBLISHABLE_KEY</code> to the backend environment to enable card and Google Pay collection here — no other changes needed.
               </div>
             )}
 
@@ -577,10 +577,10 @@ export const SubscriptionBilling = () => {
                   {paymentMethod.type === 'google_pay' ? 'GPay' : (paymentMethod.brand || 'Card')}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-base font-bold text-slate-800 font-mono">•••• •••• •••• {paymentMethod.last4 || '····'}</div>
-                  <div className="text-sm text-slate-500 mt-0.5">{paymentMethod.exp ? `Expires ${paymentMethod.exp}` : ''}</div>
+                  <div className="text-[18px] font-bold text-slate-800 font-mono">•••• •••• •••• {paymentMethod.last4 || '····'}</div>
+                  <div className="text-[16px] text-slate-600 mt-0.5">{paymentMethod.exp ? `Expires ${paymentMethod.exp}` : ''}</div>
                 </div>
-                <span className="text-xs font-bold text-teal-700 bg-teal-100 px-2.5 py-1 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Default</span>
+                <span className="text-[14px] font-bold text-teal-700 bg-teal-100 px-2.5 py-1 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Default</span>
               </div>
             )}
 
@@ -588,14 +588,14 @@ export const SubscriptionBilling = () => {
               <button
                 type="button"
                 onClick={() => setPmTab('card')}
-                className={`flex-1 text-center py-2.5 rounded-lg border text-sm font-bold transition-colors ${pmTab === 'card' ? 'border-teal-400 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                className={`flex-1 text-center py-2.5 rounded-lg border text-[16px] font-bold transition-colors ${pmTab === 'card' ? 'border-teal-400 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 <CreditCard className="w-4 h-4 inline mr-1.5 -mt-0.5" />Card (Stripe)
               </button>
               <button
                 type="button"
                 onClick={() => setPmTab('gpay')}
-                className={`flex-1 text-center py-2.5 rounded-lg border text-sm font-bold transition-colors ${pmTab === 'gpay' ? 'border-teal-400 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                className={`flex-1 text-center py-2.5 rounded-lg border text-[16px] font-bold transition-colors ${pmTab === 'gpay' ? 'border-teal-400 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 Google Pay
               </button>
@@ -608,8 +608,8 @@ export const SubscriptionBilling = () => {
                 ) : config.googlePayReady ? (
                   <GooglePaySetupForm totalAmount={summary.totalAmount} onSaved={refreshPaymentMethod} setToast={setToast} />
                 ) : (
-                  <div className="text-sm text-slate-600 text-center py-6 px-4 leading-relaxed">
-                    Google Pay needs a verified merchant domain in the Stripe Dashboard (set <code className="font-mono bg-slate-100 px-1 rounded text-[13px]">STRIPE_PUBLISHABLE_KEY</code> and register the domain) before it can be offered here.
+                  <div className="text-[16px] text-slate-600 text-center py-6 px-4 leading-relaxed">
+                    Google Pay needs a verified merchant domain in the Stripe Dashboard (set <code className="font-mono bg-slate-100 px-1 rounded text-[14px]">STRIPE_PUBLISHABLE_KEY</code> and register the domain) before it can be offered here.
                   </div>
                 )}
               </Elements>
@@ -618,25 +618,25 @@ export const SubscriptionBilling = () => {
                 {pmTab === 'card' ? (
                   <>
                     <div className="mb-3">
-                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Card Number</label>
-                      <input disabled placeholder="1234 1234 1234 1234" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50" />
+                      <label className="block text-[16px] font-bold text-slate-700 mb-1.5">Card Number</label>
+                      <input disabled placeholder="1234 1234 1234 1234" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-[16px] bg-slate-50" />
                     </div>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1.5">Expiry</label>
-                        <input disabled placeholder="MM / YY" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50" />
+                        <label className="block text-[16px] font-bold text-slate-700 mb-1.5">Expiry</label>
+                        <input disabled placeholder="MM / YY" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-[16px] bg-slate-50" />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1.5">CVC</label>
-                        <input disabled placeholder="CVC" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50" />
+                        <label className="block text-[16px] font-bold text-slate-700 mb-1.5">CVC</label>
+                        <input disabled placeholder="CVC" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-[16px] bg-slate-50" />
                       </div>
                     </div>
                     <Button disabled className="w-full">Update Payment Method</Button>
                   </>
                 ) : (
                   <div className="text-center py-6">
-                    <div className="inline-flex items-center gap-2 bg-black text-white text-sm font-semibold px-5 py-2.5 rounded-lg">Pay with Google Pay</div>
-                    <p className="text-sm text-slate-500 mt-3 px-4 leading-relaxed">You'll confirm your card through Google Pay once it's connected. Izaya never stores your card number directly.</p>
+                    <div className="inline-flex items-center gap-2 bg-black text-white text-[16px] font-semibold px-5 py-2.5 rounded-lg">Pay with Google Pay</div>
+                    <p className="text-[16px] text-slate-600 mt-3 px-4 leading-relaxed">You'll confirm your card through Google Pay once it's connected. Izaya never stores your card number directly.</p>
                   </div>
                 )}
               </div>

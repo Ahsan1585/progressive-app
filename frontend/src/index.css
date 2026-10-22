@@ -139,22 +139,36 @@
     }
 }
 
-/* Staff Directory: the same larger, easier-to-read type scale as the Overview
-   dashboard. Shared controls are enlarged only inside this scope, so the rest of
-   the app is unchanged. Unlayered on purpose: it must win over the utility
-   classes baked into the shared Input/Button/Select components. */
-.staff-type [data-slot="input"],
-.staff-type [data-slot="textarea"],
-.staff-type [data-slot="select-trigger"] {
+/* Admin area (Overview dashboard, Billing, Staff Directory, Reports, Company,
+   Subscription, Audit log, Roles): the same larger, easier-to-read type scale.
+   Shared controls are enlarged only here, so the practitioner app and the public
+   pages are unchanged. `.admin-type` is put on <body> while the admin shell is
+   mounted, so dialogs that render in a portal outside the page are covered too.
+   `.staff-type` is the older per-wrapper scope and stays valid. Unlayered on
+   purpose: it must win over the utility classes baked into the shared
+   Input/Button/Select components. */
+:is(.admin-type, .staff-type) [data-slot="input"],
+:is(.admin-type, .staff-type) [data-slot="textarea"],
+:is(.admin-type, .staff-type) [data-slot="select-trigger"],
+:is(.admin-type, .staff-type) [data-slot="select-item"] {
   font-size: 16px;
 }
-.staff-type [data-slot="input"] {
+:is(.admin-type, .staff-type) [data-slot="input"] {
   min-height: 2.5rem;
 }
-.staff-type [data-slot="button"] {
+:is(.admin-type, .staff-type) [data-slot="button"] {
   font-size: 15px;
   font-weight: 600;
 }
-.staff-type [data-slot="badge"] {
+:is(.admin-type, .staff-type) [data-slot="badge"] {
   font-size: 13px;
+}
+:is(.admin-type, .staff-type) [data-slot="dialog-title"] {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+:is(.admin-type, .staff-type) [data-slot="dialog-description"] {
+  font-size: 16px;
 }

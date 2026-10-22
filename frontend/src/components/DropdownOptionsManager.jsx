@@ -101,7 +101,7 @@ const OptionRow = ({ option, onSaved, onDeleted }) => {
             disabled={isDeleting}
             title="Remove this option"
             aria-label={`Remove ${option.label}`}
-            className="w-9 h-9 rounded-md border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors mx-auto"
+            className="w-9 h-9 rounded-md border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors mx-auto"
           >
             <TrashIcon />
           </button>
@@ -111,7 +111,7 @@ const OptionRow = ({ option, onSaved, onDeleted }) => {
               type="button"
               onClick={handleReactivate}
               disabled={isSaving}
-              className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
+              className="text-[14px] font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
             >
               Reactivate
             </button>
@@ -120,7 +120,7 @@ const OptionRow = ({ option, onSaved, onDeleted }) => {
                 type="button"
                 onClick={handlePermanentDelete}
                 disabled={isDeleting}
-                className="text-xs font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
+                className="text-[14px] font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
               >
                 Delete permanently
               </button>
@@ -162,14 +162,14 @@ const NewOptionRow = ({ category, onCreated, onCancel }) => {
       </td>
       <td className="px-3 py-2">
         <Input placeholder="Name" value={label} disabled={isSaving} onChange={(e) => setLabel(e.target.value)} className="h-9 min-w-[14rem]" />
-        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        {error && <p className="text-[14px] text-red-600 mt-1">{error}</p>}
       </td>
       <td className="px-3 py-2 text-center">
         <div className="flex items-center justify-center gap-2">
-          <button type="button" onClick={handleSave} disabled={isSaving} className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
+          <button type="button" onClick={handleSave} disabled={isSaving} className="text-[14px] font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
             {isSaving ? 'Saving...' : 'Save'}
           </button>
-          <button type="button" onClick={onCancel} disabled={isSaving} className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer">
+          <button type="button" onClick={onCancel} disabled={isSaving} className="text-[14px] font-semibold text-slate-500 hover:text-slate-600 cursor-pointer">
             Cancel
           </button>
         </div>
@@ -184,13 +184,13 @@ const OptionSection = ({ title, hint, category, rows, onSaved, onDeleted, onCrea
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
       <div>
-        <h3 className="text-sm font-bold text-slate-800">{title}</h3>
-        <p className="text-xs text-slate-500 mt-0.5">{hint}</p>
+        <h3 className="text-[22px] font-extrabold text-slate-900 tracking-tight leading-tight">{title}</h3>
+        <p className="text-[14px] text-slate-600 mt-0.5">{hint}</p>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm">
+        <table className="w-full text-[16px]">
           <thead>
-            <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            <tr className="bg-slate-50 text-[14px] font-bold uppercase tracking-wide text-slate-600">
               <th className="text-left px-3 py-2 w-28">Code</th>
               <th className="text-left px-3 py-2">Name</th>
               <th className="px-3 py-2 w-24"></th>
@@ -214,7 +214,7 @@ const OptionSection = ({ title, hint, category, rows, onSaved, onDeleted, onCrea
         <button
           type="button"
           onClick={() => setIsAdding(true)}
-          className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold text-teal-700 border border-dashed border-teal-200 rounded-lg py-2 hover:bg-teal-50/40 cursor-pointer transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 text-[16px] font-semibold text-teal-700 border border-dashed border-teal-200 rounded-lg py-2 hover:bg-teal-50/40 cursor-pointer transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Add option
@@ -257,7 +257,7 @@ const NewCategoryForm = ({ onCreated, onCancel }) => {
           onChange={(e) => setDisplayName(e.target.value)}
           className="h-9 max-w-xs"
         />
-        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+        <label className="flex items-center gap-2 text-[16px] text-slate-700 cursor-pointer">
           <input
             type="checkbox"
             checked={isRequiredOnLog}
@@ -267,12 +267,12 @@ const NewCategoryForm = ({ onCreated, onCancel }) => {
           Required when logging a session
         </label>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-[14px] text-red-600">{error}</p>}
       <div className="flex items-center gap-2">
-        <button type="button" onClick={handleSave} disabled={isSaving} className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
+        <button type="button" onClick={handleSave} disabled={isSaving} className="text-[14px] font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
           {isSaving ? 'Saving...' : 'Save'}
         </button>
-        <button type="button" onClick={onCancel} disabled={isSaving} className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer">
+        <button type="button" onClick={onCancel} disabled={isSaving} className="text-[14px] font-semibold text-slate-500 hover:text-slate-600 cursor-pointer">
           Cancel
         </button>
       </div>
@@ -315,7 +315,7 @@ const EditCategoryForm = ({ category, onSaved, onCancel }) => {
           onChange={(e) => setDisplayName(e.target.value)}
           className="h-9 max-w-xs"
         />
-        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+        <label className="flex items-center gap-2 text-[16px] text-slate-700 cursor-pointer">
           <input
             type="checkbox"
             checked={isRequiredOnLog}
@@ -325,12 +325,12 @@ const EditCategoryForm = ({ category, onSaved, onCancel }) => {
           Required when logging a session
         </label>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-[14px] text-red-600">{error}</p>}
       <div className="flex items-center gap-2">
-        <button type="button" onClick={handleSave} disabled={isSaving} className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
+        <button type="button" onClick={handleSave} disabled={isSaving} className="text-[14px] font-semibold text-teal-700 hover:text-teal-800 cursor-pointer">
           {isSaving ? 'Saving...' : 'Save'}
         </button>
-        <button type="button" onClick={onCancel} disabled={isSaving} className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer">
+        <button type="button" onClick={onCancel} disabled={isSaving} className="text-[14px] font-semibold text-slate-500 hover:text-slate-600 cursor-pointer">
           Cancel
         </button>
       </div>
@@ -356,7 +356,7 @@ export const DropdownOptionsManager = () => {
   const activeCategory = explicitCategory ?? categories[0]?.key ?? null;
 
   if (isLoading) {
-    return <div className="py-10 text-center text-slate-500">Loading options...</div>;
+    return <div className="py-10 text-center text-slate-600">Loading options...</div>;
   }
 
   const patchRow = () => {
@@ -401,8 +401,8 @@ export const DropdownOptionsManager = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-base font-bold text-slate-800">Dropdown Options</h2>
-        <p className="text-sm text-slate-500 mt-1">
+        <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Dropdown Options</h2>
+        <p className="text-[16px] text-slate-600 mt-1">
           Add, rename, or remove the codes practitioners choose from when logging a session. Renaming a code updates how it displays everywhere immediately — including past logs that used it. Removing a code hides it from new logs but keeps past logs showing its name.
         </p>
       </div>
@@ -413,8 +413,8 @@ export const DropdownOptionsManager = () => {
             key={cat.key}
             type="button"
             onClick={() => setExplicitCategory(cat.key)}
-            className={`px-4 py-2 text-sm font-semibold cursor-pointer border-b-2 -mb-px transition-colors ${
-              activeCategory === cat.key ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+            className={`px-4 py-2 text-[16px] font-semibold cursor-pointer border-b-2 -mb-px transition-colors ${
+              activeCategory === cat.key ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-600 hover:text-slate-700'
             }`}
           >
             {cat.display_name}
@@ -425,7 +425,7 @@ export const DropdownOptionsManager = () => {
           onClick={() => setIsAddingCategory(true)}
           aria-label="Add a new dropdown category"
           title="Add a new dropdown category"
-          className="px-3 py-2 text-base font-bold text-teal-700 hover:text-teal-800 cursor-pointer"
+          className="px-3 py-2 text-[18px] font-bold text-teal-700 hover:text-teal-800 cursor-pointer"
         >
           +
         </button>
@@ -460,7 +460,7 @@ export const DropdownOptionsManager = () => {
               <button
                 type="button"
                 onClick={() => setIsEditingCategory(true)}
-                className="text-xs font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
+                className="text-[14px] font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
               >
                 Rename / edit settings
               </button>
@@ -468,7 +468,7 @@ export const DropdownOptionsManager = () => {
                 type="button"
                 onClick={handleDeleteCategory}
                 disabled={isDeletingCategory}
-                className="text-xs font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
+                className="text-[14px] font-semibold text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-40"
               >
                 Delete this category
               </button>

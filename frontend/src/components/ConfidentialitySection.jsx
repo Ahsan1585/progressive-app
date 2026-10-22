@@ -49,9 +49,9 @@ export const ConfidentialitySection = ({ form, setField }) => {
 
   return (
     <div className="space-y-4 border-t border-slate-100 pt-6">
-      <h2 className="text-base font-bold text-slate-800">Confidentiality</h2>
+      <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Confidentiality</h2>
       {!hasOfficial && (
-        <div role="alert" className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 text-xs font-semibold text-amber-800">
+        <div role="alert" className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 text-[14px] font-semibold text-amber-800">
           Part C requires a designated Confidentiality Official. Enter one below and save.
         </div>
       )}
@@ -82,21 +82,21 @@ export const ConfidentialitySection = ({ form, setField }) => {
 
       {open && (
         <div className="rounded-xl border border-slate-200 p-4 space-y-3">
-          {loading && <p className="text-sm text-slate-500">Loading…</p>}
-          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {loading && <p className="text-[16px] text-slate-600">Loading…</p>}
+          {error && <p role="alert" className="text-[16px] text-red-600">{error}</p>}
           {roster && !loading && (
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-slate-600">
+                <p className="text-[16px] text-slate-600">
                   <span className="font-semibold">Confidentiality Official:</span>{' '}
                   {roster.official ? `${roster.official.name}${roster.official.title ? `, ${roster.official.title}` : ''}` : 'Not designated'}
                 </p>
                 <Button type="button" size="sm" variant="outline" onClick={printRoster} className="cursor-pointer">Print</Button>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-[16px] text-left">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="border-b border-slate-200 text-[14px] uppercase tracking-wide text-slate-600">
                       <th className="py-2 pr-4">Name</th>
                       <th className="py-2 pr-4">Position</th>
                       <th className="py-2 pr-4">Role</th>

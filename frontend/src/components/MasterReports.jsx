@@ -49,7 +49,7 @@ const MODULE_TITLES = {
 
 const PATIENT_STATUS_STYLES = {
   active:   'bg-emerald-50 text-emerald-700 border-emerald-200',
-  inactive: 'bg-slate-100 text-slate-500 border-slate-200',
+  inactive: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 export const MasterReports = () => {
@@ -105,7 +105,7 @@ export const MasterReports = () => {
   };
 
   const StatusBadge = ({ status }) => (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${STATUS_STYLES[status] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+    <span className={`px-2 py-0.5 rounded-full text-[14px] font-bold border ${STATUS_STYLES[status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
       {STATUS_LABELS[status] || status || '-'}
     </span>
   );
@@ -383,10 +383,10 @@ export const MasterReports = () => {
 
       {/* HEADER */}
       <div className="print:hidden">
-        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+        <h1 className="text-[34px] font-extrabold text-slate-900 flex items-center gap-2 tracking-tight leading-tight">
           System Audit & Reports
         </h1>
-        <p className="text-sm text-slate-500 mt-1">Generate comprehensive system exports for compliance, billing, and staff utilization.</p>
+        <p className="text-[16px] text-slate-600 mt-1">Generate comprehensive system exports for compliance, billing, and staff utilization.</p>
       </div>
 
       {/* MODULE TABS */}
@@ -401,10 +401,10 @@ export const MasterReports = () => {
                 : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'
             }`}
           >
-            <div className={`font-bold text-sm ${activeModule === mod.id ? 'text-blue-900' : 'text-slate-700'}`}>
+            <div className={`font-bold text-[16px] ${activeModule === mod.id ? 'text-blue-900' : 'text-slate-700'}`}>
               {mod.title}
             </div>
-            <div className={`text-xs mt-1 ${activeModule === mod.id ? 'text-blue-600' : 'text-slate-500'}`}>
+            <div className={`text-[14px] mt-1 ${activeModule === mod.id ? 'text-blue-600' : 'text-slate-600'}`}>
               {mod.desc}
             </div>
           </button>
@@ -414,9 +414,9 @@ export const MasterReports = () => {
       {/* FILTER PANEL */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print:hidden">
         <div className="px-7 py-5 border-b border-slate-100 bg-slate-50/50">
-          <h2 className="text-lg font-bold text-slate-800">{MODULE_TITLES[activeModule]}</h2>
+          <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">{MODULE_TITLES[activeModule]}</h2>
           {activeModule === 'compliance' && (
-            <p className="text-xs text-amber-600 font-medium mt-1">
+            <p className="text-[14px] text-amber-600 font-medium mt-1">
               Auto-filters to logs with service date &gt; 30 days ago still in Pending or In-Review status.
             </p>
           )}
@@ -427,9 +427,9 @@ export const MasterReports = () => {
 
             {/* Practitioner Search — all modules except patient-only */}
             <div className={activeModule === 'child' ? 'hidden' : 'space-y-2'}>
-              <Label className="text-sm font-semibold text-slate-700">Search Practitioner (Name or ID)</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Search Practitioner (Name or ID)</Label>
               <div className="relative">
-                <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 absolute left-3 top-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <Input type="text" placeholder="Type to search..." className="pl-9" value={practitionerSearch} onChange={(e) => setPractitionerSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleRunReport()} />
@@ -438,9 +438,9 @@ export const MasterReports = () => {
 
             {/* Patient Search */}
             <div className={activeModule === 'practitioner' ? 'hidden' : 'space-y-2'}>
-              <Label className="text-sm font-semibold text-slate-700">Search Patient (Name)</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Search Patient (Name)</Label>
               <div className="relative">
-                <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 absolute left-3 top-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <Input type="text" placeholder="First or last name..." className="pl-9" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleRunReport()} />
@@ -450,9 +450,9 @@ export const MasterReports = () => {
             {/* Practitioner Logs: show both searches in a 2-col span */}
             {activeModule === 'practitioner' && (
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Search Patient (optional)</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Search Patient (optional)</Label>
                 <div className="relative">
-                  <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 absolute left-3 top-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <Input type="text" placeholder="Filter by patient..." className="pl-9" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleRunReport()} />
@@ -465,9 +465,9 @@ export const MasterReports = () => {
                 Session Audit Log (scoped to audit completeness, not billing state) */}
             {activeModule !== 'patients' && activeModule !== 'compliance' && activeModule !== 'sessionAudit' && (
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Billing Status</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Billing Status</Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={billingStatus}
                   onChange={(e) => setBillingStatus(e.target.value)}
                 >
@@ -484,9 +484,9 @@ export const MasterReports = () => {
             {/* Patient Status — patients module */}
             {activeModule === 'patients' && (
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Patient Status</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Patient Status</Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={patientStatus}
                   onChange={(e) => setPatientStatus(e.target.value)}
                 >
@@ -501,11 +501,11 @@ export const MasterReports = () => {
             {activeModule !== 'patients' && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">Date Range Start</Label>
+                  <Label className="text-[16px] font-semibold text-slate-700">Date Range Start</Label>
                   <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">Date Range End</Label>
+                  <Label className="text-[16px] font-semibold text-slate-700">Date Range End</Label>
                   <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} />
                 </div>
               </>
@@ -545,8 +545,8 @@ export const MasterReports = () => {
                 { label: 'Practitioners',  value: patientStats.uniquePractitioners },
               ].map((s) => (
                 <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">{s.label}</div>
-                  <div className="text-2xl font-bold text-slate-800 mt-1">{s.value}</div>
+                  <div className="text-[14px] text-slate-600 font-semibold uppercase tracking-wider">{s.label}</div>
+                  <div className="text-[34px] font-extrabold text-slate-800 mt-1">{s.value}</div>
                 </div>
               ))}
             </div>
@@ -554,22 +554,22 @@ export const MasterReports = () => {
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-7 py-4 border-b border-slate-100 bg-slate-50/30 print:hidden">
-              <h3 className="font-bold text-slate-800">Patient Roster</h3>
-              <p className="text-xs text-slate-500 mt-0.5">{patientRows.length} patient{patientRows.length !== 1 ? 's' : ''} found across all practitioners</p>
+              <h3 className="text-[22px] font-extrabold text-slate-900 tracking-tight leading-tight">Patient Roster</h3>
+              <p className="text-[14px] text-slate-600 mt-0.5">{patientRows.length} patient{patientRows.length !== 1 ? 's' : ''} found across all practitioners</p>
             </div>
 
             {patientRows.length === 0 ? (
-              <div className="py-20 text-center text-slate-500">
+              <div className="py-20 text-center text-slate-600">
                 <svg className="w-12 h-12 mx-auto text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <p className="text-sm font-medium">No patients found for the selected filters.</p>
+                <p className="text-[16px] font-medium">No patients found for the selected filters.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[14px] uppercase tracking-wider text-slate-600 font-semibold">
                       <th className="py-3.5 px-4">Patient Name</th>
                       <th className="py-3.5 px-4">Child ID</th>
                       <th className="py-3.5 px-4">Date of Birth</th>
@@ -585,18 +585,18 @@ export const MasterReports = () => {
                         <td className="py-3 px-4 font-semibold text-slate-800 capitalize">
                           {p.first_name}{p.middle_name ? ` ${p.middle_name}` : ''} {p.last_name}
                         </td>
-                        <td className="py-3 px-4 text-slate-600 font-mono text-xs">{p.child_id}</td>
-                        <td className="py-3 px-4 text-slate-600 text-xs">{formatDate(p.dob)}</td>
+                        <td className="py-3 px-4 text-slate-600 font-mono text-[14px]">{p.child_id}</td>
+                        <td className="py-3 px-4 text-slate-600 text-[14px]">{formatDate(p.dob)}</td>
                         <td className="py-3 px-4 capitalize text-slate-600">{p.county || '-'}</td>
                         <td className="py-3 px-4 text-slate-600">
                           {p.practitioners?.first_name} {p.practitioners?.last_name}
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${PATIENT_STATUS_STYLES[p.status] || PATIENT_STATUS_STYLES.active}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-[14px] font-bold border ${PATIENT_STATUS_STYLES[p.status] || PATIENT_STATUS_STYLES.active}`}>
                             {p.status === 'inactive' ? 'Inactive' : 'Active'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-600 text-xs">
+                        <td className="py-3 px-4 text-slate-600 text-[14px]">
                           {p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
                         </td>
                       </tr>
@@ -622,8 +622,8 @@ export const MasterReports = () => {
                 { label: 'Practitioners',   value: stats.uniquePractitioners            },
               ].map((s) => (
                 <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">{s.label}</div>
-                  <div className="text-2xl font-bold text-slate-800 mt-1">{s.value}</div>
+                  <div className="text-[14px] text-slate-600 font-semibold uppercase tracking-wider">{s.label}</div>
+                  <div className="text-[34px] font-extrabold text-slate-800 mt-1">{s.value}</div>
                 </div>
               ))}
             </div>
@@ -635,8 +635,8 @@ export const MasterReports = () => {
             {/* Table header / action bar */}
             <div className="px-7 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/30 print:hidden">
               <div>
-                <h3 className="font-bold text-slate-800">Audit Results</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="text-[22px] font-extrabold text-slate-900 tracking-tight leading-tight">Audit Results</h3>
+                <p className="text-[14px] text-slate-600 mt-0.5">
                   {logs.length} log{logs.length !== 1 ? 's' : ''} found
                   {activeModule === 'compliance' && logs.length > 0 && (
                     <span className="ml-2 text-amber-600 font-semibold">— {logs.length} compliance concern{logs.length !== 1 ? 's' : ''}</span>
@@ -737,8 +737,8 @@ export const MasterReports = () => {
 
             {/* Print-only header */}
             <div className="hidden print:block px-6 py-4 border-b border-slate-200">
-              <h2 className="text-lg font-bold text-slate-800">Progressive Steps NJ — Audit Report</h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Progressive Steps NJ — Audit Report</h2>
+              <p className="text-[14px] text-slate-600 mt-1">
                 {MODULE_TITLES[activeModule]} · {logs.length} records
                 {dateRange.start && ` · ${dateRange.start} → ${dateRange.end || 'present'}`}
                 {practitionerSearch && ` · Practitioner: ${practitionerSearch}`}
@@ -747,18 +747,18 @@ export const MasterReports = () => {
             </div>
 
             {logs.length === 0 ? (
-              <div className="py-20 text-center text-slate-500">
+              <div className="py-20 text-center text-slate-600">
                 <svg className="w-12 h-12 mx-auto text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <p className="text-sm font-medium">No logs found for the selected filters.</p>
-                <p className="text-xs text-slate-400 mt-1">Try adjusting your date range or search terms.</p>
+                <p className="text-[16px] font-medium">No logs found for the selected filters.</p>
+                <p className="text-[14px] text-slate-500 mt-1">Try adjusting your date range or search terms.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[14px] uppercase tracking-wider text-slate-600 font-semibold">
                       <th className="py-3.5 px-3 w-10 print:hidden">
                         {eligibleLogs.length > 0 && (
                           <input
@@ -805,19 +805,19 @@ export const MasterReports = () => {
                           <td className="py-3 px-4 text-slate-600">
                             {log.practitioners?.first_name} {log.practitioners?.last_name}
                           </td>
-                          <td className="py-3 px-4 text-slate-600 font-mono text-xs">
+                          <td className="py-3 px-4 text-slate-600 font-mono text-[14px]">
                             {formatDate(log.service_date)}
                           </td>
                           <td className="py-3 px-4 text-slate-600">{log.type || '-'}</td>
                           <td className="py-3 px-4 capitalize text-slate-600">{log.location || '-'}</td>
-                          <td className="py-3 px-4 text-slate-600 text-xs">{log.start_time ? formatTime12h(log.start_time) : '-'}</td>
-                          <td className="py-3 px-4 text-slate-600 text-xs">{log.end_time ? formatTime12h(log.end_time) : '-'}</td>
-                          <td className="py-3 px-4 text-slate-600 font-mono text-xs">{formatTime(log.total_time)}</td>
+                          <td className="py-3 px-4 text-slate-600 text-[14px]">{log.start_time ? formatTime12h(log.start_time) : '-'}</td>
+                          <td className="py-3 px-4 text-slate-600 text-[14px]">{log.end_time ? formatTime12h(log.end_time) : '-'}</td>
+                          <td className="py-3 px-4 text-slate-600 font-mono text-[14px]">{formatTime(log.total_time)}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2 flex-wrap">
                               <StatusBadge status={log.billing_status} />
                               {log.acknowledged_at && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[14px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md whitespace-nowrap">
                                   ✓ Acknowledged
                                 </span>
                               )}
@@ -827,7 +827,7 @@ export const MasterReports = () => {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   title="Download override invoice"
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-100 transition-colors whitespace-nowrap"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[14px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-100 transition-colors whitespace-nowrap"
                                 >
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                   Invoice
@@ -838,14 +838,14 @@ export const MasterReports = () => {
                           <td className="py-3 px-4 max-w-[240px]">
                             <div className="flex items-center gap-1.5">
                               {log.practitioner_response && (
-                                <span className="text-xs text-slate-600 italic">{log.practitioner_response}</span>
+                                <span className="text-[14px] text-slate-600 italic">{log.practitioner_response}</span>
                               )}
                               <button
                                 type="button"
                                 onClick={() => openNotesModal(log)}
                                 title={log.notes_count > 0 ? 'View billing/practitioner notes' : 'No notes recorded yet'}
                                 className={`print:hidden shrink-0 transition-colors cursor-pointer ${
-                                  log.notes_count > 0 ? 'text-slate-500 hover:text-slate-700' : 'text-slate-300 hover:text-slate-400'
+                                  log.notes_count > 0 ? 'text-slate-600 hover:text-slate-700' : 'text-slate-300 hover:text-slate-500'
                                 }`}
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -854,7 +854,7 @@ export const MasterReports = () => {
                           </td>
                           {activeModule === 'compliance' && (
                             <td className="py-3 px-4">
-                              <span className={`font-bold text-xs ${daysOld > 45 ? 'text-red-600' : 'text-amber-600'}`}>
+                              <span className={`font-bold text-[14px] ${daysOld > 45 ? 'text-red-600' : 'text-amber-600'}`}>
                                 {daysOld !== null ? `${daysOld}d` : '-'}
                               </span>
                             </td>
@@ -865,7 +865,7 @@ export const MasterReports = () => {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-slate-300 bg-slate-50">
-                      <td colSpan={activeModule === 'compliance' ? 12 : 11} className="py-3 px-4 text-xs text-slate-500 font-medium">
+                      <td colSpan={activeModule === 'compliance' ? 12 : 11} className="py-3 px-4 text-[14px] text-slate-600 font-medium">
                         {logs.length} records · {stats?.totalHours.toFixed(1)} total hrs · {stats?.uniqueChildren} patient{stats?.uniqueChildren !== 1 ? 's' : ''} · {stats?.uniquePractitioners} practitioner{stats?.uniquePractitioners !== 1 ? 's' : ''}
                       </td>
                     </tr>
@@ -880,10 +880,10 @@ export const MasterReports = () => {
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3.5 flex items-center gap-3 print:hidden">
               <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-emerald-800">SEVF forms generated successfully.</p>
-                <p className="text-xs text-emerald-600 mt-0.5">One form per (practitioner × child) pair · 10 sessions per page · overflow pages carry same header.</p>
+                <p className="text-[16px] font-semibold text-emerald-800">SEVF forms generated successfully.</p>
+                <p className="text-[14px] text-emerald-600 mt-0.5">One form per (practitioner × child) pair · 10 sessions per page · overflow pages carry same header.</p>
               </div>
-              <a href={njeisUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-emerald-700 underline underline-offset-2 hover:text-emerald-900 whitespace-nowrap">
+              <a href={njeisUrl} target="_blank" rel="noopener noreferrer" className="text-[14px] font-bold text-emerald-700 underline underline-offset-2 hover:text-emerald-900 whitespace-nowrap">
                 Open PDF ↗
               </a>
             </div>
@@ -896,8 +896,8 @@ export const MasterReports = () => {
         <div id="session-audit-print-area" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-7 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/30 print:hidden">
             <div>
-              <h3 className="font-bold text-slate-800">Session Audit Log</h3>
-              <p className="text-xs text-slate-500 mt-0.5">{auditLogRows.length} record{auditLogRows.length !== 1 ? 's' : ''} found</p>
+              <h3 className="text-[22px] font-extrabold text-slate-900 tracking-tight leading-tight">Session Audit Log</h3>
+              <p className="text-[14px] text-slate-600 mt-0.5">{auditLogRows.length} record{auditLogRows.length !== 1 ? 's' : ''} found</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -932,8 +932,8 @@ export const MasterReports = () => {
 
           {/* Print-only header */}
           <div className="hidden print:block px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-bold text-slate-800">Session Audit Log</h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Session Audit Log</h2>
+            <p className="text-[14px] text-slate-600 mt-1">
               {auditLogRows.length} records
               {dateRange.start && ` · ${dateRange.start} → ${dateRange.end || 'present'}`}
               {practitionerSearch && ` · Practitioner: ${practitionerSearch}`}
@@ -942,18 +942,18 @@ export const MasterReports = () => {
           </div>
 
           {auditLogRows.length === 0 ? (
-            <div className="py-20 text-center text-slate-500">
+            <div className="py-20 text-center text-slate-600">
               <svg className="w-12 h-12 mx-auto text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <p className="text-sm font-medium">No session logs found for the selected filters.</p>
-              <p className="text-xs text-slate-400 mt-1">Try adjusting your date range or search terms.</p>
+              <p className="text-[16px] font-medium">No session logs found for the selected filters.</p>
+              <p className="text-[14px] text-slate-500 mt-1">Try adjusting your date range or search terms.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[14px] uppercase tracking-wider text-slate-600 font-semibold">
                     <th className="py-3.5 px-4">Patient Name</th>
                     <th className="py-3.5 px-4">Date</th>
                     <th className="py-3.5 px-4">Start</th>
@@ -973,9 +973,9 @@ export const MasterReports = () => {
                       <td className="py-3 px-4 font-semibold text-slate-800">
                         {log.patient_first_name} {log.patient_last_name}
                       </td>
-                      <td className="py-3 px-4 text-slate-600 font-mono text-xs">{formatDate(log.service_date)}</td>
-                      <td className="py-3 px-4 text-slate-600 text-xs">{log.start_time ? formatTime12h(log.start_time) : '-'}</td>
-                      <td className="py-3 px-4 text-slate-600 text-xs">{log.end_time ? formatTime12h(log.end_time) : '-'}</td>
+                      <td className="py-3 px-4 text-slate-600 font-mono text-[14px]">{formatDate(log.service_date)}</td>
+                      <td className="py-3 px-4 text-slate-600 text-[14px]">{log.start_time ? formatTime12h(log.start_time) : '-'}</td>
+                      <td className="py-3 px-4 text-slate-600 text-[14px]">{log.end_time ? formatTime12h(log.end_time) : '-'}</td>
                       <td className="py-3 px-4 text-slate-600">
                         {log.practitioners?.first_name} {log.practitioners?.last_name}
                       </td>
@@ -991,7 +991,7 @@ export const MasterReports = () => {
                             className="h-8 w-16 object-contain border border-slate-200 rounded cursor-pointer hover:ring-2 hover:ring-blue-300 bg-white"
                             onClick={() => setSigModal({ src: log.practitioner_signature, label: `Practitioner Signature — ${log.patient_first_name} ${log.patient_last_name} · ${formatDate(log.service_date)}` })}
                           />
-                        ) : <span className="text-slate-300 text-xs">-</span>}
+                        ) : <span className="text-slate-300 text-[14px]">-</span>}
                       </td>
                       <td className="py-3 px-4 print:hidden">
                         {log.parent_signature ? (
@@ -1001,14 +1001,14 @@ export const MasterReports = () => {
                             className="h-8 w-16 object-contain border border-slate-200 rounded cursor-pointer hover:ring-2 hover:ring-blue-300 bg-white"
                             onClick={() => setSigModal({ src: log.parent_signature, label: `Parent Signature — ${log.patient_first_name} ${log.patient_last_name} · ${formatDate(log.service_date)}` })}
                           />
-                        ) : <span className="text-slate-300 text-xs">-</span>}
+                        ) : <span className="text-slate-300 text-[14px]">-</span>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-300 bg-slate-50">
-                    <td colSpan={11} className="py-3 px-4 text-xs text-slate-500 font-medium">
+                    <td colSpan={11} className="py-3 px-4 text-[14px] text-slate-600 font-medium">
                       {auditLogRows.length} record{auditLogRows.length !== 1 ? 's' : ''}
                     </td>
                   </tr>
@@ -1048,9 +1048,9 @@ export const MasterReports = () => {
           </DialogHeader>
 
           {isLoadingNotes ? (
-            <div className="text-center py-4 text-slate-500 text-sm">Loading notes...</div>
+            <div className="text-center py-4 text-slate-600 text-[16px]">Loading notes...</div>
           ) : logNotes.length === 0 ? (
-            <div className="text-center py-4 text-slate-500 text-sm">No notes recorded for this log.</div>
+            <div className="text-center py-4 text-slate-600 text-[16px]">No notes recorded for this log.</div>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {logNotes.map((n, i) => {
@@ -1058,7 +1058,7 @@ export const MasterReports = () => {
                 return (
                   <div
                     key={i}
-                    className={`rounded-xl p-3.5 border text-sm ${
+                    className={`rounded-xl p-3.5 border text-[16px] ${
                       isBillingSpecialist ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'
                     }`}
                   >
@@ -1067,7 +1067,7 @@ export const MasterReports = () => {
                         {isBillingSpecialist ? 'Billing' : 'Practitioner'}
                         {n.first_name ? ` · ${n.first_name} ${n.last_name}` : ''}
                       </span>
-                      <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+                      <span className="text-[14px] text-slate-600 tabular-nums whitespace-nowrap">
                         {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                       </span>
                     </div>

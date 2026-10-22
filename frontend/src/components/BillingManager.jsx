@@ -76,7 +76,7 @@ function DownloadLink({ href, onClick, label, tone = 'blue', fixedWidth = false,
     );
   }
 
-  const className = `inline-flex items-center justify-center gap-1.5 ${fixedWidth ? 'w-28' : ''} px-3 py-1.5 text-sm font-semibold rounded-md border transition-colors cursor-pointer ${toneClasses}`;
+  const className = `inline-flex items-center justify-center gap-1.5 ${fixedWidth ? 'w-28' : ''} px-3 py-1.5 text-[16px] font-semibold rounded-md border transition-colors cursor-pointer ${toneClasses}`;
 
   if (href) {
     return (
@@ -1103,7 +1103,7 @@ export const BillingManager = () => {
       <div className="flex p-1 bg-slate-200 rounded-xl w-fit shadow-inner">
         <button
           onClick={() => setActiveTab('pending')}
-          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
+          className={`px-6 py-2.5 rounded-lg text-[16px] font-bold transition-all duration-200 cursor-pointer ${
             activeTab === 'pending'
               ? 'bg-white text-blue-700 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-blue-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1113,7 +1113,7 @@ export const BillingManager = () => {
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
+          className={`px-6 py-2.5 rounded-lg text-[16px] font-bold transition-all duration-200 cursor-pointer ${
             activeTab === 'history'
               ? 'bg-white text-emerald-700 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-emerald-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1124,7 +1124,7 @@ export const BillingManager = () => {
         {canSeeInvoiceStatus && (
           <button
             onClick={() => setActiveTab('status')}
-            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
+            className={`px-6 py-2.5 rounded-lg text-[16px] font-bold transition-all duration-200 cursor-pointer ${
               activeTab === 'status'
                 ? 'bg-white text-amber-700 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_10px_-3px_rgba(15,23,42,0.25)] ring-1 ring-amber-500/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -1171,7 +1171,7 @@ export const BillingManager = () => {
 
           {actionModal && (
             <>
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm space-y-1">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-[16px] space-y-1">
                 {actionModal.sessions && actionModal.sessions.length > 1 ? (
                   <div className="font-semibold text-slate-800">{actionModal.sessions.length} logs selected</div>
                 ) : (
@@ -1179,7 +1179,7 @@ export const BillingManager = () => {
                     <div className="font-semibold text-slate-800">
                       {actionModal.session.patient_first_name} {actionModal.session.patient_last_name}
                     </div>
-                    <div className="text-slate-500 tabular-nums">
+                    <div className="text-slate-600 tabular-nums">
                       {actionModal.session.service_date
                         ? new Date(actionModal.session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
                         : '-'}
@@ -1240,11 +1240,11 @@ export const BillingManager = () => {
           </DialogHeader>
 
           {revertModal && (
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm space-y-1">
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-[16px] space-y-1">
               <div className="font-semibold text-slate-800 capitalize">
                 {revertModal.group.practitionerName}
               </div>
-              <div className="text-slate-500 tabular-nums">
+              <div className="text-slate-600 tabular-nums">
                 {revertModal.group.dateRange || '-'}
               </div>
             </div>
@@ -1271,12 +1271,12 @@ export const BillingManager = () => {
           {/* Summary stat chips — same pattern as Invoice Status's stat chips. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+              <div className="size-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
                 <FileText className="size-5" />
               </div>
               <div>
-                <div className="text-xl font-bold text-slate-800 leading-tight">{historyStats.total}</div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Completed</div>
+                <div className="text-[30px] font-extrabold text-slate-800 leading-tight">{historyStats.total}</div>
+                <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">Total Completed</div>
               </div>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
@@ -1284,8 +1284,8 @@ export const BillingManager = () => {
                 <Clock className="size-5" />
               </div>
               <div>
-                <div className="text-xl font-bold text-slate-800 leading-tight">{historyStats.awaitingPayment}</div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Awaiting Payment</div>
+                <div className="text-[30px] font-extrabold text-slate-800 leading-tight">{historyStats.awaitingPayment}</div>
+                <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">Awaiting Payment</div>
               </div>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
@@ -1293,8 +1293,8 @@ export const BillingManager = () => {
                 <CheckCircle2 className="size-5" />
               </div>
               <div>
-                <div className="text-xl font-bold text-slate-800 leading-tight">{historyStats.paid}</div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Paid</div>
+                <div className="text-[30px] font-extrabold text-slate-800 leading-tight">{historyStats.paid}</div>
+                <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">Paid</div>
               </div>
             </div>
           </div>
@@ -1302,19 +1302,19 @@ export const BillingManager = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Search Documents</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Search Documents</Label>
               <div className="relative">
-                <Search className="size-4 absolute left-3 top-2.5 text-slate-400" />
+                <Search className="size-4 absolute left-3 top-2.5 text-slate-500" />
                 <Input type="text" placeholder="Search by practitioner name..." className="pl-10" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} />
               </div>
             </div>
             <div className="flex gap-4 items-end">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Service Date From</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Service Date From</Label>
                 <Input type="date" value={historyDate.start} onChange={(e) => setHistoryDate({...historyDate, start: e.target.value})} />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Service Date To</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Service Date To</Label>
                 <Input type="date" value={historyDate.end} onChange={(e) => setHistoryDate({...historyDate, end: e.target.value})} />
               </div>
               <Button onClick={resetHistoryFilters} variant="outline" size="lg" className="cursor-pointer border-slate-300 bg-white text-slate-700 font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.05),0_2px_6px_-2px_rgba(15,23,42,0.15)] hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900">Reset</Button>
@@ -1326,7 +1326,7 @@ export const BillingManager = () => {
             <table className="w-full text-left border-collapse tabular-nums">
               <caption className="sr-only">Completed billing documents</caption>
               <thead>
-                <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                <tr className="bg-white border-b border-slate-200 text-[14px] uppercase tracking-wider text-slate-600 font-semibold">
                   <SortableHeader label="Period / Date" field="month" sort={vaultSort} onSort={toggleVaultSort} className="py-4 px-6" />
                   <SortableHeader label="Practitioner" field="practitioner" sort={vaultSort} onSort={toggleVaultSort} className="py-4 px-6" />
                   <th scope="col" className="py-4 px-6 text-center">SEVF Form</th>
@@ -1336,9 +1336,9 @@ export const BillingManager = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isHistoryLoading ? (
-                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">Accessing secure records...</td></tr>
+                  <tr><td colSpan="5" className="py-12 text-center text-slate-600">Accessing secure records...</td></tr>
                 ) : groupedHistory.length === 0 ? (
-                  <tr><td colSpan="5" className="py-12 text-center text-slate-500">No matching documents found.</td></tr>
+                  <tr><td colSpan="5" className="py-12 text-center text-slate-600">No matching documents found.</td></tr>
                 ) : (
                   groupedHistory.map((group) => {
                     const isVaultExpanded = vaultExpandedRows.has(group.id);
@@ -1356,10 +1356,10 @@ export const BillingManager = () => {
                         <tr className="hover:bg-slate-50 transition-colors">
 
                           {/* DATE / FOLDER */}
-                          <td className="py-4 px-6 text-sm font-medium">
+                          <td className="py-4 px-6 text-[16px] font-medium">
                             {group.dateRange
                               ? <span className="text-slate-800">{group.dateRange}</span>
-                              : <span className="text-slate-400 italic">Regenerate to update</span>
+                              : <span className="text-slate-500 italic">Regenerate to update</span>
                             }
                           </td>
 
@@ -1368,7 +1368,7 @@ export const BillingManager = () => {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleVaultToggleExpand(group.id, group.practitionerFolder, group.serviceMinDate, group.serviceMaxDate, group.isOverride, group.batchId)}
-                                className="p-1 rounded hover:bg-slate-200 transition-colors text-slate-400 flex-shrink-0 cursor-pointer"
+                                className="p-1 rounded hover:bg-slate-200 transition-colors text-slate-500 flex-shrink-0 cursor-pointer"
                                 aria-label={isVaultExpanded ? 'Collapse logs' : 'Expand logs'}
                                 aria-expanded={isVaultExpanded}
                               >
@@ -1409,7 +1409,7 @@ export const BillingManager = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="cursor-pointer text-slate-500 hover:text-amber-700 hover:bg-amber-50"
+                                className="cursor-pointer text-slate-600 hover:text-amber-700 hover:bg-amber-50"
                                 onClick={() => setRevertModal({ group })}
                               >
                                 <Undo2 className="size-3.5 mr-1.5" />
@@ -1427,14 +1427,14 @@ export const BillingManager = () => {
                             <td colSpan="5" className="bg-white px-0 py-0 border-b border-slate-200">
                               <div className="px-8 py-4 border-t border-slate-100">
                                 {isLoadingVault ? (
-                                  <div className="text-center py-4 text-slate-500 text-sm">Loading logs...</div>
+                                  <div className="text-center py-4 text-slate-600 text-[16px]">Loading logs...</div>
                                 ) : vaultLogs.length === 0 ? (
-                                  <div className="text-center py-4 text-slate-500 text-sm">No logs found for this period.</div>
+                                  <div className="text-center py-4 text-slate-600 text-[16px]">No logs found for this period.</div>
                                 ) : (
-                                  <table className="w-full text-left border-collapse text-sm tabular-nums">
+                                  <table className="w-full text-left border-collapse text-[16px] tabular-nums">
                                     <caption className="sr-only">Individual session logs for {group.practitionerName}, {group.dateRange}</caption>
                                     <thead>
-                                      <tr className="text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-300">
+                                      <tr className="text-[14px] uppercase tracking-wider text-slate-600 font-semibold border-b border-slate-300">
                                         <th scope="col" className="py-2.5 px-3">Patient Name</th>
                                         <th scope="col" className="py-2.5 px-3">Service Date</th>
                                         <th scope="col" className="py-2.5 px-3">Service Status</th>
@@ -1462,31 +1462,31 @@ export const BillingManager = () => {
                                             isDeclined ? 'bg-red-50/40' :
                                             ''
                                           }>
-                                            <td className={`py-3 px-3 font-semibold ${isInactive ? 'text-slate-400' : 'text-slate-800'}`}>
+                                            <td className={`py-3 px-3 font-semibold ${isInactive ? 'text-slate-500' : 'text-slate-800'}`}>
                                               {session.patient_first_name} {session.patient_last_name}
                                             </td>
-                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {session.service_date ? new Date(session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
                                             </td>
-                                            <td className={`py-3 px-3 capitalize font-medium ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 capitalize font-medium ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {session.status || '-'}
                                             </td>
-                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {session.type || '-'}
                                             </td>
-                                            <td className={`py-3 px-3 capitalize ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 capitalize ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {session.location || '-'}
                                             </td>
-                                            <td className={`py-3 px-3 capitalize ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 capitalize ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {session.group_size_category || '-'}
                                             </td>
-                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {session.start_time ? formatTime12h(session.start_time) : '-'}
                                             </td>
-                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {session.end_time ? formatTime12h(session.end_time) : '-'}
                                             </td>
-                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            <td className={`py-3 px-3 ${isInactive ? 'text-slate-500' : 'text-slate-700'}`}>
                                               {formatTime(session.total_time)}
                                             </td>
                                             <td className="py-3 px-3 text-center">
@@ -1526,12 +1526,12 @@ export const BillingManager = () => {
               the real dollar figures live in the state EIC system. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+              <div className="size-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
                 <FileText className="size-5" />
               </div>
               <div>
-                <div className="text-xl font-bold text-slate-800 leading-tight">{statusStats.total}</div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Invoices</div>
+                <div className="text-[30px] font-extrabold text-slate-800 leading-tight">{statusStats.total}</div>
+                <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">Total Invoices</div>
               </div>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
@@ -1539,17 +1539,17 @@ export const BillingManager = () => {
                 <DollarSign className="size-5" />
               </div>
               <div>
-                <div className="text-xl font-bold text-slate-800 leading-tight">{statusStats.unpaid}</div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Unpaid</div>
+                <div className="text-[30px] font-extrabold text-slate-800 leading-tight">{statusStats.unpaid}</div>
+                <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">Unpaid</div>
               </div>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+              <div className="size-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
                 <Printer className="size-5" />
               </div>
               <div>
-                <div className="text-xl font-bold text-slate-800 leading-tight">{statusStats.notPrinted}</div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Not Printed</div>
+                <div className="text-[30px] font-extrabold text-slate-800 leading-tight">{statusStats.notPrinted}</div>
+                <div className="text-[14px] font-semibold text-slate-600 uppercase tracking-wide">Not Printed</div>
               </div>
             </div>
           </div>
@@ -1557,23 +1557,23 @@ export const BillingManager = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-7 py-5 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-6 items-end justify-between">
             <div className="flex-1 min-w-[250px] max-w-md space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Search Practitioner</Label>
+              <Label className="text-[16px] font-semibold text-slate-700">Search Practitioner</Label>
               <div className="relative">
-                <Search className="size-4 absolute left-3 top-2.5 text-slate-400" />
+                <Search className="size-4 absolute left-3 top-2.5 text-slate-500" />
                 <Input type="text" placeholder="Search by practitioner name..." className="pl-10" value={statusSearch} onChange={(e) => setStatusSearch(e.target.value)} />
               </div>
             </div>
             <div className="flex gap-4 items-end">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Service Date From</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Service Date From</Label>
                 <Input type="date" value={statusDateRange.start} onChange={(e) => setStatusDateRange({ ...statusDateRange, start: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Service Date To</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Service Date To</Label>
                 <Input type="date" value={statusDateRange.end} onChange={(e) => setStatusDateRange({ ...statusDateRange, end: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Payment Status</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Payment Status</Label>
                 <Select value={paidFilter} onValueChange={setPaidFilter}>
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1584,7 +1584,7 @@ export const BillingManager = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-slate-700">Print Status</Label>
+                <Label className="text-[16px] font-semibold text-slate-700">Print Status</Label>
                 <Select value={printFilter} onValueChange={setPrintFilter}>
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1608,7 +1608,7 @@ export const BillingManager = () => {
           <div className={`h-[52px] px-7 flex items-center justify-between gap-4 border-b transition-colors ${selectedBatchIds.size > 0 ? 'bg-blue-50 border-blue-100' : 'bg-slate-50/50 border-slate-100'}`}>
             {selectedBatchIds.size > 0 ? (
               <>
-                <span className="text-sm font-semibold text-blue-900">
+                <span className="text-[16px] font-semibold text-blue-900">
                   {selectedBatchIds.size} invoice{selectedBatchIds.size === 1 ? '' : 's'} selected
                 </span>
                 <div className="flex gap-2">
@@ -1631,7 +1631,7 @@ export const BillingManager = () => {
                 </div>
               </>
             ) : (
-              <span className="text-xs text-slate-400">Select invoices below to print them together.</span>
+              <span className="text-[14px] text-slate-500">Select invoices below to print them together.</span>
             )}
           </div>
 
@@ -1639,7 +1639,7 @@ export const BillingManager = () => {
             <table className="w-full text-left border-collapse tabular-nums">
               <caption className="sr-only">Invoice printed and paid status</caption>
               <thead>
-                <tr className="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                <tr className="bg-white border-b border-slate-200 text-[14px] uppercase tracking-wider text-slate-600 font-semibold">
                   <th scope="col" className="py-4 px-6 w-12">
                     <button
                       type="button"
@@ -1670,9 +1670,9 @@ export const BillingManager = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isStatusLoading ? (
-                  <tr><td colSpan="6" className="py-12 text-center text-slate-500">Loading invoices...</td></tr>
+                  <tr><td colSpan="6" className="py-12 text-center text-slate-600">Loading invoices...</td></tr>
                 ) : filteredBatches.length === 0 ? (
-                  <tr><td colSpan="6" className="py-12 text-center text-slate-500">No matching invoices found.</td></tr>
+                  <tr><td colSpan="6" className="py-12 text-center text-slate-600">No matching invoices found.</td></tr>
                 ) : (
                   filteredBatches.map((batch) => {
                     const practName = `${batch.practitioners?.first_name || ''} ${batch.practitioners?.last_name || ''}`.trim() || 'Unknown';
@@ -1696,7 +1696,7 @@ export const BillingManager = () => {
                             {isSelected && <CheckCircle2 className="size-3.5 text-white" strokeWidth={3} />}
                           </button>
                         </td>
-                        <td className="py-4 px-6 text-sm font-medium text-slate-800">{dateRange}</td>
+                        <td className="py-4 px-6 text-[16px] font-medium text-slate-800">{dateRange}</td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-2.5">
                             <PractitionerAvatar name={practName} />
@@ -1771,7 +1771,7 @@ export const BillingManager = () => {
             key={t.id}
             role="status"
             aria-live="polite"
-            className={`pointer-events-auto flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm shadow-lg ${
+            className={`pointer-events-auto flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[16px] shadow-lg ${
               t.type === 'error'
                 ? 'bg-red-50 border-red-200 text-red-800'
                 : 'bg-emerald-50 border-emerald-200 text-emerald-800'

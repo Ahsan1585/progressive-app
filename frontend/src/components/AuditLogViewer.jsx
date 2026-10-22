@@ -62,8 +62,8 @@ export const AuditLogViewer = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Audit Log</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-[34px] font-extrabold text-slate-900 tracking-tight leading-tight">Audit Log</h1>
+        <p className="text-[16px] text-slate-600 mt-1">
           A record of who accessed or changed patient data, the EIMS compliance document, and generated NJEIS/invoice/audit files — newest first.
         </p>
       </div>
@@ -71,9 +71,9 @@ export const AuditLogViewer = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">Action</Label>
+            <Label className="text-[14px]">Action</Label>
             <select
-              className="w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
+              className="w-full h-9 rounded-md border border-slate-300 bg-white px-2.5 text-[16px]"
               value={filters.action}
               onChange={(e) => setFilter('action', e.target.value)}
             >
@@ -84,15 +84,15 @@ export const AuditLogViewer = () => {
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Resource type</Label>
+            <Label className="text-[14px]">Resource type</Label>
             <Input value={filters.resourceType} onChange={(e) => setFilter('resourceType', e.target.value)} placeholder="e.g. patient" className="h-9" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">From</Label>
+            <Label className="text-[14px]">From</Label>
             <Input type="date" value={filters.startDate} onChange={(e) => setFilter('startDate', e.target.value)} className="h-9" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">To</Label>
+            <Label className="text-[14px]">To</Label>
             <Input type="date" value={filters.endDate} onChange={(e) => setFilter('endDate', e.target.value)} className="h-9" />
           </div>
         </div>
@@ -104,13 +104,13 @@ export const AuditLogViewer = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>
+        <div className="bg-red-50 border border-red-200 text-red-700 text-[16px] rounded-xl px-4 py-3">{error}</div>
       )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-[16px]">
           <thead>
-            <tr className="text-left text-[11px] font-bold uppercase text-slate-500 bg-slate-50 border-b border-slate-200">
+            <tr className="text-left text-[14px] font-bold uppercase text-slate-600 bg-slate-50 border-b border-slate-200">
               <th className="px-4 py-2.5">When</th>
               <th className="px-4 py-2.5">Who</th>
               <th className="px-4 py-2.5">Action</th>
@@ -120,16 +120,16 @@ export const AuditLogViewer = () => {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Loading...</td></tr>
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-500">Loading...</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">No audit entries match these filters.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-500">No audit entries match these filters.</td></tr>
             ) : logs.map((log) => (
               <tr key={log.id} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
-                <td className="px-4 py-2.5 text-slate-800 font-medium">{log.actor_email || 'Unknown'}<span className="text-slate-400 font-normal"> {log.actor_role ? `(${log.actor_role})` : ''}</span></td>
+                <td className="px-4 py-2.5 text-slate-800 font-medium">{log.actor_email || 'Unknown'}<span className="text-slate-500 font-normal"> {log.actor_role ? `(${log.actor_role})` : ''}</span></td>
                 <td className="px-4 py-2.5 text-slate-700">{ACTION_LABELS[log.action] || log.action}</td>
-                <td className="px-4 py-2.5 text-slate-500 font-mono text-xs">{log.resource_type}{log.resource_id ? `#${log.resource_id}` : ''}</td>
-                <td className="px-4 py-2.5 text-slate-400 font-mono text-xs">{log.ip_address || '-'}</td>
+                <td className="px-4 py-2.5 text-slate-600 font-mono text-[14px]">{log.resource_type}{log.resource_id ? `#${log.resource_id}` : ''}</td>
+                <td className="px-4 py-2.5 text-slate-500 font-mono text-[14px]">{log.ip_address || '-'}</td>
               </tr>
             ))}
           </tbody>
