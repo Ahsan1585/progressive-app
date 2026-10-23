@@ -46,7 +46,12 @@ export function initHome() {
     chip.className = 'chip';
     chip.innerHTML = '<i class="ok">NOTE</i><i class="bad">FIX</i>';
     lane.appendChild(chip);
-    logged++; total++; if (isFlag) flagged++; setM();
+    // Counts follow what is on screen: logged when the note appears, flagged
+    // the moment it turns red at the CHECK gate (35% of its 6.2s run, when the
+    // red layer fades in), billed when it leaves the lane. So logged minus
+    // billed is always the notes currently visible in the lane.
+    logged++; total++; setM();
+    if (isFlag) T.timeout(() => { if (chip.isConnected) { flagged++; setM(); } }, Math.round(6200 * 0.35));
     const TRANSLATE = 'translate(%px,-50%)';
     const tx = x => TRANSLATE.replace('%', Math.round(x));
     let anim;
