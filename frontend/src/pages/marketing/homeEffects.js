@@ -47,11 +47,17 @@ export function initHome() {
     chip.innerHTML = '<i class="ok">NOTE</i><i class="bad">FIX</i>';
     lane.appendChild(chip);
     // Counts follow what is on screen: logged when the note appears, flagged
-    // the moment it turns red at the CHECK gate (35% of its 6.2s run, when the
-    // red layer fades in), billed when it leaves the lane. So logged minus
-    // billed is always the notes currently visible in the lane.
+    // the moment it turns red at the CHECK line (35% of its 6.2s run, when the
+    // red layer fades in), billed the moment it clears the CHECK line. So every
+    // note left of the line is logged-not-yet-billed, every note right of it is
+    // billed. The line sits at the lane's centre, which a clean note's chip
+    // centre reaches at exactly half its run; a flagged note bounces back to
+    // 18%, then crosses the centre at 80.5% of its run once fixed.
     logged++; total++; setM();
-    if (isFlag) T.timeout(() => { if (chip.isConnected) { flagged++; setM(); } }, Math.round(6200 * 0.35));
+    const DUR = isFlag ? 6200 : 3600;
+    const at = (fraction, fn) => T.timeout(() => { if (chip.isConnected) { fn(); setM(); } }, Math.round(DUR * fraction));
+    if (isFlag) at(0.35, () => { flagged++; });
+    at(isFlag ? 0.805 : 0.5, () => { billed++; });
     const TRANSLATE = 'translate(%px,-50%)';
     const tx = x => TRANSLATE.replace('%', Math.round(x));
     let anim;
@@ -71,7 +77,7 @@ export function initHome() {
     } else {
       anim = chip.animate([{transform: tx(0)},{transform: tx(d)}], {duration:3600, easing:'linear'});
     }
-    anim.onfinish = () => { chip.remove(); billed++; setM(); };
+    anim.onfinish = () => { chip.remove(); };
   }
   function staticLane(){
     const d = Math.max(lane.clientWidth - 82, 60);
@@ -82,7 +88,8 @@ export function initHome() {
       chip.style.transform = 'translate(' + Math.round(d*p) + 'px,-50%)';
       lane.appendChild(chip);
     });
-    logged = 48; flagged = 5; billed = 43; setM();
+    // two notes sit left of the CHECK line in this still frame, so logged = billed + 2
+    logged = 45; flagged = 5; billed = 43; setM();
   }
   function startFlow(){ if (!timer && !reduce) { spawn(); timer = T.interval(spawn, 950); } }
   function stopFlow(){ clearInterval(timer); timer = null; }
