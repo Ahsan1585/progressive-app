@@ -509,3 +509,56 @@ export interface ApiErrorBody {
   message?: string;
   code?: string;
 }
+
+// GET /api/practitioner-dashboard/agency-summary — an agency (tenant)
+// practitioner's own session notes, priced at their own pay rate. See
+// backend/src/utils/agencyPractitionerSummary.js for every rule.
+export type AgencyStage = "awaiting" | "approved" | "invoiced" | "paid" | "returned" | "onHold" | "declined";
+
+export interface MoneyCount {
+  count: number;
+  value: number;
+}
+
+export interface AgencyNoteItem {
+  id: number;
+  childName: string;
+  serviceDate: string;
+  reason: string | null;
+  since: string | null;
+  daysAgo: number | null;
+  overdue: boolean;
+  value: number;
+  minutes: number;
+  withAdmin?: boolean;
+}
+
+export interface AgencyMonthNote {
+  id: number;
+  stage: AgencyStage;
+  childName: string;
+  serviceDate: string;
+  value: number;
+  minutes: number;
+}
+
+export interface AgencyTrendPoint {
+  month: string;
+  label: string;
+  submittedValue: number;
+  paidValue: number;
+  hours: number;
+}
+
+export interface AgencySummary {
+  month: string;
+  hasPayRate: boolean;
+  tiles: { submitted: MoneyCount & { hours: number }; invoiced: MoneyCount; paid: MoneyCount };
+  breakdown: Record<AgencyStage, MoneyCount>;
+  owed: { value: number; inProgress: number; invoicedUnpaid: number; onHold: number };
+  waitingOnFix: MoneyCount;
+  needsYou: { returned: AgencyNoteItem[]; onHold: AgencyNoteItem[] };
+  declined: AgencyNoteItem[];
+  monthNotes: AgencyMonthNote[];
+  trend: AgencyTrendPoint[];
+}

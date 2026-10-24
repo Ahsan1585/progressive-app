@@ -13,7 +13,17 @@ import { useToast } from "@/components/ui/toast";
 import api from "@/api/axiosInstance";
 import { formatTime12h, timeAgo, formatHoursMinutes } from "@/utils/time";
 import { cn } from "@/lib/utils";
-import type { ScheduledSession, PractitionerDashboardSummary, MonthlyTrendPoint, AgencyBreakdownEntry } from "@/types";
+import type { ScheduledSession, PractitionerDashboardSummary, MonthlyTrendPoint, AgencyBreakdownEntry, AgencySummary } from "@/types";
+import { NeedsYouCard } from "@/components/agency/NeedsYouCard";
+import { AgencyDashboard } from "@/components/agency/AgencyDashboard";
+
+// "YYYY-MM" for today in New York (the agency's billing calendar)
+const currentMonth = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }).slice(0, 7);
+const shiftMonth = (month: string, delta: number) => {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
 
 const formatUsd = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const formatUsdShort = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`);
@@ -48,7 +58,7 @@ function groupSessionsByDay(sessions: ScheduledSession[]) {
 export default function Home() {
   const { practitioner, isIndependentPractitioner } = useAuth();
   const {
-    stats, statsLoading, statsError, fetchStats,
+    statsError, fetchStats,
     rejectedLogs, rejectedLoading, fetchRejectedLogs,
     drafts, draftsLoading, fetchDrafts,
     patients, patientsLoading, fetchPatients,
@@ -90,6 +100,28 @@ export default function Home() {
     }
   }, [isIndependentPractitioner]);
 
+  // Agency (tenant) practitioner dashboard: own notes, priced at own pay rate.
+  const [agencyMonth, setAgencyMonth] = React.useState(currentMonth);
+  const [agencySummary, setAgencySummary] = React.useState<AgencySummary | null>(null);
+  const [agencyLoading, setAgencyLoading] = React.useState(true);
+  const [agencyError, setAgencyError] = React.useState<string | null>(null);
+
+  const fetchAgencySummary = React.useCallback(async () => {
+    if (isIndependentPractitioner) return;
+    setAgencyLoading(true);
+    setAgencyError(null);
+    try {
+      const res = await api.get<{ success: boolean } & AgencySummary>("/api/practitioner-dashboard/agency-summary", { params: { month: agencyMonth } });
+      setAgencySummary(res.data);
+    } catch {
+      setAgencyError("Couldn't load your dashboard.");
+    } finally {
+      setAgencyLoading(false);
+    }
+  }, [isIndependentPractitioner, agencyMonth]);
+
+  React.useEffect(() => { fetchAgencySummary(); }, [fetchAgencySummary]);
+
   const handleDiscardDraft = async () => {
     if (!discardTarget) return;
     setIsDiscarding(true);
@@ -108,7 +140,7 @@ export default function Home() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchDrafts(), fetchPatients(), fetchUpcomingSessions(), fetchDashboard()]);
+      await Promise.all([fetchStats(), fetchRejectedLogs(), fetchDrafts(), fetchPatients(), fetchUpcomingSessions(), fetchDashboard(), fetchAgencySummary()]);
     } finally {
       setRefreshing(false);
     }
@@ -176,9 +208,10 @@ export default function Home() {
 
       <div className="flex-1 px-4 py-3">
 
-      {statsError ? (
+      {/* Agency practitioners get their tiles from the dashboard further down. */}
+      {!isIndependentPractitioner ? null : statsError ? (
         <InlineErrorBanner message={statsError} onRetry={fetchStats} className="mb-6" />
-      ) : isIndependentPractitioner ? (
+      ) : (
         <div className="mb-6 grid grid-cols-3 gap-3">
           <StatTile label="Sessions this month" value={dashboardSummary?.sessionsSubmittedThisMonth ?? null} loading={dashboardLoading} />
           <StatTile
@@ -194,18 +227,8 @@ export default function Home() {
             formatter={(n) => formatUsdShort(n)}
           />
         </div>
-      ) : (
-        <div className="mb-6 grid grid-cols-3 gap-3">
-          <StatTile label="Logs this month" value={stats?.logsThisMonth ?? null} loading={statsLoading} />
-          <StatTile
-            label="Hours this month"
-            value={stats?.hoursThisMonth ?? null}
-            loading={statsLoading}
-            formatter={formatHoursMinutes}
-          />
-          <StatTile label="In pipeline" value={stats?.pendingReviewCount ?? null} loading={statsLoading} />
-        </div>
       )}
+
 
       {isIndependentPractitioner && (
         <div className="mb-6 space-y-4">
@@ -320,6 +343,17 @@ export default function Home() {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {!isIndependentPractitioner && agencySummary && (
+        <div className="mb-6">
+          <NeedsYouCard
+            returned={agencySummary.needsYou.returned}
+            onHold={agencySummary.needsYou.onHold}
+            waitingOnFix={agencySummary.waitingOnFix}
+            onFix={(id) => navigate(`/inbox/${id}/resubmit`)}
+          />
         </div>
       )}
 
@@ -458,7 +492,20 @@ export default function Home() {
         </div>
       )}
 
-      {!rejectedLoading && rejectedLogs.length > 0 && (
+      {!isIndependentPractitioner && (
+        <div className="mb-6">
+          <AgencyDashboard
+            summary={agencySummary}
+            loading={agencyLoading}
+            error={agencyError}
+            onRetry={fetchAgencySummary}
+            onMonthChange={(delta) => setAgencyMonth((m) => shiftMonth(m, delta))}
+            canGoNext={agencyMonth < currentMonth()}
+          />
+        </div>
+      )}
+
+      {isIndependentPractitioner && !rejectedLoading && rejectedLogs.length > 0 && (
         <button
           type="button"
           onClick={() => navigate("/inbox")}

@@ -222,4 +222,37 @@ const getByAgency = async (req, res) => {
   }
 };
 
-module.exports = { getDashboardSummary, getMonthlyTrend, getByAgency };
+// GET /api/practitioner-dashboard/agency-summary?month=YYYY-MM — the agency
+// (tenant) practitioner's Home dashboard. Unlike the independent-practitioner
+// endpoints above, agency practitioners do now see dollars: what they are owed
+// at their own pay rate, the same figure as the invoice their agency generates
+// for them (owner decision, Oct 2026). Always scoped to the signed-in
+// practitioner's own notes. Logic lives in utils/agencyPractitionerSummary.js.
+const { summarizeAgencyNotes } = require('../utils/agencyPractitionerSummary');
+
+const nyToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+const getAgencySummary = async (req, res) => {
+  const practitionerId = req.practitioner.practitionerId;
+  const today = nyToday();
+  const raw = String(req.query?.month || '');
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(raw) ? raw : today.slice(0, 7);
+  try {
+    const payRate = await getPayRate(practitionerId);
+    const { rows } = await pool.query(
+      `SELECT a.id, a.service_date::text AS service_date, a.total_time, a.billing_status, a.billing_review,
+              a.eims_missing_status, a.patient_first_name, a.patient_last_name,
+              a.rejection_note, a.rejected_at, a.hold_note, a.held_at, bb.paid_at
+       FROM assessments a
+       LEFT JOIN billing_batches bb ON bb.id = a.billing_batch_id
+       WHERE a.practitioner_id = $1 AND a.billing_status != 'voided'`,
+      [practitionerId]
+    );
+    res.json({ success: true, ...summarizeAgencyNotes(rows, { payRate, month, today }) });
+  } catch (error) {
+    console.error('Error fetching agency practitioner summary:', error);
+    res.status(500).json({ success: false, error: 'Failed to load your dashboard.' });
+  }
+};
+
+module.exports = { getDashboardSummary, getMonthlyTrend, getByAgency, getAgencySummary };

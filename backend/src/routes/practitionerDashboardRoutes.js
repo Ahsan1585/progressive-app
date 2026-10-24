@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { protect, loadPermissions, requireRole } = require('../middleware/authMiddleware');
-const { getDashboardSummary, getMonthlyTrend, getByAgency } = require('../controllers/practitionerDashboardController');
+const { getDashboardSummary, getMonthlyTrend, getByAgency, getAgencySummary } = require('../controllers/practitionerDashboardController');
 
 // Independent-practitioner-only — mirrors billingRoutes.js's
 // independentGuard exactly. Every tenant-company practitioner's logs are
@@ -14,5 +14,9 @@ const independentGuard = [protect, loadPermissions, requireRole(['independent_pr
 router.get('/summary', ...independentGuard, getDashboardSummary);
 router.get('/monthly-trend', ...independentGuard, getMonthlyTrend);
 router.get('/by-agency', ...independentGuard, getByAgency);
+
+// Agency (tenant) practitioners: their own notes, priced at their own pay rate.
+const agencyPractitionerGuard = [protect, loadPermissions, requireRole(['practitioner'])];
+router.get('/agency-summary', ...agencyPractitionerGuard, getAgencySummary);
 
 module.exports = router;
