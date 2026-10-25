@@ -695,6 +695,7 @@ export default function LogIntervention() {
             ) : (
               <SignatureCapture
                 large
+                autoCommit
                 label="Parent / caregiver signature"
                 instructions="Parent or caregiver signature — draw with your finger or stylus"
                 value={parentSig}
@@ -704,6 +705,7 @@ export default function LogIntervention() {
             )}
             <SignatureCapture
               large
+              autoCommit
               label="Your signature"
               instructions="Practitioner signature — draw with your finger or stylus"
               value={practitionerSig}

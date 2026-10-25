@@ -127,4 +127,26 @@ describe("Log Session in four steps", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Codes/ }));
     expect(screen.getByRole("radio", { name: /^Home/ })).toHaveAttribute("aria-checked", "true");
   });
+
+  it("in person: once the parent signs (no Done tap), the session can be saved", async () => {
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => null) as unknown as HTMLCanvasElement["getContext"];
+    HTMLCanvasElement.prototype.toDataURL = vi.fn(() => "data:image/png;base64,PARENT");
+    HTMLCanvasElement.prototype.setPointerCapture = vi.fn();
+    renderScreen();
+    const [start, end] = screen.getAllByDisplayValue("").filter((el) => (el as HTMLInputElement).type === "time");
+    fireEvent.change(start, { target: { value: "13:00" } });
+    fireEvent.change(end, { target: { value: "13:45" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next: Codes" }));
+    await screen.findByText(/Filled in from/);
+    fireEvent.click(screen.getByRole("button", { name: "Next: Notes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Sign" }));
+    expect(screen.queryByRole("button", { name: /^Done$/ })).not.toBeInTheDocument();
+    const pad = screen.getByRole("img", { name: /Parent or caregiver signature/ });
+    fireEvent.pointerDown(pad, { pointerId: 1, clientX: 5, clientY: 5 });
+    fireEvent.pointerMove(pad, { pointerId: 1, clientX: 60, clientY: 30 });
+    fireEvent.pointerUp(pad, { pointerId: 1 });
+    await screen.findByText("Everything is ready to save");
+    fireEvent.click(screen.getByRole("button", { name: "Save Session" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/interventions", expect.objectContaining({ parentSignatureBase64: "data:image/png;base64,PARENT" })));
+  });
 });

@@ -20,6 +20,9 @@ interface SignatureCaptureProps {
   error?: string | null;
   /** Bigger, bolder label for the step-by-step Log Session flow. */
   large?: boolean;
+  /** Save the signature when the finger lifts (no Done tap). The pad stays
+   *  open for more strokes; each stroke updates the saved signature. */
+  autoCommit?: boolean;
 }
 
 // Touch-optimized signature canvas — ~200px tall, full width, touch-action:
@@ -39,6 +42,7 @@ export function SignatureCapture({
   onSaveAsDefaultChange,
   error,
   large = false,
+  autoCommit = false,
 }: SignatureCaptureProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const wrapperRef = React.useRef<HTMLDivElement>(null);
@@ -46,6 +50,9 @@ export function SignatureCapture({
   const hasStrokeRef = React.useRef(false);
   const [hasStroke, setHasStroke] = React.useState(false);
   const [justCaptured, setJustCaptured] = React.useState(false);
+  // autoCommit: the value came from strokes on this pad, so keep the pad open
+  // (instead of switching to the picture) to allow more strokes.
+  const [drawnHere, setDrawnHere] = React.useState(false);
 
   const CANVAS_HEIGHT = 200;
 
@@ -72,8 +79,13 @@ export function SignatureCapture({
 
   React.useEffect(() => {
     setupCanvas();
-    window.addEventListener("resize", setupCanvas);
-    return () => window.removeEventListener("resize", setupCanvas);
+    const onResize = () => {
+      setupCanvas();
+      // resizing clears the drawing surface; the saved signature then shows as a picture
+      setDrawnHere(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [setupCanvas]);
 
   // Redrawing the canvas is skipped when showing a committed value/preview —
@@ -112,7 +124,13 @@ export function SignatureCapture({
   // letter, a multi-stroke name) — it must NOT finalize the signature. Only
   // stop the current stroke here; committing happens on explicit Done.
   const onPointerUp = () => {
+    const wasDrawing = drawingRef.current;
     drawingRef.current = false;
+    // autoCommit: lifting the finger saves what is on the pad so far
+    if (autoCommit && wasDrawing && hasStrokeRef.current && canvasRef.current) {
+      onChange(cropToStrokeBounds(canvasRef.current));
+      setDrawnHere(true);
+    }
   };
 
   // Raw canvas.toDataURL() captures the WHOLE drawing surface (full width x
@@ -174,19 +192,20 @@ export function SignatureCapture({
   };
 
   const handleClear = () => {
+    setDrawnHere(false);
     hasStrokeRef.current = false;
     setHasStroke(false);
     onChange(null);
     setupCanvas();
   };
 
-  const showCaptured = !!value;
+  const showCaptured = !!value && !(autoCommit && drawnHere);
 
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
         <span className={large ? "text-[18px] font-extrabold leading-6 text-ink" : "text-[13px] font-medium leading-[18px] text-ink-body"}>{label}</span>
-        {showCaptured && (
+        {(showCaptured || (autoCommit && !!value)) && (
           <span
             className={cn(
               "inline-flex items-center gap-1 text-xs font-semibold text-success",
@@ -194,7 +213,7 @@ export function SignatureCapture({
             )}
           >
             <CheckCircle2 className="size-3.5" aria-hidden="true" />
-            Captured
+            {autoCommit ? "Signed" : "Captured"}
           </span>
         )}
       </div>
@@ -249,7 +268,7 @@ export function SignatureCapture({
           {isUsingSaved ? "Draw a new signature" : "Clear"}
         </Button>
 
-        {!showCaptured && (
+        {!showCaptured && !autoCommit && (
           <Button type="button" variant="subtle" size="sm" onClick={handleDone} disabled={!hasStroke}>
             <CheckCircle2 className="size-3.5" aria-hidden="true" />
             Done
