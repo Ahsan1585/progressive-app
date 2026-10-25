@@ -18,6 +18,8 @@ interface SignatureCaptureProps {
   saveAsDefault?: boolean;
   onSaveAsDefaultChange?: (checked: boolean) => void;
   error?: string | null;
+  /** Bigger, bolder label for the step-by-step Log Session flow. */
+  large?: boolean;
 }
 
 // Touch-optimized signature canvas — ~200px tall, full width, touch-action:
@@ -36,6 +38,7 @@ export function SignatureCapture({
   saveAsDefault,
   onSaveAsDefaultChange,
   error,
+  large = false,
 }: SignatureCaptureProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const wrapperRef = React.useRef<HTMLDivElement>(null);
@@ -182,7 +185,7 @@ export function SignatureCapture({
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[13px] font-medium leading-[18px] text-ink-body">{label}</span>
+        <span className={large ? "text-[18px] font-extrabold leading-6 text-ink" : "text-[13px] font-medium leading-[18px] text-ink-body"}>{label}</span>
         {showCaptured && (
           <span
             className={cn(
@@ -197,7 +200,7 @@ export function SignatureCapture({
       </div>
 
       {!showCaptured && savedSignature && onUseSaved && (
-        <Button type="button" variant="subtle" className="mb-2 w-full" onClick={onUseSaved}>
+        <Button type="button" variant="subtle" className={cn("mb-2 w-full", large && "h-14 text-base font-bold")} onClick={onUseSaved}>
           Use my saved signature
         </Button>
       )}

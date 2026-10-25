@@ -1,19 +1,19 @@
 import * as React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ChevronDown, Video } from "lucide-react";
+import { Mic, MoreHorizontal, RotateCcw, Users, Video } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
-import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Picker } from "@/components/Picker";
-import { ChipPicker } from "@/components/ChipPicker";
+import { BigOptions } from "@/components/logSession/BigOptions";
+import { StepProgress } from "@/components/logSession/StepProgress";
+import { LOG_STEPS, stepMissing, firstIncompleteStep, joinWords, type StepContext } from "@/utils/logSessionSteps";
 import { CompanyAffiliationField } from "@/components/CompanyAffiliationField";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -43,12 +43,12 @@ interface FormState {
 
 const todayIso = localTodayIso;
 
-const SECTIONS = [
-  { id: "details", label: "Details" },
-  { id: "codes", label: "Codes" },
-  { id: "notes", label: "Notes" },
-  { id: "signatures", label: "Signatures" },
-] as const;
+// "2026-10-24" for yesterday, in local time (the Yesterday shortcut on step 1)
+const yesterdayIso = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export default function LogIntervention() {
   const { id: patientId } = useParams<{ id: string }>();
@@ -112,6 +112,7 @@ export default function LogIntervention() {
       .then((res) => {
         const d = res.data.defaults;
         if (!d) return;
+        if (d.status || d.type || d.location) setPrefilledFromLast(true);
         setForm((f) => ({
           ...f,
           status: f.status || d.status || f.status,
@@ -164,9 +165,12 @@ export default function LogIntervention() {
   const [duplicateMessage, setDuplicateMessage] = React.useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = React.useState(false);
   const [telepracticeSentOpen, setTelepracticeSentOpen] = React.useState(false);
-  const [activeSection, setActiveSection] = React.useState<string>("details");
-
-  const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  // Step-by-step flow: Details, Codes, Notes, Sign (see utils/logSessionSteps.ts).
+  const [step, setStep] = React.useState(0);
+  const [reached, setReached] = React.useState(0);
+  const [triedNext, setTriedNext] = React.useState<boolean[]>([false, false, false, false]);
+  const [prefilledFromLast, setPrefilledFromLast] = React.useState(false);
+  const stepBodyRef = React.useRef<HTMLDivElement | null>(null);
 
   // Only pre-fills when navigated here with a specific draftId (resuming a
   // saved draft from a list) — otherwise the form starts blank, even if this
@@ -243,37 +247,51 @@ export default function LogIntervention() {
     if (cat.is_required_on_log && !form.customFields[cat.key]) missing.push(cat.display_name.toLowerCase());
   }
 
-  const scrollToSection = (sectionId: string) => {
-    setActiveSection(sectionId);
-    sectionRefs.current[sectionId]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const stepCtx: StepContext = {
+    date: form.date,
+    startTime: form.startTime,
+    endTime: form.endTime,
+    zeroTime,
+    type: form.type,
+    status: form.status,
+    location: form.location,
+    customFields: form.customFields,
+    requiredCustom: customCategories.filter((c) => c.is_required_on_log).map((c) => ({ key: c.key, label: c.display_name })),
+    isIndependentPractitioner,
+    companyAffiliation: form.companyAffiliation,
+    isTelepractice,
+    parentEmailOnFile: !!patient?.parent_email,
+    parentSig,
+    practitionerSig,
+  };
+  const stepComplete = LOG_STEPS.map((_, i) => stepMissing(i, stepCtx).length === 0);
+  const currentMissing = stepMissing(step, stepCtx);
+  const showErrors = attemptedSubmit || triedNext[step];
+
+  const goToStep = (target: number) => {
+    setStep(target);
+    setReached((r) => Math.max(r, target));
+    // scroll the new step to its top (guarded: not every webview implements Element.scrollTo)
+    const body = stepBodyRef.current;
+    if (body) { if (typeof body.scrollTo === "function") body.scrollTo({ top: 0 }); else body.scrollTop = 0; }
   };
 
-  // Details + Codes are the fields almost every session needs filled in
-  // order; Notes is optional and Signatures is the only other hard
-  // requirement. Once both are complete, auto-advance straight to
-  // Signatures (skipping the optional Notes tap/scroll a practitioner would
-  // otherwise have to pass through every single time) — fires once per
-  // screen visit (hasAutoAdvanced guards against re-firing on every
-  // keystroke once already complete, and against overriding a section the
-  // practitioner deliberately navigated to themselves afterward).
-  const detailsAndCodesComplete =
-    !!form.date &&
-    (zeroTime || (!!form.startTime && !!form.endTime)) &&
-    !!form.type &&
-    !!form.status &&
-    !!form.location &&
-    (!isIndependentPractitioner || !!form.companyAffiliation) &&
-    customCategories.every((cat) => !cat.is_required_on_log || !!form.customFields[cat.key]);
-  const hasAutoAdvanced = React.useRef(false);
-
-  React.useEffect(() => {
-    if (hasAutoAdvanced.current) return;
-    if (detailsAndCodesComplete && activeSection === "codes") {
-      hasAutoAdvanced.current = true;
-      scrollToSection("signatures");
+  const handleNext = () => {
+    if (currentMissing.length) {
+      setTriedNext((t) => t.map((v, i) => (i === step ? true : v)));
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailsAndCodesComplete, activeSection]);
+    goToStep(step + 1);
+  };
+
+  // Your saved signature is applied automatically on the Sign step (one less tap);
+  // "Draw a new signature" in the pad still lets you sign by hand.
+  React.useEffect(() => {
+    if (step === 3 && !practitionerSig && profile?.signature) {
+      setPractitionerSig(profile.signature);
+      setIsUsingSaved(true);
+    }
+  }, [step, practitionerSig, profile?.signature]);
 
   const handleUseSavedSignature = () => {
     if (!profile?.signature) return;
@@ -300,7 +318,11 @@ export default function LogIntervention() {
     setAttemptedSubmit(true);
     setServerError(null);
     if (missing.length > 0) {
-      scrollToSection(!form.date || !form.startTime || !form.endTime ? "details" : !form.type || !form.status || !form.location || (isIndependentPractitioner && !form.companyAffiliation) ? "codes" : "signatures");
+      const target = firstIncompleteStep(stepCtx);
+      if (target >= 0) {
+        setTriedNext((t) => t.map((v, i) => (i === target ? true : v)));
+        goToStep(target);
+      }
       return;
     }
 
@@ -404,289 +426,51 @@ export default function LogIntervention() {
     }
   };
 
+  const childName = patient ? `${patient.first_name}${patient.middle_name ? ` ${patient.middle_name}` : ""} ${patient.last_name}` : "";
+  const initials = patient ? `${patient.first_name?.[0] ?? ""}${patient.last_name?.[0] ?? ""}` : "";
+  const optionLabel = (opts: { code: string; label: string }[], code: string) => opts.find((o) => o.code === code)?.label || code;
+  const fmt12 = (hm: string) => {
+    if (!hm) return "";
+    const [h, m] = hm.split(":").map(Number);
+    return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+  };
+  const prettyDate = (iso: string) => {
+    if (iso === todayIso()) return "Today";
+    if (iso === yesterdayIso()) return "Yesterday";
+    const [y, mo, d] = iso.split("-").map(Number);
+    return new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  };
+  const totalLabel = zeroTime
+    ? "0 min (cancelled)"
+    : totalMinutes > 0
+      ? `${Math.floor(totalMinutes / 60) ? `${Math.floor(totalMinutes / 60)} h ` : ""}${totalMinutes % 60 ? `${totalMinutes % 60} min` : ""}`.trim()
+      : "—";
+  const bigInput = "h-[62px] rounded-[16px] border-2 px-4 text-[21px] font-bold";
+  const chip = "press-scale min-h-[50px] rounded-full border-2 border-border-strong bg-surface px-4 text-[16.5px] font-bold text-ink disabled:opacity-40";
+  const chipOn = "border-primary bg-primary text-primary-fg";
+  const errorFor = (key: string) => (showErrors && currentMissing.includes(key) ? true : false);
+
+  const setTelepractice = (tele: boolean) => {
+    setIsTelepractice(tele);
+    setTouched(true);
+    // Prompt for the parent email right away, as before: catches the blocker
+    // the moment it matters instead of on the last step.
+    if (tele && !patient?.parent_email) setParentEmailPromptOpen(true);
+  };
+
   return (
     <PushScreen>
-      <AppBar title="Log Session" onBack={handleBack} />
-
-      {patient && (
-        <div className="border-b border-border bg-surface px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Logging session for</p>
-          <p className="truncate text-[17px] font-semibold capitalize text-ink">
-            {patient.first_name}
-            {patient.middle_name ? ` ${patient.middle_name}` : ""} {patient.last_name}
-          </p>
-        </div>
-      )}
-
-      <div className="border-b border-border bg-surface px-4 py-3">
-        {/* Deliberately louder than a routine checkbox row — this single
-            toggle branches the whole form's signature flow, so it needs to
-            be caught before a practitioner fills everything else in. */}
-        <label className="flex items-start gap-3 rounded-card border-2 border-primary/50 bg-primary-tint px-3.5 py-3">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-5 shrink-0 rounded border-2 border-primary accent-primary"
-            checked={isTelepractice}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setIsTelepractice(checked);
-              setTouched(true);
-              // Prompt for the parent email right here instead of only
-              // surfacing it later in the Signatures section — catches the
-              // blocker the moment it becomes relevant, not several fields
-              // into the form.
-              if (checked && !patient?.parent_email) setParentEmailPromptOpen(true);
-            }}
-          />
-          <span>
-            <span className="flex items-center gap-1.5 text-[14px] font-bold text-primary">
-              <Video className="size-4 shrink-0" aria-hidden="true" />
-              Telepractice (Video) Session
-            </span>
-            <span className="mt-0.5 block text-xs font-medium text-ink-body">
-              We&apos;ll email the parent a link to review and sign remotely instead of collecting their signature here.
-            </span>
-          </span>
-        </label>
-      </div>
-
-      {/* Sticky section-chip bar */}
-      <div className="sticky top-14 z-20 flex gap-2 border-b border-border bg-bg px-4 py-2.5">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => scrollToSection(s.id)}
-            className={cn(
-              "press-scale h-8 rounded-full border px-3.5 text-xs font-semibold",
-              activeSection === s.id
-                ? "border-transparent bg-primary text-primary-fg"
-                : "border-border-strong bg-surface text-ink-muted"
-            )}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 space-y-8 overflow-y-auto px-4 py-5 pb-28">
-        {serverError && <InlineErrorBanner message={serverError} />}
-
-        <div ref={(el) => { sectionRefs.current.details = el; }} className="space-y-4">
-          <h2 className="text-[15px] font-semibold text-ink">Visit details</h2>
-          <Field id="date" label="Service date" error={attemptedSubmit && !form.date ? "Date is required." : null}>
-            <Input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} required />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field id="startTime" label="Start time" error={attemptedSubmit && !zeroTime && !form.startTime ? "Required." : null}>
-              <Input type="time" value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} disabled={zeroTime} required={!zeroTime} />
-            </Field>
-            <Field id="endTime" label="End time" error={attemptedSubmit && !zeroTime && !form.endTime ? "Required." : null}>
-              <Input type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} disabled={zeroTime} required={!zeroTime} />
-            </Field>
-          </div>
-          {!zeroTime && (
-            <div className="flex flex-wrap gap-2">
-              {/* One tap instead of opening the native time picker — covers
-                  the common case of logging a session as it starts/ends.
-                  Still fully editable via the fields above either way. */}
-              <button
-                type="button"
-                onClick={() => setField("startTime", localNowHHMM())}
-                className="press-scale min-h-[36px] rounded-full border border-border-strong bg-surface px-3.5 text-xs font-semibold text-ink"
-              >
-                Start now
-              </button>
-              {[15, 30, 45, 60].map((mins) => (
-                <button
-                  key={mins}
-                  type="button"
-                  disabled={!form.startTime}
-                  onClick={() => setField("endTime", addMinutesToTime(form.startTime, mins))}
-                  className="press-scale min-h-[36px] rounded-full border border-border-strong bg-surface px-3.5 text-xs font-semibold text-ink disabled:opacity-40"
-                >
-                  {mins} min
-                </button>
-              ))}
-            </div>
-          )}
-          <label className="flex items-center gap-2.5 text-[13px] font-medium text-ink-body">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-border-strong"
-              checked={zeroTime}
-              onChange={(e) => handleZeroTimeToggle(e.target.checked)}
-            />
-            Session was cancelled — log with 0 time
-          </label>
-          <div>
-            <p className="text-[13px] font-medium leading-[18px] text-ink-body">Total time</p>
-            <p className="tabular mt-1.5 text-lg font-semibold text-ink" aria-live="polite">
-              {zeroTime ? "0 min (cancelled)" : totalMinutes > 0 ? `${(totalMinutes / 60).toFixed(2)} hrs (${totalMinutes} min)` : "—"}
-            </p>
-          </div>
-        </div>
-
-        <div ref={(el) => { sectionRefs.current.codes = el; }} className="space-y-4">
-          <h2 className="text-[15px] font-semibold text-ink">Service codes</h2>
-          <Picker
-            id="type"
-            label="Service type"
-            value={form.type}
-            options={allowedServiceTypeOptions}
-            onChange={(v) => setField("type", v)}
-            error={attemptedSubmit && !form.type ? "Service type is required." : null}
-          />
-          <ChipPicker
-            id="status"
-            label="Status"
-            value={form.status}
-            options={statusOptions}
-            onChange={(v) => setField("status", v)}
-            error={attemptedSubmit && !form.status ? "Status is required." : null}
-          />
-          <ChipPicker
-            id="location"
-            label="Location"
-            value={form.location}
-            options={locationOptions}
-            onChange={(v) => setField("location", v)}
-            error={attemptedSubmit && !form.location ? "Location is required." : null}
-          />
-          <ChipPicker
-            id="groupSizeCategory"
-            label="Group size category"
-            value={form.groupSizeCategory}
-            options={groupSizeOptions}
-            onChange={(v) => setField("groupSizeCategory", v)}
-          />
-          {isIndependentPractitioner && (
-            <CompanyAffiliationField
-              value={form.companyAffiliation}
-              onChange={(v) => setField("companyAffiliation", v)}
-              agencies={agencies}
-              rosterAgencies={rosterAgencies}
-              onAgencyCreated={fetchAgencies}
-              error={attemptedSubmit && !form.companyAffiliation ? "An agency is required." : null}
-            />
-          )}
-          {customCategories.map((cat) => {
-            const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
-            return (
-              <Picker
-                key={cat.key}
-                id={`custom-${cat.key}`}
-                label={cat.display_name}
-                value={form.customFields[cat.key] || ""}
-                options={catOptions}
-                onChange={(v) => {
-                  setTouched(true);
-                  setForm((f) => ({ ...f, customFields: { ...f.customFields, [cat.key]: v } }));
-                }}
-                error={attemptedSubmit && cat.is_required_on_log && !form.customFields[cat.key] ? `${cat.display_name} is required.` : null}
-              />
-            );
-          })}
-        </div>
-
-        <div ref={(el) => { sectionRefs.current.notes = el; }} className="space-y-4">
-          <h2 className="text-[15px] font-semibold text-ink">Session notes</h2>
-          <Field id="note" label="Session notes" optional>
-            <Textarea
-              placeholder="Add any context on this session..."
-              value={form.note}
-              onChange={(e) => setField("note", e.target.value)}
-            />
-          </Field>
-        </div>
-
-        <div ref={(el) => { sectionRefs.current.signatures = el; }} className="space-y-6">
-          <h2 className="text-[15px] font-semibold text-ink">Signatures</h2>
-          {isTelepractice ? (
-            <div className="space-y-2">
-              <p className="text-[13px] font-medium text-ink-body">Parent/caregiver signature</p>
-              {patient?.parent_email ? (
-                <div className="rounded-card border border-border bg-surface-sunken p-3.5">
-                  <p className="text-sm text-ink-body">
-                    We&apos;ll send a signing link to <span className="font-semibold text-ink">{patient.parent_email}</span> after you submit.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-card border border-danger-border bg-danger-bg p-3.5">
-                  <p className="text-sm font-semibold text-danger">No parent email on file</p>
-                  <p className="mt-1 text-sm text-danger">
-                    Add a parent email on this child&apos;s Edit screen before submitting a telepractice session.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/patients/${patientId}/edit`)}
-                    className="press-scale mt-2 text-sm font-semibold text-danger underline"
-                  >
-                    Edit child
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <SignatureCapture
-              label="Parent/caregiver signature"
-              instructions="Parent or caregiver signature — draw with your finger or stylus"
-              value={parentSig}
-              onChange={(v) => { setParentSig(v); setTouched(true); }}
-              error={attemptedSubmit && !parentSig ? "Parent signature is required." : null}
-            />
-          )}
-          <SignatureCapture
-            label="Practitioner signature"
-            instructions="Practitioner signature — draw with your finger or stylus"
-            value={practitionerSig}
-            onChange={handlePractitionerSigChange}
-            savedSignature={profile?.signature}
-            isUsingSaved={isUsingSaved}
-            onUseSaved={handleUseSavedSignature}
-            showSaveAsDefault
-            saveAsDefault={saveAsDefault}
-            onSaveAsDefaultChange={setSaveAsDefault}
-            error={attemptedSubmit && !practitionerSig ? "Practitioner signature is required." : null}
-          />
-        </div>
-      </div>
-
-      {/* Sticky bottom submit bar with live "N missing" readout */}
-      <div className="safe-bottom sticky bottom-0 z-20 border-t border-border bg-surface px-4 py-3 shadow-[var(--elev-raised)]">
-        {missing.length > 0 && (
-          <p className="tabular mb-2 text-xs font-medium text-ink-muted">
-            {missing.length} field{missing.length > 1 ? "s" : ""} still missing
-          </p>
-        )}
-        <div className="flex">
-          {/* Split button: the primary action gets the full row (so its
-              label — "Save Session" or, for telepractice, the much longer
-              "Send to Parent to Sign" — always has room to breathe or wrap),
-              with Save Draft / Cancel tucked behind the chevron instead of
-              fighting it for space in an even three-way split. */}
-          <Button
-            className="h-auto min-h-12 flex-1 whitespace-normal rounded-r-none py-2 text-center leading-tight"
-            size="lg"
-            onClick={handleSubmit}
-            loading={submitting}
-            disabled={submitting || savingDraft}
-          >
-            {isTelepractice ? "Send to Parent to Sign" : "Save Session"}
-          </Button>
+      <AppBar
+        title="Log Session"
+        onBack={handleBack}
+        trailing={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="lg"
-                aria-label="More options: Save Draft or Cancel"
-                disabled={submitting || savingDraft}
-                className="w-12 shrink-0 rounded-l-none border-l border-l-primary-hover px-0"
-              >
-                <ChevronDown className="size-5" aria-hidden="true" />
-              </Button>
+              <button type="button" aria-label="More options: Save Draft or Cancel" className="press-scale flex size-11 items-center justify-center rounded-control text-ink hover:bg-surface-sunken" disabled={submitting || savingDraft}>
+                <MoreHorizontal className="size-6" aria-hidden="true" />
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="end">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => handleSaveDraft()} disabled={submitting || savingDraft}>
                 {savingDraft ? "Saving Draft..." : "Save Draft"}
               </DropdownMenuItem>
@@ -695,6 +479,250 @@ export default function LogIntervention() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        }
+      />
+
+      {/* who + where in the flow */}
+      <div className="border-b border-border bg-surface px-4 pb-3.5 pt-3">
+        {patient && (
+          <div className="mb-3.5 flex items-center gap-3 rounded-[14px] bg-surface-sunken px-3 py-2.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-[15px] font-extrabold uppercase text-primary-fg" aria-hidden="true">{initials}</span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Logging session for</p>
+              <p className="truncate text-[18px] font-extrabold capitalize text-ink">{childName}</p>
+            </div>
+          </div>
+        )}
+        <StepProgress current={step} reached={reached} complete={stepComplete} onGo={goToStep} />
+      </div>
+
+      <div ref={stepBodyRef} className="flex-1 overflow-y-auto px-4 pb-8 pt-5">
+        {serverError && <InlineErrorBanner message={serverError} className="mb-5" />}
+
+        <div className="mb-5">
+          <h2 className="text-[26px] font-extrabold leading-tight tracking-tight text-ink">{LOG_STEPS[step].title}</h2>
+          <p className="mt-0.5 text-[15px] font-medium text-ink-muted">Step {step + 1} of 4{step === 2 ? " · Optional" : ""}</p>
+        </div>
+
+        {/* ---------- 1. DETAILS ---------- */}
+        {step === 0 && (
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2.5">
+              <p className="text-[18px] font-extrabold text-ink">How did the session happen?</p>
+              <div role="radiogroup" aria-label="How did the session happen?" className="grid grid-cols-2 gap-2.5">
+                {([["person", "In person", Users], ["tele", "Video (telepractice)", Video]] as const).map(([key, label, Icon]) => {
+                  const on = (key === "tele") === isTelepractice;
+                  return (
+                    <button key={key} type="button" role="radio" aria-checked={on} onClick={() => setTelepractice(key === "tele")}
+                      className={cn("press-scale flex min-h-[92px] flex-col items-start justify-between rounded-[16px] border-2 p-3.5 text-left text-[16.5px] font-bold leading-snug", on ? "border-primary bg-primary-tint text-ink" : "border-border-strong bg-surface text-ink")}>
+                      <span className={cn("flex size-10 items-center justify-center rounded-[12px]", on ? "bg-primary text-primary-fg" : "bg-surface-sunken text-ink-body")}><Icon className="size-5" aria-hidden="true" /></span>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              {isTelepractice && (
+                <p className="rounded-[14px] bg-primary-tint px-3.5 py-3 text-[14.5px] font-semibold text-ink-body">
+                  We&apos;ll email the parent a link to review and sign remotely instead of collecting their signature here.
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <label htmlFor="date" className="flex items-baseline justify-between text-[18px] font-extrabold text-ink">Service date<span className="text-sm font-semibold text-danger">Required</span></label>
+              <Input id="date" type="date" className={bigInput} value={form.date} onChange={(e) => setField("date", e.target.value)} required />
+              <div className="flex flex-wrap gap-2.5">
+                <button type="button" className={cn(chip, form.date === todayIso() && chipOn)} onClick={() => setField("date", todayIso())}>Today</button>
+                <button type="button" className={cn(chip, form.date === yesterdayIso() && chipOn)} onClick={() => setField("date", yesterdayIso())}>Yesterday</button>
+              </div>
+              {errorFor("the date") && <p className="text-sm font-semibold text-danger">Pick the service date.</p>}
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <p className="flex items-baseline justify-between text-[18px] font-extrabold text-ink">Time<span className="text-sm font-semibold text-danger">{zeroTime ? "" : "Required"}</span></p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1 text-sm font-bold text-ink-muted">Start
+                  <Input type="time" className={cn(bigInput, "text-[19px]")} value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} disabled={zeroTime} aria-invalid={errorFor("a start time")} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-bold text-ink-muted">End
+                  <Input type="time" className={cn(bigInput, "text-[19px]")} value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} disabled={zeroTime} aria-invalid={errorFor("an end time") || errorFor("an end time after the start")} />
+                </label>
+              </div>
+              {!zeroTime && (
+                <div className="flex flex-wrap gap-2.5">
+                  <button type="button" className={chip} onClick={() => setField("startTime", localNowHHMM())}>Start now</button>
+                  {[15, 30, 45, 60].map((mins) => (
+                    <button key={mins} type="button" className={chip} disabled={!form.startTime} onClick={() => setField("endTime", addMinutesToTime(form.startTime, mins))}>{mins} min</button>
+                  ))}
+                </div>
+              )}
+              {(errorFor("a start time") || errorFor("an end time")) && <p className="text-sm font-semibold text-danger">Add both the start and end time.</p>}
+              {errorFor("an end time after the start") && <p className="text-sm font-semibold text-danger">The end time must be after the start time.</p>}
+            </div>
+
+            <button type="button" role="switch" aria-checked={zeroTime} onClick={() => handleZeroTimeToggle(!zeroTime)}
+              className={cn("press-scale flex min-h-[64px] items-center gap-3 rounded-[16px] border-2 px-4 text-left", zeroTime ? "border-primary bg-primary-tint" : "border-border-strong bg-surface")}>
+              <span className="flex-1">
+                <span className="block text-[17px] font-bold text-ink">Session was cancelled</span>
+                <span className="block text-sm font-medium text-ink-muted">Logs it with 0 time</span>
+              </span>
+              <span className={cn("relative h-[30px] w-[52px] shrink-0 rounded-full transition-colors", zeroTime ? "bg-primary" : "bg-border-strong")} aria-hidden="true">
+                <span className={cn("absolute top-[3px] size-6 rounded-full bg-white transition-transform", zeroTime ? "translate-x-[25px]" : "translate-x-[3px]")} />
+              </span>
+            </button>
+
+            <div className="flex items-center justify-between rounded-[16px] bg-surface-sunken px-4 py-4">
+              <span className="text-base font-bold text-ink-muted">Total time</span>
+              <span className="tabular font-mono text-[26px] font-extrabold text-ink" aria-live="polite">{totalLabel}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- 2. CODES ---------- */}
+        {step === 1 && (
+          <div className="flex flex-col gap-6">
+            {prefilledFromLast && (
+              <p className="flex items-center gap-2.5 rounded-[14px] border-2 border-dashed border-primary bg-primary-tint px-3.5 py-3 text-[15px] font-bold text-primary">
+                <RotateCcw className="size-5 shrink-0" aria-hidden="true" />
+                Filled in from {patient?.first_name ? `${patient.first_name}'s` : "the"} last session. Change anything below.
+              </p>
+            )}
+            <BigOptions label="Service type" required value={form.type} options={allowedServiceTypeOptions} onChange={(v) => setField("type", v)} error={errorFor("a service type") ? "Pick the service type." : null} />
+            <BigOptions label="Status" required value={form.status} options={statusOptions} onChange={(v) => setField("status", v)} error={errorFor("a status") ? "Pick the status." : null} />
+            <BigOptions label="Location" required layout="grid" value={form.location} options={locationOptions} onChange={(v) => setField("location", v)} error={errorFor("a location") ? "Pick the location." : null} />
+            <BigOptions label="Group size" layout="grid" value={form.groupSizeCategory} options={groupSizeOptions} onChange={(v) => setField("groupSizeCategory", v)} />
+            {isIndependentPractitioner && (
+              <CompanyAffiliationField
+                value={form.companyAffiliation}
+                onChange={(v) => setField("companyAffiliation", v)}
+                agencies={agencies}
+                rosterAgencies={rosterAgencies}
+                onAgencyCreated={fetchAgencies}
+                error={errorFor("the agency") ? "An agency is required." : null}
+              />
+            )}
+            {customCategories.map((cat) => {
+              const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
+              return (
+                <BigOptions
+                  key={cat.key}
+                  label={cat.display_name}
+                  required={!!cat.is_required_on_log}
+                  value={form.customFields[cat.key] || ""}
+                  options={catOptions}
+                  onChange={(v) => {
+                    setTouched(true);
+                    setForm((f) => ({ ...f, customFields: { ...f.customFields, [cat.key]: v } }));
+                  }}
+                  error={errorFor(cat.display_name.toLowerCase()) ? `${cat.display_name} is required.` : null}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* ---------- 3. NOTES ---------- */}
+        {step === 2 && (
+          <div className="flex flex-col gap-4">
+            <label htmlFor="note" className="flex items-baseline justify-between text-[18px] font-extrabold text-ink">What happened in the session?<span className="text-sm font-semibold text-ink-muted">Optional</span></label>
+            <Textarea
+              id="note"
+              className="min-h-[240px] rounded-[16px] border-2 px-4 py-3 text-[18px] leading-relaxed"
+              placeholder="Activities, progress toward IFSP outcomes, what the family practiced…"
+              value={form.note}
+              onChange={(e) => setField("note", e.target.value)}
+            />
+            <p className="text-right text-sm font-semibold text-ink-muted">{form.note.length} characters</p>
+            <p className="flex items-start gap-2.5 rounded-[14px] bg-surface-sunken px-3.5 py-3 text-[14.5px] font-semibold text-ink-body">
+              <Mic className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+              Tip: tap the microphone on your keyboard to dictate instead of typing.
+            </p>
+          </div>
+        )}
+
+        {/* ---------- 4. SIGN ---------- */}
+        {step === 3 && (
+          <div className="flex flex-col gap-6">
+            <div className="overflow-hidden rounded-[18px] border-2 border-border bg-surface">
+              {[
+                ["When", `${prettyDate(form.date)} · ${zeroTime ? "Cancelled, 0 min" : `${fmt12(form.startTime)} to ${fmt12(form.endTime)}`}`, 0],
+                ["How", isTelepractice ? "Video (telepractice)" : "In person", 0],
+                ["Service", optionLabel(allowedServiceTypeOptions, form.type), 1],
+                ["Status", optionLabel(statusOptions, form.status), 1],
+                ["Location", `${optionLabel(locationOptions, form.location)}${form.groupSizeCategory ? ` · ${optionLabel(groupSizeOptions, form.groupSizeCategory)}` : ""}`, 1],
+                ["Notes", form.note.trim() ? (form.note.trim().length > 60 ? `${form.note.trim().slice(0, 60)}…` : form.note.trim()) : "None", 2],
+              ].map(([k, v, target]) => (
+                <div key={k as string} className="grid grid-cols-[84px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-border px-3.5 py-3 first:border-t-0">
+                  <span className="text-[12.5px] font-bold uppercase tracking-wide text-ink-muted">{k}</span>
+                  <span className="min-w-0 break-words text-base font-extrabold text-ink">{v}</span>
+                  <button type="button" onClick={() => goToStep(target as number)} className="press-scale rounded-control px-2 py-1.5 text-[15px] font-extrabold text-primary">Edit</button>
+                </div>
+              ))}
+            </div>
+
+            {isTelepractice ? (
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[18px] font-extrabold text-ink">Parent / caregiver signature</p>
+                {patient?.parent_email ? (
+                  <p className="rounded-[16px] border-2 border-primary bg-primary-tint p-4 text-base font-semibold text-ink">
+                    We&apos;ll email <b>{patient.parent_email}</b> a link to review and sign this session.
+                  </p>
+                ) : (
+                  <div className="rounded-[16px] border-2 border-danger-border bg-danger-bg p-4">
+                    <p className="text-base font-bold text-danger">No parent email on file</p>
+                    <p className="mt-1 text-sm text-danger">Add a parent email on this child&apos;s Edit screen before sending a telepractice session.</p>
+                    <button type="button" onClick={() => navigate(`/patients/${patientId}/edit`)} className="press-scale mt-2 text-sm font-bold text-danger underline">Edit child</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <SignatureCapture
+                large
+                label="Parent / caregiver signature"
+                instructions="Parent or caregiver signature — draw with your finger or stylus"
+                value={parentSig}
+                onChange={(v) => { setParentSig(v); setTouched(true); }}
+                error={errorFor("the parent's signature") ? "The parent needs to sign." : null}
+              />
+            )}
+            <SignatureCapture
+              large
+              label="Your signature"
+              instructions="Practitioner signature — draw with your finger or stylus"
+              value={practitionerSig}
+              onChange={handlePractitionerSigChange}
+              savedSignature={profile?.signature}
+              isUsingSaved={isUsingSaved}
+              onUseSaved={handleUseSavedSignature}
+              showSaveAsDefault
+              saveAsDefault={saveAsDefault}
+              onSaveAsDefaultChange={setSaveAsDefault}
+              error={errorFor("your signature") ? "Your signature is required." : null}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* bottom: what is missing, then Back / Next (or Save) */}
+      <div className="safe-bottom sticky bottom-0 z-20 border-t border-border bg-surface px-4 pb-3 pt-2.5 shadow-[var(--elev-raised)]">
+        <p className={cn("mb-2 min-h-[22px] text-[15px] font-bold", currentMissing.length ? (showErrors ? "text-danger" : "text-warning") : "text-success")} aria-live="polite">
+          {currentMissing.length ? `Add ${joinWords(currentMissing)} to continue` : step === 3 ? "Everything is ready to save" : "✓ This step is complete"}
+        </p>
+        <div className={cn("grid gap-2.5", step > 0 ? "grid-cols-[auto_1fr]" : "grid-cols-1")}>
+          {step > 0 && (
+            <Button type="button" variant="subtle" size="lg" className="h-[60px] min-w-[104px] rounded-[18px] text-[18px] font-extrabold" onClick={() => goToStep(step - 1)} disabled={submitting}>
+              Back
+            </Button>
+          )}
+          {step < 3 ? (
+            <Button type="button" size="lg" className="h-[60px] rounded-[18px] text-[18px] font-extrabold" onClick={handleNext} aria-disabled={currentMissing.length > 0}>
+              Next: {LOG_STEPS[step + 1].label}
+            </Button>
+          ) : (
+            <Button type="button" size="lg" className="h-[60px] rounded-[18px] bg-success text-[18px] font-extrabold text-white hover:bg-success" onClick={handleSubmit} loading={submitting} disabled={submitting || savingDraft}>
+              {isTelepractice ? "Send to Parent to Sign" : "Save Session"}
+            </Button>
+          )}
         </div>
       </div>
 
