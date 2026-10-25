@@ -67,3 +67,10 @@ export function firstIncompleteStep(c: StepContext): number {
 // "a, b and c"
 export const joinWords = (items: string[]) =>
   items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+// The agency's phone / video location option (e.g. "Phone/Video Conferencing"),
+// picked automatically when the practitioner says the session was by video.
+export function videoLocationCode(options: { code: string; label: string }[]): string | null {
+  const hit = options.find((o) => /video|phone|tele/i.test(o.label));
+  return hit ? hit.code : null;
+}

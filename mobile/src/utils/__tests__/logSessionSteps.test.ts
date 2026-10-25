@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stepMissing, firstIncompleteStep, LOG_STEPS, type StepContext } from "../logSessionSteps";
+import { stepMissing, firstIncompleteStep, LOG_STEPS, videoLocationCode, type StepContext } from "../logSessionSteps";
 
 const ctx = (over: Partial<StepContext> = {}): StepContext => ({
   date: "2026-10-25", startTime: "09:00", endTime: "09:45", zeroTime: false,
@@ -46,5 +46,16 @@ describe("log session steps", () => {
     expect(firstIncompleteStep(ctx())).toBe(-1);
     expect(firstIncompleteStep(ctx({ practitionerSig: null, location: "" }))).toBe(1);
     expect(firstIncompleteStep(ctx({ practitionerSig: null }))).toBe(3);
+  });
+});
+
+describe("videoLocationCode", () => {
+  it("finds the agency's phone / video location option", () => {
+    const opts = [{ code: "1", label: "Home" }, { code: "3", label: "Service Provider Clinic/Office" }, { code: "8", label: "Phone/Video Conferencing" }];
+    expect(videoLocationCode(opts)).toBe("8");
+  });
+  it("matches telehealth-style labels and returns null when there is none", () => {
+    expect(videoLocationCode([{ code: "T", label: "Telehealth" }])).toBe("T");
+    expect(videoLocationCode([{ code: "1", label: "Home" }])).toBeNull();
   });
 });

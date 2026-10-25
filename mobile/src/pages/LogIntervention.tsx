@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { BigOptions } from "@/components/logSession/BigOptions";
 import { StepProgress } from "@/components/logSession/StepProgress";
-import { LOG_STEPS, stepMissing, firstIncompleteStep, joinWords, type StepContext } from "@/utils/logSessionSteps";
+import { LOG_STEPS, stepMissing, firstIncompleteStep, joinWords, videoLocationCode, type StepContext } from "@/utils/logSessionSteps";
 import { CompanyAffiliationField } from "@/components/CompanyAffiliationField";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -113,6 +113,7 @@ export default function LogIntervention() {
         const d = res.data.defaults;
         if (!d) return;
         if (d.status || d.type || d.location) setPrefilledFromLast(true);
+        lastSessionLocation.current = d.location || null;
         setForm((f) => ({
           ...f,
           status: f.status || d.status || f.status,
@@ -171,6 +172,9 @@ export default function LogIntervention() {
   const [triedNext, setTriedNext] = React.useState<boolean[]>([false, false, false, false]);
   const [prefilledFromLast, setPrefilledFromLast] = React.useState(false);
   const stepBodyRef = React.useRef<HTMLDivElement | null>(null);
+  // Location before Video auto-picked the phone / video option, restored if they switch back to In person.
+  const locationBeforeVideo = React.useRef<string | null>(null);
+  const lastSessionLocation = React.useRef<string | null>(null);
 
   // Only pre-fills when navigated here with a specific draftId (resuming a
   // saved draft from a list) — otherwise the form starts blank, even if this
@@ -453,6 +457,19 @@ export default function LogIntervention() {
   const setTelepractice = (tele: boolean) => {
     setIsTelepractice(tele);
     setTouched(true);
+    // A video session is a phone / video location, whatever last session used.
+    // Only the location follows this choice; everything else stays as filled in.
+    const videoCode = videoLocationCode(locationOptions);
+    if (videoCode) {
+      if (tele && form.location !== videoCode) {
+        locationBeforeVideo.current = form.location;
+        setForm((f) => ({ ...f, location: videoCode }));
+      } else if (!tele && form.location === videoCode) {
+        const restore = locationBeforeVideo.current || lastSessionLocation.current || "";
+        locationBeforeVideo.current = null;
+        setForm((f) => ({ ...f, location: restore === videoCode ? "" : restore }));
+      }
+    }
     // Prompt for the parent email right away, as before: catches the blocker
     // the moment it matters instead of on the last step.
     if (tele && !patient?.parent_email) setParentEmailPromptOpen(true);
@@ -744,7 +761,7 @@ export default function LogIntervention() {
             // Reached only via Cancel / outside-click / Escape — a successful
             // save closes through onSaved below instead, which leaves
             // telepractice checked rather than reverting it.
-            if (!open) setIsTelepractice(false);
+            if (!open) setTelepractice(false);
           }}
           patient={patient}
           onSaved={() => {

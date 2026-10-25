@@ -16,7 +16,7 @@ const appData = {
   setSavedSignature: vi.fn(),
   serviceTypeOptions: [opt("DI", "Developmental Intervention"), opt("FT", "Family Training"), opt("SLP", "Speech Language Therapy")],
   statusOptions: [opt("1", "Direct Child Service"), opt("3", "Family Cancelled")],
-  locationOptions: [opt("1", "Home"), opt("3", "Service Provider Clinic/Office")],
+  locationOptions: [opt("1", "Home"), opt("3", "Service Provider Clinic/Office"), opt("8", "Phone/Video Conferencing")],
   groupSizeOptions: [opt("individual", "Direct Child Service - Individual"), opt("consultation", "Consultation/Facilitation with Others")],
   dropdownOptions: {}, dropdownCategories: [], agencies: [], fetchAgencies: vi.fn(),
 };
@@ -87,7 +87,7 @@ describe("Log Session in four steps", () => {
     expect(url).toBe("/api/telepractice-signatures");
     expect(payload).toMatchObject({
       patientId: "p1", startTime: "09:00", endTime: "09:45", totalTime: 45,
-      type: "DI", status: "1", location: "1", groupSizeCategory: "individual",
+      type: "DI", status: "1", location: "8", groupSizeCategory: "individual", // video session -> Phone/Video location
       note: "Stacked blocks.", practitionerSignatureBase64: "data:image/png;base64,SAVED",
     });
   });
@@ -106,5 +106,25 @@ describe("Log Session in four steps", () => {
     // the in-person session still needs the parent's signature before saving
     fireEvent.click(screen.getByRole("tab", { name: /Sign/ }));
     expect(screen.getByText("Add the parent's signature to continue")).toBeInTheDocument();
+  });
+
+  it("choosing Video selects the Phone / Video location over last session's location; In person puts it back", async () => {
+    renderScreen();
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("radio", { name: /Video \(telepractice\)/ }));
+    const [start, end] = screen.getAllByDisplayValue("").filter((el) => (el as HTMLInputElement).type === "time");
+    fireEvent.change(start, { target: { value: "09:00" } });
+    fireEvent.change(end, { target: { value: "09:30" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next: Codes" }));
+    await screen.findByText(/Filled in from/);
+    expect(screen.getByRole("radio", { name: /Phone\/Video Conferencing/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /^Home/ })).toHaveAttribute("aria-checked", "false");
+    // service and status still come from the last session
+    expect(screen.getByRole("radio", { name: /Developmental Intervention/ })).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(screen.getByRole("tab", { name: /Details/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /In person/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Codes/ }));
+    expect(screen.getByRole("radio", { name: /^Home/ })).toHaveAttribute("aria-checked", "true");
   });
 });
