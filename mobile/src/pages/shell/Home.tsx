@@ -1,8 +1,9 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, FileText, MapPin, PencilLine, RefreshCw, TrendingDown, TrendingUp, Trash2, Users } from "lucide-react";
+import { AlertTriangle, CalendarPlus, ChevronRight, ClipboardList, FileText, MapPin, RefreshCw, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppData } from "@/contexts/AppDataContext";
+import { DraftCard } from "@/components/DraftCard";
 import { StatTile } from "@/components/StatTile";
 import { MonthlyBarChart } from "@/components/MonthlyBarChart";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ui/toast";
 import api from "@/api/axiosInstance";
-import { formatTime12h, timeAgo, formatHoursMinutes } from "@/utils/time";
+import { formatTime12h, formatHoursMinutes } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { ScheduledSession, PractitionerDashboardSummary, MonthlyTrendPoint, AgencyBreakdownEntry, AgencySummary } from "@/types";
 import { NeedsYouCard } from "@/components/agency/NeedsYouCard";
@@ -362,36 +363,14 @@ export default function Home() {
           <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">Continue where you left off</p>
           <ul role="list" className="space-y-2">
             {drafts.map((d) => (
-              <li
-                key={d.id}
-                className="flex items-center gap-1 rounded-card border border-border bg-surface pr-1 shadow-[var(--elev-rest)]"
-              >
-                <button
-                  type="button"
-                  onClick={() => navigate(`/patients/${d.patient_id}/log?draftId=${d.id}`)}
-                  className="press-scale flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
-                >
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
-                    <PencilLine className="size-5" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold capitalize text-ink">
-                      {d.patient_first_name} {d.patient_last_name}
-                    </p>
-                    <p className="text-xs text-ink-muted">Draft saved {timeAgo(d.updated_at)}</p>
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Discard draft"
-                  onClick={() =>
-                    setDiscardTarget({ id: d.id, name: `${d.patient_first_name} ${d.patient_last_name}`.trim() })
-                  }
-                  className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                </button>
+              <li key={d.id}>
+                <DraftCard
+                  childName={`${d.patient_first_name} ${d.patient_last_name}`.trim()}
+                  summary={d.summary}
+                  updatedAt={d.updated_at}
+                  onResume={() => navigate(`/patients/${d.patient_id}/log?draftId=${d.id}`)}
+                  onDiscard={() => setDiscardTarget({ id: d.id, name: `${d.patient_first_name} ${d.patient_last_name}`.trim() })}
+                />
               </li>
             ))}
           </ul>

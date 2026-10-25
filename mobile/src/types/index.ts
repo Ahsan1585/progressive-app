@@ -405,12 +405,28 @@ export interface TelepracticeSignatureRequestDetail extends TelepracticeSignatur
 // sessionDraftsController.js's listDrafts response. A child can have up to
 // 2 drafts (see MAX_DRAFTS_PER_PATIENT), so patient_id is NOT unique here —
 // `id` is the actual draft identity.
+// What a draft list shows about each draft (see sessionDraftsController.js's
+// summarizeDraft): enough to tell two drafts apart, never the signature images.
+export interface DraftDetails {
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  zeroTime: boolean;
+  type: string | null;
+  status: string | null;
+  location: string | null;
+  hasNote: boolean;
+  hasParentSignature: boolean;
+  hasPractitionerSignature: boolean;
+}
+
 export interface SessionDraftSummary {
   id: string;
   patient_id: string;
   patient_first_name: string;
   patient_last_name: string;
   updated_at: string;
+  summary?: DraftDetails;
 }
 
 // Lightweight shape for one child's own draft list (PatientDetail's "Resume
@@ -418,6 +434,7 @@ export interface SessionDraftSummary {
 export interface SessionDraftListItem {
   id: string;
   updated_at: string;
+  summary?: DraftDetails;
 }
 
 // Full draft shape for pre-filling LogIntervention — matches

@@ -73,12 +73,37 @@ const saveDraft = async (req, res) => {
 // GET /api/session-drafts — every draft this practitioner has, across all
 // children (Home screen's "Continue where you left off"). A child with 2
 // drafts now legitimately produces 2 rows here.
+// What a draft list shows about each draft so practitioners can tell them
+// apart: the session's date, times and codes, whether a note was written, and
+// whether each signature exists. Never the signature images themselves.
+const summarizeDraft = (row) => {
+  const f = row.form_data || {};
+  const str = (v) => (typeof v === 'string' && v.trim() ? v : null);
+  return {
+    date: str(f.date),
+    startTime: str(f.startTime),
+    endTime: str(f.endTime),
+    zeroTime: !!f.zeroTime,
+    type: str(f.type),
+    status: str(f.status),
+    location: str(f.location),
+    hasNote: !!str(f.note),
+    hasParentSignature: !!row.parent_signature,
+    hasPractitionerSignature: !!row.practitioner_signature,
+  };
+};
+const withSummary = (rows) => rows.map(({ form_data, parent_signature, practitioner_signature, ...rest }) => ({
+  ...rest,
+  summary: summarizeDraft({ form_data, parent_signature, practitioner_signature }),
+}));
+
 const listDrafts = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
     await pool.query("DELETE FROM session_drafts WHERE updated_at < now() - interval '30 days'");
     const { rows } = await pool.query(
-      `SELECT sd.id, sd.patient_id, sd.updated_at, p.first_name AS patient_first_name, p.last_name AS patient_last_name
+      `SELECT sd.id, sd.patient_id, sd.updated_at, p.first_name AS patient_first_name, p.last_name AS patient_last_name,
+              sd.form_data, sd.parent_signature, sd.practitioner_signature
        FROM session_drafts sd
        JOIN patients p ON p.id = sd.patient_id
        WHERE sd.practitioner_id = $1
@@ -89,7 +114,7 @@ const listDrafts = async (req, res) => {
     // draft, submit one, hit the 2-per-child cap) — a conditional-GET 304
     // risks a client displaying a stale cached copy of it.
     res.set('Cache-Control', 'no-store');
-    res.json({ success: true, drafts: rows });
+    res.json({ success: true, drafts: withSummary(rows) });
   } catch (error) {
     console.error('Failed to list session drafts:', error);
     res.status(500).json({ error: 'Failed to list drafts' });
@@ -106,14 +131,15 @@ const listDraftsForPatient = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized for this patient' });
     }
     const { rows } = await pool.query(
-      `SELECT id, updated_at FROM session_drafts WHERE practitioner_id = $1 AND patient_id = $2 ORDER BY updated_at DESC`,
+      `SELECT id, updated_at, form_data, parent_signature, practitioner_signature
+       FROM session_drafts WHERE practitioner_id = $1 AND patient_id = $2 ORDER BY updated_at DESC`,
       [practitionerId, patientId]
     );
     // Same reasoning as listDrafts — this is also what the "Log Session"
     // cap-check gates read fresh, so a stale 304 here could let a 3rd draft
     // slip through instead of blocking it.
     res.set('Cache-Control', 'no-store');
-    res.json({ success: true, drafts: rows });
+    res.json({ success: true, drafts: withSummary(rows) });
   } catch (error) {
     console.error('Failed to list drafts for patient:', error);
     res.status(500).json({ error: 'Failed to list drafts' });
@@ -163,4 +189,4 @@ const deleteDraft = async (req, res) => {
   }
 };
 
-module.exports = { saveDraft, listDrafts, listDraftsForPatient, getDraft, deleteDraft };
+module.exports = { saveDraft, listDrafts, listDraftsForPatient, getDraft, deleteDraft, summarizeDraft };

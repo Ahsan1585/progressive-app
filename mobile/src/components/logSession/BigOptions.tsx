@@ -20,15 +20,23 @@ interface BigOptionsProps {
 
 // Large, tap-friendly single choice for the step-by-step Log Session flow:
 // every option visible at once (no dropdown), 60px+ tall, bold 17px text.
+
+// Two columns only when every label fits half a phone screen; agency labels
+// like "Consultation/Facilitation with Others" get full-width rows instead.
+const GRID_MAX_LABEL = 18;
+// Let "Evaluation/Assessment" wrap after the slash instead of running out of the box.
+const wrappable = (label: string) => label.replace(/\//g, "/\u200B");
+
 export function BigOptions({ label, value, options, onChange, required, error, layout = "list" }: BigOptionsProps) {
   const id = React.useId();
+  const useGrid = layout === "grid" && options.every((o) => o.label.length <= GRID_MAX_LABEL);
   return (
     <div className="flex flex-col gap-2.5">
       <p id={id} className="flex items-baseline justify-between gap-2 text-[18px] font-extrabold text-ink">
         {label}
         <span className={cn("text-sm font-semibold", required ? "text-danger" : "text-ink-muted")}>{required ? "Required" : "Optional"}</span>
       </p>
-      <div role="radiogroup" aria-labelledby={id} className={cn(layout === "grid" ? "grid grid-cols-2 gap-2.5" : "flex flex-col gap-2.5")}>
+      <div role="radiogroup" aria-labelledby={id} className={cn(useGrid ? "grid grid-cols-2 gap-2.5" : "flex flex-col gap-2.5")}>
         {options.map((o) => {
           const checked = o.code === value;
           return (
@@ -37,13 +45,14 @@ export function BigOptions({ label, value, options, onChange, required, error, l
               type="button"
               role="radio"
               aria-checked={checked}
+              aria-label={o.label}
               onClick={() => onChange(o.code)}
               className={cn(
                 "press-scale flex min-h-[60px] w-full items-center gap-3 rounded-[16px] border-2 px-4 py-3 text-left text-[17px] font-bold leading-snug",
                 checked ? "border-primary bg-primary-tint text-ink" : "border-border-strong bg-surface text-ink"
               )}
             >
-              <span className="min-w-0 flex-1">{o.label}</span>
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{wrappable(o.label)}</span>
               <span
                 className={cn(
                   "flex size-7 shrink-0 items-center justify-center rounded-full border-2",

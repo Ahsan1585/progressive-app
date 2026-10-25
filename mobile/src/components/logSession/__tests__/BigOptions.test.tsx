@@ -39,3 +39,27 @@ describe("StepProgress", () => {
     expect(screen.getByRole("tab", { name: /Codes/ })).toHaveAttribute("aria-selected", "true");
   });
 });
+
+describe("BigOptions on narrow phones", () => {
+  const long = [
+    { code: "individual", label: "Direct Child Service - Individual" },
+    { code: "consultation", label: "Consultation/Facilitation with Others" },
+    { code: "evaluation", label: "Evaluation/Assessment" },
+  ];
+
+  it("lets long labels wrap after a slash", () => {
+    render(<BigOptions label="Group size" value="" options={long} onChange={vi.fn()} layout="grid" />);
+    const btn = screen.getByRole("radio", { name: /Consultation/ });
+    expect(btn.textContent).toContain("Consultation/​Facilitation");
+  });
+
+  it("uses full-width rows instead of two columns when labels are too long for half the screen", () => {
+    render(<BigOptions label="Group size" value="" options={long} onChange={vi.fn()} layout="grid" />);
+    expect(screen.getByRole("radiogroup", { name: /Group size/ }).className).not.toMatch(/grid-cols-2/);
+  });
+
+  it("keeps two columns for short labels", () => {
+    render(<BigOptions label="Location" value="" options={[{ code: "1", label: "Home" }, { code: "8", label: "Telehealth" }]} onChange={vi.fn()} layout="grid" />);
+    expect(screen.getByRole("radiogroup", { name: /Location/ }).className).toMatch(/grid-cols-2/);
+  });
+});

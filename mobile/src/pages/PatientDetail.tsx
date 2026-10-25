@@ -1,8 +1,9 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, ChevronRight, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
+import { DraftCard } from "@/components/DraftCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
@@ -403,31 +404,15 @@ export default function PatientDetail() {
 
         {drafts.length > 0 && (
           <div className="mb-4 space-y-2">
+            <h3 className="text-[13px] font-semibold text-ink-muted">{drafts.length > 1 ? "Drafts" : "Draft"} to finish</h3>
             {drafts.map((d) => (
-              <div key={d.id} className="flex items-center gap-1 rounded-card border border-border bg-surface pr-1 shadow-[var(--elev-rest)]">
-                <button
-                  type="button"
-                  onClick={() => navigate(`/patients/${id}/log?draftId=${d.id}`)}
-                  className="press-scale flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
-                >
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
-                    <PencilLine className="size-5" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-ink">Resume draft</p>
-                    <p className="text-xs text-ink-muted">Saved {timeAgo(d.updated_at)}</p>
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Discard draft"
-                  onClick={() => setDiscardDraftTarget(d.id)}
-                  className="press-scale flex size-9 shrink-0 items-center justify-center rounded-control text-ink-faint hover:text-danger"
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                </button>
-              </div>
+              <DraftCard
+                key={d.id}
+                summary={d.summary}
+                updatedAt={d.updated_at}
+                onResume={() => navigate(`/patients/${id}/log?draftId=${d.id}`)}
+                onDiscard={() => setDiscardDraftTarget(d.id)}
+              />
             ))}
           </div>
         )}
