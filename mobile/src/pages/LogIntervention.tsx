@@ -1,19 +1,16 @@
 import * as React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Mic, MoreHorizontal, RotateCcw, Users, Video } from "lucide-react";
+import { MoreHorizontal, Users, Video } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { BigOptions } from "@/components/logSession/BigOptions";
 import { StepProgress } from "@/components/logSession/StepProgress";
-import { LOG_STEPS, stepMissing, firstIncompleteStep, joinWords, videoLocationCode, type StepContext } from "@/utils/logSessionSteps";
+import { CodeFields, NotesField, StepFooter, StepHeader, TimeFields, yesterdayIso } from "@/components/logSession/StepSections";
+import { LOG_STEPS, stepMissing, firstIncompleteStep, videoLocationCode, type StepContext } from "@/utils/logSessionSteps";
 import { CompanyAffiliationField } from "@/components/CompanyAffiliationField";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -21,7 +18,7 @@ import { TelepracticeSentDialog } from "@/components/TelepracticeSentDialog";
 import { ParentEmailPromptDialog } from "@/components/ParentEmailPromptDialog";
 import { DuplicateLogDialog } from "@/components/DuplicateLogDialog";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
-import { calculateTotalMinutes, localTodayIso, localNowHHMM, addMinutesToTime } from "@/utils/time";
+import { calculateTotalMinutes, localTodayIso } from "@/utils/time";
 import { cn } from "@/lib/utils";
 import type { Agency, ApiErrorBody, SessionDraft } from "@/types";
 
@@ -43,12 +40,6 @@ interface FormState {
 
 const todayIso = localTodayIso;
 
-// "2026-10-24" for yesterday, in local time (the Yesterday shortcut on step 1)
-const yesterdayIso = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 
 export default function LogIntervention() {
   const { id: patientId } = useParams<{ id: string }>();
@@ -444,14 +435,6 @@ export default function LogIntervention() {
     const [y, mo, d] = iso.split("-").map(Number);
     return new Date(y, mo - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   };
-  const totalLabel = zeroTime
-    ? "0 min (cancelled)"
-    : totalMinutes > 0
-      ? `${Math.floor(totalMinutes / 60) ? `${Math.floor(totalMinutes / 60)} h ` : ""}${totalMinutes % 60 ? `${totalMinutes % 60} min` : ""}`.trim()
-      : "—";
-  const bigInput = "h-[62px] rounded-[16px] border-2 px-4 text-[21px] font-bold";
-  const chip = "press-scale min-h-[50px] rounded-full border-2 border-border-strong bg-surface px-4 text-[16.5px] font-bold text-ink disabled:opacity-40";
-  const chipOn = "border-primary bg-primary text-primary-fg";
   const errorFor = (key: string) => (showErrors && currentMissing.includes(key) ? true : false);
 
   const setTelepractice = (tele: boolean) => {
@@ -516,99 +499,68 @@ export default function LogIntervention() {
       <div ref={stepBodyRef} className="flex-1 overflow-y-auto px-4 pb-8 pt-5">
         {serverError && <InlineErrorBanner message={serverError} className="mb-5" />}
 
-        <div className="mb-5">
-          <h2 className="text-[26px] font-extrabold leading-tight tracking-tight text-ink">{LOG_STEPS[step].title}</h2>
-          <p className="mt-0.5 text-[15px] font-medium text-ink-muted">Step {step + 1} of 4{step === 2 ? " · Optional" : ""}</p>
-        </div>
+        <StepHeader title={LOG_STEPS[step].title} index={step} total={LOG_STEPS.length} optional={step === 2} />
 
         {/* ---------- 1. DETAILS ---------- */}
         {step === 0 && (
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2.5">
-              <p className="text-[18px] font-extrabold text-ink">How did the session happen?</p>
-              <div role="radiogroup" aria-label="How did the session happen?" className="grid grid-cols-2 gap-2.5">
-                {([["person", "In person", Users], ["tele", "Video (telepractice)", Video]] as const).map(([key, label, Icon]) => {
-                  const on = (key === "tele") === isTelepractice;
-                  return (
-                    <button key={key} type="button" role="radio" aria-checked={on} onClick={() => setTelepractice(key === "tele")}
-                      className={cn("press-scale flex min-h-[92px] flex-col items-start justify-between rounded-[16px] border-2 p-3.5 text-left text-[16.5px] font-bold leading-snug", on ? "border-primary bg-primary-tint text-ink" : "border-border-strong bg-surface text-ink")}>
-                      <span className={cn("flex size-10 items-center justify-center rounded-[12px]", on ? "bg-primary text-primary-fg" : "bg-surface-sunken text-ink-body")}><Icon className="size-5" aria-hidden="true" /></span>
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-              {isTelepractice && (
-                <p className="rounded-[14px] bg-primary-tint px-3.5 py-3 text-[14.5px] font-semibold text-ink-body">
-                  We&apos;ll email the parent a link to review and sign remotely instead of collecting their signature here.
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              <label htmlFor="date" className="flex items-baseline justify-between text-[18px] font-extrabold text-ink">Service date<span className="text-sm font-semibold text-danger">Required</span></label>
-              <Input id="date" type="date" className={bigInput} value={form.date} onChange={(e) => setField("date", e.target.value)} required />
-              <div className="flex flex-wrap gap-2.5">
-                <button type="button" className={cn(chip, form.date === todayIso() && chipOn)} onClick={() => setField("date", todayIso())}>Today</button>
-                <button type="button" className={cn(chip, form.date === yesterdayIso() && chipOn)} onClick={() => setField("date", yesterdayIso())}>Yesterday</button>
-              </div>
-              {errorFor("the date") && <p className="text-sm font-semibold text-danger">Pick the service date.</p>}
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              <p className="flex items-baseline justify-between text-[18px] font-extrabold text-ink">Time<span className="text-sm font-semibold text-danger">{zeroTime ? "" : "Required"}</span></p>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1 text-sm font-bold text-ink-muted">Start
-                  <Input type="time" className={cn(bigInput, "text-[19px]")} value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} disabled={zeroTime} aria-invalid={errorFor("a start time")} />
-                </label>
-                <label className="flex flex-col gap-1 text-sm font-bold text-ink-muted">End
-                  <Input type="time" className={cn(bigInput, "text-[19px]")} value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} disabled={zeroTime} aria-invalid={errorFor("an end time") || errorFor("an end time after the start")} />
-                </label>
-              </div>
-              {!zeroTime && (
-                <div className="flex flex-wrap gap-2.5">
-                  <button type="button" className={chip} onClick={() => setField("startTime", localNowHHMM())}>Start now</button>
-                  {[15, 30, 45, 60].map((mins) => (
-                    <button key={mins} type="button" className={chip} disabled={!form.startTime} onClick={() => setField("endTime", addMinutesToTime(form.startTime, mins))}>{mins} min</button>
-                  ))}
+          <TimeFields
+            date={form.date}
+            startTime={form.startTime}
+            endTime={form.endTime}
+            zeroTime={zeroTime}
+            totalMinutes={totalMinutes}
+            onDate={(v) => setField("date", v)}
+            onStart={(v) => setField("startTime", v)}
+            onEnd={(v) => setField("endTime", v)}
+            onZeroTime={handleZeroTimeToggle}
+            errorFor={errorFor}
+            before={
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[18px] font-extrabold text-ink">How did the session happen?</p>
+                <div role="radiogroup" aria-label="How did the session happen?" className="grid grid-cols-2 gap-2.5">
+                  {([["person", "In person", Users], ["tele", "Video (telepractice)", Video]] as const).map(([key, label, Icon]) => {
+                    const on = (key === "tele") === isTelepractice;
+                    return (
+                      <button key={key} type="button" role="radio" aria-checked={on} onClick={() => setTelepractice(key === "tele")}
+                        className={cn("press-scale flex min-h-[92px] flex-col items-start justify-between rounded-[16px] border-2 p-3.5 text-left text-[16.5px] font-bold leading-snug", on ? "border-primary bg-primary-tint text-ink" : "border-border-strong bg-surface text-ink")}>
+                        <span className={cn("flex size-10 items-center justify-center rounded-[12px]", on ? "bg-primary text-primary-fg" : "bg-surface-sunken text-ink-body")}><Icon className="size-5" aria-hidden="true" /></span>
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-              {(errorFor("a start time") || errorFor("an end time")) && <p className="text-sm font-semibold text-danger">Add both the start and end time.</p>}
-              {errorFor("an end time after the start") && <p className="text-sm font-semibold text-danger">The end time must be after the start time.</p>}
-            </div>
-
-            <button type="button" role="switch" aria-checked={zeroTime} onClick={() => handleZeroTimeToggle(!zeroTime)}
-              className={cn("press-scale flex min-h-[64px] items-center gap-3 rounded-[16px] border-2 px-4 text-left", zeroTime ? "border-primary bg-primary-tint" : "border-border-strong bg-surface")}>
-              <span className="flex-1">
-                <span className="block text-[17px] font-bold text-ink">Session was cancelled</span>
-                <span className="block text-sm font-medium text-ink-muted">Logs it with 0 time</span>
-              </span>
-              <span className={cn("relative h-[30px] w-[52px] shrink-0 rounded-full transition-colors", zeroTime ? "bg-primary" : "bg-border-strong")} aria-hidden="true">
-                <span className={cn("absolute top-[3px] size-6 rounded-full bg-white transition-transform", zeroTime ? "translate-x-[25px]" : "translate-x-[3px]")} />
-              </span>
-            </button>
-
-            <div className="flex items-center justify-between rounded-[16px] bg-surface-sunken px-4 py-4">
-              <span className="text-base font-bold text-ink-muted">Total time</span>
-              <span className="tabular font-mono text-[26px] font-extrabold text-ink" aria-live="polite">{totalLabel}</span>
-            </div>
-          </div>
+                {isTelepractice && (
+                  <p className="rounded-[14px] bg-primary-tint px-3.5 py-3 text-[14.5px] font-semibold text-ink-body">
+                    We&apos;ll email the parent a link to review and sign remotely instead of collecting their signature here.
+                  </p>
+                )}
+              </div>
+            }
+          />
         )}
 
         {/* ---------- 2. CODES ---------- */}
         {step === 1 && (
-          <div className="flex flex-col gap-6">
-            {prefilledFromLast && (
-              <p className="flex items-center gap-2.5 rounded-[14px] border-2 border-dashed border-primary bg-primary-tint px-3.5 py-3 text-[15px] font-bold text-primary">
-                <RotateCcw className="size-5 shrink-0" aria-hidden="true" />
-                Filled in from {patient?.first_name ? `${patient.first_name}'s` : "the"} last session. Change anything below.
-              </p>
-            )}
-            <BigOptions label="Service type" required value={form.type} options={allowedServiceTypeOptions} onChange={(v) => setField("type", v)} error={errorFor("a service type") ? "Pick the service type." : null} />
-            <BigOptions label="Status" required value={form.status} options={statusOptions} onChange={(v) => setField("status", v)} error={errorFor("a status") ? "Pick the status." : null} />
-            <BigOptions label="Location" required layout="grid" value={form.location} options={locationOptions} onChange={(v) => setField("location", v)} error={errorFor("a location") ? "Pick the location." : null} />
-            <BigOptions label="Group size" layout="grid" value={form.groupSizeCategory} options={groupSizeOptions} onChange={(v) => setField("groupSizeCategory", v)} />
-            {isIndependentPractitioner && (
+          <CodeFields
+            type={form.type}
+            status={form.status}
+            location={form.location}
+            groupSizeCategory={form.groupSizeCategory}
+            customFields={form.customFields}
+            serviceTypeOptions={allowedServiceTypeOptions}
+            statusOptions={statusOptions}
+            locationOptions={locationOptions}
+            groupSizeOptions={groupSizeOptions}
+            customCategories={customCategories}
+            dropdownOptions={dropdownOptions}
+            onField={(k, v) => setField(k, v)}
+            onCustomField={(k, v) => {
+              setTouched(true);
+              setForm((f) => ({ ...f, customFields: { ...f.customFields, [k]: v } }));
+            }}
+            errorFor={errorFor}
+            prefilledNote={prefilledFromLast ? `Filled in from ${patient?.first_name ? `${patient.first_name}'s` : "the"} last session. Change anything below.` : null}
+            extra={isIndependentPractitioner ? (
               <CompanyAffiliationField
                 value={form.companyAffiliation}
                 onChange={(v) => setField("companyAffiliation", v)}
@@ -617,45 +569,12 @@ export default function LogIntervention() {
                 onAgencyCreated={fetchAgencies}
                 error={errorFor("the agency") ? "An agency is required." : null}
               />
-            )}
-            {customCategories.map((cat) => {
-              const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
-              return (
-                <BigOptions
-                  key={cat.key}
-                  label={cat.display_name}
-                  required={!!cat.is_required_on_log}
-                  value={form.customFields[cat.key] || ""}
-                  options={catOptions}
-                  onChange={(v) => {
-                    setTouched(true);
-                    setForm((f) => ({ ...f, customFields: { ...f.customFields, [cat.key]: v } }));
-                  }}
-                  error={errorFor(cat.display_name.toLowerCase()) ? `${cat.display_name} is required.` : null}
-                />
-              );
-            })}
-          </div>
+            ) : null}
+          />
         )}
 
         {/* ---------- 3. NOTES ---------- */}
-        {step === 2 && (
-          <div className="flex flex-col gap-4">
-            <label htmlFor="note" className="flex items-baseline justify-between text-[18px] font-extrabold text-ink">What happened in the session?<span className="text-sm font-semibold text-ink-muted">Optional</span></label>
-            <Textarea
-              id="note"
-              className="min-h-[240px] rounded-[16px] border-2 px-4 py-3 text-[18px] leading-relaxed"
-              placeholder="Activities, progress toward IFSP outcomes, what the family practiced…"
-              value={form.note}
-              onChange={(e) => setField("note", e.target.value)}
-            />
-            <p className="text-right text-sm font-semibold text-ink-muted">{form.note.length} characters</p>
-            <p className="flex items-start gap-2.5 rounded-[14px] bg-surface-sunken px-3.5 py-3 text-[14.5px] font-semibold text-ink-body">
-              <Mic className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-              Tip: tap the microphone on your keyboard to dictate instead of typing.
-            </p>
-          </div>
-        )}
+        {step === 2 && <NotesField value={form.note} onChange={(v) => setField("note", v)} />}
 
         {/* ---------- 4. SIGN ---------- */}
         {step === 3 && (
@@ -723,27 +642,17 @@ export default function LogIntervention() {
       </div>
 
       {/* bottom: what is missing, then Back / Next (or Save) */}
-      <div className="safe-bottom sticky bottom-0 z-20 border-t border-border bg-surface px-4 pb-3 pt-2.5 shadow-[var(--elev-raised)]">
-        <p className={cn("mb-2 min-h-[22px] text-[15px] font-bold", currentMissing.length ? (showErrors ? "text-danger" : "text-warning") : "text-success")} aria-live="polite">
-          {currentMissing.length ? `Add ${joinWords(currentMissing)} to continue` : step === 3 ? "Everything is ready to save" : "✓ This step is complete"}
-        </p>
-        <div className={cn("grid gap-2.5", step > 0 ? "grid-cols-[auto_1fr]" : "grid-cols-1")}>
-          {step > 0 && (
-            <Button type="button" variant="subtle" size="lg" className="h-[60px] min-w-[104px] rounded-[18px] text-[18px] font-extrabold" onClick={() => goToStep(step - 1)} disabled={submitting}>
-              Back
-            </Button>
-          )}
-          {step < 3 ? (
-            <Button type="button" size="lg" className="h-[60px] rounded-[18px] text-[18px] font-extrabold" onClick={handleNext} aria-disabled={currentMissing.length > 0}>
-              Next: {LOG_STEPS[step + 1].label}
-            </Button>
-          ) : (
-            <Button type="button" size="lg" className="h-[60px] rounded-[18px] bg-success text-[18px] font-extrabold text-white hover:bg-success" onClick={handleSubmit} loading={submitting} disabled={submitting || savingDraft}>
-              {isTelepractice ? "Send to Parent to Sign" : "Save Session"}
-            </Button>
-          )}
-        </div>
-      </div>
+      <StepFooter
+        missing={currentMissing}
+        showErrors={showErrors}
+        isFirst={step === 0}
+        isFinal={step === 3}
+        primaryLabel={step < 3 ? `Next: ${LOG_STEPS[step + 1].label}` : isTelepractice ? "Send to Parent to Sign" : "Save Session"}
+        onBack={() => goToStep(step - 1)}
+        onPrimary={step < 3 ? handleNext : handleSubmit}
+        loading={submitting}
+        disabled={submitting || savingDraft}
+      />
 
       <ConfirmDialog
         open={confirmDiscard}

@@ -1,4 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
+
+// jsdom has no PointerEvent, so pointer coordinates would be lost; a MouseEvent
+// carries clientX/clientY the same way a real touch's pointer event does.
+beforeAll(() => {
+  if (!("PointerEvent" in window)) {
+    class PointerEventPolyfill extends MouseEvent {
+      pointerId: number; pointerType: string;
+      constructor(type: string, init: PointerEventInit = {}) { super(type, init); this.pointerId = init.pointerId ?? 1; this.pointerType = init.pointerType ?? "touch"; }
+    }
+    (window as unknown as { PointerEvent: typeof PointerEventPolyfill }).PointerEvent = PointerEventPolyfill;
+  }
+});
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { AgencyDashboard } from "../AgencyDashboard";
 import type { AgencySummary } from "@/types";
@@ -85,5 +97,34 @@ describe("AgencyDashboard", () => {
     rerender(<AgencyDashboard {...base} error="Failed to load your dashboard." onRetry={onRetry} summary={null} />);
     fireEvent.click(screen.getByRole("button", { name: /try again|retry/i }));
     expect(onRetry).toHaveBeenCalled();
+  });
+
+  describe("swiping sideways changes the month", () => {
+    const swipe = (el: Element, dx: number, dy = 0) => {
+      fireEvent.pointerDown(el, { pointerId: 1, clientX: 200, clientY: 300, pointerType: "touch" });
+      fireEvent.pointerMove(el, { pointerId: 1, clientX: 200 + dx, clientY: 300 + dy, pointerType: "touch" });
+      fireEvent.pointerUp(el, { pointerId: 1, clientX: 200 + dx, clientY: 300 + dy, pointerType: "touch" });
+    };
+
+    it("swipe right shows the previous month, swipe left the next one", () => {
+      const onMonthChange = vi.fn();
+      render(<AgencyDashboard {...base} canGoNext onMonthChange={onMonthChange} summary={summary()} />);
+      const area = screen.getByTestId("month-swipe");
+      swipe(area, 120);
+      expect(onMonthChange).toHaveBeenLastCalledWith(-1);
+      swipe(area, -120);
+      expect(onMonthChange).toHaveBeenLastCalledWith(1);
+    });
+
+    it("never goes past the current month, ignores short drags and vertical scrolling", () => {
+      const onMonthChange = vi.fn();
+      render(<AgencyDashboard {...base} canGoNext={false} onMonthChange={onMonthChange} summary={summary()} />);
+      const area = screen.getByTestId("month-swipe");
+      swipe(area, -150);     // no next month yet
+      swipe(area, 25);       // too short
+      swipe(area, 70, 200);  // mostly vertical: that's a scroll
+      expect(onMonthChange).not.toHaveBeenCalled();
+      expect(screen.getByText(/Swipe to change month/)).toBeInTheDocument();
+    });
   });
 });

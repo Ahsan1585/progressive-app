@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import { LOG_STEPS } from "@/utils/logSessionSteps";
 
 interface StepProgressProps {
+  /** defaults to Log Session's four steps; Edit Log passes its own three */
+  steps?: readonly { id: string; label: string }[];
   current: number;
   /** furthest step the practitioner has opened; later steps stay locked */
   reached: number;
@@ -12,10 +14,10 @@ interface StepProgressProps {
 
 // Four-part progress bar for Log Session: Details, Codes, Notes, Sign.
 // Finished steps turn green with a check; any reached step can be tapped.
-export function StepProgress({ current, reached, complete, onGo }: StepProgressProps) {
+export function StepProgress({ steps = LOG_STEPS, current, reached, complete, onGo }: StepProgressProps) {
   return (
-    <div role="tablist" aria-label="Log session steps" className="grid grid-cols-4 gap-1.5">
-      {LOG_STEPS.map((s, i) => {
+    <div role="tablist" aria-label="Steps" className={cn("grid gap-1.5", steps.length === 3 ? "grid-cols-3" : "grid-cols-4")}>
+      {steps.map((s, i) => {
         const isNow = i === current;
         const isDone = !isNow && i <= reached && complete[i];
         return (

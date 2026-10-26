@@ -66,8 +66,42 @@ function TrendChart({ points, metric, currentMonth }: { points: AgencyTrendPoint
   );
 }
 
+// Swiping sideways anywhere on the dashboard changes the month (right = the
+// month before, left = the next one), like the arrows. Only a clearly sideways
+// drag counts, so scrolling the page up and down is never mistaken for one.
+const SWIPE_MIN_PX = 60;
+const SIDEWAYS_RATIO = 1.5;
+
+function useMonthSwipe(onMonthChange: (delta: number) => void, canGoNext: boolean) {
+  const start = React.useRef<{ x: number; y: number; dir: "h" | "v" | null } | null>(null);
+  const [dragX, setDragX] = React.useState(0);
+  const onPointerDown = (e: React.PointerEvent) => {
+    start.current = { x: e.clientX, y: e.clientY, dir: null };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const s = start.current;
+    if (!s) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (!s.dir && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) s.dir = Math.abs(dx) > Math.abs(dy) * SIDEWAYS_RATIO ? "h" : "v";
+    // follow the finger; resist when there is no next month to go to
+    if (s.dir === "h") setDragX(dx < 0 && !canGoNext ? dx * 0.25 : dx);
+  };
+  const end = (e: React.PointerEvent) => {
+    const s = start.current;
+    start.current = null;
+    setDragX(0);
+    if (!s) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy) * SIDEWAYS_RATIO) return;
+    if (dx > 0) onMonthChange(-1);
+    else if (canGoNext) onMonthChange(1);
+  };
+  return { dragX, handlers: { onPointerDown, onPointerMove, onPointerUp: end, onPointerCancel: () => { start.current = null; setDragX(0); } } };
+}
+
 export function AgencyDashboard({ summary, loading, error, onRetry, onMonthChange, canGoNext }: AgencyDashboardProps) {
   const [openStage, setOpenStage] = React.useState<AgencyStage | null>(null);
+  const { dragX, handlers: swipe } = useMonthSwipe(onMonthChange, canGoNext);
   const [metric, setMetric] = React.useState<"value" | "hours">("value");
   React.useEffect(() => { setOpenStage(null); }, [summary?.month]);
 
@@ -97,7 +131,12 @@ export function AgencyDashboard({ summary, loading, error, onRetry, onMonthChang
   const stagesWithNotes = STAGES.filter((st) => b[st.key].count > 0);
 
   return (
-    <div className="space-y-5">
+    <div
+      data-testid="month-swipe"
+      {...swipe}
+      className={cn("space-y-5", dragX === 0 && "transition-transform duration-200")}
+      style={{ transform: dragX ? `translateX(${dragX}px)` : undefined, touchAction: "pan-y" }}
+    >
       {/* month + tiles + where the money is */}
       <section aria-label="Your notes">
         <div className="flex items-center justify-between">
@@ -106,7 +145,10 @@ export function AgencyDashboard({ summary, loading, error, onRetry, onMonthChang
             <button type="button" aria-label="Previous month" onClick={() => onMonthChange(-1)} className="press-scale flex size-[38px] items-center justify-center rounded-[12px] border-[1.5px] border-border-strong bg-surface text-ink">
               <ChevronLeft className="size-4" aria-hidden="true" />
             </button>
-            <p className="min-w-[132px] text-center text-base font-extrabold text-ink">{monthLabel(s.month)}</p>
+            <div className="min-w-[132px] text-center">
+              <p className="text-base font-extrabold text-ink">{monthLabel(s.month)}</p>
+              <p className="text-[11px] font-semibold text-ink-muted">Swipe to change month</p>
+            </div>
             <button type="button" aria-label="Next month" disabled={!canGoNext} onClick={() => onMonthChange(1)} className="press-scale flex size-[38px] items-center justify-center rounded-[12px] border-[1.5px] border-border-strong bg-surface text-ink disabled:opacity-35">
               <ChevronRight className="size-4" aria-hidden="true" />
             </button>

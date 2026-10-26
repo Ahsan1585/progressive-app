@@ -5,12 +5,10 @@ import { useAppData } from "@/contexts/AppDataContext";
 import { useToast } from "@/components/ui/toast";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Picker } from "@/components/Picker";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { StepProgress } from "@/components/logSession/StepProgress";
+import { CodeFields, NotesField, StepFooter, StepHeader, TimeFields } from "@/components/logSession/StepSections";
+import { stepMissing, type StepContext } from "@/utils/logSessionSteps";
 import { calculateTotalMinutes } from "@/utils/time";
 import type { Assessment, ApiErrorBody } from "@/types";
 
@@ -22,6 +20,13 @@ import type { Assessment, ApiErrorBody } from "@/types";
 // anymore (mirrors the backend's editLog/deleteLog gate in
 // patientController.js; a "completed" independent-practitioner log's only
 // remaining action is Reject, from PatientDetail.tsx directly).
+// Editing has no signature step: the same big Details / Codes / Notes steps as Log Session.
+const EDIT_STEPS = [
+  { id: "details", label: "Details", title: "When it happened" },
+  { id: "codes", label: "Codes", title: "Service codes" },
+  { id: "notes", label: "Notes", title: "Session notes" },
+] as const;
+
 export default function EditLog() {
   const { id: patientId, logId } = useParams<{ id: string; logId: string }>();
   const navigate = useNavigate();
@@ -55,6 +60,10 @@ export default function EditLog() {
   const [zeroTime, setZeroTime] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [step, setStep] = React.useState(0);
+  const [reached, setReached] = React.useState(0);
+  const [triedNext, setTriedNext] = React.useState<boolean[]>([false, false, false]);
+  const stepBodyRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     if (!patientId || !logId) return;
@@ -98,19 +107,53 @@ export default function EditLog() {
     setForm((f) => ({ ...f, startTime: "", endTime: "" }));
   };
 
-  const missing: string[] = [];
-  if (!form.date) missing.push("date");
-  if (!zeroTime && !form.startTime) missing.push("start time");
-  if (!zeroTime && !form.endTime) missing.push("end time");
-  if (!form.type) missing.push("service type");
-  if (!form.status) missing.push("status");
-  if (!form.location) missing.push("location");
-  for (const cat of customCategories) {
-    if (cat.is_required_on_log && !form.customFields[cat.key]) missing.push(cat.display_name.toLowerCase());
-  }
+  const stepCtx: StepContext = {
+    date: form.date,
+    startTime: form.startTime,
+    endTime: form.endTime,
+    zeroTime,
+    type: form.type,
+    status: form.status,
+    location: form.location,
+    customFields: form.customFields,
+    requiredCustom: customCategories.filter((c) => c.is_required_on_log).map((c) => ({ key: c.key, label: c.display_name })),
+    isIndependentPractitioner: false,
+    companyAffiliation: "",
+    isTelepractice: false,
+    parentEmailOnFile: true,
+    parentSig: "unchanged",
+    practitionerSig: "unchanged",
+  };
+  const missingFor = (i: number) => (i < 2 ? stepMissing(i, stepCtx) : []);
+  const stepComplete = EDIT_STEPS.map((_, i) => missingFor(i).length === 0);
+  const currentMissing = missingFor(step);
+  const showErrors = triedNext[step];
+  const errorFor = (key: string) => showErrors && currentMissing.includes(key);
+  const missing = [...missingFor(0), ...missingFor(1)];
+
+  const goToStep = (target: number) => {
+    setStep(target);
+    setReached((r) => Math.max(r, target));
+    const body = stepBodyRef.current;
+    if (body) { if (typeof body.scrollTo === "function") body.scrollTo({ top: 0 }); else body.scrollTop = 0; }
+  };
+
+  const handleNext = () => {
+    if (currentMissing.length) {
+      setTriedNext((t) => t.map((v, i) => (i === step ? true : v)));
+      return;
+    }
+    goToStep(step + 1);
+  };
 
   const handleSubmit = async () => {
-    if (!logId || missing.length > 0) return;
+    if (!logId) return;
+    if (missing.length > 0) {
+      const target = missingFor(0).length ? 0 : 1;
+      setTriedNext((t) => t.map((v, i) => (i === target ? true : v)));
+      goToStep(target);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -140,121 +183,72 @@ export default function EditLog() {
     <PushScreen>
       <AppBar title="Edit Log" onBack={() => navigate(-1)} />
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 pb-28">
-        {loading ? (
-          <p className="text-sm text-ink-muted">Loading…</p>
-        ) : notEditable ? (
+      {loading ? (
+        <p className="px-4 py-6 text-base text-ink-muted">Loading…</p>
+      ) : notEditable ? (
+        <div className="px-4 py-6">
           <InlineErrorBanner message="This log can no longer be edited — it may have already moved into billing review, or it's a returned log (edit it from your Inbox instead)." />
-        ) : (
-          <>
-            {error && <InlineErrorBanner message={error} />}
-
-            <Field id="date" label="Service date">
-              <Input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field id="startTime" label="Start time">
-                <Input
-                  type="time"
-                  value={form.startTime}
-                  onChange={(e) => setField("startTime", e.target.value)}
-                  disabled={zeroTime}
-                />
-              </Field>
-              <Field id="endTime" label="End time">
-                <Input
-                  type="time"
-                  value={form.endTime}
-                  onChange={(e) => setField("endTime", e.target.value)}
-                  disabled={zeroTime}
-                />
-              </Field>
-            </div>
-            <label className="flex items-center gap-2.5 text-[13px] font-medium text-ink-body">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-border-strong"
-                checked={zeroTime}
-                onChange={(e) => handleZeroTimeToggle(e.target.checked)}
-              />
-              Session was cancelled — log with 0 time
-            </label>
-            <div>
-              <p className="text-[13px] font-medium leading-[18px] text-ink-body">Total time</p>
-              <p className="tabular mt-1.5 text-lg font-semibold text-ink" aria-live="polite">
-                {zeroTime ? "0 min (cancelled)" : totalMinutes > 0 ? `${(totalMinutes / 60).toFixed(2)} hrs (${totalMinutes} min)` : "—"}
-              </p>
-            </div>
-
-            <Picker
-              id="type"
-              label="Service type"
-              value={form.type}
-              options={allowedServiceTypeOptions}
-              onChange={(v) => setField("type", v)}
-            />
-            <Picker
-              id="status"
-              label="Status"
-              value={form.status}
-              options={statusOptions}
-              onChange={(v) => setField("status", v)}
-            />
-            <Picker
-              id="location"
-              label="Location"
-              value={form.location}
-              options={locationOptions}
-              onChange={(v) => setField("location", v)}
-            />
-            <Picker
-              id="groupSizeCategory"
-              label="Group size category"
-              value={form.groupSizeCategory}
-              options={groupSizeOptions}
-              onChange={(v) => setField("groupSizeCategory", v)}
-            />
-            {customCategories.map((cat) => {
-              const catOptions = (dropdownOptions[cat.key] || []).filter((o) => o.is_active);
-              return (
-                <Picker
-                  key={cat.key}
-                  id={`custom-${cat.key}`}
-                  label={cat.display_name}
-                  value={form.customFields[cat.key] || ""}
-                  options={catOptions}
-                  onChange={(v) => {
-                    setForm((f) => ({ ...f, customFields: { ...f.customFields, [cat.key]: v } }));
-                  }}
-                />
-              );
-            })}
-
-            <div className="border-t border-border pt-5">
-              <Field id="sessionNotes" label="Session notes" optional>
-                <Textarea
-                  value={form.sessionNotes}
-                  onChange={(e) => setField("sessionNotes", e.target.value)}
-                  placeholder="Add any context on this session…"
-                  rows={3}
-                />
-              </Field>
-            </div>
-          </>
-        )}
-      </div>
-
-      {!loading && !notEditable && (
-        <div className="safe-bottom sticky bottom-0 z-20 border-t border-border bg-surface px-4 py-3 shadow-[var(--elev-raised)]">
-          {missing.length > 0 && (
-            <p className="tabular mb-2 text-xs font-medium text-ink-muted">
-              {missing.length} field{missing.length > 1 ? "s" : ""} still missing
-            </p>
-          )}
-          <Button className="w-full" size="lg" onClick={handleSubmit} loading={submitting} disabled={submitting || missing.length > 0}>
-            Save changes
-          </Button>
         </div>
+      ) : (
+        <>
+          <div className="border-b border-border bg-surface px-4 pb-3.5 pt-3">
+            <StepProgress steps={EDIT_STEPS} current={step} reached={reached} complete={stepComplete} onGo={goToStep} />
+          </div>
+
+          <div ref={stepBodyRef} className="flex-1 overflow-y-auto px-4 pb-8 pt-5">
+            {error && <InlineErrorBanner message={error} className="mb-5" />}
+            <StepHeader title={EDIT_STEPS[step].title} index={step} total={EDIT_STEPS.length} optional={step === 2} />
+
+            {step === 0 && (
+              <TimeFields
+                date={form.date}
+                startTime={form.startTime}
+                endTime={form.endTime}
+                zeroTime={zeroTime}
+                totalMinutes={totalMinutes}
+                onDate={(v) => setField("date", v)}
+                onStart={(v) => setField("startTime", v)}
+                onEnd={(v) => setField("endTime", v)}
+                onZeroTime={handleZeroTimeToggle}
+                errorFor={errorFor}
+              />
+            )}
+
+            {step === 1 && (
+              <CodeFields
+                type={form.type}
+                status={form.status}
+                location={form.location}
+                groupSizeCategory={form.groupSizeCategory}
+                customFields={form.customFields}
+                serviceTypeOptions={allowedServiceTypeOptions}
+                statusOptions={statusOptions}
+                locationOptions={locationOptions}
+                groupSizeOptions={groupSizeOptions}
+                customCategories={customCategories}
+                dropdownOptions={dropdownOptions}
+                onField={(k, v) => setField(k, v)}
+                onCustomField={(k, v) => setForm((f) => ({ ...f, customFields: { ...f.customFields, [k]: v } }))}
+                errorFor={errorFor}
+              />
+            )}
+
+            {step === 2 && <NotesField value={form.sessionNotes} onChange={(v) => setField("sessionNotes", v)} />}
+          </div>
+
+          <StepFooter
+            missing={currentMissing}
+            showErrors={showErrors}
+            isFirst={step === 0}
+            isFinal={step === EDIT_STEPS.length - 1}
+            primaryLabel={step < EDIT_STEPS.length - 1 ? `Next: ${EDIT_STEPS[step + 1].label}` : "Save changes"}
+            readyText="Ready to save your changes"
+            onBack={() => goToStep(step - 1)}
+            onPrimary={step < EDIT_STEPS.length - 1 ? handleNext : handleSubmit}
+            loading={submitting}
+            disabled={submitting}
+          />
+        </>
       )}
     </PushScreen>
   );
