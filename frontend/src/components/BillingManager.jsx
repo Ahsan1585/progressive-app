@@ -13,7 +13,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { BillingBatchReview } from '@/components/BillingBatchReview';
 import { PractitionerAvatar } from '@/components/PractitionerAvatar';
-import { showAlert } from '@/utils/dialogStore';
+import { showAlert, showConfirm } from '@/utils/dialogStore';
 import {
   Search, ChevronRight, ChevronDown, Download, X, Undo2,
   Lock, CheckCircle2, CircleAlert, FileText, Printer, Clock, DollarSign,
@@ -195,6 +195,8 @@ export const BillingManager = () => {
   const [selectedBatchIds, setSelectedBatchIds] = useState(new Set());
   const [printingBatchId, setPrintingBatchId] = useState(null);
   const [isBulkPrinting, setIsBulkPrinting] = useState(false);
+  // Bulk Mark Paid: { done, total } while running, else null.
+  const [bulkPaidProgress, setBulkPaidProgress] = useState(null);
   const [updatingPaidId, setUpdatingPaidId] = useState(null);
 
   // --- TOAST STATE (replaces alert()) ---
@@ -761,6 +763,45 @@ export const BillingManager = () => {
       pushToast('error', 'Failed to update paid status: ' + (error.response?.data?.error || error.message));
     } finally {
       setUpdatingPaidId(null);
+    }
+  };
+
+  // Marks every selected, still-unpaid invoice as paid, one at a time through
+  // the same endpoint as the row's own button, so each PDF still gets its
+  // PAID stamp. Already-paid invoices are skipped; failures are reported by
+  // name and stay selected so they can be retried.
+  const selectedUnpaid = filteredBatches.filter((b) => selectedBatchIds.has(b.id) && !b.paid_at);
+  const handleBulkMarkPaid = async () => {
+    const targets = selectedUnpaid;
+    if (targets.length === 0) return;
+    const ok = await showConfirm(
+      `Mark ${targets.length} invoice${targets.length === 1 ? '' : 's'} as paid? Each invoice PDF will be stamped PAID. You can undo any of them from its own row.`
+    );
+    if (!ok) return;
+    setBulkPaidProgress({ done: 0, total: targets.length });
+    const failed = [];
+    for (let i = 0; i < targets.length; i += 1) {
+      const batch = targets[i];
+      try {
+        const res = await api.patch(`/api/billing/batch/${batch.id}/paid`, { paid: true });
+        setBatches((prev) => prev.map((b) => (b.id === batch.id
+          ? { ...b, paid_at: res.data.paid_at || new Date().toISOString() }
+          : b)));
+      } catch (error) {
+        failed.push(batch);
+      }
+      setBulkPaidProgress({ done: i + 1, total: targets.length });
+    }
+    setBulkPaidProgress(null);
+    const marked = targets.length - failed.length;
+    setSelectedBatchIds(new Set(failed.map((b) => b.id)));
+    if (failed.length === 0) {
+      pushToast('success', `${marked} invoice${marked === 1 ? '' : 's'} marked as paid.`);
+    } else {
+      showAlert(
+        `${marked} of ${targets.length} invoices were marked as paid. ${failed.length} could not be updated and are still selected so you can try again: ` +
+        failed.map((b) => `${`${b.practitioners?.first_name || ''} ${b.practitioners?.last_name || ''}`.trim() || 'Unknown'} (${b.start_date || ''})`).join(', ') + '.'
+      );
     }
   };
 
@@ -1623,15 +1664,28 @@ export const BillingManager = () => {
                   <Button
                     size="sm"
                     onClick={handleBulkPrintInvoices}
-                    disabled={isBulkPrinting}
+                    disabled={isBulkPrinting || !!bulkPaidProgress}
                     className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     {isBulkPrinting ? 'Opening…' : `Print Selected (${selectedBatchIds.size})`}
                   </Button>
+                  {canSeeInvoiceStatus && (
+                    <Button
+                      size="sm"
+                      onClick={handleBulkMarkPaid}
+                      disabled={!!bulkPaidProgress || selectedUnpaid.length === 0}
+                      title={selectedUnpaid.length === 0 ? 'Every selected invoice is already paid' : undefined}
+                      className="cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {bulkPaidProgress
+                        ? `Marking ${bulkPaidProgress.done} of ${bulkPaidProgress.total}…`
+                        : selectedUnpaid.length === 0 ? 'All selected are paid' : `Mark Paid (${selectedUnpaid.length})`}
+                    </Button>
+                  )}
                 </div>
               </>
             ) : (
-              <span className="text-[14px] text-slate-500">Select invoices below to print them together.</span>
+              <span className="text-[14px] text-slate-500">Select invoices below to print them or mark them paid together.</span>
             )}
           </div>
 
