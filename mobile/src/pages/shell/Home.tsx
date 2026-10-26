@@ -10,6 +10,7 @@ import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SessionDetailsDialog } from "@/components/SessionDetailsDialog";
 import { useToast } from "@/components/ui/toast";
 import api from "@/api/axiosInstance";
 import { formatTime12h, formatHoursMinutes } from "@/utils/time";
@@ -163,6 +164,7 @@ export default function Home() {
   }, [fetchStats, fetchRejectedLogs, fetchDrafts, fetchPatients, fetchUpcomingSessions, fetchDashboard]);
 
   const scheduleGroups = React.useMemo(() => groupSessionsByDay(upcomingSessions), [upcomingSessions]);
+  const [openSession, setOpenSession] = React.useState<ScheduledSession | null>(null);
 
   // "Jump back in" — most recently serviced patients first (never-serviced
   // patients sort last), not just whatever order the roster happens to load in.
@@ -418,7 +420,7 @@ export default function Home() {
                       <li key={s.id}>
                         <button
                           type="button"
-                          onClick={() => navigate(`/patients/${s.patient_id}`)}
+                          onClick={() => setOpenSession(s)}
                           className="press-scale flex w-full items-center gap-3 rounded-card border border-border bg-surface p-3 text-left shadow-[var(--elev-rest)]"
                         >
                           <div
@@ -512,6 +514,13 @@ export default function Home() {
           Log a Session
         </Button>
       </div>
+
+      <SessionDetailsDialog
+        session={openSession}
+        onOpenChange={(open) => !open && setOpenSession(null)}
+        onOpenChild={() => openSession && navigate(`/patients/${openSession.patient_id}`)}
+        onLogSession={() => openSession && navigate(`/patients/${openSession.patient_id}/log`)}
+      />
 
       <ConfirmDialog
         open={!!discardTarget}
