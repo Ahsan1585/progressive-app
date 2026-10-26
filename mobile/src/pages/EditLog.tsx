@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/toast";
 import { PushScreen } from "@/components/shell/PushScreen";
 import { AppBar } from "@/components/shell/AppBar";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
+import { DateChangeNotice, RESIGN_BUTTON_LABEL, ResignSentDialog, sameDay } from "@/components/DateChangeResign";
 import { StepProgress } from "@/components/logSession/StepProgress";
 import { CodeFields, NotesField, StepFooter, StepHeader, TimeFields } from "@/components/logSession/StepSections";
 import { stepMissing, type StepContext } from "@/utils/logSessionSteps";
@@ -39,6 +40,10 @@ export default function EditLog() {
 
   const [loading, setLoading] = React.useState(true);
   const [notEditable, setNotEditable] = React.useState(false);
+  // The saved date and status: a new date on a pending (parent-signed) note
+  // goes to the parent to re-sign instead of saving straight away.
+  const [original, setOriginal] = React.useState<{ date: string; billingStatus: string } | null>(null);
+  const [resignSentTo, setResignSentTo] = React.useState<string | null>(null);
 
   const allowedServiceTypeOptions = React.useMemo(() => {
     const allowed = profile?.service_types;
@@ -87,6 +92,7 @@ export default function EditLog() {
             sessionNotes: found.session_notes || "",
           });
           setZeroTime(!found.start_time && !found.end_time);
+          setOriginal({ date: found.service_date, billingStatus: found.billing_status });
         }
       } catch {
         setNotEditable(true);
@@ -97,6 +103,7 @@ export default function EditLog() {
   }, [patientId, logId]);
 
   const totalMinutes = calculateTotalMinutes(form.startTime, form.endTime);
+  const needsResign = !!original && original.billingStatus === "pending" && !!form.date && !sameDay(form.date, original.date);
 
   const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -157,7 +164,7 @@ export default function EditLog() {
     setError(null);
     setSubmitting(true);
     try {
-      await api.put(`/api/patients/logs/${logId}`, {
+      const res = await api.put<{ success: boolean; resignRequested?: boolean; parentEmail?: string }>(`/api/patients/logs/${logId}`, {
         service_date: form.date,
         start_time: form.startTime || null,
         end_time: form.endTime || null,
@@ -169,6 +176,10 @@ export default function EditLog() {
         custom_fields: form.customFields,
         session_notes: form.sessionNotes,
       });
+      if (res.data?.resignRequested) {
+        setResignSentTo(res.data.parentEmail || "");
+        return;
+      }
       showToast("Log updated.");
       navigate(`/patients/${patientId}`, { replace: true });
     } catch (err) {
@@ -198,6 +209,7 @@ export default function EditLog() {
           <div ref={stepBodyRef} className="flex-1 overflow-y-auto px-4 pb-8 pt-5">
             {error && <InlineErrorBanner message={error} className="mb-5" />}
             <StepHeader title={EDIT_STEPS[step].title} index={step} total={EDIT_STEPS.length} optional={step === 2} />
+            {needsResign && <div className="mb-5"><DateChangeNotice /></div>}
 
             {step === 0 && (
               <TimeFields
@@ -241,8 +253,8 @@ export default function EditLog() {
             showErrors={showErrors}
             isFirst={step === 0}
             isFinal={step === EDIT_STEPS.length - 1}
-            primaryLabel={step < EDIT_STEPS.length - 1 ? `Next: ${EDIT_STEPS[step + 1].label}` : "Save changes"}
-            readyText="Ready to save your changes"
+            primaryLabel={step < EDIT_STEPS.length - 1 ? `Next: ${EDIT_STEPS[step + 1].label}` : needsResign ? RESIGN_BUTTON_LABEL : "Save changes"}
+            readyText={needsResign ? "Ready to send to the parent" : "Ready to save your changes"}
             onBack={() => goToStep(step - 1)}
             onPrimary={step < EDIT_STEPS.length - 1 ? handleNext : handleSubmit}
             loading={submitting}
@@ -250,6 +262,7 @@ export default function EditLog() {
           />
         </>
       )}
+      <ResignSentDialog parentEmail={resignSentTo} onDone={() => navigate(`/patients/${patientId}`, { replace: true })} />
     </PushScreen>
   );
 }

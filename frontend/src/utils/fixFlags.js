@@ -2,7 +2,8 @@
 // Batch Review. Plain functions (no React) so they can be tested with
 // `node --test src/utils/__tests__/`.
 
-const ALREADY_BILLED = ['njeis_review', 'invoiced', 'completed'];
+// Already billed, or held for the parent's re-signature: nothing for billing to decide.
+const ALREADY_BILLED = ['njeis_review', 'invoiced', 'completed', 'awaiting_resign'];
 
 // One Compliance Analysis result -> what kind of problem it is, if any.
 // Duplicate is checked first: a duplicate can show a clean match on its own

@@ -79,3 +79,36 @@ describe("Edit Log in big steps", () => {
     expect(await screen.findByText(/can no longer be edited/)).toBeInTheDocument();
   });
 });
+
+describe("changing the date needs the parent's new signature", () => {
+  it("says so, renames the button, and confirms who the link went to", async () => {
+    api.put.mockResolvedValue({ data: { success: true, resignRequested: true, parentEmail: "luz.parent@example.com", requestId: "r1" } });
+    renderEdit();
+    await screen.findByRole("heading", { name: "When it happened" });
+    expect(screen.queryByText(/parent's new signature/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue("2026-10-20"), { target: { value: "2026-10-22" } });
+    expect(screen.getByText(/parent's new signature/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next: Codes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Notes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send to parent to re-sign" }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+    expect(api.put.mock.calls[0][1]).toMatchObject({ service_date: "2026-10-22" });
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Sent to the parent to re-sign");
+    expect(dialog).toHaveTextContent("luz.parent@example.com");
+    expect(dialog).toHaveTextContent(/held from billing/);
+    expect(showToast).not.toHaveBeenCalledWith("Log updated.");
+    fireEvent.click(screen.getByRole("button", { name: "OK" }));
+    expect(await screen.findByText("child page")).toBeInTheDocument();
+  });
+
+  it("other edits keep the usual Save changes", async () => {
+    renderEdit();
+    await screen.findByRole("heading", { name: "When it happened" });
+    fireEvent.click(screen.getByRole("button", { name: "Next: Codes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Notes" }));
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+  });
+});

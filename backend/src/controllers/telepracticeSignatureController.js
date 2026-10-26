@@ -8,6 +8,7 @@ const { getCurrentTenantDb } = require('../config/tenantContext');
 const { serviceCodeLabel, locationCodeLabel, statusCodeLabel, groupSizeCodeLabel } = require('../constants/njeis');
 const { formatTime12h, formatLongDate, formatDurationLabel } = require('../utils/formatting');
 const { logAudit } = require('../utils/auditLog');
+const { signDateChange, cancelDateChange, DateChangeStateError } = require('../utils/dateChangeResign');
 
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — matches the invite-link TTL
 const RESEND_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between resends of the same request
@@ -176,7 +177,8 @@ const listTelepracticeRequests = async (req, res) => {
   try {
     const practitionerId = req.practitioner.practitionerId;
     const { rows } = await pool.query(
-      `SELECT id, patient_id, patient_first_name, patient_last_name, service_date, type, status,
+      `SELECT id, kind, assessment_id, patient_id, patient_first_name, patient_last_name, service_date, previous_service_date,
+              start_time, end_time, type, status,
               parent_email, sent_at, resent_at, resend_count, signed_at, token_expires
        FROM telepractice_signature_requests
        WHERE practitioner_id = $1 AND status IN ('awaiting_signature', 'signed')
@@ -232,6 +234,7 @@ const resendTelepracticeSignatureRequest = async (req, res) => {
       practitionerFirstName: request.practitioner_first_name,
       signUrl,
       isResend: true,
+      reason: request.kind === 'date_change' ? 'date_change' : 'telepractice',
     });
 
     logAudit({ req, action: 'telepractice_signature_resent', resourceType: 'telepractice_signature_request', resourceId: id });
@@ -277,6 +280,9 @@ const confirmTelepracticeSession = async (req, res) => {
     );
     const request = rows[0];
     if (!request) return res.status(404).json({ error: 'Request not found' });
+    // A date change is applied the moment the parent signs; there is
+    // nothing for the practitioner to confirm.
+    if (request.kind === 'date_change') return res.status(409).json({ error: 'This request does not need confirming.' });
     if (request.status !== 'signed') {
       return res.status(409).json({ error: 'This request has not been signed by the parent yet.' });
     }
@@ -369,6 +375,10 @@ const GENERIC_VERIFY_FAILED = { error: 'verification_failed', message: 'We could
 // already wrote an error response.
 function linkStateError(request, res) {
   if (!request) { res.status(404).json({ error: 'invalid', message: 'This link is not valid.' }); return true; }
+  if (request.status === 'cancelled') {
+    res.status(410).json({ error: 'cancelled', message: 'This link is no longer needed. Your practitioner cancelled the change, so there is nothing to sign.' });
+    return true;
+  }
   if (request.status === 'signed' || request.status === 'completed') {
     res.status(409).json({ error: 'already_signed', message: 'This session has already been signed.' });
     return true;
@@ -444,6 +454,10 @@ function buildSummary(request) {
     statusLabel: statusCodeLabel(request.session_status),
     practitionerName: `${request.practitioner_first_name || ''} ${request.practitioner_last_name || ''}`.trim(),
     practitionerDisciplineLabel: request.practitioner_discipline,
+    // A date change on a note the parent already signed: say so plainly.
+    dateChange: request.kind === 'date_change'
+      ? { from: formatLongDate(request.previous_service_date), to: formatLongDate(request.service_date) }
+      : null,
   };
 }
 
@@ -497,6 +511,33 @@ const signTelepracticeSession = async (req, res) => {
     if (linkStateError(request, res)) return;
     if (!(await checkDobOrFail(request, dob, req, res))) return;
 
+    if (request.kind === 'date_change') {
+      // The new date can't land on top of a session logged since the change was requested.
+      const conflict = await findConflictingSession({
+        practitionerId: request.practitioner_id, patientId: request.patient_id, date: request.service_date,
+        type: request.type, startTime: request.start_time, endTime: request.end_time, excludeAssessmentId: request.assessment_id,
+      });
+      if (conflict) {
+        return res.status(409).json({ error: 'conflict', message: "This change can't be signed right now. Please contact your practitioner." });
+      }
+      try {
+        await signDateChange(request, {
+          signatureBase64, attestationText: ATTESTATION_TEXT, ip: clientIp(req), userAgent: req.headers?.['user-agent'] || null,
+        });
+      } catch (error) {
+        if (error instanceof DateChangeStateError) {
+          return res.status(409).json({ error: 'already_signed', message: 'This session is no longer waiting for your signature.' });
+        }
+        throw error;
+      }
+      logAudit({
+        req, actorEmail: request.parent_email, actorRole: 'parent',
+        action: 'log_date_change_resigned', resourceType: 'assessment', resourceId: request.assessment_id,
+        details: { requestId: request.id, from: request.previous_service_date, to: request.service_date },
+      });
+      return res.json({ success: true });
+    }
+
     await pool.query(
       `UPDATE telepractice_signature_requests
        SET parent_signature = $1, signed_at = now(), status = 'signed',
@@ -522,7 +563,23 @@ const signTelepracticeSession = async (req, res) => {
   }
 };
 
+// POST /api/telepractice-signatures/:id/cancel — Undo date change: the
+// note goes back exactly as it was and the parent's link stops working.
+const cancelDateChangeRequest = async (req, res) => {
+  try {
+    await cancelDateChange({ requestId: req.params.id, practitionerId: req.practitioner.practitionerId });
+    logAudit({ req, action: 'log_date_change_cancelled', resourceType: 'telepractice_signature_request', resourceId: req.params.id });
+    res.json({ success: true });
+  } catch (error) {
+    if (error instanceof DateChangeStateError) return res.status(409).json({ error: error.message });
+    if (/not found/i.test(error.message)) return res.status(404).json({ error: 'Request not found' });
+    console.error('Failed to cancel date change:', error);
+    res.status(500).json({ error: 'Failed to undo the date change' });
+  }
+};
+
 module.exports = {
+  cancelDateChangeRequest,
   submitTelepracticeSession,
   listTelepracticeRequests,
   resendTelepracticeSignatureRequest,

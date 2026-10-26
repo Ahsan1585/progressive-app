@@ -259,6 +259,8 @@ describe('updateLogStatus duplicate gate', () => {
     jest.spyOn(require('../billingController'), 'computeSessionCompliance')
       .mockResolvedValue({ matched: true, flagged: false, documentOnFile: true, duplicateOfSessionId: 55, duplicateOfInvoiced: false });
 
+    // updateLogStatus first checks the note isn't waiting for a parent re-sign
+    pool.query.mockResolvedValueOnce({ rows: [{ billing_status: 'pending' }] });
     const req = { body: { assessmentId: 1, status: 'pending', review: 'accept' } };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     const { updateLogStatus } = require('../billingController');

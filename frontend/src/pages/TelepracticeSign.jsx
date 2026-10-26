@@ -59,7 +59,7 @@ function StatusMessage({ icon: Icon, tone, title, message }) {
 const TelepracticeSign = () => {
   const { companySlug, token } = useParams();
 
-  const [status, setStatus] = useState('loading'); // loading | invalid | expired | already_signed | locked | verify | verifying | ready | submitting | success | server_error
+  const [status, setStatus] = useState('loading'); // loading | invalid | expired | already_signed | locked | cancelled | verify | verifying | ready | submitting | success | server_error
   const [summary, setSummary] = useState(null);
   const [signature, setSignature] = useState(null);
   const [signError, setSignError] = useState('');
@@ -81,6 +81,7 @@ const TelepracticeSign = () => {
       const code = err.response?.data?.error;
       if (code === 'expired') setStatus('expired');
       else if (code === 'already_signed') setStatus('already_signed');
+      else if (code === 'cancelled') setStatus('cancelled');
       else if (code === 'locked') setStatus('locked');
       else if (code === 'invalid') setStatus('invalid');
       else setStatus('server_error');
@@ -108,6 +109,7 @@ const TelepracticeSign = () => {
       const code = err.response?.data?.error;
       if (code === 'expired') setStatus('expired');
       else if (code === 'already_signed') setStatus('already_signed');
+      else if (code === 'cancelled') setStatus('cancelled');
       else if (code === 'locked') setStatus('locked');
       else if (code === 'invalid') setStatus('invalid');
       else {
@@ -136,6 +138,7 @@ const TelepracticeSign = () => {
       const code = err.response?.data?.error;
       if (code === 'expired') setStatus('expired');
       else if (code === 'already_signed') setStatus('already_signed');
+      else if (code === 'cancelled') setStatus('cancelled');
       else if (code === 'locked') setStatus('locked');
       else if (code === 'invalid') setStatus('invalid');
       else {
@@ -205,6 +208,14 @@ const TelepracticeSign = () => {
     );
   }
 
+  if (status === 'cancelled') {
+    return (
+      <Shell>
+        <StatusMessage icon={CheckCircle2} tone="warning" title="Nothing to sign" message="Your practitioner cancelled this change, so this link is no longer needed. No further action is needed." />
+      </Shell>
+    );
+  }
+
   if (status === 'already_signed') {
     return (
       <Shell>
@@ -246,11 +257,22 @@ const TelepracticeSign = () => {
   return (
     <Shell>
       <h1 className="text-center text-lg font-semibold text-slate-800">
-        Please review and sign {summary?.childName}&apos;s session
+        {summary?.dateChange
+          ? <>Please review the corrected date and sign {summary?.childName}&apos;s session again</>
+          : <>Please review and sign {summary?.childName}&apos;s session</>}
       </h1>
       <p className="mt-2 text-center text-sm text-slate-500">
         By signing below, you confirm that the session described below took place as shown.
       </p>
+      {summary?.dateChange && (
+        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">The date on this session was corrected</p>
+          <p className="mt-1">
+            You signed it for <span className="font-semibold line-through decoration-amber-500">{summary.dateChange.from}</span>.
+            The session took place on <span className="font-semibold">{summary.dateChange.to}</span>.
+          </p>
+        </div>
+      )}
 
       <div className="my-6 divide-y divide-slate-100 rounded-lg border border-slate-100">
         {DETAIL_ROWS.map(([key, label]) =>

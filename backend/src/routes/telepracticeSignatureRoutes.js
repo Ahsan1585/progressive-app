@@ -13,6 +13,7 @@ const {
   getTelepracticeSignatureSummary,
   verifyTelepracticeSignatureIdentity,
   signTelepracticeSession,
+  cancelDateChangeRequest,
 } = require('../controllers/telepracticeSignatureController');
 
 // Throttles the parent-facing, unauthenticated routes — same family as
@@ -50,6 +51,7 @@ router.post('/', protect, submitTelepracticeSession);
 router.get('/', protect, listTelepracticeRequests);
 router.post('/:id/resend', resendLimiter, protect, resendTelepracticeSignatureRequest);
 router.post('/:id/confirm', protect, confirmTelepracticeSession);
+router.post('/:id/cancel', protect, cancelDateChangeRequest);
 // Must come after the more specific practitioner routes above and before
 // the public :companySlug/:token routes below, since a bare :id segment
 // would otherwise never be reached (Express matches route order, and

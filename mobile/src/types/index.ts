@@ -246,6 +246,8 @@ export interface SubscriptionPaymentMethod {
 }
 
 export type BillingStatus =
+  /** Date changed; held from billing until the parent re-signs. */
+  | "awaiting_resign"
   | "pending"
   | "njeis_review"
   | "invoiced"
@@ -361,6 +363,11 @@ export interface LogNote {
 // ("Ready to submit" — Confirm & Submit creates the real assessment).
 export interface TelepracticeSignatureRequest {
   id: string;
+  /** 'date_change': a practitioner changed the date on a note the parent
+   *  already signed; the parent re-signs before it goes back to billing. */
+  kind?: "telepractice" | "date_change";
+  assessment_id?: number | null;
+  previous_service_date?: string | null;
   patient_id: string;
   patient_first_name: string;
   patient_last_name: string;

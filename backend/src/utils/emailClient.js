@@ -543,7 +543,7 @@ const sendContactRequestEmail = async ({
 // vendor Izaya does not have a BAA with. See the BAA draft's subcontractor
 // review flag for the underlying reasoning; this function is the fix.
 const sendParentSignatureRequestEmail = async (toEmail, {
-  practitionerFirstName, signUrl, isResend = false,
+  practitionerFirstName, signUrl, isResend = false, reason = 'telepractice',
 }) => {
   if (!resend) {
     console.warn('RESEND_API_KEY not set — skipping telepractice signature request email send.');
@@ -551,7 +551,9 @@ const sendParentSignatureRequestEmail = async (toEmail, {
   }
 
   const bodyHtml = `
-    <p style="margin:0 0 4px;">Because this was a telehealth (video) visit, ${practitionerFirstName || 'your practitioner'} wasn't able to collect your signature in person. Follow the link below to review the session and add a quick digital signature.</p>
+    <p style="margin:0 0 4px;">${reason === 'date_change'
+      ? `${practitionerFirstName || 'Your practitioner'} corrected the date on a session you already signed. Follow the link below to review the change and sign again.`
+      : `Because this was a telehealth (video) visit, ${practitionerFirstName || 'your practitioner'} wasn't able to collect your signature in person. Follow the link below to review the session and add a quick digital signature.`}</p>
     ${stepGuide([
       { icon: STEP_ICON_REVIEW_URL, alt: 'Review icon', label: 'Review the details', subtext: 'Opens on a private, secure page' },
       { icon: STEP_ICON_SIGN_URL, alt: 'Sign icon', label: 'Add your signature', subtext: 'With your finger or mouse — takes seconds' },
@@ -562,7 +564,7 @@ const sendParentSignatureRequestEmail = async (toEmail, {
     <p style="margin:20px 0 0; font-size:12.5px; color:${COLORS.slate};">Questions about this session? Contact ${practitionerFirstName || 'your practitioner'} or your care team directly.</p>
   `;
   const html = emailShell({
-    preheader: 'A quick signature is needed for a recent telehealth session.',
+    preheader: reason === 'date_change' ? 'A session you signed was updated and needs your signature again.' : 'A quick signature is needed for a recent telehealth session.',
     eyebrow: isResend ? 'Signature Reminder' : 'Signature Needed',
     heading: 'Please review and sign your recent session',
     bodyHtml,

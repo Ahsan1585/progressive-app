@@ -977,7 +977,7 @@ function PractitionerGroup({
   const allLogsReviewed = allSessionsReviewed(sessions, logActions);
   const routingCounts = sessions.reduce((acc, s) => {
     if (s.billing_status === 'declined') acc.excluded += 1;
-    else if (s.billing_status === 'rejected' || s.billing_status === 'on_hold') acc.heldReturned += 1;
+    else if (['rejected', 'on_hold', 'awaiting_resign'].includes(s.billing_status)) acc.heldReturned += 1;
     else acc.billable += 1;
     return acc;
   }, { billable: 0, heldReturned: 0, excluded: 0 });
@@ -993,6 +993,7 @@ function PractitionerGroup({
   const statusParts = [];
   if (!isBilledCard) {
     if (practitioner.on_hold_count > 0) statusParts.push(`${practitioner.on_hold_count} held`);
+    if (practitioner.awaiting_resign_count > 0) statusParts.push(`${practitioner.awaiting_resign_count} awaiting parent re-sign`);
     if (practitioner.rejected_count > 0) statusParts.push(`${practitioner.rejected_count} returned to practitioner`);
     if (practitioner.declined_count > 0) statusParts.push(`${practitioner.declined_count} declined`);
   }
@@ -1169,6 +1170,7 @@ function PractitionerGroup({
               const isDeclined = s.billing_status === 'declined';
               const isReturned = s.billing_status === 'rejected';
               const isOnHold = s.billing_status === 'on_hold';
+              const isAwaitingResign = s.billing_status === 'awaiting_resign';
               // A session already sent to billing (bulk auto-generate, or a
               // manual Generate & Issue from an earlier visit) never goes
               // through this browser's own Approve click, so logActions/
@@ -1177,12 +1179,13 @@ function PractitionerGroup({
               const isSentToBilling = ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
               const isApproved = isSentToBilling || logActions[s.id] === 'accept' || s.billing_review === 'accept';
               const dotColor = isDeclined ? 'bg-red-400' : isReturned ? 'bg-amber-400' : isOnHold ? 'bg-violet-400'
-                : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
+                : isAwaitingResign ? 'bg-sky-400' : isApproved ? 'bg-emerald-400' : 'bg-slate-300';
               const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold'
-                : isSentToBilling ? 'Sent to billing' : isApproved ? 'Approved' : 'Pending';
+                : isAwaitingResign ? 'Awaiting parent' : isSentToBilling ? 'Sent to billing' : isApproved ? 'Approved' : 'Pending';
               const statusLabelClasses = isDeclined ? 'bg-red-50 text-red-600'
                 : isReturned ? 'bg-amber-50 text-amber-600'
                 : isOnHold ? 'bg-violet-50 text-violet-600'
+                : isAwaitingResign ? 'bg-sky-50 text-sky-700'
                 : isApproved ? 'bg-emerald-50 text-emerald-600'
                 : 'bg-slate-100 text-slate-600';
               // Single highlight, one meaning: "the log currently in focus."
@@ -1353,6 +1356,7 @@ function SessionDetailPanel({
   const isDeclined = session.billing_status === 'declined';
   const isReturned = session.billing_status === 'rejected';
   const isOnHold = session.billing_status === 'on_hold';
+  const isAwaitingResign = session.billing_status === 'awaiting_resign';
   const isProcessing = processingLogId === session.id;
   const isLocked = session.billing_status === 'njeis_review';
   const { options: dropdownOptions, categories } = useDropdownOptions();
@@ -1541,6 +1545,14 @@ function SessionDetailPanel({
       ) : isLocked ? (
         <div className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 mb-4">
           <Ban className="size-4" /> SEVF has been issued — locked until it returns to pending.
+        </div>
+      ) : isAwaitingResign ? (
+        <div className="flex items-start gap-2 text-[16px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3.5 mb-4">
+          <Clock className="size-4 mt-1 flex-shrink-0" />
+          <span>
+            Waiting for the parent to re-sign. The practitioner changed this session&apos;s date, so it&apos;s held out of billing
+            until the parent signs the new date. It comes back here as Pending once they do.
+          </span>
         </div>
       ) : isOnHold ? (
         <Button onClick={() => handleReleaseHold(session, practitionerId)} className="cursor-pointer gap-1.5 bg-orange-600 hover:bg-orange-700 text-white mb-4">
@@ -1798,8 +1810,8 @@ function ActionButton({ label, icon, onClick, active, tone, disabled }) {
 // Generate & Issue needs a decision on every session, and at least one that
 // will actually bill (shared by the queue footer and Fix flags' finish screen).
 const allSessionsReviewed = (sessions, logActions) => sessions.length > 0 &&
-  sessions.some(s => !['rejected', 'declined', 'on_hold'].includes(s.billing_status)) &&
-  sessions.every(s => logActions[s.id] || s.billing_review);
+  sessions.some(s => !['rejected', 'declined', 'on_hold', 'awaiting_resign'].includes(s.billing_status)) &&
+  sessions.every(s => s.billing_status === 'awaiting_resign' || logActions[s.id] || s.billing_review);
 
 const STRICTNESS_LABELS = {
   strict: 'Strict — every word/minute must match exactly',
@@ -2252,6 +2264,8 @@ function ComplianceAnalysisPreview({
       const isOnHold = s.billing_status === 'on_hold';
       const isLockedStatus = s.billing_status === 'njeis_review';
       const isApproved = logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
+      // waiting for the parent's re-signature: billing can't act on it yet
+      if (s.billing_status === 'awaiting_resign') return;
       if (isDeclined || isReturned || isOnHold || isLockedStatus || isApproved) return;
       handleAccept(s, practitionerId);
     });
@@ -2390,6 +2404,7 @@ function ComplianceAnalysisPreview({
           const isDeclined = s.billing_status === 'declined';
           const isReturned = s.billing_status === 'rejected';
           const isOnHold = s.billing_status === 'on_hold';
+          const isAwaitingResign = s.billing_status === 'awaiting_resign';
           // isLockedStatus covers njeis_review AND invoiced/completed — a
           // session already sent to billing (bulk auto-generate, or an
           // earlier manual Generate & Issue) never goes through this
@@ -2399,7 +2414,7 @@ function ComplianceAnalysisPreview({
           const isLockedStatus = ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
           const isApproved = isLockedStatus || logActions?.[s.id] === 'accept' || s.billing_review === 'accept';
           const statusLabel = isDeclined ? 'Declined' : isReturned ? 'Returned' : isOnHold ? 'On Hold'
-            : isLockedStatus ? 'Sent to billing' : isApproved ? 'Approved' : 'Pending';
+            : isAwaitingResign ? 'Awaiting parent' : isLockedStatus ? 'Sent to billing' : isApproved ? 'Approved' : 'Pending';
           const statusBadgeClasses = isDeclined ? 'text-red-600'
             : isReturned ? 'text-amber-600'
             : isOnHold ? 'text-violet-600'
@@ -2407,7 +2422,7 @@ function ComplianceAnalysisPreview({
             : 'text-slate-600';
           // Once Returned/Declined, action only happens via the practitioner's
           // resubmission or Session Detail's Store Log — same rule as there.
-          const canChangeStatus = !isDeclined && !isReturned && !isLockedStatus;
+          const canChangeStatus = !isDeclined && !isReturned && !isLockedStatus && !isAwaitingResign;
           // A duplicate may already carry a stale "Approved" from before it
           // was known to be a duplicate (e.g. it briefly matched cleanly on
           // an earlier run). Once flagged as a duplicate, don't pre-select

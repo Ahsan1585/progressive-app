@@ -12,6 +12,7 @@ export interface BillingStatusConfig {
 // Text-labeled billing status semantics — never color-only (a11y requirement).
 export const billingStatusConfig: Record<string, BillingStatusConfig> = {
   pending: { label: "Pending", variant: "neutral" },
+  awaiting_resign: { label: "Awaiting parent re-sign", variant: "info" },
   njeis_review: { label: "In Review", variant: "info" },
   invoiced: { label: "Accepted", variant: "success" },
   rejected: { label: "Returned", variant: "warning" },

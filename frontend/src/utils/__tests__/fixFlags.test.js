@@ -104,3 +104,8 @@ test('suggestNote writes the reason from the flag, worded for the action', async
   assert.match(suggestNote('hold', session, missing), /^On hold: no EIMS record/);
   assert.equal(suggestNote('return', session, clean), '');
 });
+
+test('a note waiting for the parent to re-sign a new date is not a flag billing can act on', () => {
+  const sessions = [{ id: 1, billing_status: 'awaiting_resign' }, { id: 2, billing_status: 'pending' }];
+  assert.deepEqual(buildFlagList(sessions, { 1: mismatch, 2: mismatch }), [{ id: 2, kind: 'mismatch' }]);
+});

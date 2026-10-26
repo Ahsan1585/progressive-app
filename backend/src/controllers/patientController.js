@@ -3,6 +3,25 @@ const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { sanitizeCustomFields } = require('../utils/customFields');
 const { assertNoConflictingSession, DuplicateAssessmentError } = require('../utils/createAssessment');
+const { dateChanged, requestDateChangeResign, ParentEmailMissingError, DateChangeStateError } = require('../utils/dateChangeResign');
+
+// A new date on a note the parent already signed goes to the parent to
+// re-sign first (see utils/dateChangeResign.js). Shared by editLog and
+// resubmitLog; writes the response.
+async function sendDateChangeForResign(req, res, { assessmentId, previousBillingStatus, newValues, resubmitNote = null }) {
+  try {
+    const { requestId, parentEmail } = await requestDateChangeResign({
+      assessmentId, practitionerId: req.practitioner.practitionerId, companySlug: req.practitioner.slug,
+      newValues, previousBillingStatus, resubmitNote, authorRole: req.practitioner.role,
+    });
+    logAudit({ req, action: 'log_date_change_resign_requested', resourceType: 'assessment', resourceId: assessmentId, details: { requestId } });
+    return res.json({ success: true, resignRequested: true, parentEmail, requestId });
+  } catch (error) {
+    if (error instanceof ParentEmailMissingError) return res.status(400).json({ error: error.message, code: error.code });
+    if (error instanceof DateChangeStateError) return res.status(409).json({ error: error.message, code: error.code });
+    throw error;
+  }
+}
 
 const VALID_PATIENT_STATUSES = ['active', 'inactive'];
 
@@ -289,7 +308,7 @@ const acknowledgeLog = async (req, res) => {
 
 const resubmitLog = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
-  const { assessmentId, type, location, start_time, end_time, total_time, status, note, group_size_category, custom_fields } = req.body;
+  const { assessmentId, type, location, start_time, end_time, total_time, status, note, group_size_category, custom_fields, service_date } = req.body;
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
   try {
@@ -310,14 +329,28 @@ const resubmitLog = async (req, res) => {
       return res.status(403).json({ error: 'You are not registered to provide this service type' });
     }
 
+    // The date can now be corrected on resubmit too, but only with the
+    // parent's new signature (sendDateChangeForResign below).
+    const newDate = service_date || existing.service_date;
+
     // A revised log still can't land on top of another session the
     // practitioner already has for this child at the same time.
     await assertNoConflictingSession({
-      practitionerId, patientId: existing.patient_id, date: existing.service_date, type,
+      practitionerId, patientId: existing.patient_id, date: newDate, type,
       startTime: start_time, endTime: end_time, excludeAssessmentId: Number(assessmentId),
     });
 
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
+
+    if (dateChanged(existing.service_date, service_date)) {
+      return await sendDateChangeForResign(req, res, {
+        assessmentId: Number(assessmentId), previousBillingStatus: 'rejected', resubmitNote: note,
+        newValues: {
+          service_date, type, location, start_time, end_time, total_time, status,
+          group_size_category: group_size_category || null, form_data: { custom_fields: sanitizedCustomFields },
+        },
+      });
+    }
 
     await pool.query(
       `UPDATE assessments
@@ -369,7 +402,7 @@ const editLog = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, patient_id, billing_status, company_affiliation, session_notes FROM assessments WHERE id = $1 AND practitioner_id = $2',
+      'SELECT id, patient_id, billing_status, service_date, company_affiliation, session_notes FROM assessments WHERE id = $1 AND practitioner_id = $2',
       [id, practitionerId]
     );
     const log = rows[0];
@@ -402,6 +435,20 @@ const editLog = async (req, res) => {
     });
 
     const sanitizedCustomFields = sanitizeCustomFields(custom_fields);
+
+    // A new date on a signed, pending note needs the parent's new signature.
+    // (An independent practitioner's own self-certified log is unchanged.)
+    if (log.billing_status === 'pending' && dateChanged(log.service_date, service_date)) {
+      return await sendDateChangeForResign(req, res, {
+        assessmentId: Number(id), previousBillingStatus: 'pending',
+        newValues: {
+          service_date, type, location, start_time, end_time, total_time, status,
+          group_size_category: group_size_category || null, form_data: { custom_fields: sanitizedCustomFields },
+          session_notes: session_notes !== undefined ? (session_notes?.trim() || null) : log.session_notes,
+          company_affiliation: company_affiliation !== undefined ? company_affiliation : log.company_affiliation,
+        },
+      });
+    }
 
     // company_affiliation is independent-practitioner-only and always NULL
     // for a normal tenant log — only overwritten here when the caller

@@ -54,7 +54,7 @@ const getPendingLogs = async (req, res) => {
     // just clutter Pending Bills from then on. From that point they're only
     // reachable through Master Reports, which already supports filtering by
     // Returned/rejected status.
-    const params = [['pending', 'njeis_review', 'on_hold', 'rejected', 'declined']];
+    const params = [['pending', 'njeis_review', 'on_hold', 'rejected', 'declined', 'awaiting_resign']];
     let sql = `
       SELECT a.*, p.first_name AS practitioner_live_first_name, p.last_name AS practitioner_live_last_name
       FROM assessments a
@@ -118,6 +118,7 @@ const getPendingLogs = async (req, res) => {
           unique_children: new Set(),
           total_hours: 0,
           on_hold_count: 0,
+          awaiting_resign_count: 0,
           rejected_count: 0,
           declined_count: 0,
           pending_count: 0,
@@ -155,6 +156,9 @@ const getPendingLogs = async (req, res) => {
       }
       if (record.billing_status === 'declined') {
         practitionerMap[pId].declined_count += 1;
+      }
+      if (record.billing_status === 'awaiting_resign') {
+        practitionerMap[pId].awaiting_resign_count += 1;
       }
       if (record.billing_status === 'pending') {
         practitionerMap[pId].pending_count += 1;
@@ -1575,6 +1579,15 @@ const getMyInvoiceDownloadUrl = async (req, res) => {
 };
 
 // --- 7. Decline or Restore an Individual Assessment ---
+// A note whose date changed is held until the parent re-signs it (see
+// utils/dateChangeResign.js) — billing can see it but not act on it, or an
+// Approve/Release would put it back in billing with an unsigned date.
+const AWAITING_RESIGN_MESSAGE = "This note's date was changed and it's waiting for the parent to re-sign. It comes back to Pending once they do.";
+async function isAwaitingResign(assessmentId) {
+  const { rows } = await pool.query('SELECT billing_status FROM assessments WHERE id = $1', [assessmentId]);
+  return rows[0]?.billing_status === 'awaiting_resign';
+}
+
 const updateLogStatus = async (req, res) => {
   const { assessmentId, status, review } = req.body;
   if (!assessmentId || !['declined', 'pending'].includes(status)) {
@@ -1582,6 +1595,9 @@ const updateLogStatus = async (req, res) => {
   }
 
   try {
+    if (await isAwaitingResign(assessmentId)) {
+      return res.status(409).json({ error: AWAITING_RESIGN_MESSAGE, code: 'AWAITING_RESIGN' });
+    }
     // Approve is the one transition that must never go through past an
     // unresolved compliance mismatch — recompute live rather than trusting
     // whatever the client last saw, since a learned rule or another
@@ -1659,6 +1675,9 @@ const rejectLog = async (req, res) => {
     return res.status(400).json({ error: 'assessmentId and a note are required' });
   }
   try {
+    if (await isAwaitingResign(assessmentId)) {
+      return res.status(409).json({ error: AWAITING_RESIGN_MESSAGE, code: 'AWAITING_RESIGN' });
+    }
     if (type === 'hold') {
       await pool.query(
         `UPDATE assessments
@@ -1766,7 +1785,7 @@ const getPractitionerLogs = async (req, res) => {
     // this practitioner's batch has actually been generated (see
     // getPendingLogs for the full rationale) — after that they're excluded
     // here too and only reachable via Master Reports.
-    const params = [practitionerId, ['pending', 'njeis_review', 'on_hold', 'rejected', 'declined']];
+    const params = [practitionerId, ['pending', 'njeis_review', 'on_hold', 'rejected', 'declined', 'awaiting_resign']];
     let sql = `
       SELECT assessments.id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
              total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at,

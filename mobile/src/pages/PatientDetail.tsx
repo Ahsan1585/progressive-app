@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2, PencilLine, Send, XCircle, MessageSquare, FileOutput, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { ClipboardList, Plus, Pencil, CalendarPlus, CalendarClock, X, Trash2, PencilLine, XCircle, MessageSquare, FileOutput, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import api from "@/api/axiosInstance";
 import { useAppData } from "@/contexts/AppDataContext";
 import { DraftCard } from "@/components/DraftCard";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ScheduleSessionSheet } from "@/components/ScheduleSessionSheet";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AwaitingSignatureRow } from "@/components/AwaitingSignatureRow";
 import { DraftCapDialog } from "@/components/DraftCapDialog";
 import { EnterInEimsDialog } from "@/components/EnterInEimsDialog";
 import { FilterPicker } from "@/components/FilterPicker";
@@ -20,7 +21,7 @@ import { PatientConsents } from "@/components/PatientConsents";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { formatSafeDate, formatTime12h, timeAgo } from "@/utils/time";
+import { formatSafeDate, formatTime12h } from "@/utils/time";
 import { MAX_DRAFTS_PER_PATIENT } from "@/constants/drafts";
 import { billingStatusConfig } from "@/constants/njeis";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,8 @@ export default function PatientDetail() {
   const patient = patients.find((p) => String(p.id) === id);
   const [updatingStatus, setUpdatingStatus] = React.useState(false);
   const [resendingId, setResendingId] = React.useState<string | null>(null);
+  const [undoDateChangeId, setUndoDateChangeId] = React.useState<string | null>(null);
+  const [undoingDateChange, setUndoingDateChange] = React.useState(false);
 
   const awaitingTelepracticeRequests = React.useMemo(
     () => telepracticeRequests.filter((r) => String(r.patient_id) === id && r.status === "awaiting_signature"),
@@ -52,6 +55,26 @@ export default function PatientDetail() {
       showToast(body?.error || "Couldn't resend the link. Please try again.");
     } finally {
       setResendingId(null);
+    }
+  };
+
+  // Undo date change: the note goes back exactly as it was and the
+  // parent's link stops working.
+  const handleUndoDateChange = async () => {
+    if (!undoDateChangeId) return;
+    setUndoingDateChange(true);
+    try {
+      await api.post(`/api/telepractice-signatures/${undoDateChangeId}/cancel`);
+      showToast("Date change undone.");
+      setUndoDateChangeId(null);
+      await Promise.all([fetchTelepracticeRequests(), fetchAssessments()]);
+    } catch (err) {
+      const body = (err as { response?: { data?: { error?: string } } }).response?.data;
+      showToast(body?.error || "Couldn't undo the date change. Please try again.");
+      setUndoDateChangeId(null);
+      await fetchTelepracticeRequests();
+    } finally {
+      setUndoingDateChange(false);
     }
   };
 
@@ -421,23 +444,13 @@ export default function PatientDetail() {
           <div className="mb-4 space-y-2">
             <h3 className="text-[13px] font-semibold text-ink-muted">Awaiting parent signature</h3>
             {awaitingTelepracticeRequests.map((req) => (
-              <div key={req.id} className="flex items-center gap-3 rounded-card border border-border bg-surface p-3 shadow-[var(--elev-rest)]">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-ink-muted">
-                  <Send className="size-5" aria-hidden="true" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="tabular text-sm font-semibold text-ink">{formatSafeDate(req.service_date)}</p>
-                  <p className="text-xs text-ink-muted">Sent {timeAgo(req.resent_at || req.sent_at)} to {req.parent_email}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleResendTelepractice(req.id)}
-                  disabled={resendingId === req.id}
-                  className="press-scale shrink-0 rounded-control border border-border-strong px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
-                >
-                  {resendingId === req.id ? "Sending..." : "Resend"}
-                </button>
-              </div>
+              <AwaitingSignatureRow
+                key={req.id}
+                request={req}
+                resending={resendingId === req.id}
+                onResend={() => handleResendTelepractice(req.id)}
+                onUndo={() => setUndoDateChangeId(req.id)}
+              />
             ))}
           </div>
         )}
@@ -742,6 +755,16 @@ export default function PatientDetail() {
           setScheduleTarget(null);
           fetchSessions();
         }}
+      />
+
+      <ConfirmDialog
+        open={!!undoDateChangeId}
+        onOpenChange={(open) => !open && setUndoDateChangeId(null)}
+        title="Undo the date change?"
+        description="The note goes back exactly as it was, with its original date, and the link sent to the parent stops working."
+        confirmLabel="Undo change"
+        loading={undoingDateChange}
+        onConfirm={handleUndoDateChange}
       />
 
       <ConfirmDialog

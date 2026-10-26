@@ -9,6 +9,7 @@ const ICONS: Record<string, typeof Flag> = {
   njeis_review: Clock,
   invoiced: CheckCircle2,
   pending: Circle,
+  awaiting_resign: Clock,
   self_certified: Circle,
   completed: CheckCircle2,
   voided: XCircle,

@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Picker } from "@/components/Picker";
 import { InlineErrorBanner } from "@/components/InlineErrorBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { calculateTotalMinutes, formatSafeDate } from "@/utils/time";
+import { DateChangeNotice, RESIGN_BUTTON_LABEL, ResignSentDialog, sameDay } from "@/components/DateChangeResign";
+import { calculateTotalMinutes, formatSafeDate, localTodayIso } from "@/utils/time";
 import type { ApiErrorBody } from "@/types";
 
 // Signatures are not re-collected here — the resubmit payload only carries
@@ -37,6 +38,8 @@ export default function ResubmitLog() {
   }, [profile, serviceTypeOptions]);
 
   const [form, setForm] = React.useState({
+    // A corrected date needs the parent's new signature (see DateChangeResign).
+    service_date: (log?.service_date ?? "").slice(0, 10),
     type: log?.type ?? "",
     location: log?.location ?? "",
     start_time: log?.start_time ?? "",
@@ -50,8 +53,10 @@ export default function ResubmitLog() {
   const [error, setError] = React.useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  const [resignSentTo, setResignSentTo] = React.useState<string | null>(null);
 
   const totalMinutes = calculateTotalMinutes(form.start_time, form.end_time);
+  const needsResign = !!log && !!form.service_date && !sameDay(form.service_date, log.service_date);
 
   if (!log) {
     return (
@@ -72,11 +77,16 @@ export default function ResubmitLog() {
     setError(null);
     setSubmitting(true);
     try {
-      await api.post("/api/patients/resubmit-log", {
+      const res = await api.post<{ success: boolean; resignRequested?: boolean; parentEmail?: string }>("/api/patients/resubmit-log", {
         assessmentId: log.id,
         total_time: totalMinutes,
         ...form,
       });
+      if (res.data?.resignRequested) {
+        await fetchRejectedLogs();
+        setResignSentTo(res.data.parentEmail || "");
+        return;
+      }
       showToast("Log resubmitted for review.");
       await fetchRejectedLogs();
       navigate("/inbox", { replace: true });
@@ -117,6 +127,16 @@ export default function ResubmitLog() {
         </div>
 
         {error && <InlineErrorBanner message={error} />}
+
+        <Field id="service_date" label="Session date">
+          <Input
+            type="date"
+            max={localTodayIso()}
+            value={form.service_date}
+            onChange={(e) => setForm((f) => ({ ...f, service_date: e.target.value }))}
+          />
+        </Field>
+        {needsResign && <DateChangeNotice />}
 
         <Picker
           id="type"
@@ -192,7 +212,7 @@ export default function ResubmitLog() {
         </Field>
 
         <Button type="submit" className="w-full" size="lg" loading={submitting}>
-          Resubmit for review
+          {needsResign ? RESIGN_BUTTON_LABEL : "Resubmit for review"}
         </Button>
         <Button
           type="button"
@@ -206,6 +226,7 @@ export default function ResubmitLog() {
         </Button>
       </form>
 
+      <ResignSentDialog parentEmail={resignSentTo} onDone={() => navigate("/inbox", { replace: true })} />
       <ConfirmDialog
         open={confirmDeleteOpen}
         onOpenChange={setConfirmDeleteOpen}

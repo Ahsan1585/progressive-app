@@ -56,6 +56,7 @@ const MIGRATIONS = [
   'add_mfa_reset_requests.sql',
   'add_records_releases.sql',
   'add_consent_lifecycle.sql',
+  'add_date_change_resign.sql',
 ];
 
 module.exports = { MIGRATIONS };
