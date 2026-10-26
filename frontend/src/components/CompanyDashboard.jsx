@@ -379,7 +379,7 @@ function ActionQueue({ day, onSelectSession }) {
       {sessions.length === 0 ? (
         <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No open holds or returns this month. Nice.</div>
       ) : (
-        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1 [&>*]:shrink-0">
           {sessions.map((s) => {
             const age = daysAgo(s.flaggedAt || s.serviceDate);
             const isCritical = age !== null && age > 30;
@@ -687,7 +687,7 @@ function DocumentsFeed({ documents }) {
       {documents.length === 0 ? (
         <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No invoices or SEVF forms for this month.</div>
       ) : (
-        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1 [&>*]:shrink-0">
           {documents.map((d) => {
             const tone = DOC_STATUS_TONE[d.status] || DOC_STATUS_TONE.pending;
             return (
@@ -757,7 +757,7 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
       {logs.length === 0 ? (
         <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No returned or declined logs this month. Nice.</div>
       ) : (
-        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1 [&>*]:shrink-0">
           {logs.map((log) => {
             const age = daysAgo(log.rejectedAt || log.serviceDate);
             const isDeclined = log.status === 'declined';
