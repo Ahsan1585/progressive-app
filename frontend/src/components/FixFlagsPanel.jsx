@@ -59,7 +59,7 @@ function ActionTile({ label, hint, shortcut, tone, onClick, disabled, active }) 
 
 export function FixFlagsPanel({
   sessions, practitionerId, practitionerName, periodStart, periodEnd, logActions,
-  startKind, currentId, onCurrentChange, onFlagsChange,
+  startKind, currentId, onCurrentChange, onFlagsChange, onNotAFlag,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleInlineReturnReject,
   canGenerate, isGenerating, onGenerate,
 }) {
@@ -146,13 +146,16 @@ export function FixFlagsPanel({
   // Start on the first open flag of the chip that was clicked.
   const currentIndex = flagList.findIndex((f) => f.id === currentId);
   useEffect(() => {
-    if (flagList.length === 0 || currentIndex >= 0) return;
+    if (!analysis || builtFor !== analysis || currentIndex >= 0) return;
+    // A specific session was clicked but it isn't flagged any more.
+    if (currentId != null && onNotAFlag) { onNotAFlag(currentId); return; }
+    if (flagList.length === 0) return;
     const ofKind = flagList.findIndex((f) => !isHandled(f) && (startKind === 'missing' ? f.kind === 'missing' : f.kind !== 'missing'));
     const firstOpen = flagList.findIndex((f) => !isHandled(f));
     const pick = ofKind >= 0 ? ofKind : firstOpen >= 0 ? firstOpen : 0;
     onCurrentChange(flagList[pick].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flagList, currentIndex]);
+  }, [flagList, currentIndex, builtFor]);
 
   const flag = currentIndex >= 0 ? flagList[currentIndex] : null;
   const session = flag ? sessionsById.get(flag.id) : null;

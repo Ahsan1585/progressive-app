@@ -496,9 +496,19 @@ export const BillingBatchReview = ({
   };
 
   const selectSession = (practitionerId, sessionId) => {
-    // While fixing flags, clicking a flagged row opens that flag instead.
-    if (detailTab === 'fix' && detail?.practitionerId === practitionerId && fixKinds.has(sessionId)) {
+    // A flagged session opens on Fix flags (comparison + actions); a clean
+    // one on Session Detail. "Flagged" is the saved EIMS flag, or Fix flags'
+    // live list when it's already open for this practitioner.
+    const session = (periodLogs[practitionerId] || []).find((s) => s.id === sessionId);
+    const samePractitioner = detail?.practitionerId === practitionerId;
+    const savedFlag = session ? isFlaggedInQueue(session, logActions) : null;
+    if ((samePractitioner && fixKinds.has(sessionId)) || savedFlag) {
+      if (!samePractitioner) setFixKinds(new Map());
+      setFixStartKind(savedFlag === 'missing' ? 'missing' : 'mismatch');
       setFixFocusId(sessionId);
+      setDetail({ practitionerId, sessionId });
+      setDetailTab('fix');
+      setScrollSyncSessionId(null);
       return;
     }
     setDetail({ practitionerId, sessionId });
@@ -892,6 +902,8 @@ export const BillingBatchReview = ({
                 currentId={fixFocusId}
                 onCurrentChange={setFixFocusId}
                 onFlagsChange={setFixKinds}
+                // Saved as flagged, but the live check now says it's fine: show its details instead.
+                onNotAFlag={(id) => { setDetail((d) => ({ ...d, sessionId: id })); setDetailTab('session'); }}
                 handleAccept={wrappedAccept}
                 handleResetToPending={wrappedResetToPending}
                 handleHold={wrappedHold}
