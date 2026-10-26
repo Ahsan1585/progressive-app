@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { useDropdownOptions, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
+import { hasWordOverlap, isFlaggedInQueue } from '@/utils/fixFlags';
+import { FixFlagsPanel } from '@/components/FixFlagsPanel';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
   Ban, Clock, MessageSquareText, CheckCircle2, Sparkles, Download,
-  Users, ClipboardList, MousePointerClick, CalendarDays, RefreshCw, Copy,
+  Users, ClipboardList, MousePointerClick, CalendarDays, RefreshCw, Copy, Flag,
 } from 'lucide-react';
 
 // Matches BillingManager.jsx's own formatMonthLabel — batches are keyed by
@@ -60,7 +62,14 @@ export const BillingBatchReview = ({
   const [practitionerSearch, setPractitionerSearch] = useState('');
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [detail, setDetail] = useState(null); // { practitionerId, sessionId } | null
-  const [detailTab, setDetailTab] = useState('session'); // 'session' | 'analysis'
+  const [detailTab, setDetailTab] = useState('session'); // 'session' | 'analysis' | 'matching' | 'fix'
+  // Fix flags (see FixFlagsPanel): which flag is open, which chip started
+  // it, the panel's flag list (id -> kind) for tagging/filtering the queue,
+  // and which practitioners' queues are showing flagged sessions only.
+  const [fixFocusId, setFixFocusId] = useState(null);
+  const [fixStartKind, setFixStartKind] = useState('mismatch');
+  const [fixKinds, setFixKinds] = useState(() => new Map());
+  const [flaggedOnly, setFlaggedOnly] = useState(() => new Set());
   // Bulk-compliance-run selection — practitioner ids currently checked in
   // the queue, scoped to whichever period is selected (reset below
   // whenever the period changes, same as every other period-scoped cache).
@@ -445,7 +454,33 @@ export const BillingBatchReview = ({
     await fetchPeriodPractitioners();
   };
 
+  // A red "N not matching EIMS" / "N missing in EIMS" chip: lock (if
+  // needed), open the queue on flagged sessions, and open Fix flags on the
+  // first one of that kind.
+  const startFix = async (practitionerId, kind) => {
+    const p = periodPractitioners.find((x) => x.practitioner_id === practitionerId);
+    if (p?.locked_by_id && p.locked_by_id !== currentUserId) return;
+    if (p?.locked_by_id !== currentUserId) {
+      await onLock(practitionerId);
+    } else {
+      setExpandedGroups((prev) => new Set(prev).add(practitionerId));
+      if (periodLogs[practitionerId] === undefined) fetchPeriodLogs(practitionerId);
+    }
+    setFlaggedOnly((prev) => new Set(prev).add(practitionerId));
+    setFixStartKind(kind);
+    setFixFocusId(null);
+    setFixKinds(new Map());
+    setScrollSyncSessionId(null);
+    setDetail({ practitionerId, sessionId: null });
+    setDetailTab('fix');
+  };
+
   const selectSession = (practitionerId, sessionId) => {
+    // While fixing flags, clicking a flagged row opens that flag instead.
+    if (detailTab === 'fix' && detail?.practitionerId === practitionerId && fixKinds.has(sessionId)) {
+      setFixFocusId(sessionId);
+      return;
+    }
     setDetail({ practitionerId, sessionId });
     setDetailTab('session');
     // Clear any stale Compliance Analysis scroll-sync highlight — this
@@ -704,7 +739,7 @@ export const BillingBatchReview = ({
                 formatTime={formatTime}
                 detailSessionId={
                   detail?.practitionerId === p.practitioner_id
-                    ? (detailTab === 'analysis' ? scrollSyncSessionId : detail.sessionId)
+                    ? (detailTab === 'analysis' ? scrollSyncSessionId : detailTab === 'fix' ? fixFocusId : detail.sessionId)
                     : null
                 }
                 registerSessionRow={registerSessionRow}
@@ -712,6 +747,10 @@ export const BillingBatchReview = ({
                 processingId={processingId}
                 handleGenerateAndIssue={wrappedGenerateAndIssue}
                 handleSendToCompleted={wrappedSendToCompleted}
+                onFixFlags={(kind) => startFix(p.practitioner_id, kind)}
+                fixKinds={detail?.practitionerId === p.practitioner_id ? fixKinds : null}
+                showFlaggedOnly={flaggedOnly.has(p.practitioner_id)}
+                onShowFlaggedOnly={(on) => setFlaggedOnly((prev) => { const n = new Set(prev); if (on) n.add(p.practitioner_id); else n.delete(p.practitioner_id); return n; })}
                 bulkSelected={selectedForBulkRun.has(p.practitioner_id)}
                 onBulkToggle={() => toggleBulkSelection(p.practitioner_id)}
               />
@@ -767,7 +806,7 @@ export const BillingBatchReview = ({
           <ClipboardList className="size-4" />
           <span className="text-[16px] font-bold uppercase tracking-wide">Review Panel</span>
         </div>
-        {!detailSession ? (
+        {!detailSession && !(detail && detailTab === 'fix' && detailPractitioner?.locked_by_id === currentUserId) ? (
           <div className="flex-1 flex flex-col items-center gap-4 pt-20 px-8 text-center">
             <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
               <MousePointerClick className="size-8" />
@@ -779,8 +818,23 @@ export const BillingBatchReview = ({
         ) : (
           <div ref={analysisScrollRef} className="flex-1 overflow-y-auto p-8">
             <div className="flex gap-2 border-b border-slate-200 mb-6">
+              {(detailTab === 'fix' || (detailPractitioner?.eims_flagged_count || 0) + (detailPractitioner?.eims_missing_count || 0) > 0) && (
+                <button
+                  onClick={() => { setDetailTab('fix'); setScrollSyncSessionId(null); }}
+                  className={`px-3 pb-3 text-[18px] font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
+                    detailTab === 'fix' ? 'border-red-500 text-red-700' : 'border-transparent text-slate-600 hover:text-slate-800'
+                  }`}
+                >
+                  <Flag className="size-4" /> Fix flags
+                </button>
+              )}
               <button
-                onClick={() => { setDetailTab('session'); setScrollSyncSessionId(null); }}
+                onClick={() => {
+                  // Coming from Fix flags with no session picked yet: show the open flag's details.
+                  if (!detail.sessionId && fixFocusId) setDetail((d) => ({ ...d, sessionId: fixFocusId }));
+                  setDetailTab('session');
+                  setScrollSyncSessionId(null);
+                }}
                 className={`px-3 pb-3 text-[18px] font-bold border-b-2 -mb-px cursor-pointer transition-colors ${
                   detailTab === 'session' ? 'border-blue-500 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-800'
                 }`}
@@ -805,7 +859,29 @@ export const BillingBatchReview = ({
               </button>
             </div>
 
-            {detailTab === 'analysis' ? (
+            {detailTab === 'fix' ? (
+              <FixFlagsPanel
+                key={`${detail.practitionerId}-${selectedPeriod?.key}`}
+                sessions={detailSessions}
+                practitionerId={detail.practitionerId}
+                practitionerName={detailPractitioner ? `${detailPractitioner.first_name} ${detailPractitioner.last_name}` : ''}
+                periodStart={selectedPeriod?.start}
+                periodEnd={selectedPeriod?.end}
+                logActions={logActions}
+                startKind={fixStartKind}
+                currentId={fixFocusId}
+                onCurrentChange={setFixFocusId}
+                onFlagsChange={setFixKinds}
+                handleAccept={wrappedAccept}
+                handleResetToPending={wrappedResetToPending}
+                handleHold={wrappedHold}
+                handleReleaseHold={wrappedReleaseHold}
+                handleInlineReturnReject={wrappedInlineReturnReject}
+                canGenerate={detailPractitioner?.locked_by_id === currentUserId && allSessionsReviewed(detailSessions, logActions)}
+                isGenerating={processingId === detail.practitionerId}
+                onGenerate={() => wrappedGenerateAndIssue(detail.practitionerId)}
+              />
+            ) : detailTab === 'analysis' ? (
               <ComplianceAnalysisPreview
                 sessions={detailSessions}
                 practitioner={detailPractitioner}
@@ -863,6 +939,7 @@ function PractitionerGroup({
   detailSessionId, registerSessionRow, onSelectSession,
   processingId, handleGenerateAndIssue, handleSendToCompleted,
   bulkSelected, onBulkToggle,
+  onFixFlags, fixKinds, showFlaggedOnly, onShowFlaggedOnly,
 }) {
   // The billed card reads its own independent lock fields
   // (billed_locked_by_id/name) instead of the review-scope ones, so each
@@ -878,11 +955,26 @@ function PractitionerGroup({
   // actually runs for these sessions — bulk run or the single-practitioner
   // tab) so this survives a refresh and is the same for every billing
   // specialist, not a per-browser-tab cache of one person's last bulk run.
-  const flaggedCount = practitioner.eims_flagged_count || 0;
-  const missingCount = practitioner.eims_missing_count || 0;
-  const allLogsReviewed = sessions.length > 0 &&
-    sessions.some(s => !['rejected', 'declined', 'on_hold'].includes(s.billing_status)) &&
-    sessions.every(s => logActions[s.id] || s.billing_review);
+  // A session still waiting on an EIMS decision: from Fix flags' live list
+  // when it's open for this practitioner (it also knows duplicates),
+  // otherwise from the saved flags. 'mismatch' | 'duplicate' | 'missing' | null.
+  const rowFlag = (s) => {
+    if (s.billing_status !== 'pending') return null;
+    const kind = fixKinds?.get(s.id) || isFlaggedInQueue(s, logActions);
+    if (!kind) return null;
+    const approved = logActions[s.id] === 'accept' || s.billing_review === 'accept';
+    return approved && kind !== 'duplicate' ? null : kind;
+  };
+  // Once this card's sessions are loaded, the chips count what's still
+  // open (so they drop as flags are handled); before that, the saved counts.
+  const sessionsLoaded = isLockedByMe && sessions.length > 0;
+  const savedFlaggedCount = practitioner.eims_flagged_count || 0;
+  const savedMissingCount = practitioner.eims_missing_count || 0;
+  const flaggedCount = sessionsLoaded ? sessions.filter((s) => ['mismatch', 'duplicate'].includes(rowFlag(s))).length : savedFlaggedCount;
+  const missingCount = sessionsLoaded ? sessions.filter((s) => rowFlag(s) === 'missing').length : savedMissingCount;
+  const openFlagCount = flaggedCount + missingCount;
+  const chipsClickable = !!onFixFlags && !isBilledCard && !isLockedByOther;
+  const allLogsReviewed = allSessionsReviewed(sessions, logActions);
   const routingCounts = sessions.reduce((acc, s) => {
     if (s.billing_status === 'declined') acc.excluded += 1;
     else if (s.billing_status === 'rejected' || s.billing_status === 'on_hold') acc.heldReturned += 1;
@@ -916,11 +1008,16 @@ function PractitionerGroup({
   // something, even though it only widened the date filter. Grouped into
   // its own section at the end, with a divider, instead.
   const isAlreadySentToBilling = (s) => ['njeis_review', 'invoiced', 'completed'].includes(s.billing_status);
-  const sortedQueueSessions = [...sessions].sort((a, b) => {
-    const aDone = isAlreadySentToBilling(a) ? 1 : 0;
-    const bDone = isAlreadySentToBilling(b) ? 1 : 0;
-    return aDone - bDone;
-  });
+  // Open flags first (stable sort keeps patient/date order within each group).
+  const inFlagView = (s) => !!rowFlag(s) || !!fixKinds?.has(s.id);
+  const sortedQueueSessions = [...sessions]
+    .filter((s) => !showFlaggedOnly || inFlagView(s))
+    .sort((a, b) => {
+      const aDone = isAlreadySentToBilling(a) ? 1 : 0;
+      const bDone = isAlreadySentToBilling(b) ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      return (rowFlag(a) ? 0 : 1) - (rowFlag(b) ? 0 : 1);
+    });
   const processedQueueCount = sortedQueueSessions.filter(isAlreadySentToBilling).length;
   const firstProcessedQueueIndex = processedQueueCount > 0 ? sortedQueueSessions.length - processedQueueCount : -1;
 
@@ -958,25 +1055,6 @@ function PractitionerGroup({
                 <span>{practitioner.total_interventions} sessions</span>
               )}
             </div>
-            {(statusSummary || flaggedCount > 0 || missingCount > 0) && (
-              <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                {statusParts.map((part, i) => (
-                  <span key={i} className="inline-flex items-center font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
-                    {part}
-                  </span>
-                ))}
-                {flaggedCount > 0 && !isBilledCard && (
-                  <span className="inline-flex items-center font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
-                    {flaggedCount} not matching EIMS
-                  </span>
-                )}
-                {missingCount > 0 && !isBilledCard && (
-                  <span className="inline-flex items-center font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
-                    {missingCount} missing in EIMS
-                  </span>
-                )}
-              </div>
-            )}
           </div>
           {isLockedByMe && (
             <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5 flex-shrink-0">
@@ -991,6 +1069,44 @@ function PractitionerGroup({
           <ChevronDown className={`size-5 text-slate-600 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
         </button>
       </div>
+      {(statusSummary || flaggedCount > 0 || missingCount > 0 || (sessionsLoaded && savedFlaggedCount + savedMissingCount > 0)) && (
+        // Outside the expand/collapse <button> above: the flag chips are
+        // buttons themselves (a <button> inside a <button> is invalid).
+        <div className={`flex flex-wrap items-center gap-1.5 bg-white pb-3 pr-4 -mt-2 ${onBulkToggle ? 'pl-[92px]' : 'pl-[64px]'}`}>
+          {statusParts.map((part, i) => (
+            <span key={i} className="inline-flex items-center font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
+              {part}
+            </span>
+          ))}
+          {!isBilledCard && [
+            { kind: 'mismatch', count: flaggedCount, saved: savedFlaggedCount, label: 'not matching EIMS', doneLabel: 'EIMS mismatches handled' },
+            { kind: 'missing', count: missingCount, saved: savedMissingCount, label: 'missing in EIMS', doneLabel: 'Missing in EIMS handled' },
+          ].map(({ kind, count, saved, label, doneLabel }) => (
+            count > 0 ? (
+              chipsClickable ? (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => onFixFlags(kind)}
+                  title="Review these one at a time"
+                  className="inline-flex items-center gap-1.5 font-bold text-red-700 bg-red-50 border-[1.5px] border-red-200 rounded-full pl-2.5 pr-1 py-0.5 text-[14px] whitespace-nowrap cursor-pointer transition-[transform,background-color] hover:bg-red-100 hover:border-red-300 active:scale-[0.97]"
+                >
+                  {count} {label}
+                  <span className="rounded-full bg-red-600 px-2 py-px text-[12px] font-extrabold text-white">Fix →</span>
+                </button>
+              ) : (
+                <span key={kind} className="inline-flex items-center font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
+                  {count} {label}
+                </span>
+              )
+            ) : sessionsLoaded && saved > 0 ? (
+              <span key={kind} className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
+                <CheckCircle2 className="size-3.5" /> {doneLabel}
+              </span>
+            ) : null
+          ))}
+        </div>
+      )}
 
       {isExpanded && (
         <>
@@ -1018,11 +1134,37 @@ function PractitionerGroup({
             )}
           </div>
 
+          {isLockedByMe && !isLoadingSessions && onShowFlaggedOnly && (openFlagCount > 0 || showFlaggedOnly) && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => onShowFlaggedOnly(false)}
+                aria-pressed={!showFlaggedOnly}
+                className={`rounded-full border-[1.5px] px-3.5 py-1 text-[14px] font-bold cursor-pointer ${!showFlaggedOnly ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+              >
+                All {sessions.length}
+              </button>
+              <button
+                type="button"
+                onClick={() => onShowFlaggedOnly(true)}
+                aria-pressed={!!showFlaggedOnly}
+                className={`rounded-full border-[1.5px] px-3.5 py-1 text-[14px] font-bold cursor-pointer ${showFlaggedOnly ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+              >
+                Flagged {openFlagCount > 0 ? openFlagCount : '· all handled'}
+              </button>
+            </div>
+          )}
+
           {isLockedByMe && (
             isLoadingSessions ? (
               <div className="p-4 text-center text-[16px] text-slate-600">Loading sessions...</div>
             ) : sessions.length === 0 ? (
               <div className="p-4 text-center text-[16px] text-slate-600">No individual logs found.</div>
+            ) : sortedQueueSessions.length === 0 ? (
+              <div className="p-4 text-center text-[16px] text-slate-600">
+                No flagged sessions.{' '}
+                <button type="button" onClick={() => onShowFlaggedOnly?.(false)} className="font-bold text-blue-600 hover:underline cursor-pointer">Show all</button>
+              </div>
             ) : sortedQueueSessions.map((s, idx) => {
               const isDeclined = s.billing_status === 'declined';
               const isReturned = s.billing_status === 'rejected';
@@ -1049,6 +1191,7 @@ function PractitionerGroup({
               // — see where PractitionerGroup is rendered); everywhere else
               // it's whichever log was actually clicked. Never both at once.
               const isSelected = detailSessionId === s.id;
+              const flagKindHere = rowFlag(s);
               return (
                 <React.Fragment key={s.id}>
                   {idx === firstProcessedQueueIndex && (
@@ -1064,7 +1207,7 @@ function PractitionerGroup({
                   ref={(el) => registerSessionRow?.(s.id, el)}
                   onClick={() => onSelectSession(s.id)}
                   className={`grid grid-cols-[minmax(0,1fr)_minmax(max-content,auto)_minmax(0,1fr)] items-center gap-3 pl-3 pr-4 py-3.5 border-t border-slate-100 border-l-4 cursor-pointer transition-colors ${
-                    isSelected ? 'bg-blue-200 border-l-blue-600' : 'border-l-transparent hover:bg-slate-50'
+                    isSelected ? 'bg-blue-200 border-l-blue-600' : flagKindHere ? 'border-l-red-400 bg-red-50/40 hover:bg-red-50' : 'border-l-transparent hover:bg-slate-50'
                   }`}
                 >
                   {/* Column 1: patient + date */}
@@ -1072,8 +1215,13 @@ function PractitionerGroup({
                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} />
                     <div className="min-w-0">
                       <div className="text-[18px] font-bold text-slate-900 truncate">{s.patient_first_name} {s.patient_last_name}</div>
-                      <div className="text-[16px] text-slate-600">
+                      <div className="flex flex-wrap items-center gap-1.5 text-[16px] text-slate-600">
                         {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
+                        {flagKindHere && (
+                          <span className="rounded border border-red-200 bg-red-50 px-1.5 py-px text-[11.5px] font-extrabold uppercase tracking-wide text-red-700">
+                            {flagKindHere === 'missing' ? 'Missing in EIMS' : flagKindHere === 'duplicate' ? 'Duplicate' : 'Not matching EIMS'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1647,20 +1795,11 @@ function ActionButton({ label, icon, onClick, active, tone, disabled }) {
   );
 }
 
-// Mirrors complianceLearningController.js's hasWordOverlap — even when the
-// reviewer ticks "remember this match", the server refuses to persist a
-// reusable rule unless the two values share at least one word (a plausible
-// labeling variant, not a genuinely different value like "Developmental
-// Intervention" vs "Speech Therapy"). Used here to decide whether to even
-// offer the "remember" checkbox, without a round-trip to ask the server.
-function hasWordOverlap(a, b) {
-  const norm = (s) => (s || '').toString().toLowerCase().replace(/[,.()\-–—'"]/g, ' ').replace(/\s+/g, ' ').trim();
-  const tokensA = new Set(norm(a).split(' ').filter(Boolean));
-  const tokensB = new Set(norm(b).split(' ').filter(Boolean));
-  if (tokensA.size === 0 || tokensB.size === 0) return false;
-  for (const t of tokensA) if (tokensB.has(t)) return true;
-  return false;
-}
+// Generate & Issue needs a decision on every session, and at least one that
+// will actually bill (shared by the queue footer and Fix flags' finish screen).
+const allSessionsReviewed = (sessions, logActions) => sessions.length > 0 &&
+  sessions.some(s => !['rejected', 'declined', 'on_hold'].includes(s.billing_status)) &&
+  sessions.every(s => logActions[s.id] || s.billing_review);
 
 const STRICTNESS_LABELS = {
   strict: 'Strict — every word/minute must match exactly',

@@ -1770,7 +1770,7 @@ const getPractitionerLogs = async (req, res) => {
     let sql = `
       SELECT assessments.id, billing_status, billing_review, service_date, status, type, location, start_time, end_time,
              total_time, patient_first_name, patient_last_name, rejection_count, hold_note, held_at,
-             group_size_category, form_data,
+             group_size_category, form_data, eims_last_flagged, eims_last_missing,
              COALESCE(an.notes_count, 0) AS notes_count
       FROM assessments
       LEFT JOIN (
