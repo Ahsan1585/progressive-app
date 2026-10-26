@@ -209,3 +209,13 @@ describe('parent signing link for a date change', () => {
     expect(res.json).toHaveBeenCalledWith({ success: true });
   });
 });
+
+describe('session compliance status for Session Detail', () => {
+  it('includes the field comparison so the review panel can pre-fill a Return/Hold/Reject note', async () => {
+    const fields = [{ key: 'location', label: 'Location', ours: '1', state: '6', match: false }];
+    jest.spyOn(billing, 'computeSessionCompliance').mockResolvedValue({ documentOnFile: true, matched: true, flagged: true, fields });
+    const res = mkRes();
+    await billing.getSessionComplianceStatus({ query: { assessmentId: '42' } }, res);
+    expect(res.json.mock.calls[0][0]).toMatchObject({ flagged: true, fields });
+  });
+});

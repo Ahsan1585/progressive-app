@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '@/api/axiosInstance';
 import { formatTime12h } from '@/utils/formatTime';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { showAlert, showConfirm } from '@/utils/dialogStore';
 import { useDropdownOptions, buildCodeLabelMap } from '@/hooks/useDropdownOptions';
-import { hasWordOverlap, isFlaggedInQueue } from '@/utils/fixFlags';
+import { hasWordOverlap, isFlaggedInQueue, suggestNote } from '@/utils/fixFlags';
 import { FixFlagsPanel } from '@/components/FixFlagsPanel';
 import {
   Search, ChevronDown, Lock, PlayCircle, Check, X, Undo2,
@@ -339,6 +339,26 @@ export const BillingBatchReview = ({
   // regardless of how many overflow contexts sit in between.
   const groupRefs = useRef({});
   const queueScrollRef = useRef(null);
+
+  // The queue + review panel fill exactly the visible window below the
+  // period bar, so nothing runs past the bottom of a laptop screen (a fixed
+  // 80vh with a 720px floor did, at 100% zoom). Each side scrolls on its own.
+  const boardRef = useRef(null);
+  const [boardHeight, setBoardHeight] = useState(null);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = boardRef.current;
+      if (!el) return;
+      const topInPage = el.getBoundingClientRect().top + window.scrollY;
+      const belowTop = window.innerHeight - topInPage - 12;
+      // Fits under the page header when there's room; on a short screen it
+      // takes the full window instead (one small page scroll brings it into view).
+      setBoardHeight(Math.round(belowTop >= 560 ? belowTop : Math.max(480, window.innerHeight - 16)));
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [selectedPeriod]);
   const scrollGroupToTop = (practitionerId) => {
     const container = queueScrollRef.current;
     const target = groupRefs.current[practitionerId];
@@ -626,7 +646,7 @@ export const BillingBatchReview = ({
           <p className="text-[16px] text-slate-500 max-w-md text-center">Only fully-elapsed Biweekly or Monthly periods can be selected — you can't generate bills mid-period.</p>
         </div>
       ) : (
-      <div className="flex h-[80vh] min-h-[720px] shadow-inner bg-slate-100">
+      <div ref={boardRef} style={{ height: boardHeight ? `${boardHeight}px` : '80vh' }} className="flex shadow-inner bg-slate-100">
       {/* LEFT: every practitioner with pending logs, as collapsible/lockable groups */}
       <div className="w-[480px] flex-shrink-0 border-r-2 border-slate-300 flex flex-col bg-slate-50/40 shadow-[4px_0_12px_-6px_rgba(15,23,42,0.15)] z-10">
         <div className="flex items-center gap-2 px-4 py-3 bg-slate-800 text-white">
@@ -816,7 +836,7 @@ export const BillingBatchReview = ({
             </p>
           </div>
         ) : (
-          <div ref={analysisScrollRef} className="flex-1 overflow-y-auto p-8">
+          <div ref={analysisScrollRef} className="flex-1 overflow-y-auto px-7 py-5">
             <div className="flex gap-2 border-b border-slate-200 mb-6">
               {(detailTab === 'fix' || (detailPractitioner?.eims_flagged_count || 0) + (detailPractitioner?.eims_missing_count || 0) > 0) && (
                 <button
@@ -1453,31 +1473,31 @@ function SessionDetailPanel({
       <h2 className="text-[26px] font-extrabold text-slate-900 mb-1.5 tracking-tight leading-tight">{session.patient_first_name} {session.patient_last_name}</h2>
       <p className="text-[18px] text-slate-600 mb-6">{session.type || '-'} session</p>
 
-      <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mb-2.5">Service Codes</div>
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
-          <div className="text-[14px] font-bold uppercase text-slate-600">Status</div>
+      <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">Service Codes</div>
+      <div className="grid grid-cols-4 gap-2.5 mb-3.5">
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
+          <div className="text-[13px] font-bold uppercase text-slate-600">Status</div>
           <div className="text-[18px] font-bold font-mono text-slate-900">{session.status || '-'}</div>
           {session.status && statusCodeMap[session.status] && (
             <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{statusCodeMap[session.status]}</div>
           )}
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
-          <div className="text-[14px] font-bold uppercase text-slate-600">Type</div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
+          <div className="text-[13px] font-bold uppercase text-slate-600">Type</div>
           <div className="text-[18px] font-bold font-mono text-slate-900">{session.type || '-'}</div>
           {session.type && typeCodeMap[session.type] && (
             <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{typeCodeMap[session.type]}</div>
           )}
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
-          <div className="text-[14px] font-bold uppercase text-slate-600">Location</div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
+          <div className="text-[13px] font-bold uppercase text-slate-600">Location</div>
           <div className="text-[18px] font-bold font-mono text-slate-900">{session.location || '-'}</div>
           {session.location && locationCodeMap[session.location] && (
             <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{locationCodeMap[session.location]}</div>
           )}
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
-          <div className="text-[14px] font-bold uppercase text-slate-600">Group Size</div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
+          <div className="text-[13px] font-bold uppercase text-slate-600">Group Size</div>
           <div className="text-[18px] font-bold font-mono text-slate-900">{session.group_size_category || '-'}</div>
           {session.group_size_category && groupSizeCodeMap[session.group_size_category] && (
             <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{groupSizeCodeMap[session.group_size_category]}</div>
@@ -1485,18 +1505,18 @@ function SessionDetailPanel({
         </div>
       </div>
 
-      <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mb-2.5">Session Time</div>
-      <div className="grid grid-cols-3 gap-3 mb-7">
-        <div className="bg-white border border-slate-200 rounded-lg px-4 py-3">
-          <div className="text-[14px] font-bold uppercase text-slate-600">Start</div>
+      <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">Session Time</div>
+      <div className="grid grid-cols-3 gap-2.5 mb-4">
+        <div className="bg-white border border-slate-200 rounded-lg px-3.5 py-2">
+          <div className="text-[13px] font-bold uppercase text-slate-600">Start</div>
           <div className="text-[18px] font-bold text-slate-900">{session.start_time ? formatTime12h(session.start_time) : '-'}</div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg px-4 py-3">
-          <div className="text-[14px] font-bold uppercase text-slate-600">End</div>
+        <div className="bg-white border border-slate-200 rounded-lg px-3.5 py-2">
+          <div className="text-[13px] font-bold uppercase text-slate-600">End</div>
           <div className="text-[18px] font-bold text-slate-900">{session.end_time ? formatTime12h(session.end_time) : '-'}</div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg px-4 py-3">
-          <div className="text-[14px] font-bold uppercase text-slate-600">Total</div>
+        <div className="bg-white border border-slate-200 rounded-lg px-3.5 py-2">
+          <div className="text-[13px] font-bold uppercase text-slate-600">Total</div>
           <div className="text-[18px] font-bold text-slate-900">{formatTime(session.total_time)}</div>
         </div>
       </div>
@@ -1598,7 +1618,7 @@ function SessionDetailPanel({
             </div>
           </div>
         )}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-4 gap-3 mb-4">
           <ActionButton
             label={isSentToBilling ? 'Sent to billing' : isApproved ? 'Approved' : 'Approve'}
             active={isSentToBilling || isApproved} tone="emerald" disabled={isSentToBilling}
@@ -1645,6 +1665,7 @@ function SessionDetailPanel({
         setPendingAction={setPendingAction}
         handleInlineReturnReject={handleInlineReturnReject}
         handleHold={handleHold}
+        suggest={(type) => (complianceStatus?.documentOnFile ? suggestNote(type, session, complianceStatus) : '')}
       />
     </div>
   );
@@ -1660,11 +1681,33 @@ function SessionDetailPanel({
 // handleInlineReturnReject (return/reject) or handleHold (hold) — so the
 // required "why" for a status change and a free-form comment share one
 // inline box instead of a popup. ---
-function CommentThread({ session, practitionerId, practitionerName, pendingAction, setPendingAction, handleInlineReturnReject, handleHold }) {
+function CommentThread({ session, practitionerId, practitionerName, pendingAction, setPendingAction, handleInlineReturnReject, handleHold, suggest }) {
   const [notes, setNotes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [text, setText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The note last filled in from the flag (see fixFlags.suggestNote).
+  // Switching Return/Hold/Reject swaps it only if the biller hasn't edited
+  // it; their own words are never overwritten.
+  const [suggested, setSuggested] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const next = pendingAction && suggest ? suggest(pendingAction) : '';
+    setText((current) => (!current.trim() || current === suggested ? next : current));
+    setSuggested(next);
+    if (pendingAction) {
+      // The box sits at the bottom of the panel: bring it into view, cursor at the end.
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction]);
 
   const fetchNotes = async () => {
     setIsLoading(true);
@@ -1694,6 +1737,7 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
         await api.post('/api/billing/log-comment', { assessmentId: session.id, note: text });
       }
       setText('');
+      setSuggested('');
       await fetchNotes();
     } catch (error) {
       console.error('Failed to send comment', error);
@@ -1751,19 +1795,28 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
         </div>
       )}
 
-      <div className="flex gap-2 px-4 py-3 border-t border-slate-200 bg-white">
-        <input
-          type="text"
+      {pendingAction && text && text === suggested && (
+        <div className="flex items-center justify-between gap-2 px-4 pt-2.5 text-[13.5px] font-semibold text-slate-500 bg-white">
+          <span>Filled in from the flag. Edit it, add to it, or clear it.</span>
+          <button type="button" onClick={() => { setText(''); inputRef.current?.focus(); }} className="font-bold text-slate-600 hover:underline cursor-pointer">Clear</button>
+        </div>
+      )}
+      <div className={`flex gap-2 px-4 py-3 border-t border-slate-200 bg-white ${pendingAction ? 'items-end' : ''}`}>
+        <textarea
+          ref={inputRef}
+          rows={pendingAction ? Math.min(7, Math.max(3, text.split(/\n/).length + 1)) : 1}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+          // A plain comment sends on Enter; a Return/Hold/Reject note can be
+          // several lines, so it's confirmed with the button instead.
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !pendingAction) { e.preventDefault(); handleSend(); } }}
           placeholder={
             pendingAction === 'return' ? 'Describe what needs to be corrected...'
             : pendingAction === 'reject' ? 'Explain the reason for rejection...'
             : pendingAction === 'hold' ? 'Why is this on hold...'
             : 'Add a note for the practitioner...'
           }
-          className={`flex-1 text-[16px] rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+          className={`flex-1 resize-none text-[16px] leading-relaxed rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
             pendingAction === 'hold' ? 'border-amber-300 focus:ring-amber-500/30'
             : pendingAction ? 'border-red-300 focus:ring-red-500/30'
             : 'border-slate-300 focus:ring-blue-500/30'
@@ -1799,7 +1852,7 @@ function ActionButton({ label, icon, onClick, active, tone, disabled }) {
       type="button"
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`flex flex-col items-center justify-center gap-2.5 py-7 px-4 rounded-2xl border-2 bg-white transition-colors shadow-sm ${toneClasses} ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-2xl border-2 bg-white transition-colors shadow-sm ${toneClasses} ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {icon}
       <span className="text-[16px] font-bold">{label}</span>
@@ -2154,7 +2207,7 @@ function ComplianceAnalysisPreview({
     }
     if (value === 'return' || value === 'reject' || value === 'hold') {
       setPendingNoteAction({ session, practitionerId, type: value });
-      setNoteText('');
+      setNoteText(analysis?.documentOnFile ? suggestNote(value, session, analysis.results?.[session.id]) : '');
       return;
     }
     setStatusChangingId(session.id);

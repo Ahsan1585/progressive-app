@@ -3136,12 +3136,16 @@ const getSessionComplianceStatus = async (req, res) => {
   const { assessmentId } = req.query;
   if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
   try {
-    const compliance = await computeSessionCompliance(assessmentId);
+    // via module.exports so tests can spy on it (see updateLogStatus)
+    const compliance = await module.exports.computeSessionCompliance(assessmentId);
     res.json({
       success: true,
       documentOnFile: compliance.documentOnFile,
       matched: compliance.matched,
       flagged: compliance.flagged,
+      // the field-by-field comparison, so Session Detail can pre-fill a
+      // Return/Hold/Reject note with what doesn't match
+      fields: compliance.fields || [],
       eimsMissingStatus: compliance.eimsMissingStatus || null,
       duplicateOfSessionId: compliance.duplicateOfSessionId || null,
       duplicateOfInvoiced: !!compliance.duplicateOfInvoiced,
