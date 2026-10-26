@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { showAlert } from '@/utils/dialogStore';
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Undo2 } from 'lucide-react';
-import { buildFlagList, describeFlag, flagOutcome, hasWordOverlap, nextOpenIndex } from '@/utils/fixFlags';
+import { buildFlagList, describeFlag, flagOutcome, hasWordOverlap, nextOpenIndex, suggestNote } from '@/utils/fixFlags';
 
 // --- Fix flags: the sessions Compliance Analysis flagged, one at a time.
 // Same endpoints and rules as the Compliance Analysis tab (Allow each
@@ -78,6 +78,8 @@ export function FixFlagsPanel({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null); // 'return' | 'hold' | 'reject' | null
   const [noteText, setNoteText] = useState('');
+  const [suggested, setSuggested] = useState(''); // the note last filled in for the biller
+  const noteRef = useRef(null);
   const [onlyDifferent, setOnlyDifferent] = useState(false);
   const [remember, setRemember] = useState(false);
   const [reviewingAgain, setReviewingAgain] = useState(false);
@@ -162,6 +164,7 @@ export function FixFlagsPanel({
     if (!flagList.length) return;
     setNote(null);
     setNoteText('');
+    setSuggested('');
     setRemember(false);
     onCurrentChange(flagList[(index + flagList.length) % flagList.length].id);
   };
@@ -175,6 +178,7 @@ export function FixFlagsPanel({
     setPendingAdvance(null);
     setNote(null);
     setNoteText('');
+    setSuggested('');
     setRemember(false);
     const next = nextOpenIndex(flagList, from, isHandled);
     advanceTimer.current = setTimeout(() => {
@@ -253,6 +257,21 @@ export function FixFlagsPanel({
     }
   };
 
+  // Opening Return / Hold / Reject fills in a note written from the flag.
+  // Switching between them swaps the suggestion only if the biller hasn't
+  // changed it; their own words are never overwritten.
+  const openNote = (type) => {
+    if (!session) return;
+    const next = suggestNote(type, session, result);
+    setNoteText((current) => (!current.trim() || current === suggested ? next : current));
+    setSuggested(next);
+    setNote(type);
+  };
+  const clearNote = () => {
+    setNoteText('');
+    noteRef.current?.focus();
+  };
+
   const isMissing = flag?.kind === 'missing';
   const isDuplicate = flag?.kind === 'duplicate';
   const canSendToAdmin = isMissing && result?.eimsMissingStatus !== 'sent_to_admin';
@@ -274,8 +293,8 @@ export function FixFlagsPanel({
       if (outcome) return;
       if (k === 'a' && !isDuplicate) approve();
       else if (k === 's' && canSendToAdmin) sendToAdmin();
-      else if (k === 'r') setNote('return');
-      else if (k === 'h') setNote('hold');
+      else if (k === 'r') { e.preventDefault(); openNote('return'); }
+      else if (k === 'h') { e.preventDefault(); openNote('hold'); }
       else if (k === 'escape') setNote(null);
     };
     window.addEventListener('keydown', onKey);
@@ -414,9 +433,9 @@ export function FixFlagsPanel({
               hint={isDuplicate ? 'Duplicates can\'t be approved' : isMissing ? 'Bill it without an EIMS record' : 'Bill it as logged'}
               shortcut="A" tone="green" onClick={approve} disabled={busy || isDuplicate}
             />
-            <ActionTile label="Return" hint="Practitioner fixes and resubmits" shortcut="R" tone="blue" active={note === 'return'} onClick={() => setNote('return')} disabled={busy} />
-            <ActionTile label="Hold" hint="Park it, not billed yet" shortcut="H" tone="orange" active={note === 'hold'} onClick={() => setNote('hold')} disabled={busy} />
-            <ActionTile label="Reject" hint="Never billed" tone="red" active={note === 'reject'} onClick={() => setNote('reject')} disabled={busy} />
+            <ActionTile label="Return" hint="Practitioner fixes and resubmits" shortcut="R" tone="blue" active={note === 'return'} onClick={() => openNote('return')} disabled={busy} />
+            <ActionTile label="Hold" hint="Park it, not billed yet" shortcut="H" tone="orange" active={note === 'hold'} onClick={() => openNote('hold')} disabled={busy} />
+            <ActionTile label="Reject" hint="Never billed" tone="red" active={note === 'reject'} onClick={() => openNote('reject')} disabled={busy} />
           </div>
 
           {showRemember && (
@@ -433,14 +452,25 @@ export function FixFlagsPanel({
 
           {note && (
             <div className="mt-4 rounded-2xl border-2 border-slate-300 bg-slate-50 p-4">
-              <label htmlFor="fix-flag-note" className="mb-2 block text-[16px] font-extrabold text-slate-900">{NOTE_PROMPTS[note]}</label>
+              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                <label htmlFor="fix-flag-note" className="text-[16px] font-extrabold text-slate-900">{NOTE_PROMPTS[note]}</label>
+                {noteText && (
+                  <button type="button" onClick={clearNote} className="text-[14px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer">Clear</button>
+                )}
+              </div>
+              {noteText && noteText === suggested && (
+                <p className="mb-2 text-[13.5px] font-semibold text-slate-500">Filled in from the flag. Edit it, add to it, or clear it.</p>
+              )}
               <Textarea
                 id="fix-flag-note"
+                ref={noteRef}
                 autoFocus
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
+                onFocus={(e) => { const n = e.target.value.length; e.target.setSelectionRange(n, n); }}
                 placeholder="Required"
-                className="min-h-[84px] bg-white text-[16px]"
+                rows={Math.min(8, Math.max(3, noteText.split(/\n/).length + 1))}
+                className="min-h-[84px] bg-white text-[16px] leading-relaxed"
               />
               <div className="mt-2.5 flex flex-wrap justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setNote(null)} className="cursor-pointer">Cancel</Button>

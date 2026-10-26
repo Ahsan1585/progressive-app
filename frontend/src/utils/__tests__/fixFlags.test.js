@@ -80,3 +80,27 @@ test('hasWordOverlap only treats values sharing a word as a plausible variant', 
   assert.equal(hasWordOverlap('Developmental Intervention', 'Speech Therapy'), false);
   assert.equal(hasWordOverlap('', 'Home'), false);
 });
+
+test('suggestNote writes the reason from the flag, worded for the action', async () => {
+  const { suggestNote } = await import('../fixFlags.js');
+  const session = { patient_first_name: 'gabriel', patient_last_name: 'chavez', service_date: '2026-10-07', start_time: '13:00:00' };
+
+  const dupReturn = suggestNote('return', session, duplicate);
+  assert.match(dupReturn, /duplicate/i);
+  assert.match(dupReturn, /Gabriel Chavez on Oct 7 at 1:00 PM/);
+  assert.match(dupReturn, /only one can be billed/i);
+  assert.match(suggestNote('return', session, { ...duplicate, duplicateOfInvoiced: true }), /already invoiced/);
+  assert.match(suggestNote('reject', session, duplicate), /^Rejected: duplicate/);
+  assert.match(suggestNote('hold', session, duplicate), /^On hold: duplicate/);
+
+  const twoOff = { ...mismatch, fields: [...mismatch.fields, { key: 'end_time', label: 'End time', ours: '10:45:00', state: '10:30:00', match: false }] };
+  assert.equal(suggestNote('return', session, twoOff),
+    "This log doesn't match the EIMS record for Gabriel Chavez on Oct 7:\n" +
+    '- Location: your log says 1, EIMS says 6\n' +
+    '- End time: your log says 10:45 AM, EIMS says 10:30 AM\n' +
+    'Please correct the log and resubmit.');
+
+  assert.match(suggestNote('return', session, missing), /No EIMS record was found for Gabriel Chavez on Oct 7 at 1:00 PM/);
+  assert.match(suggestNote('hold', session, missing), /^On hold: no EIMS record/);
+  assert.equal(suggestNote('return', session, clean), '');
+});

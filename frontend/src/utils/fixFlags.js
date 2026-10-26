@@ -98,3 +98,48 @@ export function hasWordOverlap(a, b) {
   for (const t of tokensA) if (tokensB.has(t)) return true;
   return false;
 }
+
+// --- Suggested note for Return / Hold / Reject, written from the flag so the
+// biller only has to check it (they can edit or clear it). Return is
+// addressed to the practitioner; Hold and Reject read as a record of why.
+const pad2 = (n) => String(n).padStart(2, '0');
+const time12 = (t) => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(t || '');
+  if (!m) return t || '-';
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${pad2(Number(m[2]))} ${h >= 12 ? 'PM' : 'AM'}`;
+};
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
+const TIME_FIELD_KEYS = ['start_time', 'end_time'];
+
+export function suggestNote(type, session, result) {
+  const kind = flagKind(result);
+  if (!kind) return '';
+  const child = `${cap(session.patient_first_name)} ${cap(session.patient_last_name)}`.trim();
+  const [y, mo, d] = (session.service_date || '').split('-').map(Number);
+  const day = y ? new Date(y, mo - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'this date';
+  const at = session.start_time ? ` at ${time12(session.start_time)}` : '';
+  const when = `${child} on ${day}${at}`;
+
+  if (kind === 'duplicate') {
+    const why = result.duplicateOfInvoiced
+      ? `This session (${when}) was already invoiced under another log, so this one will not be paid.`
+      : `Another log for ${when} matches the same EIMS record, so only one can be billed.`;
+    if (type === 'return') return `This log is a duplicate. ${why} Please delete this log, or correct it if it was a different session.`;
+    if (type === 'hold') return `On hold: duplicate log. ${why}`;
+    return `Rejected: duplicate log. ${why}`;
+  }
+
+  if (kind === 'missing') {
+    if (type === 'return') return `No EIMS record was found for ${when}. Please check that this session was entered in EIMS, or correct the date and time if they're wrong, then resubmit.`;
+    if (type === 'hold') return `On hold: no EIMS record found for ${when}. Waiting for it to be entered in EIMS.`;
+    return `Rejected: no EIMS record exists for ${when}.`;
+  }
+
+  const show = (f, v) => (TIME_FIELD_KEYS.includes(f.key) ? time12(v) : v || '-');
+  const lines = (result.fields || []).filter((f) => f.match === false)
+    .map((f) => `- ${f.label}: your log says ${show(f, f.ours)}, EIMS says ${show(f, f.state)}`).join('\n');
+  if (type === 'return') return `This log doesn't match the EIMS record for ${child} on ${day}:\n${lines}\nPlease correct the log and resubmit.`;
+  if (type === 'hold') return `On hold: doesn't match the EIMS record for ${child} on ${day}.\n${lines}\nWaiting to confirm which is correct.`;
+  return `Rejected: doesn't match the EIMS record for ${child} on ${day}.\n${lines}`;
+}
