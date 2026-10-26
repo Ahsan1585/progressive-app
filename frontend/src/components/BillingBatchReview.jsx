@@ -599,13 +599,13 @@ export const BillingBatchReview = ({
       <div className="flex items-center gap-4 px-5 py-3.5 border-b border-slate-200 bg-white flex-wrap">
         <div className="flex items-center gap-2 flex-shrink-0">
           <CalendarDays className="size-4 text-slate-600" />
-          <span className="text-[16px] font-bold text-slate-700">Billing Period</span>
+          <span className="text-[14px] font-bold text-slate-700">Billing Period</span>
         </div>
         <input
           type="month"
           value={selectedMonth}
           onChange={(e) => { setSelectedMonth(e.target.value); setSelectedPeriod(null); }}
-          className="text-[16px] font-semibold text-slate-800 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          className="text-[14px] font-semibold text-slate-800 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
         />
         <div className="flex gap-2 flex-wrap">
           {periods.map(p => {
@@ -623,17 +623,17 @@ export const BillingBatchReview = ({
                     : 'border-slate-300 bg-white text-slate-700 hover:border-blue-400 cursor-pointer'
                 }`}
               >
-                <div className="text-[16px] font-bold flex items-center gap-1.5">
+                <div className="text-[14px] font-bold flex items-center gap-1.5">
                   {p.label}
                   {!p.elapsed && <Lock className="size-3" />}
                 </div>
-                <div className={`text-[14px] ${isActive ? 'text-blue-100' : 'text-slate-500'}`}>{p.sub}</div>
+                <div className={`text-[13px] ${isActive ? 'text-blue-100' : 'text-slate-500'}`}>{p.sub}</div>
               </button>
             );
           })}
         </div>
         {selectedPeriod && (
-          <span className="text-[14px] text-slate-500 ml-auto">
+          <span className="text-[13px] text-slate-500 ml-auto">
             Reviewing <b className="text-slate-600">{selectedPeriod.label}</b> ({selectedPeriod.start} – {selectedPeriod.end})
           </span>
         )}
@@ -642,8 +642,8 @@ export const BillingBatchReview = ({
       {!selectedPeriod ? (
         <div className="flex flex-col items-center justify-center gap-3 py-24 bg-slate-50">
           <CalendarDays className="size-10 text-slate-300" />
-          <p className="text-[24px] font-extrabold text-slate-600">Select a completed billing period above to begin</p>
-          <p className="text-[16px] text-slate-500 max-w-md text-center">Only fully-elapsed Biweekly or Monthly periods can be selected — you can't generate bills mid-period.</p>
+          <p className="text-[20px] font-extrabold text-slate-600">Select a completed billing period above to begin</p>
+          <p className="text-[14px] text-slate-500 max-w-md text-center">Only fully-elapsed Biweekly or Monthly periods can be selected — you can't generate bills mid-period.</p>
         </div>
       ) : (
       <div ref={boardRef} style={{ height: boardHeight ? `${boardHeight}px` : '80vh' }} className="flex shadow-inner bg-slate-100">
@@ -651,7 +651,7 @@ export const BillingBatchReview = ({
       <div className="w-[480px] flex-shrink-0 border-r-2 border-slate-300 flex flex-col bg-slate-50/40 shadow-[4px_0_12px_-6px_rgba(15,23,42,0.15)] z-10">
         <div className="flex items-center gap-2 px-4 py-3 bg-slate-800 text-white">
           <Users className="size-4" />
-          <span className="text-[16px] font-bold uppercase tracking-wide">Practitioner Queue</span>
+          <span className="text-[14px] font-bold uppercase tracking-wide">Practitioner Queue</span>
         </div>
         <div className="p-4 border-b border-slate-200">
           <div className="relative">
@@ -659,7 +659,7 @@ export const BillingBatchReview = ({
             <input
               type="text"
               placeholder="Search practitioner..."
-              className="w-full pl-10 pr-3 py-2.5 text-[18px] rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+              className="w-full pl-10 pr-3 py-2.5 text-[15px] rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
               value={practitionerSearch}
               onChange={(e) => {
                 setPractitionerSearch(e.target.value);
@@ -676,7 +676,7 @@ export const BillingBatchReview = ({
         {selectedPeriod && filteredPractitioners.length > 0 && (
           <div className="px-4 py-2.5 border-b border-slate-200 bg-blue-50/60">
             <div className="flex items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-[16px] font-semibold text-slate-700 cursor-pointer">
+              <label className="flex items-center gap-2 text-[14px] font-semibold text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={filteredPractitioners.length > 0 && filteredPractitioners.every((p) => selectedForBulkRun.has(p.practitioner_id))}
@@ -702,7 +702,7 @@ export const BillingBatchReview = ({
                 the first poll cycle before any progress exists yet. */}
             {isBulkRunning && bulkRunProgress && bulkRunProgress.total > 0 && (
               <div className="mt-2">
-                <div className="flex items-center justify-between text-[14px] font-semibold text-blue-900 mb-1">
+                <div className="flex items-center justify-between text-[13px] font-semibold text-blue-900 mb-1">
                   <span>Checking practitioners…</span>
                   <span>{bulkRunProgress.completed} of {bulkRunProgress.total}</span>
                 </div>
@@ -719,9 +719,9 @@ export const BillingBatchReview = ({
 
         <div ref={queueScrollRef} className="flex-1 overflow-y-auto">
           {isLoadingPractitioners ? (
-            <div className="p-6 text-center text-[18px] text-slate-500">Loading practitioners for this period...</div>
+            <div className="p-6 text-center text-[15px] text-slate-500">Loading practitioners for this period...</div>
           ) : filteredPractitioners.length === 0 ? (
-            <div className="p-6 text-center text-[18px] text-slate-500">
+            <div className="p-6 text-center text-[15px] text-slate-500">
               {periodPractitioners.length === 0 ? 'No pending logs in this period.' : 'No practitioner matches your search.'}
             </div>
           ) : filteredPractitioners.flatMap(p => {
@@ -824,14 +824,14 @@ export const BillingBatchReview = ({
       <div className="flex-1 flex flex-col min-w-0 bg-white">
         <div className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white">
           <ClipboardList className="size-4" />
-          <span className="text-[16px] font-bold uppercase tracking-wide">Review Panel</span>
+          <span className="text-[14px] font-bold uppercase tracking-wide">Review Panel</span>
         </div>
         {!detailSession && !(detail && detailTab === 'fix' && detailPractitioner?.locked_by_id === currentUserId) ? (
           <div className="flex-1 flex flex-col items-center gap-4 pt-20 px-8 text-center">
             <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
               <MousePointerClick className="size-8" />
             </div>
-            <p className="text-[30px] font-extrabold text-slate-700">
+            <p className="text-[20px] font-extrabold text-slate-700">
               {periodPractitioners.length === 0 ? 'No pending logs in this period.' : 'Select a session from the queue on the left'}
             </p>
           </div>
@@ -841,7 +841,7 @@ export const BillingBatchReview = ({
               {(detailTab === 'fix' || (detailPractitioner?.eims_flagged_count || 0) + (detailPractitioner?.eims_missing_count || 0) > 0) && (
                 <button
                   onClick={() => { setDetailTab('fix'); setScrollSyncSessionId(null); }}
-                  className={`px-3 pb-3 text-[18px] font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
+                  className={`px-3 pb-3 text-[15px] font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
                     detailTab === 'fix' ? 'border-red-500 text-red-700' : 'border-transparent text-slate-600 hover:text-slate-800'
                   }`}
                 >
@@ -855,7 +855,7 @@ export const BillingBatchReview = ({
                   setDetailTab('session');
                   setScrollSyncSessionId(null);
                 }}
-                className={`px-3 pb-3 text-[18px] font-bold border-b-2 -mb-px cursor-pointer transition-colors ${
+                className={`px-3 pb-3 text-[15px] font-bold border-b-2 -mb-px cursor-pointer transition-colors ${
                   detailTab === 'session' ? 'border-blue-500 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-800'
                 }`}
               >
@@ -863,7 +863,7 @@ export const BillingBatchReview = ({
               </button>
               <button
                 onClick={() => setDetailTab('analysis')}
-                className={`px-3 pb-3 text-[18px] font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
+                className={`px-3 pb-3 text-[15px] font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
                   detailTab === 'analysis' ? 'border-violet-500 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-800'
                 }`}
               >
@@ -871,7 +871,7 @@ export const BillingBatchReview = ({
               </button>
               <button
                 onClick={() => { setDetailTab('matching'); setScrollSyncSessionId(null); }}
-                className={`px-3 pb-3 text-[18px] font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
+                className={`px-3 pb-3 text-[15px] font-bold border-b-2 -mb-px cursor-pointer transition-colors flex items-center gap-1.5 ${
                   detailTab === 'matching' ? 'border-emerald-500 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-800'
                 }`}
               >
@@ -1064,12 +1064,12 @@ function PractitionerGroup({
           onClick={onToggle}
           className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer text-left"
         >
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center text-[14px] font-bold flex-shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center text-[13px] font-bold flex-shrink-0">
             {`${practitioner.first_name?.[0] || ''}${practitioner.last_name?.[0] || ''}`.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0 py-0.5">
-            <div className="font-bold text-[18px] text-slate-900 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
-            <div className="text-[16px] text-slate-600">
+            <div className="font-bold text-[15px] text-slate-900 capitalize truncate">{practitioner.first_name} {practitioner.last_name}</div>
+            <div className="text-[14px] text-slate-600">
               {subLabel ? (
                 <span className={`font-semibold ${subLabel.startsWith('Sent') ? 'text-slate-500' : 'text-blue-600'}`}>{subLabel}</span>
               ) : (
@@ -1078,12 +1078,12 @@ function PractitionerGroup({
             </div>
           </div>
           {isLockedByMe && (
-            <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5 flex-shrink-0">
+            <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5 flex-shrink-0">
               <Lock className="size-3.5" /> Locked to you
             </span>
           )}
           {isLockedByOther && (
-            <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 flex-shrink-0">
+            <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 flex-shrink-0">
               <Lock className="size-3.5" /> Locked by {lockedByName}
             </span>
           )}
@@ -1095,7 +1095,7 @@ function PractitionerGroup({
         // buttons themselves (a <button> inside a <button> is invalid).
         <div className={`flex flex-wrap items-center gap-1.5 bg-white pb-3 pr-4 -mt-2 ${onBulkToggle ? 'pl-[92px]' : 'pl-[64px]'}`}>
           {statusParts.map((part, i) => (
-            <span key={i} className="inline-flex items-center font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
+            <span key={i} className="inline-flex items-center font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-[13px] whitespace-nowrap">
               {part}
             </span>
           ))}
@@ -1110,18 +1110,18 @@ function PractitionerGroup({
                   type="button"
                   onClick={() => onFixFlags(kind)}
                   title="Review these one at a time"
-                  className="inline-flex items-center gap-1.5 font-bold text-red-700 bg-red-50 border-[1.5px] border-red-200 rounded-full pl-2.5 pr-1 py-0.5 text-[14px] whitespace-nowrap cursor-pointer transition-[transform,background-color] hover:bg-red-100 hover:border-red-300 active:scale-[0.97]"
+                  className="inline-flex items-center gap-1.5 font-bold text-red-700 bg-red-50 border-[1.5px] border-red-200 rounded-full pl-2.5 pr-1 py-0.5 text-[13px] whitespace-nowrap cursor-pointer transition-[transform,background-color] hover:bg-red-100 hover:border-red-300 active:scale-[0.97]"
                 >
                   {count} {label}
                   <span className="rounded-full bg-red-600 px-2 py-px text-[12px] font-extrabold text-white">Fix →</span>
                 </button>
               ) : (
-                <span key={kind} className="inline-flex items-center font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
+                <span key={kind} className="inline-flex items-center font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-[13px] whitespace-nowrap">
                   {count} {label}
                 </span>
               )
             ) : sessionsLoaded && saved > 0 ? (
-              <span key={kind} className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 text-[14px] whitespace-nowrap">
+              <span key={kind} className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 text-[13px] whitespace-nowrap">
                 <CheckCircle2 className="size-3.5" /> {doneLabel}
               </span>
             ) : null
@@ -1134,22 +1134,22 @@ function PractitionerGroup({
           <div className="px-4 py-3 bg-white border-t border-slate-100">
             {isLockedByOther ? (
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5">
+                <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5">
                   <Lock className="size-3.5" /> Locked by {lockedByName}
                 </span>
                 {isAdmin && (
-                  <button onClick={onRelease} className="text-[16px] font-semibold text-red-600 hover:underline cursor-pointer">Force Release</button>
+                  <button onClick={onRelease} className="text-[14px] font-semibold text-red-600 hover:underline cursor-pointer">Force Release</button>
                 )}
               </div>
             ) : isLockedByMe ? (
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5">
+                <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5">
                   <Lock className="size-3.5" /> Locked to you
                 </span>
-                <button onClick={onRelease} className="text-[16px] font-semibold text-red-600 hover:underline cursor-pointer">Release</button>
+                <button onClick={onRelease} className="text-[14px] font-semibold text-red-600 hover:underline cursor-pointer">Release</button>
               </div>
             ) : (
-              <Button size="sm" variant="outline" onClick={onLock} className="w-full gap-1.5 cursor-pointer text-[16px]">
+              <Button size="sm" variant="outline" onClick={onLock} className="w-full gap-1.5 cursor-pointer text-[14px]">
                 <Lock className="size-4" /> Lock to Review
               </Button>
             )}
@@ -1161,7 +1161,7 @@ function PractitionerGroup({
                 type="button"
                 onClick={() => onShowFlaggedOnly(false)}
                 aria-pressed={!showFlaggedOnly}
-                className={`rounded-full border-[1.5px] px-3.5 py-1 text-[14px] font-bold cursor-pointer ${!showFlaggedOnly ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+                className={`rounded-full border-[1.5px] px-3.5 py-1 text-[13px] font-bold cursor-pointer ${!showFlaggedOnly ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
               >
                 All {sessions.length}
               </button>
@@ -1169,7 +1169,7 @@ function PractitionerGroup({
                 type="button"
                 onClick={() => onShowFlaggedOnly(true)}
                 aria-pressed={!!showFlaggedOnly}
-                className={`rounded-full border-[1.5px] px-3.5 py-1 text-[14px] font-bold cursor-pointer ${showFlaggedOnly ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+                className={`rounded-full border-[1.5px] px-3.5 py-1 text-[13px] font-bold cursor-pointer ${showFlaggedOnly ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'}`}
               >
                 Flagged {openFlagCount > 0 ? openFlagCount : '· all handled'}
               </button>
@@ -1178,11 +1178,11 @@ function PractitionerGroup({
 
           {isLockedByMe && (
             isLoadingSessions ? (
-              <div className="p-4 text-center text-[16px] text-slate-600">Loading sessions...</div>
+              <div className="p-4 text-center text-[14px] text-slate-600">Loading sessions...</div>
             ) : sessions.length === 0 ? (
-              <div className="p-4 text-center text-[16px] text-slate-600">No individual logs found.</div>
+              <div className="p-4 text-center text-[14px] text-slate-600">No individual logs found.</div>
             ) : sortedQueueSessions.length === 0 ? (
-              <div className="p-4 text-center text-[16px] text-slate-600">
+              <div className="p-4 text-center text-[14px] text-slate-600">
                 No flagged sessions.{' '}
                 <button type="button" onClick={() => onShowFlaggedOnly?.(false)} className="font-bold text-blue-600 hover:underline cursor-pointer">Show all</button>
               </div>
@@ -1220,7 +1220,7 @@ function PractitionerGroup({
                   {idx === firstProcessedQueueIndex && (
                     <div className="flex items-center gap-2 pl-3 pr-4 pt-3 pb-1 border-t border-slate-100">
                       <div className="h-px flex-1 bg-slate-200" />
-                      <div className="text-[14px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                      <div className="text-[13px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
                         Already sent to billing &middot; {processedQueueCount}
                       </div>
                       <div className="h-px flex-1 bg-slate-200" />
@@ -1237,11 +1237,11 @@ function PractitionerGroup({
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} />
                     <div className="min-w-0">
-                      <div className="text-[18px] font-bold text-slate-900 truncate">{s.patient_first_name} {s.patient_last_name}</div>
-                      <div className="flex flex-wrap items-center gap-1.5 text-[16px] text-slate-600">
+                      <div className="text-[15px] font-bold text-slate-900 truncate">{s.patient_first_name} {s.patient_last_name}</div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[14px] text-slate-600">
                         {s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}
                         {flagKindHere && (
-                          <span className="rounded border border-red-200 bg-red-50 px-1.5 py-px text-[11.5px] font-extrabold uppercase tracking-wide text-red-700">
+                          <span className="whitespace-nowrap rounded border border-red-200 bg-red-50 px-1.5 py-px text-[11px] font-extrabold uppercase tracking-wide text-red-700">
                             {flagKindHere === 'missing' ? 'Missing in EIMS' : flagKindHere === 'duplicate' ? 'Duplicate' : 'Not matching EIMS'}
                           </span>
                         )}
@@ -1251,15 +1251,15 @@ function PractitionerGroup({
 
                   {/* Column 2: service codes, centered */}
                   <div className="flex items-center justify-center gap-1.5 flex-nowrap">
-                    <span className="font-mono text-[16px] font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Status">S:{s.status || '-'}</span>
-                    <span className="font-mono text-[16px] font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Type">{s.type || '-'}</span>
-                    <span className="font-mono text-[16px] font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Location">L:{s.location || '-'}</span>
+                    <span className="font-mono text-[14px] font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Status">S:{s.status || '-'}</span>
+                    <span className="font-mono text-[14px] font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Type">{s.type || '-'}</span>
+                    <span className="font-mono text-[14px] font-semibold bg-slate-100 border border-slate-200 rounded px-2 py-1 text-slate-700" title="Service Location">L:{s.location || '-'}</span>
                   </div>
 
                   {/* Column 3: status + duration, centered */}
                   <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                    <span className={`text-[16px] font-bold uppercase rounded px-2 py-1 ${statusLabelClasses}`}>{statusLabel}</span>
-                    <span className="text-[16px] font-bold text-slate-600">{formatTime(s.total_time)}</span>
+                    <span className={`text-[14px] font-bold uppercase rounded px-2 py-1 ${statusLabelClasses}`}>{statusLabel}</span>
+                    <span className="text-[14px] font-bold text-slate-600">{formatTime(s.total_time)}</span>
                     {s.notes_count > 0 && <MessageSquareText className="size-3.5 text-slate-500" />}
                   </div>
                 </div>
@@ -1279,7 +1279,7 @@ function PractitionerGroup({
               has nothing generated yet by definition. */}
           {(!subLabel || subLabel.startsWith('Sent')) && (practitioner.sevf_documents?.length > 0 || practitioner.invoice_documents?.length > 0) && (
             <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
-              <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mb-2">Generated documents</div>
+              <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mb-2">Generated documents</div>
               <div className="flex flex-wrap gap-2">
                 {practitioner.sevf_documents?.map(doc => (
                   <a
@@ -1287,7 +1287,7 @@ function PractitionerGroup({
                     href={doc.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-[16px] font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-[14px] font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
                   >
                     <Download className="size-3.5" /> SEVF · {formatMonthLabel(doc.month)}
                   </a>
@@ -1298,7 +1298,7 @@ function PractitionerGroup({
                     href={doc.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-[16px] font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-[14px] font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
                   >
                     <Download className="size-3.5" /> Invoice · {formatMonthLabel(doc.month)}
                   </a>
@@ -1308,7 +1308,7 @@ function PractitionerGroup({
           )}
 
           <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-800 text-white flex-wrap">
-            <div className="flex gap-3 text-[14px] text-white/70 flex-wrap">
+            <div className="flex gap-3 text-[13px] text-white/70 flex-wrap">
               <span><b className="text-white">{routingCounts.billable}</b> billable</span>
               <span><b className="text-white">{routingCounts.heldReturned}</b> held/returned</span>
               <span><b className="text-white">{routingCounts.excluded}</b> excluded</span>
@@ -1324,7 +1324,7 @@ function PractitionerGroup({
                   size="sm"
                   onClick={() => handleSendToCompleted(practitioner.practitioner_id)}
                   disabled={processingId === practitioner.practitioner_id}
-                  className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-[16px]"
+                  className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-[14px]"
                 >
                   <CheckCircle2 className="size-4" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
                 </Button>
@@ -1335,7 +1335,7 @@ function PractitionerGroup({
                 onClick={() => handleGenerateAndIssue(practitioner.practitioner_id)}
                 disabled={!isLockedByMe || !allLogsReviewed || processingId === practitioner.practitioner_id}
                 title={!isLockedByMe ? 'Lock this practitioner to review logs first' : ''}
-                className={`cursor-pointer gap-1.5 text-[16px] ${isLockedByMe && allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
+                className={`cursor-pointer gap-1.5 text-[14px] ${isLockedByMe && allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
               >
                 {processingId === practitioner.practitioner_id ? 'Generating...' : 'Generate & Issue'}
               </Button>
@@ -1344,7 +1344,7 @@ function PractitionerGroup({
                 size="sm"
                 onClick={() => handleSendToCompleted(practitioner.practitioner_id)}
                 disabled={processingId === practitioner.practitioner_id}
-                className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-[16px]"
+                className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-[14px]"
               >
                 <CheckCircle2 className="size-4" /> {processingId === practitioner.practitioner_id ? 'Sending...' : 'Send to Completed'}
               </Button>
@@ -1354,7 +1354,7 @@ function PractitionerGroup({
                 onClick={() => handleGenerateAndIssue(practitioner.practitioner_id)}
                 disabled={!isLockedByMe || !allLogsReviewed || processingId === practitioner.practitioner_id}
                 title={!isLockedByMe ? 'Lock this practitioner to review logs first' : ''}
-                className={`cursor-pointer gap-1.5 text-[16px] ${isLockedByMe && allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
+                className={`cursor-pointer gap-1.5 text-[14px] ${isLockedByMe && allLogsReviewed ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-white/10 text-white/40 cursor-not-allowed'}`}
               >
                 {processingId === practitioner.practitioner_id ? 'Generating...' : 'Generate & Issue'}
               </Button>
@@ -1467,71 +1467,71 @@ function SessionDetailPanel({
 
   return (
     <div className="max-w-2xl">
-      <div className="text-[16px] font-bold uppercase tracking-wide text-blue-600 mb-1.5">
+      <div className="text-[14px] font-bold uppercase tracking-wide text-blue-600 mb-1.5">
         {session.service_date ? new Date(session.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '-'}
       </div>
-      <h2 className="text-[26px] font-extrabold text-slate-900 mb-1.5 tracking-tight leading-tight">{session.patient_first_name} {session.patient_last_name}</h2>
-      <p className="text-[18px] text-slate-600 mb-6">{session.type || '-'} session</p>
+      <h2 className="text-[22px] font-extrabold text-slate-900 mb-1.5 tracking-tight leading-tight">{session.patient_first_name} {session.patient_last_name}</h2>
+      <p className="text-[15px] text-slate-600 mb-6">{session.type || '-'} session</p>
 
-      <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">Service Codes</div>
+      <div className="text-[12px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">Service Codes</div>
       <div className="grid grid-cols-4 gap-2.5 mb-3.5">
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
-          <div className="text-[13px] font-bold uppercase text-slate-600">Status</div>
-          <div className="text-[18px] font-bold font-mono text-slate-900">{session.status || '-'}</div>
+          <div className="text-[12px] font-bold uppercase text-slate-600">Status</div>
+          <div className="text-[15px] font-bold font-mono text-slate-900">{session.status || '-'}</div>
           {session.status && statusCodeMap[session.status] && (
-            <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{statusCodeMap[session.status]}</div>
+            <div className="text-[13px] text-slate-600 mt-0.5 leading-tight">{statusCodeMap[session.status]}</div>
           )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
-          <div className="text-[13px] font-bold uppercase text-slate-600">Type</div>
-          <div className="text-[18px] font-bold font-mono text-slate-900">{session.type || '-'}</div>
+          <div className="text-[12px] font-bold uppercase text-slate-600">Type</div>
+          <div className="text-[15px] font-bold font-mono text-slate-900">{session.type || '-'}</div>
           {session.type && typeCodeMap[session.type] && (
-            <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{typeCodeMap[session.type]}</div>
+            <div className="text-[13px] text-slate-600 mt-0.5 leading-tight">{typeCodeMap[session.type]}</div>
           )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
-          <div className="text-[13px] font-bold uppercase text-slate-600">Location</div>
-          <div className="text-[18px] font-bold font-mono text-slate-900">{session.location || '-'}</div>
+          <div className="text-[12px] font-bold uppercase text-slate-600">Location</div>
+          <div className="text-[15px] font-bold font-mono text-slate-900">{session.location || '-'}</div>
           {session.location && locationCodeMap[session.location] && (
-            <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{locationCodeMap[session.location]}</div>
+            <div className="text-[13px] text-slate-600 mt-0.5 leading-tight">{locationCodeMap[session.location]}</div>
           )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2">
-          <div className="text-[13px] font-bold uppercase text-slate-600">Group Size</div>
-          <div className="text-[18px] font-bold font-mono text-slate-900">{session.group_size_category || '-'}</div>
+          <div className="text-[12px] font-bold uppercase text-slate-600">Group Size</div>
+          <div className="text-[15px] font-bold font-mono text-slate-900">{session.group_size_category || '-'}</div>
           {session.group_size_category && groupSizeCodeMap[session.group_size_category] && (
-            <div className="text-[14px] text-slate-600 mt-0.5 leading-tight">{groupSizeCodeMap[session.group_size_category]}</div>
+            <div className="text-[13px] text-slate-600 mt-0.5 leading-tight">{groupSizeCodeMap[session.group_size_category]}</div>
           )}
         </div>
       </div>
 
-      <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">Session Time</div>
+      <div className="text-[12px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">Session Time</div>
       <div className="grid grid-cols-3 gap-2.5 mb-4">
         <div className="bg-white border border-slate-200 rounded-lg px-3.5 py-2">
-          <div className="text-[13px] font-bold uppercase text-slate-600">Start</div>
-          <div className="text-[18px] font-bold text-slate-900">{session.start_time ? formatTime12h(session.start_time) : '-'}</div>
+          <div className="text-[12px] font-bold uppercase text-slate-600">Start</div>
+          <div className="text-[15px] font-bold text-slate-900">{session.start_time ? formatTime12h(session.start_time) : '-'}</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg px-3.5 py-2">
-          <div className="text-[13px] font-bold uppercase text-slate-600">End</div>
-          <div className="text-[18px] font-bold text-slate-900">{session.end_time ? formatTime12h(session.end_time) : '-'}</div>
+          <div className="text-[12px] font-bold uppercase text-slate-600">End</div>
+          <div className="text-[15px] font-bold text-slate-900">{session.end_time ? formatTime12h(session.end_time) : '-'}</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg px-3.5 py-2">
-          <div className="text-[13px] font-bold uppercase text-slate-600">Total</div>
-          <div className="text-[18px] font-bold text-slate-900">{formatTime(session.total_time)}</div>
+          <div className="text-[12px] font-bold uppercase text-slate-600">Total</div>
+          <div className="text-[15px] font-bold text-slate-900">{formatTime(session.total_time)}</div>
         </div>
       </div>
 
       {customCategories.length > 0 && (
         <>
-          <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mb-2.5">Additional Fields</div>
+          <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mb-2.5">Additional Fields</div>
           <div className="grid grid-cols-4 gap-3 mb-7">
             {customCategories.map((cat) => {
               const codeLabelMap = buildCodeLabelMap(dropdownOptions[cat.key] || []);
               const code = session.form_data?.custom_fields?.[cat.key];
               return (
                 <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3" key={cat.key}>
-                  <div className="text-[14px] font-bold uppercase text-slate-600">{cat.display_name}</div>
-                  <div className="text-[18px] font-bold text-slate-900">{code ? (codeLabelMap[code] || code) : '-'}</div>
+                  <div className="text-[13px] font-bold uppercase text-slate-600">{cat.display_name}</div>
+                  <div className="text-[15px] font-bold text-slate-900">{code ? (codeLabelMap[code] || code) : '-'}</div>
                 </div>
               );
             })}
@@ -1540,10 +1540,10 @@ function SessionDetailPanel({
       )}
 
       {isProcessing ? (
-        <div className="text-[18px] text-slate-600">Processing...</div>
+        <div className="text-[15px] text-slate-600">Processing...</div>
       ) : isDeclined || isReturned ? (
         <div className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 mb-4 ${isDeclined ? 'bg-slate-100' : 'bg-amber-50 border border-amber-200'}`}>
-          <span className={`inline-flex items-center gap-1.5 text-[16px] font-semibold ${isDeclined ? 'text-slate-600' : 'text-amber-800'}`}>
+          <span className={`inline-flex items-center gap-1.5 text-[14px] font-semibold ${isDeclined ? 'text-slate-600' : 'text-amber-800'}`}>
             {isDeclined ? <Ban className="size-4" /> : <Clock className="size-4" />}
             {isDeclined ? 'Permanently rejected — excluded from report' : 'Returned to practitioner — awaiting resubmission'}
           </span>
@@ -1563,11 +1563,11 @@ function SessionDetailPanel({
           )}
         </div>
       ) : isLocked ? (
-        <div className="inline-flex items-center gap-1.5 text-[16px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 mb-4">
+        <div className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 mb-4">
           <Ban className="size-4" /> SEVF has been issued — locked until it returns to pending.
         </div>
       ) : isAwaitingResign ? (
-        <div className="flex items-start gap-2 text-[16px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3.5 mb-4">
+        <div className="flex items-start gap-2 text-[14px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3.5 mb-4">
           <Clock className="size-4 mt-1 flex-shrink-0" />
           <span>
             Waiting for the parent to re-sign. The practitioner changed this session&apos;s date, so it&apos;s held out of billing
@@ -1581,13 +1581,13 @@ function SessionDetailPanel({
       ) : (
         <>
         {!isApproved && complianceBlockReason && (
-          <div className="flex items-center gap-2 text-[14px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
             <Ban className="size-3.5 flex-shrink-0" /> {complianceBlockReason}
           </div>
         )}
         {!isApproved && isMissingBlock && (
           <div className="rounded-lg border border-orange-200 bg-orange-50/60 px-3 py-3 mb-3 space-y-2">
-            <p className="text-[14px] font-semibold text-orange-700 flex items-center gap-2">
+            <p className="text-[13px] font-semibold text-orange-700 flex items-center gap-2">
               <Ban className="size-3.5 flex-shrink-0" />
               {complianceStatus.eimsMissingStatus === 'sent_to_admin'
                 ? 'This log has no matching record in EIMS — sent to an admin for review. You can still decide it yourself below.'
@@ -1750,26 +1750,26 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
     <div className="border border-slate-200 rounded-xl overflow-hidden mt-2">
       <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200">
         <MessageSquareText className="size-4 text-slate-600" />
-        <span className="text-[16px] font-bold text-slate-700">Comment thread{practitionerName ? ` with ${practitionerName}` : ''}</span>
+        <span className="text-[14px] font-bold text-slate-700">Comment thread{practitionerName ? ` with ${practitionerName}` : ''}</span>
       </div>
 
       <div className="max-h-64 overflow-y-auto px-4 py-3 space-y-3 bg-white">
         {isLoading ? (
-          <div className="text-[16px] text-slate-500 text-center py-3">Loading comments...</div>
+          <div className="text-[14px] text-slate-500 text-center py-3">Loading comments...</div>
         ) : notes.length === 0 ? (
-          <div className="text-[16px] text-slate-500 text-center py-3">No comments yet — add one below.</div>
+          <div className="text-[14px] text-slate-500 text-center py-3">No comments yet — add one below.</div>
         ) : notes.map((n, i) => {
           const isBilling = n.author_role !== 'practitioner';
           return (
             <div key={i} className={`flex ${isBilling ? '' : 'justify-end'}`}>
-              <div className={`max-w-[80%] rounded-xl px-3.5 py-2.5 border text-[16px] ${
+              <div className={`max-w-[80%] rounded-xl px-3.5 py-2.5 border text-[14px] ${
                 isBilling ? 'bg-blue-50 border-blue-200' : 'bg-violet-50 border-violet-200'
               }`}>
                 <div className="flex items-center justify-between gap-3 mb-1">
-                  <span className={`font-bold text-[14px] ${isBilling ? 'text-blue-700' : 'text-violet-700'}`}>
+                  <span className={`font-bold text-[13px] ${isBilling ? 'text-blue-700' : 'text-violet-700'}`}>
                     {isBilling ? 'Billing' : 'Practitioner'}{n.first_name ? ` · ${n.first_name} ${n.last_name}` : ''}
                   </span>
-                  <span className="text-[14px] text-slate-500 whitespace-nowrap">
+                  <span className="text-[13px] text-slate-500 whitespace-nowrap">
                     {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                   </span>
                 </div>
@@ -1781,7 +1781,7 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
       </div>
 
       {pendingAction && (
-        <div className={`flex items-center justify-between gap-2 px-4 py-2 text-[14px] font-semibold ${
+        <div className={`flex items-center justify-between gap-2 px-4 py-2 text-[13px] font-semibold ${
           pendingAction === 'return' ? 'bg-blue-50 text-blue-700'
           : pendingAction === 'hold' ? 'bg-amber-50 text-amber-700'
           : 'bg-red-50 text-red-700'
@@ -1796,7 +1796,7 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
       )}
 
       {pendingAction && text && text === suggested && (
-        <div className="flex items-center justify-between gap-2 px-4 pt-2.5 text-[13.5px] font-semibold text-slate-500 bg-white">
+        <div className="flex items-center justify-between gap-2 px-4 pt-2.5 text-[12.5px] font-semibold text-slate-500 bg-white">
           <span>Filled in from the flag. Edit it, add to it, or clear it.</span>
           <button type="button" onClick={() => { setText(''); inputRef.current?.focus(); }} className="font-bold text-slate-600 hover:underline cursor-pointer">Clear</button>
         </div>
@@ -1816,7 +1816,7 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
             : pendingAction === 'hold' ? 'Why is this on hold...'
             : 'Add a note for the practitioner...'
           }
-          className={`flex-1 resize-none text-[16px] leading-relaxed rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+          className={`flex-1 resize-none text-[14px] leading-relaxed rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
             pendingAction === 'hold' ? 'border-amber-300 focus:ring-amber-500/30'
             : pendingAction ? 'border-red-300 focus:ring-red-500/30'
             : 'border-slate-300 focus:ring-blue-500/30'
@@ -1826,7 +1826,7 @@ function CommentThread({ session, practitionerId, practitionerName, pendingActio
           size="sm"
           onClick={handleSend}
           disabled={!text.trim() || isSubmitting}
-          className={`cursor-pointer text-[16px] text-white ${
+          className={`cursor-pointer text-[14px] text-white ${
             pendingAction === 'hold' ? 'bg-amber-600 hover:bg-amber-700'
             : pendingAction ? 'bg-red-600 hover:bg-red-700'
             : 'bg-slate-800 hover:bg-slate-900'
@@ -1855,7 +1855,7 @@ function ActionButton({ label, icon, onClick, active, tone, disabled }) {
       className={`flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-2xl border-2 bg-white transition-colors shadow-sm ${toneClasses} ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {icon}
-      <span className="text-[16px] font-bold">{label}</span>
+      <span className="text-[14px] font-bold">{label}</span>
     </button>
   );
 }
@@ -1939,44 +1939,44 @@ function ComplianceMatchingSettings({ isAdmin }) {
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
         <div>
-          <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Matching Strictness</h2>
-          <p className="text-[16px] text-slate-600 mt-1">
+          <h2 className="text-[22px] font-extrabold text-slate-900 tracking-tight leading-tight">Matching Strictness</h2>
+          <p className="text-[14px] text-slate-600 mt-1">
             Sets the starting tolerance for wording and timing differences before a field is flagged. Learned matches below always apply regardless of this setting.
           </p>
         </div>
         {isLoadingStrictness ? (
-          <div className="text-[16px] text-slate-500">Loading…</div>
+          <div className="text-[14px] text-slate-500">Loading…</div>
         ) : (
           <select
             value={strictness}
             onChange={handleStrictnessChange}
             disabled={!isAdmin || isSavingStrictness}
-            className="w-full max-w-md h-10 rounded-md border border-slate-300 bg-white px-3 text-[16px] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full max-w-md h-10 rounded-md border border-slate-300 bg-white px-3 text-[14px] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {Object.entries(STRICTNESS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
         )}
-        {!isAdmin && <p className="text-[14px] text-slate-500">Only an Admin can change this setting.</p>}
+        {!isAdmin && <p className="text-[13px] text-slate-500">Only an Admin can change this setting.</p>}
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
         <div>
-          <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">Learned Matches</h2>
-          <p className="text-[16px] text-slate-600 mt-1">
+          <h2 className="text-[22px] font-extrabold text-slate-900 tracking-tight leading-tight">Learned Matches</h2>
+          <p className="text-[14px] text-slate-600 mt-1">
             Pairings billing chose to remember when allowing a flagged field (by ticking "Also remember this match") — these auto-match on every future analysis. Remove one to go back to strictness-only matching for that pairing.
           </p>
         </div>
         {isLoadingOverrides ? (
-          <div className="text-[16px] text-slate-500 py-4 text-center">Loading…</div>
+          <div className="text-[14px] text-slate-500 py-4 text-center">Loading…</div>
         ) : overrides.length === 0 ? (
-          <div className="text-[16px] text-slate-500 py-4 text-center">No learned matches yet — they appear here when billing ticks "Also remember this match" while allowing a flagged field.</div>
+          <div className="text-[14px] text-slate-500 py-4 text-center">No learned matches yet — they appear here when billing ticks "Also remember this match" while allowing a flagged field.</div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-[16px]">
+            <table className="w-full text-[14px]">
               <thead>
-                <tr className="bg-slate-50 text-[14px] font-bold uppercase tracking-wide text-slate-600">
+                <tr className="bg-slate-50 text-[13px] font-bold uppercase tracking-wide text-slate-600">
                   <th className="text-left px-3 py-2">Field</th>
                   <th className="text-left px-3 py-2">EIMS Text</th>
                   <th className="text-left px-3 py-2">Our Value</th>
@@ -1992,7 +1992,7 @@ function ComplianceMatchingSettings({ isAdmin }) {
                     <td className="px-3 py-2 font-mono text-slate-800">{o.our_value}</td>
                     <td className="px-3 py-2 text-slate-600">
                       {o.first_name ? `${o.first_name} ${o.last_name}` : '—'}
-                      <span className="block text-[14px] text-slate-500">
+                      <span className="block text-[13px] text-slate-500">
                         {new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     </td>
@@ -2354,8 +2354,8 @@ function ComplianceAnalysisPreview({
           <Sparkles className="size-5" />
         </div>
         <div>
-          <div className="text-[18px] font-bold text-slate-900 mb-1.5">Compliance Analysis</div>
-          <p className="text-[16px] text-slate-600 leading-relaxed">
+          <div className="text-[15px] font-bold text-slate-900 mb-1.5">Compliance Analysis</div>
+          <p className="text-[14px] text-slate-600 leading-relaxed">
             Each session below is EIMS Matched by child + service date, then compared field by field: Service Type, Location, Group Size Category, Start Time, and End Time.
           </p>
         </div>
@@ -2365,20 +2365,20 @@ function ComplianceAnalysisPreview({
         type="button"
         onClick={fetchAnalysis}
         disabled={isLoadingAnalysis}
-        className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-[16px] font-bold rounded-lg px-4 py-2.5 mb-6 cursor-pointer transition-colors"
+        className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-[14px] font-bold rounded-lg px-4 py-2.5 mb-6 cursor-pointer transition-colors"
       >
         <RefreshCw className={`size-3.5 ${isLoadingAnalysis ? 'animate-spin' : ''}`} />
         Re-run analysis
       </button>
 
       {!isLoadingAnalysis && analysisError && (
-        <div className="text-[16px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6">
+        <div className="text-[14px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6">
           Couldn't load the comparison: {analysisError}
         </div>
       )}
 
       {!isLoadingDoc && complianceDoc && !isLoadingAnalysis && !analysisError && !documentReady && (
-        <div className="text-[16px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
+        <div className="text-[14px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
           A document is attached but its column matching hasn't been confirmed yet — finish that on the Company Information page before this runs.
         </div>
       )}
@@ -2390,8 +2390,8 @@ function ComplianceAnalysisPreview({
             onClick={() => setStatFilter('all')}
             className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'all' ? 'border-slate-400 bg-slate-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'}`}
           >
-            <div className="text-[34px] font-black text-slate-900">{sessions.length}</div>
-            <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
+            <div className="text-[28px] font-black text-slate-900">{sessions.length}</div>
+            <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
               Sessions Checked
             </div>
           </button>
@@ -2400,8 +2400,8 @@ function ComplianceAnalysisPreview({
             onClick={() => setStatFilter(v => v === 'matched' ? 'all' : 'matched')}
             className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'matched' ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:border-emerald-200 hover:bg-emerald-50/40'}`}
           >
-            <div className="text-[34px] font-black text-emerald-600">{matchedCount}</div>
-            <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
+            <div className="text-[28px] font-black text-emerald-600">{matchedCount}</div>
+            <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
               Match with EIMS
             </div>
           </button>
@@ -2410,8 +2410,8 @@ function ComplianceAnalysisPreview({
             onClick={() => setStatFilter(v => v === 'flagged' ? 'all' : 'flagged')}
             className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'flagged' ? 'border-red-400 bg-red-50' : 'border-slate-200 hover:border-red-200 hover:bg-red-50/40'}`}
           >
-            <div className="text-[34px] font-black text-red-600">{flaggedCount}</div>
-            <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
+            <div className="text-[28px] font-black text-red-600">{flaggedCount}</div>
+            <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
               Flagged
             </div>
           </button>
@@ -2420,8 +2420,8 @@ function ComplianceAnalysisPreview({
             onClick={() => setStatFilter(v => v === 'missing' ? 'all' : 'missing')}
             className={`border rounded-xl px-3 py-3 text-center cursor-pointer transition-colors ${statFilter === 'missing' ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-orange-200 hover:bg-orange-50/40'}`}
           >
-            <div className="text-[34px] font-black text-orange-600">{missingCount}</div>
-            <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
+            <div className="text-[28px] font-black text-orange-600">{missingCount}</div>
+            <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600 mt-0.5">
               Missing in EIMS
             </div>
           </button>
@@ -2429,18 +2429,18 @@ function ComplianceAnalysisPreview({
       )}
 
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[14px] font-bold uppercase tracking-wide text-slate-600">
+        <div className="text-[13px] font-bold uppercase tracking-wide text-slate-600">
           Side-by-side comparison &middot; {practitionerName}
         </div>
         {statFilter !== 'all' && (
-          <button type="button" onClick={() => setStatFilter('all')} className="text-[14px] font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+          <button type="button" onClick={() => setStatFilter('all')} className="text-[13px] font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
             Showing {visibleSessions.length} {statFilter === 'missing' ? 'missing in EIMS' : statFilter} only · Show all {sessions.length} &rarr;
           </button>
         )}
       </div>
       <div className="space-y-3">
         {visibleSessions.length === 0 ? (
-          <div className="text-[16px] text-slate-600 text-center py-6">
+          <div className="text-[14px] text-slate-600 text-center py-6">
             {statFilter === 'flagged' ? 'No flagged sessions.' : statFilter === 'matched' ? 'No matched sessions.' : statFilter === 'missing' ? 'No sessions missing in EIMS.' : 'No sessions to compare.'}
           </div>
         ) : sortedVisibleSessions.map((s, idx) => {
@@ -2505,7 +2505,7 @@ function ComplianceAnalysisPreview({
                 // just "already finished," full stop.
                 <div className="flex items-center gap-3 pt-2 pb-1">
                   <div className="h-px flex-1 bg-slate-200" />
-                  <div className="text-[14px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                  <div className="text-[13px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
                     Already sent to billing &middot; {processedCountInView} session{processedCountInView === 1 ? '' : 's'}
                   </div>
                   <div className="h-px flex-1 bg-slate-200" />
@@ -2518,8 +2518,8 @@ function ComplianceAnalysisPreview({
             >
               <div className={`flex items-center justify-between px-4 py-2.5 border-b ${cardHeaderClass}`}>
                 <div className="flex items-center gap-2">
-                  <span className="text-[16px] font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
-                  <span className="text-[14px] text-slate-600">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
+                  <span className="text-[14px] font-bold text-slate-800">{s.patient_first_name} {s.patient_last_name}</span>
+                  <span className="text-[13px] text-slate-600">{s.service_date ? new Date(s.service_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '-'}</span>
                   {documentReady && sessionResult && (
                     // Checked ahead of matched — a duplicate can independently
                     // show a clean EIMS match on its own merits (each check has
@@ -2527,21 +2527,21 @@ function ComplianceAnalysisPreview({
                     // same real-world visit), so matched alone can't be trusted
                     // to rule out "this is actually the duplicate."
                     isDuplicate ? (
-                      <span className="flex items-center gap-1 text-[14px] font-bold text-orange-700">
+                      <span className="flex items-center gap-1 text-[13px] font-bold text-orange-700">
                         <Copy className="size-3.5" /> Duplicate log
                       </span>
                     ) : sessionResult.matched ? (
                       flagged ? (
-                        <span className="flex items-center gap-1 text-[14px] font-bold text-red-700">
+                        <span className="flex items-center gap-1 text-[13px] font-bold text-red-700">
                           <X className="size-3.5" /> {flaggedFieldCount} field{flaggedFieldCount === 1 ? '' : 's'} flagged
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-[14px] font-bold text-emerald-600">
+                        <span className="flex items-center gap-1 text-[13px] font-bold text-emerald-600">
                           <CheckCircle2 className="size-3.5" /> Match
                         </span>
                       )
                     ) : (
-                      <span className="flex items-center gap-1 text-[14px] font-bold text-orange-600">
+                      <span className="flex items-center gap-1 text-[13px] font-bold text-orange-600">
                         <X className="size-3.5" /> Missing in EIMS
                       </span>
                     )
@@ -2550,11 +2550,11 @@ function ComplianceAnalysisPreview({
                 <div className="flex items-center gap-2">
                   {isMissing && (
                     sessionResult.eimsMissingStatus === 'approved' ? (
-                      <span className="flex items-center gap-1 text-[14px] font-bold text-amber-700">
+                      <span className="flex items-center gap-1 text-[13px] font-bold text-amber-700">
                         <CheckCircle2 className="size-3.5" /> Admin Approved
                       </span>
                     ) : sessionResult.eimsMissingStatus === 'rejected' ? (
-                      <span className="flex items-center gap-1 text-[14px] font-bold text-red-700">
+                      <span className="flex items-center gap-1 text-[13px] font-bold text-red-700">
                         <X className="size-3.5" /> Admin Rejected
                       </span>
                     ) : (
@@ -2562,19 +2562,19 @@ function ComplianceAnalysisPreview({
                         <button
                           type="button"
                           onClick={() => { setAdminDecideTarget(s.id); setAdminDecideComment(''); }}
-                          className="text-[14px] font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 transition-colors"
+                          className="text-[13px] font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 transition-colors"
                         >
                           Review &amp; Decide
                         </button>
                         {!isAdmin && (
                           sessionResult.eimsMissingStatus === 'sent_to_admin' ? (
-                            <span className="text-[14px] font-semibold text-slate-600">Awaiting Admin Review</span>
+                            <span className="text-[13px] font-semibold text-slate-600">Awaiting Admin Review</span>
                           ) : (
                             <button
                               type="button"
                               onClick={() => handleSendMissingToAdmin(s.id)}
                               disabled={isSendingToAdmin === s.id}
-                              className="text-[14px] font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                              className="text-[13px] font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                             >
                               {isSendingToAdmin === s.id ? 'Sending...' : 'Send to Admin for Approval'}
                             </button>
@@ -2586,7 +2586,7 @@ function ComplianceAnalysisPreview({
                 {documentReady && !!sessionResult && (
                   canChangeStatus ? (
                     <select
-                      className={`text-[14px] font-bold uppercase border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60 ${statusBadgeClasses}`}
+                      className={`text-[13px] font-bold uppercase border border-slate-300 rounded-md px-2 py-1 bg-white cursor-pointer disabled:opacity-60 ${statusBadgeClasses}`}
                       value={currentStatusValue}
                       disabled={statusChangingId === s.id}
                       onChange={(e) => { if (e.target.value !== currentStatusValue) handleStatusChange(s, e.target.value); }}
@@ -2615,14 +2615,14 @@ function ComplianceAnalysisPreview({
                       )}
                     </select>
                   ) : (
-                    <span className={`text-[14px] font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
+                    <span className={`text-[13px] font-bold uppercase ${statusBadgeClasses}`}>{statusLabel}</span>
                   )
                 )}
                 </div>
               </div>
-              <table className="w-full table-fixed text-[16px]">
+              <table className="w-full table-fixed text-[14px]">
                 <thead>
-                  <tr className="text-[14px] font-bold uppercase text-slate-600">
+                  <tr className="text-[13px] font-bold uppercase text-slate-600">
                     <th className="text-left px-4 py-2 w-[28%]"></th>
                     <th className="px-4 py-2 w-[30%]">
                       <span className="text-sky-700 bg-sky-50 rounded px-2 py-0.5">Our Log</span>
@@ -2636,15 +2636,15 @@ function ComplianceAnalysisPreview({
                 <tbody>
                   {isLoadingAnalysis ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-slate-500 text-[14px]" colSpan={4}>Loading comparison…</td>
+                      <td className="px-4 py-3 text-center text-slate-500 text-[13px]" colSpan={4}>Loading comparison…</td>
                     </tr>
                   ) : !documentReady ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-slate-500 text-[14px] italic" colSpan={4}>No confirmed EIMS records to compare against</td>
+                      <td className="px-4 py-3 text-center text-slate-500 text-[13px] italic" colSpan={4}>No confirmed EIMS records to compare against</td>
                     </tr>
                   ) : isDuplicate ? (
                     <tr>
-                      <td className="px-4 py-3 text-center text-orange-700 text-[14px] font-semibold" colSpan={4}>
+                      <td className="px-4 py-3 text-center text-orange-700 text-[13px] font-semibold" colSpan={4}>
                         {sessionResult?.duplicateOfInvoiced
                           ? 'This session was already invoiced under another log — this one is a duplicate and will not be paid'
                           : 'This log duplicates another one in this same batch for this patient/date/time — only one can be billed'}
@@ -2654,7 +2654,7 @@ function ComplianceAnalysisPreview({
                     <>
                       {!sessionResult?.matched && (
                         <tr>
-                          <td className="px-4 py-3 text-center text-orange-600 text-[14px] font-semibold" colSpan={4}>
+                          <td className="px-4 py-3 text-center text-orange-600 text-[13px] font-semibold" colSpan={4}>
                             No matching record found in EIMS for this session — showing our own logged values below
                             {sessionResult?.missingReason && (
                               <div className="mt-1 text-slate-600 font-normal normal-case">{sessionResult.missingReason}</div>
@@ -2685,13 +2685,13 @@ function ComplianceAnalysisPreview({
                             {f.label}
                           </div>
                           {f.withinTolerance && (
-                            <span className="block text-[14px] font-bold text-amber-600 mt-0.5">Within tolerance</span>
+                            <span className="block text-[13px] font-bold text-amber-600 mt-0.5">Within tolerance</span>
                           )}
                           {f.learnedMatch && (
-                            <span className="block text-[14px] font-bold text-amber-600 mt-0.5">Learned match</span>
+                            <span className="block text-[13px] font-bold text-amber-600 mt-0.5">Learned match</span>
                           )}
                           {f.acknowledged && !f.learnedMatch && (
-                            <span className="block text-[14px] font-bold text-amber-600 mt-0.5">Allowed for this log</span>
+                            <span className="block text-[13px] font-bold text-amber-600 mt-0.5">Allowed for this log</span>
                           )}
                         </td>
                         <td className="px-4 py-2 text-center font-mono font-bold text-slate-800 break-words">{displayOurs || '-'}</td>
@@ -2703,7 +2703,7 @@ function ComplianceAnalysisPreview({
                               onClick={() => handleAllowField(s.id, f)}
                               disabled={allowingKey === requestKey || isReturned || isDeclined}
                               title={isReturned ? "This log has been returned to the practitioner — it can't be allowed until it's resubmitted." : isDeclined ? 'This log has been permanently rejected.' : undefined}
-                              className="text-[14px] font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                              className="text-[13px] font-bold text-amber-700 border border-amber-300 bg-amber-50 rounded-md px-2.5 py-1 cursor-pointer hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                             >
                               {allowingKey === requestKey ? 'Allowing…' : 'Allow'}
                             </button>
@@ -2723,7 +2723,7 @@ function ComplianceAnalysisPreview({
                   : pendingNoteAction.type === 'hold' ? 'bg-violet-50/60 border-violet-200'
                   : 'bg-amber-50/60 border-amber-200'
                 }`}>
-                  <p className={`text-[14px] font-semibold ${
+                  <p className={`text-[13px] font-semibold ${
                     pendingNoteAction.type === 'reject' ? 'text-red-700'
                     : pendingNoteAction.type === 'hold' ? 'text-violet-700'
                     : 'text-amber-700'
@@ -2765,7 +2765,7 @@ function ComplianceAnalysisPreview({
 
               {adminDecideTarget === s.id && (
                 <div className="border-t px-4 py-3 space-y-2 bg-orange-50/60 border-orange-200">
-                  <p className="text-[14px] font-semibold text-orange-700">
+                  <p className="text-[13px] font-semibold text-orange-700">
                     This log has no matching record in EIMS. You can decide it right here.
                   </p>
                   <Textarea

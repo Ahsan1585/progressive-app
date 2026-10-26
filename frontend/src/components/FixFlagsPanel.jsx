@@ -48,8 +48,8 @@ function ActionTile({ label, hint, shortcut, tone, onClick, disabled, active }) 
         active ? activeTones[tone] : 'border-slate-300'
       } ${tones[tone] || ''}`}
     >
-      <span className="text-[17px] font-extrabold text-slate-900">{label}</span>
-      <span className="text-[13px] font-medium leading-snug text-slate-500">{hint}</span>
+      <span className="text-[15px] font-extrabold text-slate-900">{label}</span>
+      <span className="text-[12px] font-medium leading-snug text-slate-500">{hint}</span>
       {shortcut && (
         <kbd className="mt-auto rounded border border-b-2 border-slate-300 bg-slate-50 px-1.5 font-mono text-[11px] font-bold text-slate-500">{shortcut}</kbd>
       )}
@@ -301,12 +301,12 @@ export function FixFlagsPanel({
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  if (isLoading) return <div className="py-16 text-center text-[18px] text-slate-500">Loading the EIMS comparison…</div>;
-  if (loadError) return <div className="py-16 text-center text-[18px] font-semibold text-red-600">{loadError}</div>;
+  if (isLoading) return <div className="py-16 text-center text-[15px] text-slate-500">Loading the EIMS comparison…</div>;
+  if (loadError) return <div className="py-16 text-center text-[15px] font-semibold text-red-600">{loadError}</div>;
   if (!analysis?.documentOnFile) {
-    return <div className="py-16 text-center text-[18px] text-slate-600">No confirmed EIMS records for this period yet, so there is nothing to compare against.</div>;
+    return <div className="py-16 text-center text-[15px] text-slate-600">No confirmed EIMS records for this period yet, so there is nothing to compare against.</div>;
   }
-  if (sessions.length === 0 || builtFor !== analysis) return <div className="py-16 text-center text-[18px] text-slate-500">Loading sessions…</div>;
+  if (sessions.length === 0 || builtFor !== analysis) return <div className="py-16 text-center text-[15px] text-slate-500">Loading sessions…</div>;
 
   if (flagList.length === 0 || (allHandled && !reviewingAgain)) {
     const counts = flagList.reduce((acc, f) => { const o = outcomeOf(f) || 'approved'; acc[o] = (acc[o] || 0) + 1; return acc; }, {});
@@ -315,17 +315,17 @@ export function FixFlagsPanel({
         <div className="flex size-[76px] items-center justify-center rounded-[22px] bg-emerald-50 text-emerald-600">
           <CheckCircle2 className="size-10" />
         </div>
-        <h2 className="text-[32px] font-extrabold tracking-tight text-slate-900">
+        <h2 className="text-[26px] font-extrabold tracking-tight text-slate-900">
           {flagList.length === 0 ? 'Nothing flagged' : `All ${flagList.length} flag${flagList.length === 1 ? '' : 's'} handled`}
         </h2>
         {flagList.length > 0 && (
           <div className="flex flex-wrap justify-center gap-2">
             {Object.entries(counts).map(([o, n]) => (
-              <span key={o} className={`rounded-full border px-3.5 py-1.5 text-[15px] font-bold ${OUTCOMES[o].classes}`}>{n} {OUTCOMES[o].label.toLowerCase()}</span>
+              <span key={o} className={`rounded-full border px-3.5 py-1.5 text-[13.5px] font-bold ${OUTCOMES[o].classes}`}>{n} {OUTCOMES[o].label.toLowerCase()}</span>
             ))}
           </div>
         )}
-        <p className="max-w-[46ch] text-[16px] text-slate-600">
+        <p className="max-w-[46ch] text-[14px] text-slate-600">
           {canGenerate
             ? `Every session for ${firstName} in this period has a decision. You can generate the SEVF and invoice now.`
             : `Some of ${firstName}'s other sessions still need a decision before you can generate. Check the queue on the left.`}
@@ -333,12 +333,12 @@ export function FixFlagsPanel({
         <Button
           onClick={onGenerate}
           disabled={!canGenerate || isGenerating}
-          className="mt-1 h-auto rounded-2xl bg-slate-900 px-7 py-4 text-[18px] font-extrabold text-white hover:bg-slate-800 cursor-pointer"
+          className="mt-1 h-auto rounded-2xl bg-slate-900 px-7 py-4 text-[15px] font-extrabold text-white hover:bg-slate-800 cursor-pointer"
         >
           {isGenerating ? 'Generating...' : `Generate & Issue for ${firstName}`}
         </Button>
         {flagList.length > 0 && (
-          <button type="button" onClick={() => { setReviewingAgain(true); goTo(0); }} className="text-[15px] font-bold text-blue-600 hover:underline cursor-pointer">
+          <button type="button" onClick={() => { setReviewingAgain(true); goTo(0); }} className="text-[13.5px] font-bold text-blue-600 hover:underline cursor-pointer">
             Review the flags again
           </button>
         )}
@@ -346,7 +346,7 @@ export function FixFlagsPanel({
     );
   }
 
-  if (!flag || !session) return <div className="py-16 text-center text-[18px] text-slate-500">Loading…</div>;
+  if (!flag || !session) return <div className="py-16 text-center text-[15px] text-slate-500">Loading…</div>;
 
   const problem = describeFlag(result);
   const fields = (result?.fields || []).filter((f) => !onlyDifferent || f.match === false);
@@ -356,7 +356,7 @@ export function FixFlagsPanel({
   return (
     <div key={flag.id} className="animate-in fade-in slide-in-from-right-2 duration-200">
       <div className="flex flex-wrap items-center gap-3.5">
-        <span className="text-[13px] font-extrabold uppercase tracking-wider text-red-700">
+        <span className="text-[12px] font-extrabold uppercase tracking-wider text-red-700">
           Flag {currentIndex + 1} of {flagList.length} · {handledCount} handled
         </span>
         <div className="flex min-w-[120px] flex-1 gap-1.5" aria-hidden="true">
@@ -370,8 +370,8 @@ export function FixFlagsPanel({
         </div>
       </div>
 
-      <h2 className="mt-4 text-[30px] font-extrabold leading-tight tracking-tight text-slate-900 capitalize">{session.patient_first_name} {session.patient_last_name}</h2>
-      <p className="text-[17px] font-semibold text-slate-500">
+      <h2 className="mt-4 text-[24px] font-extrabold leading-tight tracking-tight text-slate-900 capitalize">{session.patient_first_name} {session.patient_last_name}</h2>
+      <p className="text-[15px] font-semibold text-slate-500">
         {longDate(session.service_date)}
         {session.start_time && session.end_time && <> · {formatTime12h(session.start_time)} – {formatTime12h(session.end_time)}</>}
         {' · '}<span className="font-mono">S:{session.status || '-'} {session.type || '-'} L:{session.location || '-'}</span>
@@ -380,14 +380,14 @@ export function FixFlagsPanel({
       <div className={`mt-4 flex items-start gap-3 rounded-2xl border-2 px-4 py-3.5 ${isMissing ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
         <AlertCircle className="mt-0.5 size-5 flex-shrink-0" />
         <div>
-          <div className="text-[17px] font-extrabold">{problem.title}</div>
-          <div className="text-[15px] font-medium text-slate-700">{problem.detail}</div>
+          <div className="text-[15px] font-extrabold">{problem.title}</div>
+          <div className="text-[13.5px] font-medium text-slate-700">{problem.detail}</div>
         </div>
       </div>
 
       {fields.length > 0 && (
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-          <table className="w-full table-fixed text-[16px]">
+          <table className="w-full table-fixed text-[14px]">
             <thead>
               <tr className="bg-slate-50 text-[12.5px] font-extrabold uppercase tracking-wider text-slate-500">
                 <th className="w-[32%] px-4 py-2.5 text-left">Field</th>
@@ -400,9 +400,9 @@ export function FixFlagsPanel({
                 const off = f.match === false;
                 return (
                   <tr key={f.key} className={`border-t border-slate-100 ${off ? 'bg-red-50/70' : ''}`}>
-                    <td className={`px-4 py-2.5 text-[14.5px] font-bold ${off ? 'text-red-700' : 'text-slate-500'}`}>{f.label}</td>
-                    <td className={`px-4 py-2.5 break-words font-mono ${off ? 'text-[17px] font-extrabold text-slate-900' : 'font-medium text-slate-400'}`}>{showValue(f, f.ours)}</td>
-                    <td className={`px-4 py-2.5 break-words font-mono ${off ? 'text-[17px] font-extrabold text-red-700' : 'font-medium text-slate-400'}`}>{showValue(f, f.state)}</td>
+                    <td className={`px-4 py-2.5 text-[13px] font-bold ${off ? 'text-red-700' : 'text-slate-500'}`}>{f.label}</td>
+                    <td className={`px-4 py-2.5 break-words font-mono ${off ? 'text-[15px] font-extrabold text-slate-900' : 'font-medium text-slate-400'}`}>{showValue(f, f.ours)}</td>
+                    <td className={`px-4 py-2.5 break-words font-mono ${off ? 'text-[15px] font-extrabold text-red-700' : 'font-medium text-slate-400'}`}>{showValue(f, f.state)}</td>
                   </tr>
                 );
               })}
@@ -411,16 +411,16 @@ export function FixFlagsPanel({
         </div>
       )}
       {hasSameFields && (result?.fields || []).some((f) => f.match === false) && (
-        <button type="button" onClick={() => setOnlyDifferent((v) => !v)} className="mt-2 text-[14px] font-bold text-blue-600 hover:underline cursor-pointer">
+        <button type="button" onClick={() => setOnlyDifferent((v) => !v)} className="mt-2 text-[13px] font-bold text-blue-600 hover:underline cursor-pointer">
           {onlyDifferent ? 'Show all fields' : 'Show only what\'s different'}
         </button>
       )}
 
       {outcome ? (
-        <div className={`mt-5 flex flex-wrap items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-[17px] font-extrabold ${OUTCOMES[outcome].classes}`}>
+        <div className={`mt-5 flex flex-wrap items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-[15px] font-extrabold ${OUTCOMES[outcome].classes}`}>
           <CheckCircle2 className="size-5" /> {OUTCOMES[outcome].label}
           {(outcome === 'approved' || outcome === 'held') && (
-            <button type="button" onClick={undo} disabled={busy} className="ml-auto inline-flex items-center gap-1.5 text-[15px] font-bold underline cursor-pointer disabled:opacity-50">
+            <button type="button" onClick={undo} disabled={busy} className="ml-auto inline-flex items-center gap-1.5 text-[13.5px] font-bold underline cursor-pointer disabled:opacity-50">
               <Undo2 className="size-4" /> Undo
             </button>
           )}
@@ -439,13 +439,13 @@ export function FixFlagsPanel({
           </div>
 
           {showRemember && (
-            <label className="mt-3 flex items-center gap-2 text-[14.5px] font-semibold text-slate-700 cursor-pointer">
+            <label className="mt-3 flex items-center gap-2 text-[13px] font-semibold text-slate-700 cursor-pointer">
               <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="size-[18px] accent-emerald-600" />
               Also remember this match for future logs (until removed in Compliance Matching)
             </label>
           )}
           {canSendToAdmin && (
-            <button type="button" onClick={sendToAdmin} disabled={busy} className="mt-3 text-[15px] font-bold text-blue-600 hover:underline cursor-pointer disabled:opacity-50">
+            <button type="button" onClick={sendToAdmin} disabled={busy} className="mt-3 text-[13.5px] font-bold text-blue-600 hover:underline cursor-pointer disabled:opacity-50">
               Not sure? Send it to an admin to decide (S)
             </button>
           )}
@@ -453,13 +453,13 @@ export function FixFlagsPanel({
           {note && (
             <div className="mt-4 rounded-2xl border-2 border-slate-300 bg-slate-50 p-4">
               <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                <label htmlFor="fix-flag-note" className="text-[16px] font-extrabold text-slate-900">{NOTE_PROMPTS[note]}</label>
+                <label htmlFor="fix-flag-note" className="text-[14px] font-extrabold text-slate-900">{NOTE_PROMPTS[note]}</label>
                 {noteText && (
-                  <button type="button" onClick={clearNote} className="text-[14px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer">Clear</button>
+                  <button type="button" onClick={clearNote} className="text-[13px] font-bold text-slate-500 hover:text-slate-800 hover:underline cursor-pointer">Clear</button>
                 )}
               </div>
               {noteText && noteText === suggested && (
-                <p className="mb-2 text-[13.5px] font-semibold text-slate-500">Filled in from the flag. Edit it, add to it, or clear it.</p>
+                <p className="mb-2 text-[12.5px] font-semibold text-slate-500">Filled in from the flag. Edit it, add to it, or clear it.</p>
               )}
               <Textarea
                 id="fix-flag-note"
@@ -470,7 +470,7 @@ export function FixFlagsPanel({
                 onFocus={(e) => { const n = e.target.value.length; e.target.setSelectionRange(n, n); }}
                 placeholder="Required"
                 rows={Math.min(8, Math.max(3, noteText.split(/\n/).length + 1))}
-                className="min-h-[84px] bg-white text-[16px] leading-relaxed"
+                className="min-h-[84px] bg-white text-[14px] leading-relaxed"
               />
               <div className="mt-2.5 flex flex-wrap justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setNote(null)} className="cursor-pointer">Cancel</Button>
@@ -486,7 +486,7 @@ export function FixFlagsPanel({
             </div>
           )}
 
-          <p className="mt-4 text-[13px] font-semibold text-slate-400">
+          <p className="mt-4 text-[12px] font-semibold text-slate-400">
             Keys: A approve · R return · H hold{canSendToAdmin ? ' · S send to admin' : ''} · ← → move between flags
           </p>
         </>
