@@ -57,6 +57,7 @@ const MIGRATIONS = [
   'add_records_releases.sql',
   'add_consent_lifecycle.sql',
   'add_date_change_resign.sql',
+  'add_statement_of_disagreement.sql',
 ];
 
 module.exports = { MIGRATIONS };

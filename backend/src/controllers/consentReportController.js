@@ -22,6 +22,8 @@ const { safeFilenamePart } = require('../utils/pdfText');
 const {
   pdfSafeText,
   drawRedisclosureNotice,
+  drawStatementsOfDisagreement,
+  fetchStatementsOfDisagreement,
   drawSessionLogSection,
   appendSevfSection,
   drawBillingSection,
@@ -243,7 +245,7 @@ function makeWriter(pdfDoc, fonts, continuedTitle) {
   return state;
 }
 
-function drawPacketCover(pdfDoc, coverRows, fonts) {
+function drawPacketCover(pdfDoc, coverRows, fonts, statements = []) {
   const w = makeWriter(pdfDoc, fonts, 'Records disclosure packet');
   w.y = PAGE.height - 90;
   w.page.drawText('Records disclosure packet', { x: MARGIN, y: w.y, font: fonts.bold, size: 20, color: DARK });
@@ -262,7 +264,11 @@ function drawPacketCover(pdfDoc, coverRows, fonts) {
   });
   w.y -= 16;
   // Redisclosure notice (34 CFR 99.33 / 303.414) accompanies every disclosure.
-  drawRedisclosureNotice(w.page, w.y, fonts);
+  w.y = drawRedisclosureNotice(w.page, w.y, fonts);
+  // Statement(s) of Disagreement (34 CFR 303.412-413 / FERPA 34 CFR 99.21)
+  // accompany every disclosure of the disputed part of the record, same as
+  // the redisclosure notice above.
+  drawStatementsOfDisagreement(w.page, w.y, fonts, statements);
   return w.page;
 }
 
@@ -351,7 +357,8 @@ async function buildConsentPacketPdf({ patient, consent, recordTypes, generatedB
 
   const scan = await prepareScan(outDoc, consent, fonts);
   const coverConsent = { ...consent, record_types: sections.length ? sections : consent.record_types };
-  drawPacketCover(outDoc, buildCoverRows({ patient, consent: coverConsent, companyName, generatedBy, generatedAt: now }), fonts);
+  const statements = await fetchStatementsOfDisagreement(patient.id);
+  drawPacketCover(outDoc, buildCoverRows({ patient, consent: coverConsent, companyName, generatedBy, generatedAt: now }), fonts, statements);
   await drawConsentCopyPage(outDoc, buildConsentCopy(consent, { grantedByName, scanStatus: scan.status, childName: fullName(patient) }), fonts);
   scan.draw();
 

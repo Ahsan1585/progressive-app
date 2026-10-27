@@ -114,4 +114,50 @@ const decideCorrectionRequest = async (req, res) => {
   }
 };
 
-module.exports = { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest };
+// Parent/guardian's Statement of Disagreement after a denial (34 CFR
+// 303.412-413, modeled on FERPA's 34 CFR 99.21) — staff record it on the
+// parent's behalf, same agency-mediated pattern as createCorrectionRequest.
+// One shot per request: a parent who wants to add more has staff log a new
+// correction request referencing the same session, same reasoning as the
+// migration's comment. patientRecordExportController.js's buildFullRecordPdf
+// renders any recorded statement on every future export of this child's
+// record (full and consent-scoped), so it travels with every disclosure
+// without separate wiring per export type.
+const recordStatementOfDisagreement = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { statementText } = req.body;
+
+    if (!statementText?.trim()) {
+      return res.status(400).json({ error: 'statementText is required.' });
+    }
+
+    const { rows: existing } = await pool.query(
+      'SELECT id, patient_id, status, statement_of_disagreement FROM correction_requests WHERE id = $1',
+      [requestId]
+    );
+    if (!existing[0]) return res.status(404).json({ error: 'Correction request not found' });
+    if (existing[0].status !== 'denied') {
+      return res.status(400).json({ error: 'A statement of disagreement can only be recorded for a denied correction request.' });
+    }
+    if (existing[0].statement_of_disagreement) {
+      return res.status(400).json({ error: 'A statement of disagreement has already been recorded for this request.' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE correction_requests
+       SET statement_of_disagreement = $1, statement_recorded_by = $2, statement_recorded_at = now(), updated_at = now()
+       WHERE id = $3
+       RETURNING *`,
+      [statementText.trim(), req.practitioner.practitionerId, requestId]
+    );
+
+    logAudit({ req, action: 'correction_request_statement_recorded', resourceType: 'patient', resourceId: rows[0].patient_id, details: { correctionRequestId: rows[0].id } });
+    res.json({ success: true, request: rows[0] });
+  } catch (error) {
+    console.error('recordStatementOfDisagreement error:', error);
+    res.status(500).json({ error: 'Failed to record statement of disagreement' });
+  }
+};
+
+module.exports = { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest, recordStatementOfDisagreement };

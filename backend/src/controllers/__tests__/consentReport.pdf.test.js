@@ -23,6 +23,7 @@ function prime(consent, assessments = ASSESSMENTS, patient = { id: 10, first_nam
     if (/FROM patients/.test(sql)) return { rows: [patient] };
     if (/FROM practitioners/.test(sql)) return { rows: [{ id: 3, first_name: 'Olive', last_name: 'Office' }, { id: 7, first_name: 'Sam', last_name: 'Staff' }] };
     if (/FROM assessments/.test(sql)) return { rows: assessments };
+    if (/FROM correction_requests/.test(sql)) return { rows: [] };
     throw new Error(`unexpected query: ${sql}`);
   });
 }

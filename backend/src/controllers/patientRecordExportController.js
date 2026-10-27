@@ -289,7 +289,7 @@ function describeAuditRow(row) {
 // their session logs".
 const describeResource = (resourceType) => (resourceType === 'assessment' ? 'Session log' : "Child's record");
 
-async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
+async function drawCoverPage(pdfDoc, patient, companyName, generatedBy, statements = []) {
   const page = pdfDoc.addPage([PAGE.width, PAGE.height]);
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -332,7 +332,12 @@ async function drawCoverPage(pdfDoc, patient, companyName, generatedBy) {
   // Redisclosure notice (34 CFR 99.33 / 303.414) — must accompany every
   // disclosure of this record.
   y -= 16;
-  drawRedisclosureNotice(page, y, { regular, bold });
+  y = drawRedisclosureNotice(page, y, { regular, bold });
+
+  // Statement(s) of Disagreement (34 CFR 303.412-413 / FERPA 34 CFR
+  // 99.21) — must accompany every disclosure of the disputed part of the
+  // record, same as the redisclosure notice above.
+  drawStatementsOfDisagreement(page, y, { regular, bold }, statements);
 
   return page;
 }
@@ -354,6 +359,49 @@ function drawRedisclosureNotice(page, y, { regular, bold }) {
     yy -= 13;
   });
   return yy;
+}
+
+// Parent/guardian Statements of Disagreement (34 CFR 303.412-413 / FERPA
+// 34 CFR 99.21) that must accompany every disclosure of the disputed part
+// of a record. Drawn right after the redisclosure notice so both
+// confidentiality notices sit together. `statements` is already scoped to
+// one patient_id and already filtered to non-null rows by the caller
+// (fetchStatementsOfDisagreement below). A no-op when there are none, so
+// callers can always call it without an extra guard. Returns the y below
+// whatever it drew (unchanged when there was nothing to draw).
+function drawStatementsOfDisagreement(page, y, { regular, bold }, statements) {
+  if (!statements?.length) return y;
+  statements.forEach((statement) => {
+    const lines = wrapText(statement.statement_of_disagreement, regular, 9.5, CONTENT_WIDTH - 20);
+    const boxH = 22 + lines.length * 13 + 8;
+    y -= 16;
+    page.drawRectangle({
+      x: MARGIN, y: y - boxH + 10, width: CONTENT_WIDTH, height: boxH,
+      borderColor: rgb(0.7, 0.45, 0.2), borderWidth: 0.75, color: rgb(0.995, 0.97, 0.94),
+    });
+    page.drawText('STATEMENT OF DISAGREEMENT (parent/guardian)', { x: MARGIN + 10, y: y - 4, font: bold, size: 9, color: rgb(0.08, 0.1, 0.15) });
+    let yy = y - 20;
+    lines.forEach((line) => {
+      page.drawText(pdfSafeText(line), { x: MARGIN + 10, y: yy, font: regular, size: 9.5, color: rgb(0.08, 0.1, 0.15) });
+      yy -= 13;
+    });
+    y = yy;
+  });
+  return y;
+}
+
+// Fetches every recorded Statement of Disagreement for one child, oldest
+// first (so multiple statements read in the order they were made). Shared
+// by the full export and the consent-scoped disclosure packet.
+async function fetchStatementsOfDisagreement(patientId) {
+  const { rows } = await pool.query(
+    `SELECT statement_of_disagreement, statement_recorded_at
+     FROM correction_requests
+     WHERE patient_id = $1 AND statement_of_disagreement IS NOT NULL
+     ORDER BY statement_recorded_at ASC`,
+    [patientId]
+  );
+  return rows;
 }
 
 function drawTablePage(pdfDoc, { title, cols, rows, fonts, pageLabel }) {
@@ -520,6 +568,7 @@ async function buildFullRecordPdf(patient, requester) {
     `SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date ASC, start_time ASC`,
     [id]
   );
+  const statements = await fetchStatementsOfDisagreement(id);
 
   const outDoc = await PDFDocument.create();
   const regular = await outDoc.embedFont(StandardFonts.Helvetica);
@@ -527,7 +576,7 @@ async function buildFullRecordPdf(patient, requester) {
   const fonts = { regular, bold };
 
   // 1. Cover page
-  await drawCoverPage(outDoc, patient, companyName, requester);
+  await drawCoverPage(outDoc, patient, companyName, requester, statements);
 
   // 2. Session log summary
   drawSessionLogSection(outDoc, assessments, fonts);
@@ -836,6 +885,8 @@ module.exports = {
   pdfSafeText,
   // Shared with consentReportController (the consent-scoped disclosure packet).
   drawRedisclosureNotice,
+  drawStatementsOfDisagreement,
+  fetchStatementsOfDisagreement,
   drawTablePage,
   drawSessionLogSection,
   appendSevfSection,

@@ -65,6 +65,7 @@ describe('buildFullRecordPdf', () => {
     getCompanyName.mockResolvedValue('Acme');
     pool.query
       .mockResolvedValueOnce({ rows: [] }) // assessments
+      .mockResolvedValueOnce({ rows: [] }) // statements of disagreement
       .mockResolvedValueOnce({
         rows: [{
           action: 'sevf_emailed_to_agency', resource_type: 'patient', resource_id: '10', created_at: new Date().toISOString(),
@@ -74,7 +75,7 @@ describe('buildFullRecordPdf', () => {
       .mockResolvedValueOnce({ rows: [] }); // consents on file
     const { pdfBytes } = await buildFullRecordPdf({ id: 10, first_name: 'Timmy', last_name: 'T' }, 'office@x.com');
 
-    const [sql, params] = pool.query.mock.calls[1];
+    const [sql, params] = pool.query.mock.calls[2];
     expect(sql).toMatch(/al\.resource_type = 'patient' AND al\.resource_id = \$1/);
     expect(params[0]).toBe('10');
     expect(logAudit).not.toHaveBeenCalled(); // the caller audits after headers are set
@@ -107,6 +108,7 @@ describe('buildFullRecordPdf consents section', () => {
     getCompanyName.mockResolvedValue('Acme');
     pool.query
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // statements of disagreement
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ recipient_name: 'ABC', purpose: 'Billing', record_types: ['invoices'], source: 'electronic', granted_at: new Date().toISOString(), expires_at: new Date(Date.now() + 1e9).toISOString(), revoked_at: null }] });
     const { pdfBytes } = await buildFullRecordPdf({ id: 10, first_name: 'Timmy', last_name: 'T' }, 'office@x.com');
@@ -143,6 +145,7 @@ describe('free text the WinAnsi PDF font cannot encode (consents + disclosures)'
     getCompanyName.mockResolvedValue('Acme');
     pool.query
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // statements of disagreement
       .mockResolvedValueOnce({
         rows: [{
           action: 'sevf_emailed_to_agency', resource_type: 'patient', resource_id: '10', created_at: new Date().toISOString(),

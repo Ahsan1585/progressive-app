@@ -179,6 +179,8 @@ function CorrectionRequestsDialog({ child, onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [decidingId, setDecidingId] = useState(null);
   const [decisionNotes, setDecisionNotes] = useState({});
+  const [statementDrafts, setStatementDrafts] = useState({});
+  const [recordingStatementId, setRecordingStatementId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -221,6 +223,29 @@ function CorrectionRequestsDialog({ child, onClose }) {
       showAlert(err.response?.data?.error || 'Failed to record decision.');
     } finally {
       setDecidingId(null);
+    }
+  };
+
+  // IDEA Part C 34 CFR 303.412-413 (modeled on FERPA 34 CFR 99.21): after a
+  // denial, the parent/guardian may place a statement of disagreement into
+  // the record. Staff record it on their behalf, one shot per request —
+  // backend/src/controllers/correctionRequestController.js:
+  // recordStatementOfDisagreement.
+  const handleRecordStatement = async (requestId) => {
+    const text = statementDrafts[requestId] || '';
+    if (!text.trim()) {
+      showAlert('Enter the parent/guardian\'s statement of disagreement.');
+      return;
+    }
+    setRecordingStatementId(requestId);
+    try {
+      await api.post(`/api/patients/correction-requests/${requestId}/statement`, { statementText: text.trim() });
+      setStatementDrafts((prev) => ({ ...prev, [requestId]: '' }));
+      load();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Failed to record statement of disagreement.');
+    } finally {
+      setRecordingStatementId(null);
     }
   };
 
@@ -309,6 +334,36 @@ function CorrectionRequestsDialog({ child, onClose }) {
                     {r.reviewed_by_first_name ? ` by ${r.reviewed_by_first_name} ${r.reviewed_by_last_name}` : ''}
                     {r.decision_note ? ` — "${r.decision_note}"` : ''}
                   </div>
+                )}
+                {r.status === 'denied' && (
+                  r.statement_of_disagreement ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[14px] text-amber-900">
+                      <span className="font-semibold">Statement of disagreement on file:</span> "{r.statement_of_disagreement}"
+                      {r.statement_recorded_at && (
+                        <span className="text-amber-700"> — recorded {new Date(r.statement_recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pt-1 border-t border-slate-100 mt-2">
+                      <label className="text-[13px] font-semibold text-slate-600">Parent/guardian's statement of disagreement (optional)</label>
+                      <Textarea
+                        value={statementDrafts[r.id] || ''}
+                        onChange={(e) => setStatementDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                        placeholder="If the parent/guardian wants to put their disagreement in writing, record it here. It will accompany future disclosures of this child's record."
+                        rows={2}
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={recordingStatementId === r.id}
+                          onClick={() => handleRecordStatement(r.id)}
+                        >
+                          {recordingStatementId === r.id ? <Loader2 className="size-3.5 animate-spin" /> : 'Record statement'}
+                        </Button>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             ))
