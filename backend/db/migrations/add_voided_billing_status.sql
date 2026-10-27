@@ -35,6 +35,14 @@
 -- tenant with a row ever written while locked into a report (even
 -- fleetingly) fails this ALTER on deploy. Not a new value being
 -- introduced here, just catching up the constraint to match reality.
+--
+-- Also folds in 'awaiting_resign' (the date-change re-sign flow's hold
+-- status, added by add_date_change_resign.sql, which runs after this file
+-- in MIGRATIONS) for the same reason this file folds in 'voided' and
+-- 'locked_in_report' into the earlier migration: this ALTER narrows the
+-- constraint before that later migration widens it again, so any tenant
+-- with a row already in 'awaiting_resign' from a previous boot would fail
+-- here first.
 
 DO $$
 BEGIN
@@ -48,6 +56,6 @@ BEGIN
       'pending'::text, 'njeis_review'::text, 'invoiced'::text,
       'on_hold'::text, 'rejected'::text, 'declined'::text,
       'self_certified'::text, 'completed'::text, 'voided'::text,
-      'locked_in_report'::text
+      'locked_in_report'::text, 'awaiting_resign'::text
     ]));
 END $$;
