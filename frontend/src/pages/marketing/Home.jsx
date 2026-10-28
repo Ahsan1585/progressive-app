@@ -561,7 +561,7 @@ export default function Home() {
   <section className="tone-light section" id="faq">
     <div className="wrap faq">
       <h2>Early intervention billing FAQ</h2>
-      <details><summary>How do I reconcile service logs with EIMS?<span className="ic"><Ic n="plus" /></span></summary><p>Upload your monthly EIMS service log export. Izaya EIS checks every detail on every session note against it and holds any note that doesn't match until it's fixed or approved.</p></details>
+      <details><summary>How do I reconcile service logs with EIMS?<span className="ic"><Ic n="plus" /></span></summary><p>Izaya EIS checks every detail on every session note against EIMS records and holds any note that doesn't match until it's fixed or approved.</p></details>
       <details><summary>What is an SEVF, and can it be generated automatically?<span className="ic"><Ic n="plus" /></span></summary><p>The SEVF is the NJEIS form an agency submits for a practitioner's sessions. When every session in a practitioner's batch is clean, Izaya EIS generates the SEVF and the invoice automatically. Batches with flagged notes wait for a person to review them.</p></details>
       <details><summary>How do we stop billing errors from reaching the state?<span className="ic"><Ic n="plus" /></span></summary><p>Every session note is compared with EIMS before billing. Mismatches, sessions missing from EIMS and duplicate entries are flagged and held, so they're corrected before the SEVF goes out instead of being found in a later review.</p></details>
       <details><summary>Is this early intervention software only for billing?<span className="ic"><Ic n="plus" /></span></summary><p>No. You also manage practitioners and their caseloads, every child and their care team, child records, consents and records releases, office staff roles and permissions, and an audit trail, all in the same platform.</p></details>
@@ -700,7 +700,7 @@ export default function Home() {
               <div className="sm-session"><b>Oct 8 · 10:00–10:45 AM</b><span>Developmental Intervention · Home</span><em className="sm-chip">Billed</em></div>
               <div className="sm-next">
                 <b><Ic n="sparkles" />What happens next</b>
-                <p>When your office runs billing, this note is compared with your EIMS export. A clean note goes straight onto the SEVF and invoice. One that doesn't match is held for review.</p>
+                <p>When your office runs billing, this note is compared against EIMS. A clean note goes straight onto the SEVF and invoice. One that doesn't match is held for review.</p>
                 <div className="sm-next-actions"><Link className="btn btn-primary btn-sm" data-book="simulator" to="/book?source=simulator">Book a demo</Link><button type="button" className="btn btn-ghost btn-sm" id="simAgain">Log another</button></div>
               </div>
             </div>

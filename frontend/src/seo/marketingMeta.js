@@ -57,7 +57,7 @@ export const MARKETING_META = {
               "name": "How do I reconcile service logs with EIMS?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Upload your monthly EIMS service log export. Izaya EIS checks every detail on every session note against it and holds any note that doesn't match until it's fixed or approved."
+                "text": "Izaya EIS checks every detail on every session note against EIMS records and holds any note that doesn't match until it's fixed or approved."
               }
             },
             {
