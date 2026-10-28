@@ -542,7 +542,15 @@ const getMonthOverview = async (req, res) => {
         discipline: p?.position_title || '',
         sessionsChecked: acc.total,
         cleanMatches: acc.clean,
+        // heldOrReturned is only the on_hold/rejected/declined subset of
+        // what's counting against the score — a still-pending session that's
+        // flagged/mismatched or missing in EIMS also drags accuracyPct down
+        // (see the comment above accuracyByPractitioner) without appearing
+        // in that subset, so the two numbers didn't reconcile under
+        // division. notClean is the true denominator-minus-clean count the
+        // percentage is actually computed from.
         heldOrReturned: acc.held,
+        notClean: acc.total - acc.clean,
         accuracyPct: acc.total > 0 ? Math.round((acc.clean / acc.total) * 1000) / 10 : null,
       };
     }).sort((a, b) => (a.accuracyPct ?? 101) - (b.accuracyPct ?? 101));

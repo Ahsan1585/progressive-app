@@ -199,7 +199,7 @@ const ACCURACY_HEADER_PX = 44;
 
 function PractitionerAccuracyTable({ month }) {
   const rows = month?.practitionerAccuracy || [];
-  const [sortBy, setSortBy] = useState('accuracyPct'); // 'accuracyPct' | 'sessionsChecked' | 'heldOrReturned'
+  const [sortBy, setSortBy] = useState('accuracyPct'); // 'accuracyPct' | 'sessionsChecked' | 'notClean'
   const [sortDir, setSortDir] = useState('asc');
 
   const sorted = [...rows].sort((a, b) => {
@@ -250,7 +250,7 @@ function PractitionerAccuracyTable({ month }) {
                 <th className="text-left text-[14px] font-bold uppercase text-slate-600 px-5 py-2.5">Practitioner</th>
                 <SortHeader label="Accuracy" sortKey="accuracyPct" />
                 <SortHeader label="Checked" sortKey="sessionsChecked" />
-                <SortHeader label="Held / Returned" sortKey="heldOrReturned" />
+                <SortHeader label="Not Clean" sortKey="notClean" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -273,7 +273,7 @@ function PractitionerAccuracyTable({ month }) {
                       </div>
                     </td>
                     <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{r.sessionsChecked}</td>
-                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{r.heldOrReturned}</td>
+                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{r.notClean}</td>
                   </tr>
                 );
               })}
