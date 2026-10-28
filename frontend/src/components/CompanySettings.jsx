@@ -275,7 +275,26 @@ export const CompanySettings = ({ onSettingsChange }) => {
       // though `mapping` still remembers their column for the toggle.
       const effectiveMapping = { ...mapping };
       for (const key of disabledFields) effectiveMapping[key] = '';
-      const response = await api.post('/api/company/compliance-doc/apply-mapping', { mapping: effectiveMapping, customFields: cleanCustomFields });
+      const payload = { mapping: effectiveMapping, customFields: cleanCustomFields };
+
+      // Preview which calendar months this file will replace, and how much
+      // is on file for each today, before committing — a file that covers
+      // (or, due to a stray date, appears to cover) more months than
+      // expected should never silently wipe existing data with no warning.
+      const preview = await api.post('/api/company/compliance-doc/apply-mapping?preview=true', payload);
+      const { monthsAffected } = preview.data;
+      const monthsWithExisting = (monthsAffected || []).filter((m) => m.existingRecordCount > 0);
+      if (monthsWithExisting.length > 0) {
+        const label = (m) => new Date(`${m.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const lines = monthsWithExisting.map((m) => `• ${label(m)} — ${m.existingRecordCount} record${m.existingRecordCount === 1 ? '' : 's'} currently on file will be replaced`).join('\n');
+        const proceed = await showConfirm(`This file covers ${monthsAffected.length} month${monthsAffected.length === 1 ? '' : 's'}. Confirming will replace:\n\n${lines}\n\nIf this looks wider than expected, cancel and check the file before confirming.`);
+        if (!proceed) {
+          setIsApplyingMapping(false);
+          return;
+        }
+      }
+
+      const response = await api.post('/api/company/compliance-doc/apply-mapping', payload);
       const { rowsParsed, matchedPatients, unmatchedCount } = response.data;
       setToast({
         type: 'success',

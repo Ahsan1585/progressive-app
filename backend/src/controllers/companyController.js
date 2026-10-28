@@ -543,20 +543,54 @@ const applyComplianceDocMapping = async (req, res) => {
 
     // Uploads happen roughly monthly, and a biller may still be reviewing an
     // older still-open billing period — so a new upload must ADD its
-    // coverage rather than wiping the whole table. Only this file's own
-    // date range gets cleared (avoids duplicates if the same month is
-    // re-uploaded). No retention purge — every month ever uploaded stays on
-    // file indefinitely, so compliance analysis can be run against any past
-    // month, not just a rolling recent window.
-    const serviceDates = parsedRows.map((r) => r[8]).filter(Boolean);
-    const minDate = serviceDates.length ? serviceDates.reduce((a, b) => (a < b ? a : b)) : null;
-    const maxDate = serviceDates.length ? serviceDates.reduce((a, b) => (a > b ? a : b)) : null;
+    // coverage rather than wiping the whole table. Only the CALENDAR MONTHS
+    // actually present in this file's rows get cleared (avoids duplicates if
+    // the same month is re-uploaded), matching deleteComplianceMonthData's
+    // own month-scoped delete exactly. Deliberately NOT a MIN(date)..MAX(date)
+    // range delete (a prior version of this code did that): a single stray
+    // or misread date anywhere in the uploaded file would silently widen
+    // that range across unrelated months and delete data the file never
+    // touched — this bucket-by-month approach means a bad row can only ever
+    // cost the one month it claims to be in. No retention purge — every
+    // month ever uploaded stays on file indefinitely, so compliance analysis
+    // can be run against any past month, not just a rolling recent window.
+    const monthsInFile = new Set(parsedRows.map((r) => r[8]).filter(Boolean).map((d) => d.slice(0, 7)));
+
+    // Preview mode: tells the caller exactly which months this file will
+    // replace, and how many records are on file for each today, WITHOUT
+    // writing anything — lets the frontend show a confirmation ("This will
+    // replace: January 2026 (312 records on file today)") before the user
+    // commits to a destructive month-scoped delete. Added after a real
+    // incident where a re-uploaded file covered more months than the user
+    // intended and the existing data for those months was gone with no
+    // warning.
+    if (req.query.preview === 'true') {
+      const monthList = [...monthsInFile].sort();
+      const { rows: existingCounts } = monthList.length
+        ? await pool.query(
+            `SELECT to_char(service_date, 'YYYY-MM') AS month, COUNT(*)::int AS record_count
+             FROM compliance_state_logs WHERE to_char(service_date, 'YYYY-MM') = ANY($1::text[])
+             GROUP BY to_char(service_date, 'YYYY-MM')`,
+            [monthList]
+          )
+        : { rows: [] };
+      const countsByMonth = new Map(existingCounts.map((r) => [r.month, r.record_count]));
+      return res.json({
+        success: true,
+        preview: true,
+        rowsParsed: parsedRows.length,
+        monthsAffected: monthList.map((month) => ({ month, existingRecordCount: countsByMonth.get(month) || 0 })),
+      });
+    }
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      if (minDate && maxDate) {
-        await client.query('DELETE FROM compliance_state_logs WHERE service_date BETWEEN $1 AND $2', [minDate, maxDate]);
+      if (monthsInFile.size) {
+        await client.query(
+          `DELETE FROM compliance_state_logs WHERE to_char(service_date, 'YYYY-MM') = ANY($1::text[])`,
+          [[...monthsInFile]]
+        );
       }
       for (const row of parsedRows) {
         await client.query(
