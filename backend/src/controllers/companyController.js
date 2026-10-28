@@ -224,6 +224,17 @@ function excelTimeToHHMM(value) {
 // text date in 'YYYY-MM-DD' or 'MM/DD/YYYY' form — deliberately NOT
 // anything looser (no bare "1/6/26", no month names), since a wrong guess
 // here silently corrupts a service date instead of just dropping the row.
+//
+// Found later the same day: the MM/DD/YYYY branch matched "13/1/2026" (a
+// typo — someone meant day/month order) and produced "2026-13-01", a
+// string that passed the regex but isn't a real date. Postgres rejected it
+// at INSERT, which failed the whole transaction and rolled back every row
+// in the file, including the hundreds of genuinely valid ones — a single
+// bad cell took down the entire upload instead of just being skipped like
+// every other unreadable date. Validates the month/day actually form a
+// real calendar date (via a real Date round-trip) before accepting either
+// text format, so a bad value is skipped, never silently turned into
+// something the database will throw on days later.
 function excelDateToISO(value) {
   if (value == null) return null;
   if (value instanceof Date) {
@@ -231,11 +242,23 @@ function excelDateToISO(value) {
   }
   if (typeof value === 'string') {
     const isoMatch = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-    const usMatch = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (usMatch) return `${usMatch[3]}-${usMatch[1].padStart(2, '0')}-${usMatch[2].padStart(2, '0')}`;
+    const usMatch = !isoMatch && value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const [year, month, day] = isoMatch
+      ? [isoMatch[1], isoMatch[2], isoMatch[3]]
+      : usMatch
+        ? [usMatch[3], usMatch[1].padStart(2, '0'), usMatch[2].padStart(2, '0')]
+        : [];
+    if (year && isValidCalendarDate(year, month, day)) return `${year}-${month}-${day}`;
   }
   return null;
+}
+
+// True only for a year/month/day that round-trips through a real Date —
+// rejects "2026-13-01" (no 13th month), "2026-02-30" (no Feb 30th), etc.,
+// rather than trusting the regex alone.
+function isValidCalendarDate(year, month, day) {
+  const d = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return d.getUTCFullYear() === Number(year) && d.getUTCMonth() === Number(month) - 1 && d.getUTCDate() === Number(day);
 }
 
 // State exports don't guarantee identical Child ID formatting run to run

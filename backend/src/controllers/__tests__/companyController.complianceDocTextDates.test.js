@@ -103,6 +103,29 @@ test('a genuinely unreadable date is still skipped, but now counted and reported
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ rowsParsed: 1, skippedUnreadableDate: 2 }));
 });
 
+test('a bad day/month typo like "13/1/2026" is skipped, not turned into an invalid date that crashes the whole upload', async () => {
+  // Real incident: "13/1/2026" (day/month order, meant Jan 13) matched the
+  // old MM/DD/YYYY regex as month=13, producing "2026-13-01" — Postgres
+  // rejected that at INSERT and rolled back every row in the file,
+  // including hundreds of valid ones. Must now just skip this one row.
+  const buffer = await buildWorkbook([
+    ['C100', new Date('2026-01-10')],
+    ['C100', '13/1/2026'],
+    ['C100', '2026-02-30'], // also not a real date (Feb has no 30th)
+  ]);
+  downloadFile.mockResolvedValue(buffer);
+  primeSettings();
+  const client = mockTransactionClient();
+
+  const res = mockRes();
+  await applyComplianceDocMapping(req(), res);
+  expect(res.status).not.toHaveBeenCalledWith(500);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, rowsParsed: 1, skippedUnreadableDate: 2 }));
+  // The one valid row still inserted — not rolled back.
+  const insertCalls = client.query.mock.calls.filter(([sql]) => /INSERT INTO compliance_state_logs/.test(sql));
+  expect(insertCalls).toHaveLength(1);
+});
+
 test('a row with a valid date but no Child ID is counted separately from an unreadable date', async () => {
   const buffer = await buildWorkbook([['', '2026-01-06']]);
   downloadFile.mockResolvedValue(buffer);
