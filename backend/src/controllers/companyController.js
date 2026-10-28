@@ -206,10 +206,29 @@ function findHeaderRow(sheet) {
 // round-trip with a 1-hour Service Time duration only when read via
 // getUTCHours/getUTCMinutes — reading via local-timezone getters shifts the
 // value by the runtime's UTC offset and silently corrupts every time).
+//
+// Same class of bug as excelDateToISO's text-date fallback (found the same
+// day): a re-saved/edited workbook can lose real time formatting too and
+// store Start/End Time as plain text ("15:40") instead of a time cell —
+// every one of those rows silently lost its times (defaulting to blank)
+// with no warning, since Start/End Time aren't required fields so the row
+// itself was never dropped or flagged, just missing its times. Accepts
+// 24-hour "HH:MM" text as a fallback, validated so "25:99" or similar
+// can't produce something downstream treats as real.
 function excelTimeToHHMM(value) {
   if (value == null) return null;
   if (value instanceof Date) {
     return `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      }
+    }
   }
   return null;
 }
