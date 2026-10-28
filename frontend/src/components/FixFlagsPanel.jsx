@@ -20,6 +20,7 @@ const OUTCOMES = {
   held: { label: 'On hold', classes: 'bg-violet-50 text-violet-700 border-violet-200' },
   rejected: { label: 'Rejected', classes: 'bg-red-50 text-red-700 border-red-200' },
   with_admin: { label: 'Sent to admin', classes: 'bg-blue-50 text-blue-700 border-blue-200' },
+  resolved: { label: 'Already resolved', classes: 'bg-slate-50 text-slate-600 border-slate-200' },
 };
 const NOTE_PROMPTS = {
   return: 'What should the practitioner fix?',
@@ -140,9 +141,15 @@ export function FixFlagsPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysis, sessions.length]);
 
+  // A flag whose session has dropped out of the live list (e.g. rejected a
+  // second time and reconciled, so getPractitionerLogs stops returning it)
+  // is resolved, not stuck — without this, isHandled never returns true for
+  // it, allHandled never fires, and the panel is stuck rendering the dead
+  // "Loading…" fallback below with no way to advance past it.
   const outcomeOf = (flag) => {
     const s = sessionsById.get(flag.id);
-    return s ? flagOutcome(s, results[flag.id], logActions) : null;
+    if (!s) return 'resolved';
+    return flagOutcome(s, results[flag.id], logActions);
   };
   const isHandled = (flag) => !!outcomeOf(flag);
   const handledCount = flagList.filter(isHandled).length;
