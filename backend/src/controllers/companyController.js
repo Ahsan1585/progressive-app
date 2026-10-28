@@ -522,14 +522,20 @@ const applyComplianceDocMapping = async (req, res) => {
     }
 
     const parsedRows = [];
-    // Counts rows dropped for missing/unreadable required fields, broken
-    // down by cause, so a file that's mostly or entirely unusable (e.g. a
-    // re-saved file that lost its real date formatting) is visible in the
-    // response instead of silently returning a tiny rowsParsed with no
-    // explanation — see excelDateToISO's comment for the incident that
-    // prompted this.
+    // Tracks which rows were dropped for missing/unreadable required fields,
+    // and why, so a file that's mostly or entirely unusable (e.g. a
+    // re-saved file that lost its real date formatting, or one row with a
+    // typo'd date) is visible in the response instead of silently returning
+    // a tiny rowsParsed with no explanation — see excelDateToISO's comment
+    // for the incident that prompted this. `r` is the row's actual Excel
+    // row number (1-indexed, same numbering the user sees with the sheet
+    // open), capped so a file with hundreds of bad rows doesn't blow up the
+    // response — the count (skippedMissingChildId/skippedUnreadableDate)
+    // stays exact even past the cap, only the example list is capped.
+    const MAX_SKIPPED_ROW_EXAMPLES = 25;
     let skippedMissingChildId = 0;
     let skippedUnreadableDate = 0;
+    const skippedRowExamples = [];
     for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
       const row = sheet.getRow(r);
       const get = (key) => (colIndex[key] ? row.getCell(colIndex[key]).value : null);
@@ -537,8 +543,12 @@ const applyComplianceDocMapping = async (req, res) => {
       const rawServiceDate = colIndex.service_date ? get('service_date') : null;
       const serviceDate = colIndex.service_date ? excelDateToISO(rawServiceDate) : null;
       if (!childId || !serviceDate) {
-        if (rawServiceDate != null && !serviceDate) skippedUnreadableDate++;
-        else if (!childId) skippedMissingChildId++;
+        const reason = rawServiceDate != null && !serviceDate ? 'unreadable_date' : 'missing_child_id';
+        if (reason === 'unreadable_date') skippedUnreadableDate++;
+        else skippedMissingChildId++;
+        if (skippedRowExamples.length < MAX_SKIPPED_ROW_EXAMPLES) {
+          skippedRowExamples.push({ row: r, reason, value: reason === 'unreadable_date' ? cellToText(rawServiceDate) ?? String(rawServiceDate) : null });
+        }
         continue; // rows missing either required field aren't usable for matching
       }
 
@@ -633,6 +643,7 @@ const applyComplianceDocMapping = async (req, res) => {
         rowsParsed: parsedRows.length,
         skippedMissingChildId,
         skippedUnreadableDate,
+        skippedRowExamples,
         monthsAffected: monthList.map((month) => ({ month, existingRecordCount: countsByMonth.get(month) || 0 })),
       });
     }
@@ -687,6 +698,7 @@ const applyComplianceDocMapping = async (req, res) => {
       unmatchedCount: parsedRows.length - matchedPatients,
       skippedMissingChildId,
       skippedUnreadableDate,
+      skippedRowExamples,
     });
   } catch (error) {
     console.error('Error applying compliance document mapping:', error);

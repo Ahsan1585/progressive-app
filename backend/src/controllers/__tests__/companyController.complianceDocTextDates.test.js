@@ -149,3 +149,23 @@ test('preview mode also reports skipped-row counts', async () => {
   await applyComplianceDocMapping(req({ query: { preview: 'true' } }), res);
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ preview: true, rowsParsed: 1, skippedUnreadableDate: 1 }));
 });
+
+test('skippedRowExamples names the actual Excel row number and reason for each skipped row', async () => {
+  // Row numbering: header is row 1, so the first data row is row 2.
+  const buffer = await buildWorkbook([
+    ['C100', new Date('2026-01-10')],  // row 2: kept
+    ['', '2026-01-11'],                // row 3: missing Child ID
+    ['C100', '13/1/2026'],             // row 4: unreadable date
+  ]);
+  downloadFile.mockResolvedValue(buffer);
+  primeSettings();
+  mockTransactionClient();
+
+  const res = mockRes();
+  await applyComplianceDocMapping(req(), res);
+  const payload = res.json.mock.calls[0][0];
+  expect(payload.skippedRowExamples).toEqual(expect.arrayContaining([
+    { row: 3, reason: 'missing_child_id', value: null },
+    { row: 4, reason: 'unreadable_date', value: '13/1/2026' },
+  ]));
+});

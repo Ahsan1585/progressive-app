@@ -282,18 +282,27 @@ export const CompanySettings = ({ onSettingsChange }) => {
       // (or, due to a stray date, appears to cover) more months than
       // expected should never silently wipe existing data with no warning.
       const preview = await api.post('/api/company/compliance-doc/apply-mapping?preview=true', payload);
-      const { monthsAffected, rowsParsed: previewRowsParsed, skippedMissingChildId, skippedUnreadableDate } = preview.data;
+      const { monthsAffected, rowsParsed: previewRowsParsed, skippedMissingChildId, skippedUnreadableDate, skippedRowExamples } = preview.data;
       const totalSkipped = (skippedMissingChildId || 0) + (skippedUnreadableDate || 0);
 
       // A file where most/all rows were skipped (commonly: Service Date
       // saved as plain text instead of a real Excel date after a re-save or
       // edit) used to silently produce a tiny rowsParsed with no
-      // explanation — surface it clearly before anything is written.
+      // explanation — surface it clearly before anything is written, and
+      // name the actual Excel row numbers (same numbering the file shows
+      // when open) so the user can go straight to the bad cell instead of
+      // hunting for it.
       if (totalSkipped > 0) {
         const reasons = [];
         if (skippedUnreadableDate > 0) reasons.push(`${skippedUnreadableDate} row${skippedUnreadableDate === 1 ? '' : 's'} had a Service Date we couldn't read (expected a real date, or text in YYYY-MM-DD or MM/DD/YYYY form)`);
         if (skippedMissingChildId > 0) reasons.push(`${skippedMissingChildId} row${skippedMissingChildId === 1 ? '' : 's'} had no Child ID`);
-        const proceed = await showConfirm(`Only ${previewRowsParsed} row${previewRowsParsed === 1 ? '' : 's'} in this file could be used — ${reasons.join('; ')}.\n\nIf this file should have had far more usable rows, cancel and check its Service Date column before confirming.`);
+        const exampleLines = (skippedRowExamples || []).map((ex) =>
+          `• Row ${ex.row}: ${ex.reason === 'unreadable_date' ? `unreadable date "${ex.value}"` : 'no Child ID'}`
+        );
+        const shownCount = skippedRowExamples?.length || 0;
+        const moreNote = totalSkipped > shownCount ? `\n…and ${totalSkipped - shownCount} more` : '';
+        const rowList = exampleLines.length ? `\n\n${exampleLines.join('\n')}${moreNote}` : '';
+        const proceed = await showConfirm(`Only ${previewRowsParsed} row${previewRowsParsed === 1 ? '' : 's'} in this file could be used — ${reasons.join('; ')}.${rowList}\n\nIf this file should have had far more usable rows, cancel and check these rows before confirming.`);
         if (!proceed) {
           setIsApplyingMapping(false);
           return;
