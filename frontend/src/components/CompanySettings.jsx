@@ -282,7 +282,24 @@ export const CompanySettings = ({ onSettingsChange }) => {
       // (or, due to a stray date, appears to cover) more months than
       // expected should never silently wipe existing data with no warning.
       const preview = await api.post('/api/company/compliance-doc/apply-mapping?preview=true', payload);
-      const { monthsAffected } = preview.data;
+      const { monthsAffected, rowsParsed: previewRowsParsed, skippedMissingChildId, skippedUnreadableDate } = preview.data;
+      const totalSkipped = (skippedMissingChildId || 0) + (skippedUnreadableDate || 0);
+
+      // A file where most/all rows were skipped (commonly: Service Date
+      // saved as plain text instead of a real Excel date after a re-save or
+      // edit) used to silently produce a tiny rowsParsed with no
+      // explanation — surface it clearly before anything is written.
+      if (totalSkipped > 0) {
+        const reasons = [];
+        if (skippedUnreadableDate > 0) reasons.push(`${skippedUnreadableDate} row${skippedUnreadableDate === 1 ? '' : 's'} had a Service Date we couldn't read (expected a real date, or text in YYYY-MM-DD or MM/DD/YYYY form)`);
+        if (skippedMissingChildId > 0) reasons.push(`${skippedMissingChildId} row${skippedMissingChildId === 1 ? '' : 's'} had no Child ID`);
+        const proceed = await showConfirm(`Only ${previewRowsParsed} row${previewRowsParsed === 1 ? '' : 's'} in this file could be used — ${reasons.join('; ')}.\n\nIf this file should have had far more usable rows, cancel and check its Service Date column before confirming.`);
+        if (!proceed) {
+          setIsApplyingMapping(false);
+          return;
+        }
+      }
+
       const monthsWithExisting = (monthsAffected || []).filter((m) => m.existingRecordCount > 0);
       if (monthsWithExisting.length > 0) {
         const label = (m) => new Date(`${m.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -295,10 +312,11 @@ export const CompanySettings = ({ onSettingsChange }) => {
       }
 
       const response = await api.post('/api/company/compliance-doc/apply-mapping', payload);
-      const { rowsParsed, matchedPatients, unmatchedCount } = response.data;
+      const { rowsParsed, matchedPatients, unmatchedCount, skippedMissingChildId: finalSkippedChildId, skippedUnreadableDate: finalSkippedDate } = response.data;
+      const finalTotalSkipped = (finalSkippedChildId || 0) + (finalSkippedDate || 0);
       setToast({
         type: 'success',
-        message: `Compliance data updated: ${rowsParsed} state row${rowsParsed === 1 ? '' : 's'} parsed, ${matchedPatients} matched to a patient in our system${unmatchedCount > 0 ? `, ${unmatchedCount} unmatched (Child ID not found)` : ''}.`,
+        message: `Compliance data updated: ${rowsParsed} state row${rowsParsed === 1 ? '' : 's'} parsed, ${matchedPatients} matched to a patient in our system${unmatchedCount > 0 ? `, ${unmatchedCount} unmatched (Child ID not found)` : ''}${finalTotalSkipped > 0 ? `, ${finalTotalSkipped} row${finalTotalSkipped === 1 ? '' : 's'} skipped (unreadable date or missing Child ID)` : ''}.`,
       });
       setMappingInfo(null);
       fetchSettings();

@@ -214,10 +214,26 @@ function excelTimeToHHMM(value) {
   return null;
 }
 
+// Found 2026-10-28: a re-saved/edited compliance workbook can lose its real
+// Excel date formatting and store Service Date as plain text instead (e.g.
+// "2026-01-06") — this happened to an uploaded file where 485 of 488 rows
+// had a text date, and every one of them was silently dropped by the
+// required-field check in applyComplianceDocMapping before this fallback
+// existed, with no warning that almost the whole file had been skipped.
+// Accepts a real Excel date cell (unchanged, preferred) OR an unambiguous
+// text date in 'YYYY-MM-DD' or 'MM/DD/YYYY' form — deliberately NOT
+// anything looser (no bare "1/6/26", no month names), since a wrong guess
+// here silently corrupts a service date instead of just dropping the row.
 function excelDateToISO(value) {
   if (value == null) return null;
   if (value instanceof Date) {
     return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+  }
+  if (typeof value === 'string') {
+    const isoMatch = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    const usMatch = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (usMatch) return `${usMatch[3]}-${usMatch[1].padStart(2, '0')}-${usMatch[2].padStart(2, '0')}`;
   }
   return null;
 }
@@ -483,12 +499,25 @@ const applyComplianceDocMapping = async (req, res) => {
     }
 
     const parsedRows = [];
+    // Counts rows dropped for missing/unreadable required fields, broken
+    // down by cause, so a file that's mostly or entirely unusable (e.g. a
+    // re-saved file that lost its real date formatting) is visible in the
+    // response instead of silently returning a tiny rowsParsed with no
+    // explanation — see excelDateToISO's comment for the incident that
+    // prompted this.
+    let skippedMissingChildId = 0;
+    let skippedUnreadableDate = 0;
     for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
       const row = sheet.getRow(r);
       const get = (key) => (colIndex[key] ? row.getCell(colIndex[key]).value : null);
       const childId = colIndex.child_id ? cellToText(get('child_id')) : null;
-      const serviceDate = colIndex.service_date ? excelDateToISO(get('service_date')) : null;
-      if (!childId || !serviceDate) continue; // rows missing either required field aren't usable for matching
+      const rawServiceDate = colIndex.service_date ? get('service_date') : null;
+      const serviceDate = colIndex.service_date ? excelDateToISO(rawServiceDate) : null;
+      if (!childId || !serviceDate) {
+        if (rawServiceDate != null && !serviceDate) skippedUnreadableDate++;
+        else if (!childId) skippedMissingChildId++;
+        continue; // rows missing either required field aren't usable for matching
+      }
 
       const serviceLabel = cellToText(get('service_label'));
       const locationLabel = cellToText(get('location_label'));
@@ -579,6 +608,8 @@ const applyComplianceDocMapping = async (req, res) => {
         success: true,
         preview: true,
         rowsParsed: parsedRows.length,
+        skippedMissingChildId,
+        skippedUnreadableDate,
         monthsAffected: monthList.map((month) => ({ month, existingRecordCount: countsByMonth.get(month) || 0 })),
       });
     }
@@ -624,13 +655,15 @@ const applyComplianceDocMapping = async (req, res) => {
     const matchedPatients = parsedRows.filter((r) => r[0] !== null).length;
     logAudit({
       req, action: 'compliance_doc_apply_mapping', resourceType: 'compliance_doc', resourceId: path,
-      details: { rowsParsed: parsedRows.length, matchedPatients },
+      details: { rowsParsed: parsedRows.length, matchedPatients, skippedMissingChildId, skippedUnreadableDate },
     });
     res.json({
       success: true,
       rowsParsed: parsedRows.length,
       matchedPatients,
       unmatchedCount: parsedRows.length - matchedPatients,
+      skippedMissingChildId,
+      skippedUnreadableDate,
     });
   } catch (error) {
     console.error('Error applying compliance document mapping:', error);
