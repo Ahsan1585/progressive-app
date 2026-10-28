@@ -192,7 +192,17 @@ export const MasterReports = () => {
     }
   };
 
-  const handleGenerateReportPDF = async () => {
+  // Multi-child redaction (34 CFR 303.408): singleChildMode is only offered
+  // when the currently-loaded rows already resolve to exactly one child —
+  // the server re-checks this against the actual rows regardless (never
+  // trusts the client), but there's no point offering the button otherwise.
+  const singleChildPatientId = (() => {
+    if (!logs || logs.length === 0) return null;
+    const ids = new Set(logs.map((l) => l.patient_id));
+    return ids.size === 1 ? [...ids][0] : null;
+  })();
+
+  const handleGenerateReportPDF = async (singleChildMode = false) => {
     if (!logs || logs.length === 0) return;
     setIsGeneratingPDF(true);
     try {
@@ -203,11 +213,11 @@ export const MasterReports = () => {
         endDate:            dateRange.end || null,
         billingStatus:      billingStatus !== 'all' ? billingStatus : null,
       };
-      const response = await api.post('/api/reports/audit-report-pdf', { logs, filters }, { responseType: 'blob' });
+      const response = await api.post('/api/reports/audit-report-pdf', { logs, filters, singleChildMode }, { responseType: 'blob' });
       const url  = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `audit-report-${new Date().toISOString().slice(0,10)}.pdf`);
+      link.setAttribute('download', `${singleChildMode ? 'single-child-' : ''}audit-report-${new Date().toISOString().slice(0,10)}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -220,7 +230,7 @@ export const MasterReports = () => {
     }
   };
 
-  const handleGenerateReportExcel = async () => {
+  const handleGenerateReportExcel = async (singleChildMode = false) => {
     if (!logs || logs.length === 0) return;
     setIsGeneratingExcel(true);
     try {
@@ -232,11 +242,11 @@ export const MasterReports = () => {
         billingStatus:      billingStatus !== 'all' ? billingStatus : null,
         compliance:         activeModule === 'compliance',
       };
-      const response = await api.post('/api/reports/audit-report-excel', { logs, filters }, { responseType: 'blob' });
+      const response = await api.post('/api/reports/audit-report-excel', { logs, filters, singleChildMode }, { responseType: 'blob' });
       const url  = window.URL.createObjectURL(new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `audit-report-${new Date().toISOString().slice(0,10)}.xlsx`);
+      link.setAttribute('download', `${singleChildMode ? 'single-child-' : ''}audit-report-${new Date().toISOString().slice(0,10)}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -713,14 +723,28 @@ export const MasterReports = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onSelect={handleGenerateReportPDF}>
+                    <DropdownMenuItem onSelect={() => handleGenerateReportPDF(false)}>
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       Export as PDF
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={handleGenerateReportExcel}>
+                    <DropdownMenuItem onSelect={() => handleGenerateReportExcel(false)}>
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v18M4 8h16M4 16h16M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" /></svg>
                       Export as Excel
                     </DropdownMenuItem>
+                    {singleChildPatientId && (
+                      <>
+                        <div className="my-1 border-t border-slate-100" />
+                        <div className="px-2 py-1 text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">For parent inspection</div>
+                        <DropdownMenuItem onSelect={() => handleGenerateReportPDF(true)}>
+                          <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Single-child PDF (this child only)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleGenerateReportExcel(true)}>
+                          <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Single-child Excel (this child only)
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button

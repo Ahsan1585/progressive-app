@@ -17,6 +17,27 @@ const crypto = require('crypto');
 const { logAudit } = require('../utils/auditLog');
 const { formatTime12h } = require('../utils/formatting');
 
+// Multi-child redaction (34 CFR 303.408): Master Reports' audit PDF/Excel
+// are internal, multi-child documents by default — one row per logged
+// session across every child a search matches. `singleChildMode` is an
+// opt-in guarantee for the real-world case of handing one child's report to
+// that child's parent (e.g. a records inspection meeting): it is checked
+// server-side against the actual rows, never trusted from the client's
+// search filter alone, since a filter like a surname search can still match
+// more than one child. Returns an error string when the rows don't satisfy
+// the guarantee, or null when they do and `singleChildMode` was requested
+// (the caller then also knows to draw the "safe for parent inspection"
+// badge).
+function singleChildModeError(logs, singleChildMode) {
+  if (!singleChildMode) return null;
+  if (!logs.length) return 'No records to include.';
+  const patientIds = new Set(logs.map((l) => l.patient_id));
+  if (patientIds.size > 1) return 'Single-child mode requires every record to be for one child — this selection spans more than one.';
+  return null;
+}
+
+const SINGLE_CHILD_BADGE = 'SINGLE-CHILD REPORT — SAFE FOR PARENT INSPECTION';
+
 // 1. Logic to generate the Master Report
 const generateMasterReport = async (req, res) => {
   const { practitionerId, targetMonth, targetYear } = req.body;
@@ -428,8 +449,10 @@ const generateAuditNJEIS = async (req, res) => {
 
 // 5. Generate a printable PDF summary report via Puppeteer (logs passed from frontend)
 const generateAuditReportPDF = async (req, res) => {
-  const { logs, filters } = req.body;
+  const { logs, filters, singleChildMode } = req.body;
   if (!logs || !Array.isArray(logs)) return res.status(400).json({ error: 'logs array required' });
+  const scmError = singleChildModeError(logs, singleChildMode);
+  if (scmError) return res.status(400).json({ error: scmError });
 
   const totalHours = (logs.reduce((sum, l) => sum + (l.total_time || 0), 0) / 60).toFixed(1);
   const uniqueChildren = new Set(logs.map(l => l.patient_id || `${l.patient_first_name}_${l.patient_last_name}`)).size;
@@ -519,6 +542,14 @@ const generateAuditReportPDF = async (req, res) => {
   page.drawLine({ start: { x: margin, y }, end: { x: pageSize.width - margin, y }, thickness: 1.5, color: black });
   y -= 16;
 
+  // ── Single-child badge (34 CFR 303.408) ──
+  if (singleChildMode) {
+    const badgeH = 18;
+    page.drawRectangle({ x: margin, y: y - badgeH, width: contentWidth, height: badgeH, color: rgb(0.925, 0.973, 0.953), borderColor: rgb(0.1, 0.55, 0.4), borderWidth: 0.75 });
+    page.drawText(SINGLE_CHILD_BADGE, { x: margin + 6, y: y - badgeH + 6, font: bold, size: 8, color: rgb(0.03, 0.4, 0.3) });
+    y -= badgeH + 12;
+  }
+
   // ── Filter line ──
   if (filterLine) {
     const filterBoxH = 18;
@@ -585,7 +616,7 @@ const generateAuditReportPDF = async (req, res) => {
 
   const pdfBytes = await pdfDoc.save();
 
-  logAudit({ req, action: 'audit_report_pdf_download', resourceType: 'audit_report', details: { filters, logCount: logs.length } });
+  logAudit({ req, action: 'audit_report_pdf_download', resourceType: 'audit_report', details: { filters, logCount: logs.length, singleChildMode: !!singleChildMode } });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="audit-report-${ts()}.pdf"`);
   res.send(Buffer.from(pdfBytes));
@@ -775,8 +806,10 @@ const generateSessionAuditLogPDF = async (req, res) => {
 
 // 6. Generate an Excel (.xlsx) summary report from the same audit query results (logs passed from frontend)
 const generateAuditReportExcel = async (req, res) => {
-  const { logs, filters } = req.body;
+  const { logs, filters, singleChildMode } = req.body;
   if (!logs || !Array.isArray(logs)) return res.status(400).json({ error: 'logs array required' });
+  const scmError = singleChildModeError(logs, singleChildMode);
+  if (scmError) return res.status(400).json({ error: scmError });
 
   try {
     const statusLabel = { pending: 'Pending', njeis_review: 'In Review', invoiced: 'Invoiced', declined: 'Rejected', rejected: 'Returned' };
@@ -821,6 +854,16 @@ const generateAuditReportExcel = async (req, res) => {
     metaCell.value = `Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}   |   ${logs.length} records`;
     metaCell.font = { size: 9, color: { argb: 'FF6B7280' } };
     rowCursor++;
+
+    // Single-child badge (34 CFR 303.408) — same guarantee as the PDF path.
+    if (singleChildMode) {
+      sheet.mergeCells(rowCursor, 1, rowCursor, columns.length);
+      const badgeCell = sheet.getCell(rowCursor, 1);
+      badgeCell.value = SINGLE_CHILD_BADGE;
+      badgeCell.font = { bold: true, size: 9, color: { argb: 'FF076B4F' } };
+      badgeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECF9F2' } };
+      rowCursor++;
+    }
 
     if (filterLine) {
       sheet.mergeCells(rowCursor, 1, rowCursor, columns.length);
@@ -869,7 +912,7 @@ const generateAuditReportExcel = async (req, res) => {
 
     sheet.views = [{ state: 'frozen', ySplit: headerRowNumber }];
 
-    logAudit({ req, action: 'audit_report_excel_download', resourceType: 'audit_report', details: { filters, logCount: logs.length } });
+    logAudit({ req, action: 'audit_report_excel_download', resourceType: 'audit_report', details: { filters, logCount: logs.length, singleChildMode: !!singleChildMode } });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="audit-report-${ts()}.xlsx"`);
     await workbook.xlsx.write(res);

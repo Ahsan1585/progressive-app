@@ -126,6 +126,25 @@ function drawPill(page, { x, y, text, fonts, fg, bg, maxW }) {
   return w;
 }
 
+// Multi-child redaction (34 CFR 303.408): a normal agency invoice lists
+// every child a practitioner billed in the period, by name and NJ child ID
+// — an internal billing document, fine for agency/practitioner use, but not
+// safe to hand to one family during a records inspection. singleChildMode
+// is an opt-in, caller-validated guarantee that every line is the same
+// child, checked the same way reportController.js's generateAuditReportPDF
+// does (dedupe by childId || childName, same key distinctChildren already
+// uses below) — thrown here rather than trusted silently, since generating
+// a "single-child" invoice that secretly contains other children would be
+// worse than not offering the feature at all.
+function assertSingleChildMode(lines, singleChildMode) {
+  if (!singleChildMode) return;
+  if (!lines.length) throw new Error('Single-child mode requires at least one line.');
+  const keys = new Set(lines.map((l) => l.childId || l.childName));
+  if (keys.size > 1) throw new Error('Single-child mode requires every line to be for one child — this invoice spans more than one.');
+}
+
+const SINGLE_CHILD_BADGE = 'SINGLE-CHILD INVOICE — SAFE FOR PARENT INSPECTION';
+
 // ctx shape — see invoiceData.js and the invoice redesign plan for how
 // each field is sourced:
 //   mode: 'agency' | 'independent' | 'override'
@@ -137,8 +156,10 @@ function drawPill(page, { x, y, text, fonts, fg, bg, maxW }) {
 //   certificationParty: string
 //   lines: InvoiceLine[]
 //   warnings: string[]
+//   singleChildMode: boolean — see assertSingleChildMode above
 async function generateInvoicePDF(ctx) {
-  const { mode, invoice, brand, from, billTo, details, certificationParty, lines, warnings = [] } = ctx;
+  const { mode, invoice, brand, from, billTo, details, certificationParty, lines, warnings = [], singleChildMode } = ctx;
+  assertSingleChildMode(lines, singleChildMode);
 
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -168,6 +189,13 @@ async function generateInvoicePDF(ctx) {
     const ribbonY = headerTopY - (logo ? logo.height + 44 : 46);
     page.drawRectangle({ x: MARGIN, y: ribbonY - 14, width: 330, height: 16, color: RED_BG });
     page.drawText(ribbonText, { x: MARGIN + 6, y: ribbonY - 10, font: bold, size: 7, color: RED });
+  }
+
+  if (singleChildMode) {
+    const badgeY = headerTopY - (logo ? logo.height + 44 : 46) - (mode === 'override' ? 18 : 0);
+    const badgeW = bold.widthOfTextAtSize(SINGLE_CHILD_BADGE, 7) + 12;
+    page.drawRectangle({ x: MARGIN, y: badgeY - 14, width: badgeW, height: 16, color: TEAL_BG });
+    page.drawText(SINGLE_CHILD_BADGE, { x: MARGIN + 6, y: badgeY - 10, font: bold, size: 7, color: TEAL });
   }
 
   const titleText = 'INVOICE';
@@ -528,4 +556,4 @@ async function generateInvoicePDF(ctx) {
   return Buffer.from(pdfBytes);
 }
 
-module.exports = { generateInvoicePDF, PAID_STAMP_CLEAR };
+module.exports = { generateInvoicePDF, PAID_STAMP_CLEAR, assertSingleChildMode };

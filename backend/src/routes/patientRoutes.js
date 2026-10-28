@@ -15,7 +15,7 @@ const { listPatientConsents, createConsent, revokeConsent } = require('../contro
 const { createConsentRequest, listConsentRequests, resendConsentRequest, cancelConsentRequest } = require('../controllers/consentRequestController');
 const { requireConsentAccess } = require('../middleware/consentAccess');
 const { listCorrectionRequestsForPatient, createCorrectionRequest, decideCorrectionRequest, recordStatementOfDisagreement } = require('../controllers/correctionRequestController');
-const { exportPatientRecord, overrideExportPatientRecord } = require('../controllers/patientRecordExportController');
+const { exportPatientRecord, overrideExportPatientRecord, generateSingleChildInvoice } = require('../controllers/patientRecordExportController');
 const { generateConsentReport } = require('../controllers/consentReportController');
 const { createRelease, listReleases, revokeRelease } = require('../controllers/recordsReleaseController');
 const { uploadConsentScan, downloadConsentScan } = require('../controllers/consentScanController');
@@ -47,6 +47,7 @@ router.get('/:id/correction-requests', protect, loadPermissions, requirePermissi
 router.post('/:id/correction-requests', protect, loadPermissions, requirePermission('patient_record_rights'), createCorrectionRequest);
 router.post('/correction-requests/:requestId/decide', protect, loadPermissions, requirePermission('patient_record_rights'), decideCorrectionRequest);
 router.post('/correction-requests/:requestId/statement', protect, loadPermissions, requirePermission('patient_record_rights'), recordStatementOfDisagreement);
+router.get('/:id/single-child-invoice', protect, loadPermissions, requirePermission('patient_record_rights'), generateSingleChildInvoice);
 
 // Route to register a new patient
 router.post('/register', protect, registerPatient);

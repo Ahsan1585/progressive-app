@@ -1,5 +1,5 @@
 const { PDFDocument } = require('pdf-lib');
-const { generateInvoicePDF, PAID_STAMP_CLEAR } = require('../invoiceGenerator');
+const { generateInvoicePDF, PAID_STAMP_CLEAR, assertSingleChildMode } = require('../invoiceGenerator');
 const { stampInvoicePaid } = require('../invoiceStamper');
 
 function makeLine(overrides = {}) {
@@ -107,5 +107,53 @@ describe('generateInvoicePDF', () => {
 
   it('never draws inside the reserved PAID-stamp clearance zone constant', () => {
     expect(PAID_STAMP_CLEAR).toEqual({ xMin: 470, yMin: 722 });
+  });
+});
+
+// Multi-child redaction (34 CFR 303.408): singleChildMode is a server-
+// validated guarantee, not a trusted caller flag — see assertSingleChildMode
+// in invoiceGenerator.js.
+describe('assertSingleChildMode', () => {
+  it('does nothing when singleChildMode is falsy, even with multiple children', () => {
+    expect(() => assertSingleChildMode([makeLine({ childId: 'C100' }), makeLine({ childId: 'C200' })], false)).not.toThrow();
+  });
+
+  it('throws when lines span more than one child (by childId)', () => {
+    expect(() => assertSingleChildMode([makeLine({ childId: 'C100' }), makeLine({ childId: 'C200' })], true))
+      .toThrow(/more than one/i);
+  });
+
+  it('throws when lines span more than one child (by childName, no childId)', () => {
+    const lines = [makeLine({ childId: '', childName: 'Ada Lovelace' }), makeLine({ childId: '', childName: 'Grace Hopper' })];
+    expect(() => assertSingleChildMode(lines, true)).toThrow(/more than one/i);
+  });
+
+  it('throws when there are no lines at all', () => {
+    expect(() => assertSingleChildMode([], true)).toThrow(/at least one line/i);
+  });
+
+  it('does not throw when every line is the same child', () => {
+    expect(() => assertSingleChildMode([makeLine(), makeLine({ serviceDate: '2026-01-06' })], true)).not.toThrow();
+  });
+});
+
+describe('generateInvoicePDF with singleChildMode', () => {
+  it('renders the single-child badge without throwing when every line is one child', async () => {
+    const ctx = makeCtx({ singleChildMode: true });
+    const buffer = await generateInvoicePDF(ctx);
+    const doc = await PDFDocument.load(buffer);
+    expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
+  });
+
+  it('propagates the assertSingleChildMode error for a mixed-child invoice', async () => {
+    const ctx = makeCtx({ singleChildMode: true, lines: [makeLine({ childId: 'C100' }), makeLine({ childId: 'C200' })] });
+    await expect(generateInvoicePDF(ctx)).rejects.toThrow(/more than one/i);
+  });
+
+  it('renders cleanly alongside the override ribbon (both badges can coexist)', async () => {
+    const ctx = makeCtx({ mode: 'override', singleChildMode: true });
+    const buffer = await generateInvoicePDF(ctx);
+    const doc = await PDFDocument.load(buffer);
+    expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
   });
 });

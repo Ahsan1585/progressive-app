@@ -32,11 +32,16 @@
 // reason, and a TOTP code when the admin has MFA enabled).
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
-const { getCompanyName } = require('../utils/companyName');
+const { getCompanyName, getCompanySettingsForDocuments } = require('../utils/companyName');
+const { generateInvoicePDF } = require('../utils/invoiceGenerator');
+const {
+  formatInvoiceNumber, maskTaxId, formatPractitionerAddressLines, loadComplianceForLines, buildInvoiceLines, buildBrand,
+} = require('../utils/invoiceData');
 const { buildNjeisPdfForGroup } = require('../utils/njeisFormFiller');
 const { formatTime12h } = require('../utils/formatting');
 const { REDISCLOSURE_NOTICE } = require('../utils/emailClient');
@@ -402,6 +407,114 @@ async function fetchStatementsOfDisagreement(patientId) {
     [patientId]
   );
   return rows;
+}
+
+// Multi-child redaction (34 CFR 303.408): an on-demand, read-only copy of
+// one child's billing invoice in the real invoice format (generateInvoicePDF
+// with singleChildMode: true), for the real-world case of handing a parent
+// something during a records inspection, without exposing the other
+// children a practitioner billed in the same period the way the normal
+// multi-child agency invoice would. Deliberately separate from
+// billingController.generateFinancialInvoice: that function stores the PDF
+// and advances billing_status as part of the real billing workflow; this
+// one only reads already-billed sessions (invoiced/completed — never
+// pending/njeis_review, which aren't final yet) and returns a fresh PDF
+// with nothing stored and no state change, so it's safe to call as often as
+// an inspection requires.
+const BILLED_STATUSES = ['invoiced', 'completed', 'self_certified'];
+
+async function generateSingleChildInvoice(req, res) {
+  try {
+    const { id } = req.params;
+
+    const { rows: patientRows } = await pool.query(
+      'SELECT id, first_name, last_name FROM patients WHERE id = $1',
+      [id]
+    );
+    if (!patientRows[0]) return res.status(404).json({ error: 'Child not found' });
+
+    const { rows: assessments } = await pool.query(
+      `SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
+       FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
+       LEFT JOIN patients pt ON pt.id = a.patient_id
+       WHERE a.patient_id = $1 AND a.billing_status = ANY($2::text[])
+       ORDER BY a.service_date ASC`,
+      [id, BILLED_STATUSES]
+    );
+    if (!assessments.length) {
+      return res.status(400).json({ error: 'This child has no invoiced sessions yet.' });
+    }
+
+    // One practitioner's worth of lines per invoice, matching the real
+    // invoice's own FROM block — a child seen by more than one
+    // practitioner gets one PDF per practitioner, same as normal billing
+    // (each practitioner invoices the agency separately).
+    const byPractitioner = new Map();
+    assessments.forEach((a) => {
+      const key = a.practitioner_id;
+      if (!byPractitioner.has(key)) byPractitioner.set(key, []);
+      byPractitioner.get(key).push(a);
+    });
+    const [practitionerId, practitionerAssessments] = [...byPractitioner.entries()][0];
+    if (byPractitioner.size > 1) {
+      return res.status(400).json({ error: 'This child was billed by more than one practitioner — single-child invoice generation currently supports one practitioner at a time.' });
+    }
+
+    const practitioner = practitionerAssessments[0].practitioners;
+    const companySettings = await getCompanySettingsForDocuments();
+    // Loaded lazily to avoid a require cycle (billingController requires
+    // this file's exports too, via patientRoutes wiring).
+    const { computeSessionCompliance } = require('./billingController');
+    const complianceById = await loadComplianceForLines(
+      practitionerAssessments.map((a) => a.id),
+      computeSessionCompliance
+    );
+    const lines = buildInvoiceLines(practitionerAssessments, practitioner, { mode: 'agency', complianceById });
+
+    const serviceDates = practitionerAssessments.map((a) => a.service_date).filter(Boolean).sort();
+    const pdfBuffer = await generateInvoicePDF({
+      mode: 'agency',
+      singleChildMode: true,
+      invoice: {
+        number: formatInvoiceNumber(crypto.randomUUID()),
+        issuedAt: new Date(),
+        periodStart: serviceDates[0],
+        periodEnd: serviceDates[serviceDates.length - 1],
+      },
+      brand: buildBrand(companySettings),
+      from: {
+        title: 'FROM',
+        name: `${practitioner.first_name || ''} ${practitioner.last_name || ''}`.trim(),
+        lines: [
+          ...formatPractitionerAddressLines(practitioner),
+          practitioner.phone_number || '',
+          practitioner.email || '',
+        ].filter(Boolean),
+      },
+      billTo: {
+        title: 'BILL TO',
+        name: companySettings?.legal_entity_name || companySettings?.display_name || '',
+        lines: [companySettings?.address, companySettings?.phone, companySettings?.billing_email].filter(Boolean),
+      },
+      details: {
+        discipline: (practitioner.service_types || [])[0] || '',
+        taxIdMasked: maskTaxId(practitioner.ssn),
+        processedBy: `${req.practitioner.email || ''}`,
+      },
+      certificationParty: companySettings?.legal_entity_name || companySettings?.display_name || '',
+      lines,
+      warnings: [],
+    });
+
+    logAudit({ req, action: 'single_child_invoice_generated', resourceType: 'patient', resourceId: id, details: { sessionCount: practitionerAssessments.length, practitionerId } });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${safeFilenamePart(patientRows[0].first_name)}-${safeFilenamePart(patientRows[0].last_name)}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('generateSingleChildInvoice error:', error);
+    res.status(500).json({ error: 'Failed to generate single-child invoice' });
+  }
 }
 
 function drawTablePage(pdfDoc, { title, cols, rows, fonts, pageLabel }) {
@@ -887,6 +1000,7 @@ module.exports = {
   drawRedisclosureNotice,
   drawStatementsOfDisagreement,
   fetchStatementsOfDisagreement,
+  generateSingleChildInvoice,
   drawTablePage,
   drawSessionLogSection,
   appendSevfSection,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Download, FileEdit, Loader2, X, Plus, FileSignature, Send, Clock } from 'lucide-react';
+import { Search, Download, FileEdit, Loader2, X, Plus, FileSignature, Send, Clock, Receipt } from 'lucide-react';
 import api from '@/api/axiosInstance';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -394,6 +394,7 @@ export function StaffDirectoryChildren() {
   const [careTeamBusyId, setCareTeamBusyId] = useState(null);
   const [correctionsChild, setCorrectionsChild] = useState(null);
   const [exportingId, setExportingId] = useState(null);
+  const [invoicingId, setInvoicingId] = useState(null);
   const [requestsPanel, setRequestsPanel] = useState(null); // { child: row child or null }
   const [overrideChild, setOverrideChild] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
@@ -494,6 +495,32 @@ export function StaffDirectoryChildren() {
       }
     } finally {
       setExportingId(null);
+    }
+  };
+
+  // Multi-child redaction (34 CFR 303.408): a read-only, on-demand copy of
+  // this child's billing invoice in the real invoice format, guaranteed by
+  // the server to contain only this child's lines — see
+  // patientRecordExportController.generateSingleChildInvoice. Nothing is
+  // stored or billing-state-changed; safe to use whenever a parent asks
+  // during an inspection.
+  const handleDownloadSingleChildInvoice = async (child) => {
+    setInvoicingId(child.id);
+    try {
+      const response = await api.get(`/api/patients/${child.id}/single-child-invoice`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice-${(child.last_name || 'child').replace(/\s+/g, '_')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const body = err?.response?.status === 400 ? await readBlobError(err) : {};
+      showAlert(body.error || 'Failed to generate this child\'s invoice. They may not have any invoiced sessions yet.');
+    } finally {
+      setInvoicingId(null);
     }
   };
 
@@ -692,6 +719,15 @@ export function StaffDirectoryChildren() {
                             title="Correction requests"
                           >
                             <FileEdit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadSingleChildInvoice(child)}
+                            disabled={invoicingId === child.id}
+                            className="p-1.5 rounded-lg text-slate-700 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                            title="Download this child's invoice only (safe for parent inspection)"
+                            aria-label="Download this child's invoice only (safe for parent inspection)"
+                          >
+                            {invoicingId === child.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
                           </button>
                         </>
                       )}
