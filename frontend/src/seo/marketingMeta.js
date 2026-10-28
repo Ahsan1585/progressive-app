@@ -28,7 +28,7 @@ export const MARKETING_META = {
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web, iOS, Android",
           "url": "https://izayaedge.com/eis",
-          "description": "Early intervention software for New Jersey agencies: practitioners log session notes on a phone, every note is checked against the EIMS export before billing, and clean sessions generate SEVFs and invoices.",
+          "description": "Early intervention software for New Jersey agencies: practitioners log session notes on a phone, every note is checked against EIMS before billing, and clean sessions generate SEVFs and invoices.",
           "audience": {
             "@type": "Audience",
             "audienceType": "New Jersey early intervention agencies"
