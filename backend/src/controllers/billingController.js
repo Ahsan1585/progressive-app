@@ -2989,8 +2989,18 @@ const revertBillingBatch = async (req, res) => {
       return res.status(400).json({ success: false, error: 'This invoice has been marked as paid and can no longer be sent back to pending.' });
     }
 
+    // Only the rows this batch actually advanced through the billing
+    // pipeline (njeis_review/invoiced/completed) go back to pending. A
+    // rejected/declined/on_hold row keeps billing_batch_id too (see the
+    // generate step), but it's the biller's own standing decision, not
+    // something this batch did to it — resetting it here would force them
+    // to re-confirm the same rejection in Fix Flags every time the batch
+    // is sent back, even though nothing about that decision changed. The
+    // biller can still change it manually from the queue at any time.
     const { rows: revertedAssessments } = await pool.query(
-      "UPDATE assessments SET billing_status = 'pending', billing_review = NULL, billing_batch_id = NULL WHERE billing_batch_id = $1 RETURNING id",
+      `UPDATE assessments SET billing_status = 'pending', billing_review = NULL, billing_batch_id = NULL
+       WHERE billing_batch_id = $1 AND billing_status IN ('njeis_review', 'invoiced', 'completed')
+       RETURNING id`,
       [batchId]
     );
 
