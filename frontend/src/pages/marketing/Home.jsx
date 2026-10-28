@@ -599,7 +599,7 @@ export default function Home() {
         <li data-step="home">Tap <b>Log a Session</b></li>
         <li data-step="roster">Pick a child</li>
         <li data-step="form">Fill in the visit, codes and notes</li>
-        <li data-step="sign">Both signatures</li>
+        <li data-step="sign">Review and sign</li>
         <li data-step="saved"><b>Save Session</b></li>
       </ol>
       <button type="button" className="sim-fill" id="simFill"><Ic n="wand-sparkles" />Fill it in for me</button>
@@ -644,46 +644,72 @@ export default function Home() {
             </div>
           </section>
 
-          {/* LOG SESSION FORM */}
+          {/* LOG SESSION FORM: a true one-step-at-a-time wizard, matching the real app */}
           <section className="sv" data-view="form" hidden>
             <div className="sm-bar"><button type="button" className="sm-back" data-go="roster" aria-label="Back"><Ic n="chevron-left" /></button><b>Log Session</b></div>
-            <div className="sv-scroll" id="simFormScroll">
-              <div className="sm-for"><span>Logging session for</span><b id="simKidName">Leo Rivera</b></div>
-              <label className="sm-tele"><input type="checkbox" id="fTele" /><span><b><Ic n="video" />Telepractice (Video) Session</b><small>We'll email the parent a link to review and sign remotely instead of collecting their signature here.</small></span></label>
-              <div className="sm-chipsbar" id="simChips"><button type="button" data-sec="details" className="on">Details</button><button type="button" data-sec="codes">Codes</button><button type="button" data-sec="notes">Notes</button><button type="button" data-sec="signatures">Signatures</button></div>
+            <div className="sm-for"><span className="sm-av" id="simKidAv2">LR</span><div><span>Logging session for</span><b id="simKidName">Leo Rivera</b></div></div>
+            <ol className="sm-steps" id="simFormSteps">
+              <li data-wstep="details"><span className="sm-step-dot">1</span>Details</li>
+              <li data-wstep="codes"><span className="sm-step-dot">2</span>Codes</li>
+              <li data-wstep="notes"><span className="sm-step-dot">3</span>Notes</li>
+              <li data-wstep="sign"><span className="sm-step-dot">4</span>Sign</li>
+            </ol>
 
+            <div className="sv-scroll" id="simFormScroll">
               <div className="sm-sec" data-sec-id="details">
-                <h4>Visit details</h4>
-                <label className="sm-field"><span>Service date</span><input type="date" id="fDate" /></label>
-                <div className="sm-2">
-                  <label className="sm-field"><span>Start time</span><input type="time" id="fStart" /><em className="sm-err" data-err="start">Required.</em></label>
-                  <label className="sm-field"><span>End time</span><input type="time" id="fEnd" /><em className="sm-err" data-err="end">Required.</em></label>
+                <h4>When and how</h4>
+                <p className="sm-stepof">Step 1 of 4</p>
+                <div className="sm-field"><span>How did the session happen?<i className="sm-req">Required</i></span>
+                  <div className="sm-how"><button type="button" className="sm-howcard" data-how="person" aria-pressed="true"><span className="sm-howic"><Ic n="users" /></span>In person</button><button type="button" className="sm-howcard" data-how="video" aria-pressed="false"><span className="sm-howic"><Ic n="video" /></span>Video (telepractice)</button></div>
+                  <small className="sm-telehint" id="teleHint" hidden>We'll email the parent a link to review and sign remotely instead of collecting their signature here.</small>
+                </div>
+                <label className="sm-field"><span>Service date<i className="sm-req">Required</i></span><input type="date" id="fDate" /></label>
+                <div className="sm-quick" id="simToday"><button type="button" data-day="today" aria-pressed="true">Today</button><button type="button" data-day="yesterday" aria-pressed="false">Yesterday</button></div>
+                <div className="sm-field"><span>Time<i className="sm-req">Required</i></span>
+                  <div className="sm-2">
+                    <label className="sm-field"><span className="sm-sublabel">Start</span><input type="time" id="fStart" /><em className="sm-err" data-err="start">Required.</em></label>
+                    <label className="sm-field"><span className="sm-sublabel">End</span><input type="time" id="fEnd" /><em className="sm-err" data-err="end">Required.</em></label>
+                  </div>
                 </div>
                 <div className="sm-quick" id="simQuick"><button type="button" data-q="now">Start now</button><button type="button" data-q="15">15 min</button><button type="button" data-q="30">30 min</button><button type="button" data-q="45">45 min</button><button type="button" data-q="60">60 min</button></div>
                 <label className="sm-check"><input type="checkbox" id="fZero" />Session was cancelled, log with 0 time</label>
                 <div className="sm-total"><span>Total time</span><b id="fTotal" aria-live="polite">—</b></div>
               </div>
 
-              <div className="sm-sec" data-sec-id="codes">
+              <div className="sm-sec" data-sec-id="codes" hidden>
                 <h4>Service codes</h4>
-                <label className="sm-field"><span>Service type</span>
+                <p className="sm-stepof">Step 2 of 4</p>
+                <label className="sm-field"><span>Service type<i className="sm-req">Required</i></span>
                   <select id="fType"><option value="">Select…</option><option>Developmental Intervention</option><option>Speech Language Therapy</option><option>Occupational Therapy</option><option>Physical Therapy</option><option>Social Work</option><option>Family Training</option></select>
                   <em className="sm-err" data-err="type">Service type is required.</em></label>
-                <div className="sm-field"><span>Status</span><div className="sm-opts" data-pick="status"><button type="button">Direct Child Service</button><button type="button">Make Up Direct Child Service</button><button type="button">Practitioner Cancelled</button><button type="button">Family Cancelled</button><button type="button">Family Missed</button></div><em className="sm-err" data-err="status">Status is required.</em></div>
-                <div className="sm-field"><span>Location</span><div className="sm-opts" data-pick="location"><button type="button">Home</button><button type="button">EC Program - Inclusive Community</button><button type="button">Service Provider Clinic/Office</button><button type="button">Phone/Video Conferencing</button></div><em className="sm-err" data-err="location">Location is required.</em></div>
+                <div className="sm-field"><span>Status<i className="sm-req">Required</i></span><div className="sm-opts" data-pick="status"><button type="button">Direct Child Service</button><button type="button">Make Up Direct Child Service</button><button type="button">Practitioner Cancelled</button><button type="button">Family Cancelled</button><button type="button">Family Missed</button></div><em className="sm-err" data-err="status">Status is required.</em></div>
+                <div className="sm-field"><span>Location<i className="sm-req">Required</i></span><div className="sm-opts" data-pick="location"><button type="button">Home</button><button type="button">EC Program - Inclusive Community</button><button type="button">Service Provider Clinic/Office</button><button type="button">Phone/Video Conferencing</button></div><em className="sm-err" data-err="location">Location is required.</em></div>
                 <div className="sm-field"><span>Group size category</span><div className="sm-opts" data-pick="group"><button type="button">Direct Child Service - Individual</button><button type="button">Consultation/Facilitation with Others</button></div></div>
               </div>
 
-              <div className="sm-sec" data-sec-id="notes">
+              <div className="sm-sec" data-sec-id="notes" hidden>
                 <h4>Session notes</h4>
-                <label className="sm-field"><span>Session notes <i className="sm-opt">Optional</i></span><textarea id="fNote" rows="3" placeholder="Add any context on this session..."></textarea></label>
+                <p className="sm-stepof">Step 3 of 4 · Optional</p>
+                <label className="sm-field"><span>What happened in the session?<i className="sm-opt">Optional</i></span><textarea id="fNote" rows="7" placeholder="Activities, progress toward IFSP outcomes, what the family practiced…"></textarea></label>
+                <p className="sm-charcount" id="simCharCount">0 characters</p>
+                <div className="sm-mic-tip"><Ic n="pen-line" />Tip: tap the microphone on your keyboard to dictate instead of typing.</div>
               </div>
 
-              <div className="sm-sec" data-sec-id="signatures">
-                <h4>Signatures</h4>
+              <div className="sm-sec" data-sec-id="sign" hidden>
+                <h4>Review and sign</h4>
+                <p className="sm-stepof">Step 4 of 4</p>
+                <div className="sm-review">
+                  <div className="sm-review-row"><span>When</span><b id="simRevWhen">—</b><button type="button" className="sm-link" data-wstep="details">Edit</button></div>
+                  <div className="sm-review-row"><span>How</span><b id="simRevHow">In person</b><button type="button" className="sm-link" data-wstep="details">Edit</button></div>
+                  <div className="sm-review-row"><span>Service</span><b id="simRevType">—</b><button type="button" className="sm-link" data-wstep="codes">Edit</button></div>
+                  <div className="sm-review-row"><span>Status</span><b id="simRevStatus">—</b><button type="button" className="sm-link" data-wstep="codes">Edit</button></div>
+                  <div className="sm-review-row"><span>Location</span><b id="simRevLocation">—</b><button type="button" className="sm-link" data-wstep="codes">Edit</button></div>
+                  <div className="sm-review-row"><span>Notes</span><b id="simRevNotes">None</b><button type="button" className="sm-link" data-wstep="notes">Edit</button></div>
+                </div>
+
                 <div className="sm-field" id="parentSigWrap"><span>Parent/caregiver signature</span>
                   <div className="sm-pad"><canvas id="sigParent" aria-label="Parent signature pad: draw with your finger or mouse"></canvas><small>Parent or caregiver signature, draw with your finger or stylus</small><button type="button" className="sm-clear" data-clear="sigParent">Clear</button></div>
-                  <em className="sm-err" data-err="parent">Parent signature is required.</em></div>
+                  <em className="sm-err" data-err="parent">Add the parent's signature to continue</em></div>
                 <div className="sm-field" id="teleNote" hidden><span>Parent/caregiver signature</span><div className="sm-card">We'll send a signing link to <b id="simParentEmail">leo.parent@example.com</b> after you submit.</div></div>
                 <div className="sm-field"><span>Practitioner signature</span>
                   <div className="sm-pad"><canvas id="sigPrac" aria-label="Practitioner signature pad: draw with your finger or mouse"></canvas><small>Practitioner signature, draw with your finger or stylus</small><button type="button" className="sm-clear" data-clear="sigPrac">Clear</button></div>
@@ -692,8 +718,12 @@ export default function Home() {
               </div>
             </div>
             <div className="sm-submit">
-              <p id="simMissing">8 fields still missing</p>
-              <div className="sm-split"><button type="button" className="sm-primary" id="simSave">Save Session</button><button type="button" className="sm-primary sm-more" aria-label="More options: Save Draft or Cancel (demo)"><Ic n="chevron-down" /></button></div>
+              <p className="sm-stepdone" id="simStepDone" hidden><Ic n="check" />This step is complete</p>
+              <p className="sm-stepmissing" id="simMissing"></p>
+              <div className="sm-wizbar">
+                <button type="button" className="sm-primary sm-ghost" id="simWizBack" hidden>Back</button>
+                <button type="button" className="sm-primary" id="simWizNext">Next: Codes</button>
+              </div>
             </div>
           </section>
 

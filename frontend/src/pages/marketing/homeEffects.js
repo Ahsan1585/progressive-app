@@ -240,7 +240,7 @@ export function initHome() {
       views.forEach(v => v.hidden = v.dataset.view !== name);
       setStep(name === 'child' ? 'saved' : name);
       const sc = sim.querySelector('.sv[data-view="'+name+'"] .sv-scroll'); if (sc) sc.scrollTop = 0;
-      if (name === 'form') T.raf(sizePads);
+      if (name === 'form') { showWizStep('details'); T.raf(sizePads); }
     }
     function fit(){
       const sw = window.innerWidth, sh = window.innerHeight;
@@ -284,16 +284,55 @@ export function initHome() {
       const b = e.target.closest('[data-kid]'); if (!b) return;
       kid = KIDS.find(k => k.id === b.dataset.kid);
       q('simKidName').textContent = kid.first + ' ' + kid.last;
+      q('simKidAv2').textContent = kid.first[0] + kid.last[0];
       q('simParentEmail').textContent = kid.email;
       show('form'); setStep('form'); update();
     });
 
-    // form
+    // form — a true one-step-at-a-time wizard (details -> codes -> notes -> sign)
     const today = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+    const yesterday = () => { const d = new Date(); d.setDate(d.getDate()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
     const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(Math.floor(d.getMinutes()/5)*5).padStart(2,'0'); };
     const addMin = (hm, m) => { const [h,mi] = hm.split(':').map(Number); const t = (h*60+mi+m) % 1440; return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); };
     const mins = () => { const a = q('fStart').value, b = q('fEnd').value; if (!a || !b) return 0; const [h1,m1]=a.split(':').map(Number),[h2,m2]=b.split(':').map(Number); return Math.max(0,(h2*60+m2)-(h1*60+m1)); };
     const fmt12 = hm => { if (!hm) return ''; let [h,m] = hm.split(':').map(Number); const ap = h>=12?'PM':'AM'; h = h%12||12; return h+':'+String(m).padStart(2,'0')+' '+ap; };
+
+    const WSTEPS = ['details','codes','notes','sign'];
+    const WNEXT_LABEL = { details:'Next: Codes', codes:'Next: Notes', notes:'Next: Sign', sign:'Save Session' };
+    let wstep = 'details', how = 'person';
+
+    function showWizStep(name){
+      wstep = name;
+      $$('.sm-sec[data-sec-id]', sim).forEach(sec => { sec.hidden = sec.dataset.secId !== name; });
+      $$('#simFormSteps li').forEach(li => {
+        const i = WSTEPS.indexOf(li.dataset.wstep), cur = WSTEPS.indexOf(name);
+        li.classList.toggle('now', li.dataset.wstep === name);
+        li.classList.toggle('done', i < cur);
+      });
+      q('simWizBack').hidden = name === 'details';
+      q('simWizNext').textContent = WNEXT_LABEL[name];
+      if (name === 'sign') populateReview();
+      q('simFormScroll').scrollTop = 0;
+      sim.querySelector('[data-view="form"]').classList.remove('sm-showerr');
+      update();
+    }
+    sim.addEventListener('click', e => {
+      const w = e.target.closest('[data-wstep]'); if (w && w.tagName === 'BUTTON' && w.id !== 'simWizBack') showWizStep(w.dataset.wstep);
+    });
+
+    $$('.sm-howcard', sim).forEach(b => b.addEventListener('click', () => {
+      how = b.dataset.how;
+      $$('.sm-howcard', sim).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      q('teleHint').hidden = how !== 'video';
+      q('parentSigWrap').hidden = how === 'video'; q('teleNote').hidden = how !== 'video';
+      update();
+    }));
+    q('simToday').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      $$('#simToday button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      q('fDate').value = b.dataset.day === 'today' ? today() : yesterday();
+      update();
+    });
 
     $$('.sm-opts', sim).forEach(g => g.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -306,28 +345,24 @@ export function initHome() {
       else if (q('fStart').value) q('fEnd').value = addMin(q('fStart').value, +b.dataset.q);
       update();
     });
-    ['fDate','fStart','fEnd','fType','fNote'].forEach(id => q(id).addEventListener('input', update));
+    ['fDate','fStart','fEnd','fType'].forEach(id => q(id).addEventListener('input', update));
+    q('fNote').addEventListener('input', () => { q('simCharCount').textContent = q('fNote').value.length + ' characters'; update(); });
     q('fZero').addEventListener('change', () => {
       const z = q('fZero').checked;
       q('fStart').disabled = z; q('fEnd').disabled = z; $$('#simQuick button').forEach(b => b.disabled = z);
       if (z){ q('fStart').value=''; q('fEnd').value=''; }
       update();
     });
-    q('fTele').addEventListener('change', () => { const t = q('fTele').checked; q('parentSigWrap').hidden = t; q('teleNote').hidden = !t; q('simSave').textContent = t ? 'Send to Parent to Sign' : 'Save Session'; update(); });
 
-    // section chips scroll + spy
+    function populateReview(){
+      q('simRevWhen').textContent = (q('fDate').value === today() ? 'Today' : 'Yesterday') + ' · ' + (q('fZero').checked ? 'Cancelled, 0 min' : fmt12(q('fStart').value) + ' to ' + fmt12(q('fEnd').value));
+      q('simRevHow').textContent = how === 'video' ? 'Video (telepractice)' : 'In person';
+      q('simRevType').textContent = q('fType').value || '—';
+      q('simRevStatus').textContent = st.status || '—';
+      q('simRevLocation').textContent = st.location ? st.location + (st.group ? ' · ' + st.group : '') : '—';
+      q('simRevNotes').textContent = q('fNote').value.trim() || 'None';
+    }
     const scroller = q('simFormScroll');
-    q('simChips').addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      const sec = sim.querySelector('[data-sec-id="'+b.dataset.sec+'"]');
-      scroller.scrollTo({ top: sec.offsetTop - 52, behavior: reduce ? 'auto' : 'smooth' });
-    });
-    scroller.addEventListener('scroll', () => {
-      let cur = 'details';
-      $$('.sm-sec', sim).forEach(sec => { if (sec.offsetTop - 70 <= scroller.scrollTop) cur = sec.dataset.secId; });
-      $$('#simChips button').forEach(b => b.classList.toggle('on', b.dataset.sec === cur));
-      if (cur === 'signatures') setStep('sign'); else if (!sim.querySelector('[data-view="form"]').hidden) setStep('form');
-    });
 
     // signature pads
     const pads = {};
@@ -357,39 +392,44 @@ export function initHome() {
     }
     q('useSaved').addEventListener('click', () => drawSaved('sigPrac', 'Maya Chen'));
 
-    // missing count + validation, same rules as the app
-    function missing(){
+    // per-step validation, same rules as the app
+    function missingFor(step){
       const m = [];
-      if (!q('fDate').value) m.push('date');
-      if (!q('fZero').checked){ if (!q('fStart').value) m.push('start'); if (!q('fEnd').value) m.push('end'); }
-      if (!q('fType').value) m.push('type');
-      if (!st.status) m.push('status');
-      if (!st.location) m.push('location');
-      if (!q('fTele').checked && !(pads.sigParent && pads.sigParent.has)) m.push('parent');
-      if (!(pads.sigPrac && pads.sigPrac.has)) m.push('prac');
+      if (step === 'details'){
+        if (!q('fDate').value) m.push('date');
+        if (!q('fZero').checked){ if (!q('fStart').value) m.push('start'); if (!q('fEnd').value) m.push('end'); }
+      } else if (step === 'codes'){
+        if (!q('fType').value) m.push('type');
+        if (!st.status) m.push('status');
+        if (!st.location) m.push('location');
+      } else if (step === 'sign'){
+        if (how !== 'video' && !(pads.sigParent && pads.sigParent.has)) m.push('parent');
+        if (!(pads.sigPrac && pads.sigPrac.has)) m.push('prac');
+      }
       return m;
     }
     function update(){
       const z = q('fZero').checked, t = mins();
       q('fTotal').textContent = z ? '0 min (cancelled)' : t > 0 ? (t/60).toFixed(2)+' hrs ('+t+' min)' : '—';
-      const m = missing();
+      const m = missingFor(wstep);
+      q('simStepDone').hidden = m.length > 0;
       q('simMissing').textContent = m.length ? m.length + ' field' + (m.length > 1 ? 's' : '') + ' still missing' : '';
       $$('.sm-err', sim).forEach(el => el.classList.toggle('on', m.includes(el.dataset.err)));
     }
-    q('simSave').addEventListener('click', () => {
-      const m = missing();
+    q('simWizBack').addEventListener('click', () => { const i = WSTEPS.indexOf(wstep); if (i > 0) showWizStep(WSTEPS[i-1]); });
+    q('simWizNext').addEventListener('click', () => {
+      const m = missingFor(wstep);
       sim.querySelector('[data-view="form"]').classList.add('sm-showerr');
-      if (m.length){
-        const target = ['date','start','end'].some(x => m.includes(x)) ? 'details' : ['type','status','location'].some(x => m.includes(x)) ? 'codes' : 'signatures';
-        const sec = sim.querySelector('[data-sec-id="'+target+'"]'); scroller.scrollTo({ top: sec.offsetTop - 52, behavior: reduce ? 'auto' : 'smooth' });
-        return;
-      }
-      const btn = q('simSave'); btn.classList.add('loading');
+      if (m.length){ update(); return; }
+      const i = WSTEPS.indexOf(wstep);
+      if (i < WSTEPS.length - 1){ showWizStep(WSTEPS[i+1]); return; }
+      // final step: save
+      const btn = q('simWizNext'); btn.classList.add('loading');
       T.timeout(() => {
         btn.classList.remove('loading');
         const date = new Date(q('fDate').value + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
         const time = q('fZero').checked ? 'Cancelled, 0 min' : fmt12(q('fStart').value) + '–' + fmt12(q('fEnd').value);
-        const tele = q('fTele').checked;
+        const tele = how === 'video';
         q('simNewSession').innerHTML = '<b>'+date+' · '+time+'</b><span>'+q('fType').value+' · '+st.location+'</span><em class="sm-chip">'+(tele ? 'Awaiting parent' : 'Submitted')+'</em>';
         q('simChildBar').textContent = kid.first+' '+kid.last; q('simChildName').textContent = kid.first+' '+kid.last;
         q('simChildAv').textContent = kid.first[0]+kid.last[0]; q('simChildId').textContent = 'Child ID '+kid.id;
@@ -402,13 +442,17 @@ export function initHome() {
 
     function reset(){
       ['fStart','fEnd','fType','fNote'].forEach(id => { q(id).value = ''; q(id).disabled = false; });
-      q('fDate').value = today(); q('fZero').checked = false; q('fTele').checked = false;
-      q('parentSigWrap').hidden = false; q('teleNote').hidden = true; q('simSave').textContent = 'Save Session';
+      q('fDate').value = today(); q('fZero').checked = false;
+      how = 'person'; $$('.sm-howcard', sim).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.how === 'person')));
+      q('teleHint').hidden = true; q('parentSigWrap').hidden = false; q('teleNote').hidden = true;
+      $$('#simToday button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.day === 'today')));
+      q('simCharCount').textContent = '0 characters';
       $$('#simQuick button').forEach(b => b.disabled = false);
       $$('.sm-opts button', sim).forEach(b => b.setAttribute('aria-pressed','false')); st.status = st.location = st.group = '';
       Object.keys(pads).forEach(clearPad);
       sim.querySelector('[data-view="form"]').classList.remove('sm-showerr');
       q('simSearch').value = ''; renderKids('');
+      showWizStep('details');
       update();
     }
     q('simAgain').addEventListener('click', () => { reset(); show('roster'); });
@@ -417,14 +461,15 @@ export function initHome() {
     // "Fill it in for me": walks the real steps quickly
     q('simFill').addEventListener('click', () => {
       const v = sim.querySelector('.sv:not([hidden])').dataset.view;
-      if (v === 'home' || v === 'roster' || v === 'child'){ reset(); kid = KIDS[0]; q('simKidName').textContent = 'Leo Rivera'; q('simParentEmail').textContent = kid.email; show('form'); }
+      if (v === 'home' || v === 'roster' || v === 'child'){ reset(); kid = KIDS[0]; q('simKidName').textContent = 'Leo Rivera'; q('simKidAv2').textContent = 'LR'; q('simParentEmail').textContent = kid.email; show('form'); }
       q('fDate').value = today(); q('fStart').value = '09:00'; q('fEnd').value = '09:45';
       q('fType').value = 'Developmental Intervention';
       const pick = (g, label) => { const grp = sim.querySelector('[data-pick="'+g+'"]'); $$('button', grp).forEach(b => b.setAttribute('aria-pressed', String(b.textContent === label))); st[g] = label; };
       pick('status','Direct Child Service'); pick('location','Home'); pick('group','Direct Child Service - Individual');
       q('fNote').value = 'Worked on stacking blocks and two-word requests during play. Parent practiced the routine with ' + kid.first + '.';
-      T.raf(() => { sizePads(); drawSaved('sigParent','J. ' + kid.last); drawSaved('sigPrac','Maya Chen'); update();
-        const sec = sim.querySelector('[data-sec-id="signatures"]'); scroller.scrollTo({ top: sec.offsetTop - 52, behavior: reduce ? 'auto' : 'smooth' }); });
+      q('simCharCount').textContent = q('fNote').value.length + ' characters';
+      showWizStep('sign');
+      T.raf(() => { sizePads(); drawSaved('sigParent','J. ' + kid.last); drawSaved('sigPrac','Maya Chen'); update(); });
     });
 
     renderKids('');
@@ -436,9 +481,9 @@ export function initHome() {
   function checkResult(){
     if (!answers.eims || !answers.sevf || !answers.size) return;
     const lines = [];
-    if (answers.eims === 'none') lines.push('Mismatches reach the state before you see them. Izaya EIS checks 11 EIMS fields on every session note first.');
+    if (answers.eims === 'none') lines.push('Mismatches reach the state before you see them. Izaya EIS checks every session note against EIMS first.');
     else if (answers.eims === 'hand') lines.push('Your team re-checks every session note against EIMS by hand. Izaya EIS does that comparison on every note.');
-    else lines.push('Your spreadsheet check becomes automatic: 11 EIMS fields compared on every session note.');
+    else lines.push('Your spreadsheet check becomes automatic: every session note compared against EIMS.');
     if (answers.sevf === 'hand') lines.push('SEVFs and invoices are generated from the session notes, so nobody re-types them.');
     else if (answers.sevf === 'service') lines.push('You see every flag and every document yourself instead of waiting on a service.');
     else lines.push('Clean sessions generate their SEVF and invoice with no template work.');
