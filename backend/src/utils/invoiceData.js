@@ -274,6 +274,7 @@ function summarizeInvoiceTotals(lines) {
   const heldLines = lines.filter((l) => l.eims.tier !== 'cleared');
   return {
     totalHours: lines.reduce((sum, l) => sum + l.hours, 0),
+    clearedHours: dueLines.reduce((sum, l) => sum + l.hours, 0),
     totalDue: Math.round(dueLines.reduce((sum, l) => sum + l.lineTotal, 0) * 100) / 100,
     totalHeld: Math.round(heldLines.reduce((sum, l) => sum + l.lineTotal, 0) * 100) / 100,
     dueLines,

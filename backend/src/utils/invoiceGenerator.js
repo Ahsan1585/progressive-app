@@ -261,7 +261,7 @@ async function generateInvoicePDF(ctx) {
 
   // ── Summary tiles ──
   const distinctChildren = new Set(lines.map((l) => l.childId || l.childName)).size;
-  const { totalHours, totalDue, totalHeld } = summarizeInvoiceTotals(lines);
+  const { totalHours, clearedHours, totalDue, totalHeld } = summarizeInvoiceTotals(lines);
   const tiles = [
     { label: 'Sessions', value: String(lines.length) },
     { label: 'Children served', value: String(distinctChildren) },
@@ -478,6 +478,11 @@ async function generateInvoicePDF(ctx) {
   page.drawText(totalHrsText, { x: rightColX + rightColW - totalHrsW, y: rightY, font: regular, size: 8.5, color: NAVY });
   rightY -= 13;
   if (totalHeld > 0) {
+    page.drawText('Cleared hours (paid now)', { x: rightColX, y: rightY, font: regular, size: 8.5, color: NAVY });
+    const clearedHrsText = clearedHours.toFixed(2);
+    const clearedHrsW = regular.widthOfTextAtSize(clearedHrsText, 8.5);
+    page.drawText(clearedHrsText, { x: rightColX + rightColW - clearedHrsW, y: rightY, font: regular, size: 8.5, color: NAVY });
+    rightY -= 13;
     page.drawText('Held pending verification', { x: rightColX, y: rightY, font: regular, size: 8.5, color: AMBER });
     const heldText = money(totalHeld);
     const heldW = regular.widthOfTextAtSize(heldText, 8.5);

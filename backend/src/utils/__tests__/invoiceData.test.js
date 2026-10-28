@@ -344,11 +344,28 @@ describe('summarizeInvoiceTotals', () => {
     expect(result.heldLines).toHaveLength(3);
   });
 
+  // clearedHours must only count cleared-line hours, not held-line hours —
+  // the PDF prints this next to TOTAL DUE NOW specifically so the two
+  // numbers reconcile under multiplication (hours x rate), unlike
+  // totalHours (all sessions), which includes held lines that contribute
+  // $0 to totalDue.
+  it('clearedHours excludes held lines\' hours, unlike totalHours', () => {
+    const lines = [
+      line('cleared', 40, 2),
+      line('pending', 40, 3),
+      line('exception', 40, 1),
+    ];
+    const result = summarizeInvoiceTotals(lines);
+    expect(result.totalHours).toBe(6);
+    expect(result.clearedHours).toBe(2);
+  });
+
   it('totalDue equals the full sum when every line is cleared', () => {
     const lines = [line('cleared', 40), line('cleared', 60)];
     const result = summarizeInvoiceTotals(lines);
     expect(result.totalDue).toBe(100);
     expect(result.totalHeld).toBe(0);
+    expect(result.clearedHours).toBe(result.totalHours);
   });
 
   it('totalDue is zero when no line is cleared', () => {
@@ -356,10 +373,11 @@ describe('summarizeInvoiceTotals', () => {
     const result = summarizeInvoiceTotals(lines);
     expect(result.totalDue).toBe(0);
     expect(result.totalHeld).toBe(100);
+    expect(result.clearedHours).toBe(0);
   });
 
   it('handles an empty invoice without throwing', () => {
     const result = summarizeInvoiceTotals([]);
-    expect(result).toEqual({ totalHours: 0, totalDue: 0, totalHeld: 0, dueLines: [], heldLines: [] });
+    expect(result).toEqual({ totalHours: 0, clearedHours: 0, totalDue: 0, totalHeld: 0, dueLines: [], heldLines: [] });
   });
 });
