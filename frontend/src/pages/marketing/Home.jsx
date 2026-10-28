@@ -503,7 +503,7 @@ export default function Home() {
               <div className="ps-nav"><span className="on"><Ic n="house" />Home</span><span><Ic n="users" />Children</span><span><Ic n="inbox" />Inbox</span><span><Ic n="message-circle" />Messages</span><span><Ic n="user" />Profile</span></div>
             </div>
           </div></div>
-          <button type="button" className="tap" id="simOpen" aria-haspopup="dialog"><Ic n="pointer" />Try it: log a session</button>
+          <button type="button" className="tap" id="simOpen" aria-haspopup="dialog"><Ic n="pointer" />Tap to try it live</button>
         </div>
       </div>
     </div>

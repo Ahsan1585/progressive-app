@@ -547,17 +547,19 @@
 #eis-home .c-e{min-height:480px;background:radial-gradient(70% 55% at 50% 78%,rgb(var(--a) / .34),transparent 70%),radial-gradient(90% 70% at 50% 100%,rgb(var(--a) / .16),transparent 60%),var(--surface)}
 #eis-home .phone.real{width:min(236px,74%);aspect-ratio:615/1344;padding:7px;border-radius:36px;background:#0A1118;border:1px solid rgb(var(--t) / .28);
   box-shadow:0 0 0 6px rgb(var(--t) / .06),0 50px 90px -30px rgb(0 0 0 / .75),0 0 110px -18px rgb(var(--a) / .6);
-  margin:30px auto -150px;transform:rotate(-5deg);transition:transform .5s cubic-bezier(.16,1,.3,1)}
+  margin:30px auto -150px;transform:rotate(-5deg);transition:transform .5s cubic-bezier(.16,1,.3,1);
+  animation:eh-phoneFloat 5.5s ease-in-out infinite}
 #eis-home .phone.real::before{display:none}
 #eis-home .phone.real img{display:block;width:100%;height:100%;object-fit:cover;object-position:top;border-radius:29px}
-#eis-home .c-e:hover .phone.real{transform:rotate(-2deg) translateY(-8px)}
+#eis-home .c-e:hover .phone.real{animation-play-state:paused;transform:rotate(-2deg) translateY(-8px)}
+@keyframes eh-phoneFloat{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-3.2deg) translateY(-10px)}}
 #eis-home .tap{position:absolute;right:clamp(14px,2.4vw,24px);bottom:clamp(54px,7vw,80px);z-index:2;display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:999px;
   background:var(--accent);color:var(--accent-ink);font:800 14px var(--body);box-shadow:0 18px 36px -14px rgb(var(--a) / .9),0 0 0 0 rgb(var(--a) / .55);transform:rotate(3deg);
   animation:eh-tapPulse 2.6s ease-out infinite}
 #eis-home .tap svg{width:16px;height:16px;stroke-width:2.2;animation:eh-tapPoke 2.6s ease-in-out infinite}
 @keyframes eh-tapPulse{0%,65%{box-shadow:0 18px 36px -14px rgb(var(--a) / .9),0 0 0 0 rgb(var(--a) / .55)}80%{box-shadow:0 18px 36px -14px rgb(var(--a) / .9),0 0 0 14px rgb(var(--a) / 0)}100%{box-shadow:0 18px 36px -14px rgb(var(--a) / .9),0 0 0 0 rgb(var(--a) / 0)}}
 @keyframes eh-tapPoke{0%,70%{transform:translateY(0)}78%{transform:translateY(-2px)}86%{transform:translateY(1px)}94%,100%{transform:translateY(0)}}
-@media (prefers-reduced-motion: reduce){#eis-home .phone.real,#eis-home .c-e:hover .phone.real{transition:none;transform:rotate(-5deg)}
+@media (prefers-reduced-motion: reduce){#eis-home .phone.real,#eis-home .c-e:hover .phone.real{transition:none;animation:none;transform:rotate(-5deg)}
 #eis-home .tap,#eis-home .tap svg{animation:none}
 }
 /* Phone screen: HTML recreation of the practitioner home screen (made-up data), drawn at 375px and scaled to fit */
