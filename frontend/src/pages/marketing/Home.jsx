@@ -189,7 +189,7 @@ export default function Home() {
   <section className="tone-light proof" aria-label="Measured results">
     <div className="wrap">
       <div className="proof-grid">
-        <div className="stat fact"><span className="ic"><Ic n="list-checks" /></span><h3>Every session note checked against EIMS</h3><p>Child, practitioner, date, times, service, location and more: 11 fields compared before billing.</p></div>
+        <div className="stat fact"><span className="ic"><Ic n="list-checks" /></span><h3>Every session note checked against EIMS</h3><p>Child, practitioner, date, times, service, location and more, compared before billing.</p></div>
         <div className="stat fact"><span className="ic"><Ic n="file-check-2" /></span><h3>Entered once, billed from the same note</h3><p>The practitioner's session note becomes the SEVF and the invoice. Nobody re-types it.</p></div>
         <div className="stat fact"><span className="ic"><Ic n="shield-alert" /></span><h3>Errors stopped before billing</h3><p>A note that doesn't match is held until it's fixed or approved.</p></div>
         <div className="stat fact"><span className="ic"><Ic n="layout-grid" /></span><h3>One place for the whole agency</h3><p>Billing, practitioners, children, staff and consent in one platform.</p></div>
@@ -561,7 +561,7 @@ export default function Home() {
   <section className="tone-light section" id="faq">
     <div className="wrap faq">
       <h2>Early intervention billing FAQ</h2>
-      <details><summary>How do I reconcile service logs with EIMS?<span className="ic"><Ic n="plus" /></span></summary><p>Upload your monthly EIMS service log export. Izaya EIS compares 11 fields on every session note (child ID, child name, practitioner, service date, start and end time, service, location, group size, service status and IFSP event ID) and holds any note that doesn't match until it's fixed or approved.</p></details>
+      <details><summary>How do I reconcile service logs with EIMS?<span className="ic"><Ic n="plus" /></span></summary><p>Upload your monthly EIMS service log export. Izaya EIS checks every detail on every session note against it and holds any note that doesn't match until it's fixed or approved.</p></details>
       <details><summary>What is an SEVF, and can it be generated automatically?<span className="ic"><Ic n="plus" /></span></summary><p>The SEVF is the NJEIS form an agency submits for a practitioner's sessions. When every session in a practitioner's batch is clean, Izaya EIS generates the SEVF and the invoice automatically. Batches with flagged notes wait for a person to review them.</p></details>
       <details><summary>How do we stop billing errors from reaching the state?<span className="ic"><Ic n="plus" /></span></summary><p>Every session note is compared with EIMS before billing. Mismatches, sessions missing from EIMS and duplicate entries are flagged and held, so they're corrected before the SEVF goes out instead of being found in a later review.</p></details>
       <details><summary>Is this early intervention software only for billing?<span className="ic"><Ic n="plus" /></span></summary><p>No. You also manage practitioners and their caseloads, every child and their care team, child records, consents and records releases, office staff roles and permissions, and an audit trail, all in the same platform.</p></details>
@@ -700,7 +700,7 @@ export default function Home() {
               <div className="sm-session"><b>Oct 8 · 10:00–10:45 AM</b><span>Developmental Intervention · Home</span><em className="sm-chip">Billed</em></div>
               <div className="sm-next">
                 <b><Ic n="sparkles" />What happens next</b>
-                <p>When your office runs billing, this note is compared with your EIMS export on 11 fields. A clean note goes straight onto the SEVF and invoice. One that doesn't match is held for review.</p>
+                <p>When your office runs billing, this note is compared with your EIMS export. A clean note goes straight onto the SEVF and invoice. One that doesn't match is held for review.</p>
                 <div className="sm-next-actions"><Link className="btn btn-primary btn-sm" data-book="simulator" to="/book?source=simulator">Book a demo</Link><button type="button" className="btn btn-ghost btn-sm" id="simAgain">Log another</button></div>
               </div>
             </div>
