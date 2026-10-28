@@ -377,7 +377,7 @@ function ActionQueue({ day, onSelectSession }) {
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} open</div>
       </div>
       {sessions.length === 0 ? (
-        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No open holds or returns this month. Nice.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No open holds this month. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1 [&>*]:shrink-0">
           {sessions.map((s) => {
