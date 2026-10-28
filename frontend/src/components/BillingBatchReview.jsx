@@ -594,11 +594,18 @@ export const BillingBatchReview = ({
   // Belt-and-suspenders: if the lock on the open session's practitioner is
   // lost any other way (force-released by an admin, released from another
   // tab, the 20s poll catching a stale lock), close the panel too — not
-  // just on the direct Release click above.
+  // just on the direct Release click above. Exception: Generate & Issue
+  // also auto-releases the lock on success (see wrappedGenerateAndIssue),
+  // and the Fix flags tab's own success screen (readyToComplete) needs to
+  // stay open so the biller can download the documents and Send to
+  // Completed — closing the panel there made a successful generate look
+  // like the screen going blank.
   useEffect(() => {
     if (!detail) return;
     const stillLockedByMe = detailPractitioner?.locked_by_id === currentUserId;
-    if (!stillLockedByMe) setDetail(null);
+    const justGeneratedHere = detailTab === 'fix' &&
+      (detailPractitioner?.sevf_documents?.length > 0 || detailPractitioner?.invoice_documents?.length > 0);
+    if (!stillLockedByMe && !justGeneratedHere) setDetail(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodPractitioners]);
 
@@ -836,7 +843,11 @@ export const BillingBatchReview = ({
           <ClipboardList className="size-4" />
           <span className="text-[14px] font-bold uppercase tracking-wide">Review Panel</span>
         </div>
-        {!detailSession && !(detail && detailTab === 'fix' && detailPractitioner?.locked_by_id === currentUserId) ? (
+        {!detailSession && !(detail && detailTab === 'fix' && (
+          detailPractitioner?.locked_by_id === currentUserId ||
+          detailPractitioner?.sevf_documents?.length > 0 ||
+          detailPractitioner?.invoice_documents?.length > 0
+        )) ? (
           <div className="flex-1 flex flex-col items-center gap-4 pt-20 px-8 text-center">
             <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
               <MousePointerClick className="size-8" />
