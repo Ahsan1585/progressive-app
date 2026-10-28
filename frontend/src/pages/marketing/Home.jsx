@@ -19,6 +19,8 @@ import {
   ClipboardList,
   ClipboardPenLine,
   Clock,
+  CalendarPlus,
+  CirclePause,
   CornerUpLeft,
   CreditCard,
   Download,
@@ -47,6 +49,7 @@ import {
   Plus,
   Pointer,
   Repeat,
+  RefreshCw,
   ScanSearch,
   ScrollText,
   Search,
@@ -78,6 +81,8 @@ const ICONS = {
   'arrow-right': ArrowRight,
   'baby': Baby,
   'badge': Badge,
+  'calendar-plus': CalendarPlus,
+  'circle-pause': CirclePause,
   'check': Check,
   'check-circle-2': CheckCircle2,
   'chevron-down': ChevronDown,
@@ -115,6 +120,7 @@ const ICONS = {
   'plus': Plus,
   'pointer': Pointer,
   'repeat': Repeat,
+  'refresh-cw': RefreshCw,
   'scan-search': ScanSearch,
   'scroll-text': ScrollText,
   'search': Search,
@@ -471,15 +477,15 @@ export default function Home() {
         <div className="cell c-e tone-dark">
           <h3>Log from any phone.</h3>
           <p className="sub">No app store. No IT ticket.</p>
-          <div className="phone real" id="phoneReal" role="button" tabIndex="0" aria-haspopup="dialog" aria-label="Try it: log a session in the practitioner app"><div className="screen" role="img" aria-label="Izaya EIS practitioner app home screen: sessions and hours this month, amount ready to invoice, monthly trend, recent children, and the Log a Session button">
+          <div className="phone real" id="phoneReal" role="button" tabIndex="0" aria-haspopup="dialog" aria-label="Try it: log a session in the practitioner app"><div className="screen" role="img" aria-label="Izaya EIS practitioner app home screen: amounts submitted, invoiced and paid this month, monthly trend, recent children, and the Log a Session button">
             <div className="ps" aria-hidden="true">
               <div className="ps-top"><span className="ps-agency">LITTLE OAKS THERAPY</span><span className="ps-hi">Welcome back,</span><b className="ps-name">Maya Chen</b></div>
+              <span className="ps-label ps-pad">Your notes</span>
               <div className="ps-stats">
-                <div><b>42</b><span>Sessions this month</span></div>
-                <div><b>31h 30m</b><span>Hours this month</span></div>
-                <div><b>$2,835</b><span>Invoiced</span></div>
+                <div><b>$2,835</b><span>Submitted</span></div>
+                <div><b>$1,575</b><span>Invoiced</span></div>
+                <div><b>$1,260</b><span>Paid</span></div>
               </div>
-              <div className="ps-ready"><Ic n="file-text" /><div><b>$1,260 ready to invoice</b><span>Notes logged, SEVF not generated yet</span></div><Ic n="chevron-right" /></div>
               <div className="ps-card">
                 <div className="ps-row"><span className="ps-label">Monthly trend</span><span className="ps-seg"><em>$ Invoiced</em><span>Hours</span></span></div>
                 <div className="ps-bars">
@@ -494,7 +500,7 @@ export default function Home() {
               <span className="ps-label ps-pad">Jump back in</span>
               <div className="ps-chips"><span>Leo R.</span><span>Ava T.</span><span>Noah K.</span><span>Mia S.</span></div>
               <div className="ps-cta"><Ic n="clipboard-pen-line" />Log a Session</div>
-              <div className="ps-nav"><span className="on"><Ic n="house" />Home</span><span><Ic n="users" />Children</span><span><Ic n="inbox" />Inbox</span><span><Ic n="credit-card" />Billing</span><span><Ic n="user" />Profile</span></div>
+              <div className="ps-nav"><span className="on"><Ic n="house" />Home</span><span><Ic n="users" />Children</span><span><Ic n="inbox" />Inbox</span><span><Ic n="message-circle" />Messages</span><span><Ic n="user" />Profile</span></div>
             </div>
           </div></div>
           <button type="button" className="tap" id="simOpen" aria-haspopup="dialog"><Ic n="pointer" />Try it: log a session</button>
@@ -609,20 +615,22 @@ export default function Home() {
           <section className="sv" data-view="home">
             <div className="sv-scroll">
               <div className="ps-top"><span className="ps-agency">LITTLE OAKS THERAPY</span><span className="ps-hi">Welcome back,</span><b className="ps-name">Maya Chen</b></div>
-              <div className="ps-stats">
-                <div><b>42</b><span>Sessions this month</span></div>
-                <div><b>31h 30m</b><span>Hours this month</span></div>
-                <div><b>$2,835</b><span>Invoiced</span></div>
-              </div>
-              <div className="ps-ready"><Ic n="file-text" /><div><b>$1,260 ready to invoice</b><span>Notes logged, SEVF not generated yet</span></div><Ic n="chevron-right" /></div>
-              <span className="ps-label">Jump back in</span>
+              <span className="ps-label ps-pad">Jump back in</span>
               <div className="ps-chips"><span>Leo R.</span><span>Ava T.</span><span>Noah K.</span><span>Mia S.</span></div>
-              <span className="ps-label">Your schedule</span>
-              <div className="sm-card sm-center">No scheduled appointments</div>
+              <div className="ps-hold"><Ic n="circle-pause" /><div><b>1 note on hold by the office</b><span>$110.83 paused. Nothing for you to do.</span></div><span className="ps-hold-btn">Show<Ic n="chevron-down" /></span></div>
+              <div className="ps-row"><span className="ps-label">Your schedule</span><span className="ps-muted">1 upcoming</span></div>
+              <div className="sm-card ps-sched"><span className="ps-sched-date"><b>OCT</b>28</span><div><b>Leo Rivera</b><span>2:00&nbsp;PM&nbsp;–&nbsp;3:00&nbsp;PM · in the office</span></div><Ic n="chevron-right" /></div>
+              <button type="button" className="ps-sched-add"><Ic n="calendar-plus" />Schedule a session</button>
+              <div className="ps-row"><span className="ps-label">Your notes</span><span className="ps-muted">October 2026</span></div>
+              <div className="ps-notes">
+                <div className="ps-note ps-note-main"><b>$2,835</b><span>Submitted</span><em>42 notes · 31h 30m</em></div>
+                <div className="ps-note"><b>$1,575</b><span>Invoiced</span><em>21 notes</em></div>
+                <div className="ps-note ps-note-paid"><b>$1,260</b><span>Paid</span><em>14 notes</em></div>
+              </div>
             </div>
             <div className="sm-dock">
               <button type="button" className="sm-primary sm-pulse" data-go="roster"><Ic n="clipboard-pen-line" />Log a Session</button>
-              <nav className="ps-nav" aria-label="App navigation (demo)"><span className="on"><Ic n="house" />Home</span><span><Ic n="users" />Children</span><span><Ic n="inbox" />Inbox</span><span><Ic n="credit-card" />Billing</span><span><Ic n="user" />Profile</span></nav>
+              <nav className="ps-nav" aria-label="App navigation (demo)"><span className="on"><Ic n="house" />Home</span><span><Ic n="users" />Children</span><span><Ic n="inbox" />Inbox</span><span><Ic n="message-circle" />Messages</span><span><Ic n="user" />Profile</span></nav>
             </div>
           </section>
 
