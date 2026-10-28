@@ -749,7 +749,7 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Returned logs</div>
+        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Returned &amp; declined logs</div>
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{count} total</div>
       </div>
       <div className="text-[14px] text-slate-500 mb-3">Sessions from this month that billing sent back, oldest first.</div>
@@ -1080,7 +1080,7 @@ const CARD_META = {
   documents_feed: { title: 'Invoices & SEVF forms', hint: 'Recent documents and their status' },
   accuracy_table: { title: 'Practitioner accuracy', hint: 'Who is submitting clean logs' },
   eims_status: { title: 'EIMS match status', hint: 'Matched, mismatched, missing' },
-  returned_logs: { title: 'Returned logs', hint: 'Logs billing sent back' },
+  returned_logs: { title: 'Returned & declined logs', hint: 'Logs billing sent back or declined' },
   trajectory_chart: { title: 'Where this is headed', hint: 'Monthly and yearly volume' },
 };
 
