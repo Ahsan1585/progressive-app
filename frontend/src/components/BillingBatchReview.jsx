@@ -912,6 +912,11 @@ export const BillingBatchReview = ({
                 canGenerate={detailPractitioner?.locked_by_id === currentUserId && allSessionsReviewed(detailSessions, logActions)}
                 isGenerating={processingId === detail.practitionerId}
                 onGenerate={() => wrappedGenerateAndIssue(detail.practitionerId)}
+                readyToComplete={detailPractitioner?.sevf_documents?.length > 0 || detailPractitioner?.invoice_documents?.length > 0}
+                onSendToCompleted={() => wrappedSendToCompleted(detail.practitionerId)}
+                isSendingToCompleted={processingId === detail.practitionerId}
+                sevfDocuments={detailPractitioner?.sevf_documents}
+                invoiceDocuments={detailPractitioner?.invoice_documents}
               />
             ) : detailTab === 'analysis' ? (
               <ComplianceAnalysisPreview

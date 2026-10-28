@@ -4,7 +4,7 @@ import { formatTime12h } from '@/utils/formatTime';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { showAlert } from '@/utils/dialogStore';
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Undo2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download, Undo2 } from 'lucide-react';
 import { buildFlagList, describeFlag, flagOutcome, hasWordOverlap, nextOpenIndex, suggestNote } from '@/utils/fixFlags';
 
 // --- Fix flags: the sessions Compliance Analysis flagged, one at a time.
@@ -30,6 +30,10 @@ const ADVANCE_DELAY_MS = 450;
 const TIME_KEYS = ['start_time', 'end_time'];
 
 const longDate = (iso) => (iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : '-');
+const formatMonthLabel = (monthKey) => {
+  const [y, m] = monthKey.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
 
 function ActionTile({ label, hint, shortcut, tone, onClick, disabled, active }) {
   const tones = {
@@ -62,6 +66,7 @@ export function FixFlagsPanel({
   startKind, currentId, onCurrentChange, onFlagsChange, onNotAFlag,
   handleAccept, handleResetToPending, handleHold, handleReleaseHold, handleInlineReturnReject,
   canGenerate, isGenerating, onGenerate,
+  readyToComplete, onSendToCompleted, isSendingToCompleted, sevfDocuments, invoiceDocuments,
 }) {
   const [analysis, setAnalysis] = useState(null); // { documentOnFile, results } | null
   const [isLoading, setIsLoading] = useState(true);
@@ -329,18 +334,56 @@ export function FixFlagsPanel({
           </div>
         )}
         <p className="max-w-[46ch] text-[14px] text-slate-600">
-          {canGenerate
-            ? `Every session for ${firstName} in this period has a decision. You can generate the SEVF and invoice now.`
-            : `Some of ${firstName}'s other sessions still need a decision before you can generate. Check the queue on the left.`}
+          {readyToComplete
+            ? `The SEVF and invoice for ${firstName} are generated. Download them below, or send this batch to completed bills.`
+            : canGenerate
+              ? `Every session for ${firstName} in this period has a decision. You can generate the SEVF and invoice now.`
+              : `Some of ${firstName}'s other sessions still need a decision before you can generate. Check the queue on the left.`}
         </p>
-        <Button
-          onClick={onGenerate}
-          disabled={!canGenerate || isGenerating}
-          className="mt-1 h-auto rounded-2xl bg-slate-900 px-7 py-4 text-[15px] font-extrabold text-white hover:bg-slate-800 cursor-pointer"
-        >
-          {isGenerating ? 'Generating...' : `Generate & Issue for ${firstName}`}
-        </Button>
-        {flagList.length > 0 && (
+        {(sevfDocuments?.length > 0 || invoiceDocuments?.length > 0) && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {sevfDocuments?.map((doc) => (
+              <a
+                key={`sevf-${doc.month}`}
+                href={doc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-[14px] font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+              >
+                <Download className="size-3.5" /> SEVF · {formatMonthLabel(doc.month)}
+              </a>
+            ))}
+            {invoiceDocuments?.map((doc) => (
+              <a
+                key={`inv-${doc.month}`}
+                href={doc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-[14px] font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
+              >
+                <Download className="size-3.5" /> Invoice · {formatMonthLabel(doc.month)}
+              </a>
+            ))}
+          </div>
+        )}
+        {readyToComplete ? (
+          <Button
+            onClick={onSendToCompleted}
+            disabled={isSendingToCompleted}
+            className="mt-1 h-auto rounded-2xl bg-emerald-600 px-7 py-4 text-[15px] font-extrabold text-white hover:bg-emerald-700 cursor-pointer"
+          >
+            <CheckCircle2 className="size-4" /> {isSendingToCompleted ? 'Sending...' : 'Send to Completed'}
+          </Button>
+        ) : (
+          <Button
+            onClick={onGenerate}
+            disabled={!canGenerate || isGenerating}
+            className="mt-1 h-auto rounded-2xl bg-slate-900 px-7 py-4 text-[15px] font-extrabold text-white hover:bg-slate-800 cursor-pointer"
+          >
+            {isGenerating ? 'Generating...' : `Generate & Issue for ${firstName}`}
+          </Button>
+        )}
+        {flagList.length > 0 && !readyToComplete && (
           <button type="button" onClick={() => { setReviewingAgain(true); goTo(0); }} className="text-[13.5px] font-bold text-blue-600 hover:underline cursor-pointer">
             Review the flags again
           </button>
