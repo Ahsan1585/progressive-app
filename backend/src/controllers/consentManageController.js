@@ -17,6 +17,7 @@ const { escapeHtml } = require('../utils/emailClient');
 const { notifyConsentStaff } = require('../utils/consentNotify');
 const { sendPage, rejectPage } = require('../utils/publicHtml');
 const { safeFilenamePart } = require('../utils/pdfText');
+const { decryptField } = require('../utils/fieldEncryption');
 const { buildConsentCopyPdf, loadStaffNames } = require('./consentReportController');
 
 const MAX_ATTEMPTS = 5;
@@ -52,6 +53,9 @@ async function loadRequest(req, res) {
   );
   const request = rows[0];
   if (!request || !request.consent_id) { rejectPage(res, 404, 'This link is not valid.'); return null; }
+  request.patient_dob = decryptField(request.patient_dob);
+  request.patient_first_name = decryptField(request.patient_first_name);
+  request.patient_last_name = decryptField(request.patient_last_name);
   if (request.manage_locked_at) {
     rejectPage(res, 423, 'This link has been locked after too many incorrect attempts. Please contact the agency.');
     return null;

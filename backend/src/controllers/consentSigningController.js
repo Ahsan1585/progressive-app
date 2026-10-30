@@ -14,6 +14,7 @@ const { logAudit } = require('../utils/auditLog');
 const { getCompanyName } = require('../utils/companyName');
 const { sendConsentManageEmail } = require('../utils/emailClient');
 const { notifyConsentStaff } = require('../utils/consentNotify');
+const { decryptField } = require('../utils/fieldEncryption');
 
 const MAX_VERIFY_ATTEMPTS = 5;
 const ATTESTATION_TEXT = 'I am the parent or legal guardian of this child. I authorize the disclosure described above. I understand I may revoke this consent at any time by contacting the agency, and that my electronic signature has the same legal effect as my handwritten signature.';
@@ -68,7 +69,12 @@ async function lookupByToken(token) {
      WHERE r.token_hash = $1`,
     [hashToken(token)]
   );
-  return rows[0] || null;
+  const request = rows[0];
+  if (!request) return null;
+  request.patient_dob = decryptField(request.patient_dob);
+  request.patient_first_name = decryptField(request.patient_first_name);
+  request.patient_last_name = decryptField(request.patient_last_name);
+  return request;
 }
 
 const INVALID = { error: 'invalid', message: 'This link is not valid.' };
