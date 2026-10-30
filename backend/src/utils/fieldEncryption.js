@@ -1,12 +1,15 @@
 const crypto = require('crypto');
 
 // Application-level (field-level) encryption for a small number of
-// especially sensitive columns — currently just practitioners.ssn — on top
-// of whatever at-rest encryption the underlying infrastructure (Google
-// Cloud SQL) already provides by default. This is defense-in-depth: it
-// means a database-level compromise (a leaked backup, a misconfigured
-// read replica, a compromised DB credential) doesn't hand over SSNs in
-// plaintext even though the disk itself is already encrypted.
+// especially sensitive columns — practitioners.ssn, and child identity/
+// clinical-note fields on patients/assessments — on top of whatever
+// at-rest encryption the underlying infrastructure (Google Cloud SQL)
+// already provides by default. This is defense-in-depth: it means a
+// database-level compromise (a leaked backup, a misconfigured read
+// replica, a compromised DB credential) doesn't hand over SSNs or child
+// PII in plaintext even though the disk itself is already encrypted.
+// Name fields that need SQL search/sort also get a deterministic HMAC
+// "blind index" companion column — see hmacIndex below.
 //
 // AES-256-GCM: authenticated encryption — a tampered ciphertext fails to
 // decrypt rather than silently decrypting to garbage, which matters for a
@@ -73,4 +76,62 @@ function decryptField(storedValue) {
   return plaintext.toString('utf8');
 }
 
-module.exports = { encryptField, decryptField };
+function getIndexKey() {
+  const keyB64 = process.env.FIELD_INDEX_KEY;
+  if (!keyB64) {
+    throw new Error('FIELD_INDEX_KEY is not set — cannot compute a blind index for name fields.');
+  }
+  const key = Buffer.from(keyB64, 'base64');
+  if (key.length !== 32) {
+    throw new Error(`FIELD_INDEX_KEY must decode to exactly 32 bytes (got ${key.length}).`);
+  }
+  return key;
+}
+
+// Deterministic HMAC-SHA256 "blind index" for exact-match SQL lookups
+// against an encrypted column, WITHOUT ever storing or querying plaintext.
+// Uses a key independent from FIELD_ENCRYPTION_KEY: compromising one key
+// doesn't help attack the other, and the index is never reversible back to
+// plaintext on its own — it only supports equality comparison.
+//
+// Returns null (never a real digest) for null/undefined/empty input, so a
+// blank search term can be treated by callers as "no filter applied"
+// instead of accidentally matching every row with a null/blank name.
+function hmacIndex(plaintext) {
+  const normalized = (plaintext === null || plaintext === undefined) ? '' : String(plaintext).trim().toLowerCase();
+  if (normalized === '') return null;
+  return crypto.createHmac('sha256', getIndexKey()).update(normalized, 'utf8').digest('hex');
+}
+
+// Decrypts the identity fields on a `patients` row read from the database,
+// and strips the blind-index columns from the returned object so a raw
+// HMAC digest never leaks into an API response (it has no legitimate use
+// outside a SQL WHERE clause). Tolerates a row that's already plaintext
+// (pre-backfill) via decryptField's existing "no v1: prefix" passthrough.
+function decryptPatientRow(row) {
+  if (!row) return row;
+  const { first_name_idx, last_name_idx, ...rest } = row;
+  return {
+    ...rest,
+    first_name: decryptField(row.first_name),
+    last_name: decryptField(row.last_name),
+    middle_name: decryptField(row.middle_name),
+    dob: decryptField(row.dob),
+  };
+}
+
+// Same as decryptPatientRow, for the session-time identity snapshot and
+// clinical narrative on an `assessments` row.
+function decryptAssessmentRow(row) {
+  if (!row) return row;
+  const { patient_first_name_idx, patient_last_name_idx, ...rest } = row;
+  return {
+    ...rest,
+    patient_first_name: decryptField(row.patient_first_name),
+    patient_last_name: decryptField(row.patient_last_name),
+    patient_dob: decryptField(row.patient_dob),
+    session_notes: decryptField(row.session_notes),
+  };
+}
+
+module.exports = { encryptField, decryptField, hmacIndex, decryptPatientRow, decryptAssessmentRow };
