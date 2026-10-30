@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { encryptField, hmacIndex } = require('./fieldEncryption');
 
 // Thrown when a session log conflicts with one the same practitioner has
 // already logged for the same child: the two sessions overlap in time on the
@@ -109,17 +110,20 @@ async function createAssessmentFromPayload({
        (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
         practitioner_first_name, practitioner_last_name, practitioner_discipline,
         service_date, start_time, end_time, total_time, status, type, location, group_size_category,
-        parent_signature, practitioner_signature, form_data, billing_status, company_affiliation, session_notes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        parent_signature, practitioner_signature, form_data, billing_status, company_affiliation, session_notes,
+        patient_first_name_idx, patient_last_name_idx)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
      RETURNING *`,
     [
-      patientId, practitionerId, patient_first_name, patient_last_name, patient_dob, patient_county,
+      patientId, practitionerId,
+      encryptField(patient_first_name), encryptField(patient_last_name), encryptField(patient_dob), patient_county,
       practitioner_first_name, practitioner_last_name, practitioner_discipline,
       date, startTime, endTime, totalTime, status, type, location, groupSizeCategory || null,
       parentSignatureBase64, practitionerSignatureBase64,
       JSON.stringify({ custom_fields: sanitizedCustomFields || {} }),
       billingStatus || 'pending', companyAffiliation || null,
-      note && note.trim() ? note.trim() : null,
+      note && note.trim() ? encryptField(note.trim()) : null,
+      hmacIndex(patient_first_name), hmacIndex(patient_last_name),
     ]
   );
 

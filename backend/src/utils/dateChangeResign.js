@@ -15,6 +15,7 @@
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { sendParentSignatureRequestEmail } = require('./emailClient');
+const { encryptField, decryptField } = require('./fieldEncryption');
 
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // same 7 days as the telepractice link
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -87,7 +88,7 @@ async function requestDateChangeResign({
 
   const rawToken = crypto.randomBytes(32).toString('hex');
   const editPayload = {
-    session_notes: newValues.session_notes !== undefined ? newValues.session_notes : a.session_notes ?? null,
+    session_notes: newValues.session_notes !== undefined ? newValues.session_notes : decryptField(a.session_notes) ?? null,
     company_affiliation: newValues.company_affiliation !== undefined ? newValues.company_affiliation : a.company_affiliation ?? null,
     resubmit_note: resubmitNote && resubmitNote.trim() ? resubmitNote.trim() : null,
     author_role: authorRole,
@@ -108,7 +109,7 @@ async function requestDateChangeResign({
        RETURNING id`,
       [
         'date_change', a.id, a.practitioner_id, a.patient_id,
-        a.patient_first_name, a.patient_last_name, a.patient_dob, a.patient_county,
+        decryptField(a.patient_first_name), decryptField(a.patient_last_name), decryptField(a.patient_dob), a.patient_county,
         a.practitioner_first_name, a.practitioner_last_name, a.practitioner_discipline,
         toIsoDate(a.service_date), toIsoDate(newValues.service_date), newValues.start_time, newValues.end_time,
         newValues.total_time, newValues.status, newValues.type, newValues.location,
@@ -157,7 +158,7 @@ async function signDateChange(request, { signatureBase64, attestationText, ip, u
       [
         toIsoDate(request.service_date), request.start_time, request.end_time, request.total_time, request.session_status,
         request.type, request.location, request.group_size_category || null,
-        JSON.stringify(request.form_data || {}), payload.session_notes ?? null, payload.company_affiliation ?? null,
+        JSON.stringify(request.form_data || {}), payload.session_notes ? encryptField(payload.session_notes) : null, payload.company_affiliation ?? null,
         signatureBase64, request.assessment_id,
       ]
     );

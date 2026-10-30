@@ -1,6 +1,8 @@
 // A practitioner changing the date on a note the parent already signed:
 // the change waits for the parent's new signature, and the note is held
 // from billing until then.
+process.env.FIELD_ENCRYPTION_KEY = require('crypto').randomBytes(32).toString('base64');
+process.env.FIELD_INDEX_KEY = require('crypto').randomBytes(32).toString('base64');
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn(), connect: jest.fn() } }));
 jest.mock('../emailClient', () => ({ sendParentSignatureRequestEmail: jest.fn() }));
 jest.mock('../auditLog', () => ({ logAudit: jest.fn() }));
@@ -130,7 +132,10 @@ describe('signDateChange', () => {
     expect(apply.sql).toMatch(/billing_status = 'pending'/);
     expect(apply.sql).toMatch(/billing_review = NULL/);
     expect(apply.sql).toMatch(/WHERE id = \$\d+ AND billing_status = 'awaiting_resign'/);
-    expect(apply.params).toEqual(expect.arrayContaining(['2026-10-23', 'data:new-parent', 42, 'Worked on stacking']));
+    expect(apply.params).toEqual(expect.arrayContaining(['2026-10-23', 'data:new-parent', 42]));
+    const { decryptField } = require('../fieldEncryption');
+    const notesParam = apply.params.find((p) => typeof p === 'string' && p.startsWith('v1:'));
+    expect(decryptField(notesParam)).toBe('Worked on stacking');
     // EIMS checks and one-off Allows were for the old date
     expect(r.find(/DELETE FROM compliance_field_acknowledgments/)).toHaveLength(1);
     expect(apply.sql).toMatch(/eims_last_flagged = NULL/);
