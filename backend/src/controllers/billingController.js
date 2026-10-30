@@ -1145,8 +1145,9 @@ const generateFinancialInvoice = async (req, res) => {
     if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
     sql += ' ORDER BY a.service_date ASC';
 
-    const { rows: assessments } = await pool.query(sql, params);
-    if (!assessments || assessments.length === 0) return res.status(400).json({ success: false, error: "No reviewed assessments found." });
+    const { rows: rawAssessments } = await pool.query(sql, params);
+    if (!rawAssessments || rawAssessments.length === 0) return res.status(400).json({ success: false, error: "No reviewed assessments found." });
+    const assessments = rawAssessments.map(decryptAssessmentRow);
 
     const practitioner = assessments[0].practitioners;
 

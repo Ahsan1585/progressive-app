@@ -221,7 +221,7 @@ const updatePatientStatus = async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
 
     logAudit({ req, action: 'patient_status_update', resourceType: 'patient', resourceId: id, details: { status } });
-    res.json({ message: 'Patient status updated', data: { ...rows[0], status } });
+    res.json({ message: 'Patient status updated', data: { ...decryptPatientRow(rows[0]), status } });
   } catch (error) {
     console.error('Error updating patient status:', error);
     res.status(500).json({ error: 'Failed to update patient status' });
@@ -242,10 +242,11 @@ const getPatientAssessments = async (req, res) => {
     if (!ownedRows[0]) return res.status(403).json({ error: 'Not authorized for this patient' });
 
     // Fetch this patient's assessments, additionally scoped to the practitioner
-    const { rows: assessments } = await pool.query(
+    const { rows: rawAssessments } = await pool.query(
       'SELECT * FROM assessments WHERE patient_id = $1 AND practitioner_id = $2 ORDER BY service_date DESC',
       [patientId, practitionerId]
     );
+    const assessments = rawAssessments.map(decryptAssessmentRow);
 
     logAudit({ req, action: 'patient_assessments_view', resourceType: 'patient', resourceId: patientId, details: { count: assessments.length } });
     res.status(200).json(assessments);

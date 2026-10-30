@@ -963,7 +963,7 @@ const issueInvoiceOverride = async (req, res) => {
       : '';
 
     // Fetch full assessment + practitioner data
-    const { rows: assessments } = await pool.query(
+    const { rows: rawAssessments } = await pool.query(
       `SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
@@ -971,9 +971,10 @@ const issueInvoiceOverride = async (req, res) => {
        WHERE a.id = ANY($1::int[]) AND a.billing_status = ANY($2::text[])`,
       [assessmentIds, ['declined', 'rejected']]
     );
-    if (!assessments || assessments.length === 0) {
+    if (!rawAssessments || rawAssessments.length === 0) {
       return res.status(400).json({ error: 'No eligible assessments found' });
     }
+    const assessments = rawAssessments.map(decryptAssessmentRow);
 
     // Group by practitioner
     const byPractitioner = {};
