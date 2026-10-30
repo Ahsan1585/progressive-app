@@ -1,6 +1,9 @@
 process.env.FIELD_ENCRYPTION_KEY = require('crypto').randomBytes(32).toString('base64');
 process.env.FIELD_INDEX_KEY = require('crypto').randomBytes(32).toString('base64');
-const { encryptField, decryptField, hmacIndex, decryptPatientRow, decryptAssessmentRow } = require('../fieldEncryption');
+const {
+  encryptField, decryptField, hmacIndex, decryptPatientRow, decryptAssessmentRow,
+  encryptFieldIfNeeded, hmacIndexFromEitherForm,
+} = require('../fieldEncryption');
 
 describe('hmacIndex', () => {
   it('returns null for null, undefined, and empty string without hashing', () => {
@@ -77,5 +80,37 @@ describe('decryptAssessmentRow', () => {
 
   it('returns null unchanged, not an error', () => {
     expect(decryptAssessmentRow(null)).toBeNull();
+  });
+});
+
+// Fix for review finding I6 (encryptChildPii.js's backfill skip check could
+// double-encrypt session_notes on a row where only the name columns were
+// already migrated).
+describe('encryptFieldIfNeeded', () => {
+  it('encrypts a plaintext value', () => {
+    const result = encryptFieldIfNeeded('Luz');
+    expect(result).not.toBe('Luz');
+    expect(decryptField(result)).toBe('Luz');
+  });
+
+  it('does NOT re-encrypt an already-encrypted value', () => {
+    const once = encryptField('Luz');
+    const result = encryptFieldIfNeeded(once);
+    expect(result).toBe(once);
+    expect(decryptField(result)).toBe('Luz');
+  });
+
+  it('returns null/undefined unchanged', () => {
+    expect(encryptFieldIfNeeded(null)).toBeNull();
+    expect(encryptFieldIfNeeded(undefined)).toBeUndefined();
+  });
+});
+
+describe('hmacIndexFromEitherForm', () => {
+  it('produces the same index whether given plaintext or already-encrypted ciphertext', () => {
+    const plaintextIndex = hmacIndexFromEitherForm('Luz');
+    const ciphertextIndex = hmacIndexFromEitherForm(encryptField('Luz'));
+    expect(plaintextIndex).toBe(hmacIndex('Luz'));
+    expect(ciphertextIndex).toBe(hmacIndex('Luz'));
   });
 });

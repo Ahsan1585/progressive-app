@@ -13,7 +13,7 @@
 // 127.0.0.1:5433):
 //   FIELD_ENCRYPTION_KEY=<key> FIELD_INDEX_KEY=<key> node scripts/encryptChildPii.js <tenant_db_name>
 const { Pool } = require('pg');
-const { encryptField, hmacIndex } = require('../src/utils/fieldEncryption');
+const { encryptFieldIfNeeded: encryptIfNeeded, hmacIndexFromEitherForm: hmacIndexOf } = require('../src/utils/fieldEncryption');
 
 const ALREADY_DONE = (v) => typeof v === 'string' && v.startsWith('v1:');
 
@@ -42,17 +42,20 @@ async function main() {
     );
     let patientsDone = 0;
     for (const row of patients) {
-      if (ALREADY_DONE(row.first_name)) continue;
+      const alreadyFullyDone = ALREADY_DONE(row.first_name) && ALREADY_DONE(row.last_name)
+        && (row.middle_name == null || ALREADY_DONE(row.middle_name))
+        && (row.dob == null || ALREADY_DONE(row.dob));
+      if (alreadyFullyDone) continue;
       await pool.query(
         `UPDATE patients SET first_name = $1, last_name = $2, middle_name = $3, dob = $4,
                 first_name_idx = $5, last_name_idx = $6 WHERE id = $7`,
         [
-          encryptField(row.first_name),
-          encryptField(row.last_name),
-          row.middle_name ? encryptField(row.middle_name) : row.middle_name,
-          row.dob ? encryptField(row.dob) : row.dob,
-          hmacIndex(row.first_name),
-          hmacIndex(row.last_name),
+          encryptIfNeeded(row.first_name),
+          encryptIfNeeded(row.last_name),
+          encryptIfNeeded(row.middle_name),
+          encryptIfNeeded(row.dob),
+          hmacIndexOf(row.first_name),
+          hmacIndexOf(row.last_name),
           row.id,
         ]
       );
@@ -64,17 +67,20 @@ async function main() {
     );
     let assessmentsDone = 0;
     for (const row of assessments) {
-      if (ALREADY_DONE(row.patient_first_name)) continue;
+      const alreadyFullyDone = ALREADY_DONE(row.patient_first_name) && ALREADY_DONE(row.patient_last_name)
+        && (row.patient_dob == null || ALREADY_DONE(row.patient_dob))
+        && (row.session_notes == null || ALREADY_DONE(row.session_notes));
+      if (alreadyFullyDone) continue;
       await pool.query(
         `UPDATE assessments SET patient_first_name = $1, patient_last_name = $2, patient_dob = $3,
                 session_notes = $4, patient_first_name_idx = $5, patient_last_name_idx = $6 WHERE id = $7`,
         [
-          encryptField(row.patient_first_name),
-          encryptField(row.patient_last_name),
-          row.patient_dob ? encryptField(row.patient_dob) : row.patient_dob,
-          row.session_notes ? encryptField(row.session_notes) : row.session_notes,
-          hmacIndex(row.patient_first_name),
-          hmacIndex(row.patient_last_name),
+          encryptIfNeeded(row.patient_first_name),
+          encryptIfNeeded(row.patient_last_name),
+          encryptIfNeeded(row.patient_dob),
+          encryptIfNeeded(row.session_notes),
+          hmacIndexOf(row.patient_first_name),
+          hmacIndexOf(row.patient_last_name),
           row.id,
         ]
       );

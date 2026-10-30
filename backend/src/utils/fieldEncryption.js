@@ -134,4 +134,28 @@ function decryptAssessmentRow(row) {
   };
 }
 
-module.exports = { encryptField, decryptField, hmacIndex, decryptPatientRow, decryptAssessmentRow };
+// Used by the one-time backfill script (scripts/encryptChildPii.js) to
+// encrypt a column that may already be encrypted, without double-
+// encrypting it. Returns null/undefined unchanged, the value unchanged if
+// it's already a "v1:" ciphertext, and the real encryption otherwise —
+// unlike encryptField's own null/undefined/'' passthrough, this treats
+// "already ciphertext" as a passthrough case too.
+function encryptFieldIfNeeded(value) {
+  if (value === null || value === undefined) return value;
+  if (String(value).startsWith('v1:')) return value;
+  return encryptField(value);
+}
+
+// Computes a blind index from a column that may be plaintext or already
+// encrypted — decryptField passes plaintext through unchanged, so this
+// always hashes the real name either way, letting the backfill script
+// refresh the index even on a row whose name column was already migrated
+// by an earlier run.
+function hmacIndexFromEitherForm(value) {
+  return hmacIndex(String(value || '').startsWith('v1:') ? decryptField(value) : value);
+}
+
+module.exports = {
+  encryptField, decryptField, hmacIndex, decryptPatientRow, decryptAssessmentRow,
+  encryptFieldIfNeeded, hmacIndexFromEitherForm,
+};
