@@ -6,6 +6,7 @@ const { PDFDocument } = require('pdf-lib');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { getCompanyName } = require('../utils/companyName');
+const { decryptAssessmentRow } = require('../utils/fieldEncryption');
 
 // Import the functions from the controller
 const { registerPatient, getPatients, updatePatient, updatePatientStatus, getPatientAssessments, getRejectedLogs, resubmitLog, acknowledgeLog, editLog, deleteLog, voidCompletedLog, getPractitionerStats, getLastSessionDefaults, getMyLogNotes, addMyLogComment, setEimsEntered, setHiddenFromHistory } = require('../controllers/patientController');
@@ -137,7 +138,7 @@ router.get('/generate-pdf/:assessmentId', protect, async (req, res) => {
       'SELECT * FROM assessments WHERE id = $1 AND practitioner_id = $2',
       [assessmentId, practitionerId]
     );
-    const assessment = rows[0];
+    const assessment = decryptAssessmentRow(rows[0]);
 
     if (!assessment) return res.status(404).send('Assessment record not found');
 

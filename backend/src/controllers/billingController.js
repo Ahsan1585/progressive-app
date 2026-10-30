@@ -288,17 +288,18 @@ async function runAutoGenerateForPractitioner(practitionerId, startDate, endDate
     ORDER BY a.service_date ASC
   `;
 
-  const { rows: assessments } = await pool.query(sevfSql, sevfParams);
-  if (!assessments || assessments.length === 0) {
+  const { rows: rawAssessments } = await pool.query(sevfSql, sevfParams);
+  if (!rawAssessments || rawAssessments.length === 0) {
     throw new Error('No pending assessments found for this practitioner in this period.');
   }
-  if (assessments.length !== validatedAssessmentIds.length) {
+  if (rawAssessments.length !== validatedAssessmentIds.length) {
     // At least one previously-clean session changed status (or was
     // deleted) between the compliance check and here — the validated set
     // is no longer trustworthy as "this practitioner's whole period is
     // clean." Refuse rather than bill a different, unvalidated subset.
-    throw new Error(`Session set changed since the compliance check (expected ${validatedAssessmentIds.length} pending sessions, found ${assessments.length}) — re-run compliance analysis for this practitioner before generating.`);
+    throw new Error(`Session set changed since the compliance check (expected ${validatedAssessmentIds.length} pending sessions, found ${rawAssessments.length}) — re-run compliance analysis for this practitioner before generating.`);
   }
+  const assessments = rawAssessments.map(decryptAssessmentRow);
 
   const companyName = await getCompanyName();
   const practitioner = assessments[0].practitioners;
@@ -490,8 +491,9 @@ const generateNJEISForms = async (req, res) => {
     if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
     sql += ' ORDER BY a.service_date ASC';
 
-    const { rows: assessments } = await pool.query(sql, params);
-    if (!assessments || assessments.length === 0) return res.status(400).json({ success: false, error: "No pending assessments found." });
+    const { rows: rawAssessments } = await pool.query(sql, params);
+    if (!rawAssessments || rawAssessments.length === 0) return res.status(400).json({ success: false, error: "No pending assessments found." });
+    const assessments = rawAssessments.map(decryptAssessmentRow);
 
     const companyName = await getCompanyName();
 
@@ -643,7 +645,7 @@ async function selectSelfCertifiedAssessments(practitionerId, { startDate, endDa
   sql += ' ORDER BY a.service_date ASC';
 
   const { rows } = await pool.query(sql, params);
-  return rows;
+  return rows.map(decryptAssessmentRow);
 }
 
 // GET /api/billing/independent/pending — preview of what Generate SEVF
