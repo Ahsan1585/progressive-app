@@ -36,6 +36,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { pool } = require('../config/db');
+const { decryptPatientRow, decryptAssessmentRow } = require('../utils/fieldEncryption');
 const { logAudit } = require('../utils/auditLog');
 const { getCompanyName, getCompanySettingsForDocuments } = require('../utils/companyName');
 const { generateInvoicePDF } = require('../utils/invoiceGenerator');
@@ -432,8 +433,9 @@ async function generateSingleChildInvoice(req, res) {
       [id]
     );
     if (!patientRows[0]) return res.status(404).json({ error: 'Child not found' });
+    const patient = decryptPatientRow(patientRows[0]);
 
-    const { rows: assessments } = await pool.query(
+    const { rows: rawAssessments } = await pool.query(
       `SELECT a.*, to_jsonb(p) AS practitioners, to_jsonb(pt) AS patients
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
@@ -442,6 +444,7 @@ async function generateSingleChildInvoice(req, res) {
        ORDER BY a.service_date ASC`,
       [id, BILLED_STATUSES]
     );
+    const assessments = rawAssessments.map((a) => ({ ...decryptAssessmentRow(a), patients: decryptPatientRow(a.patients) }));
     if (!assessments.length) {
       return res.status(400).json({ error: 'This child has no invoiced sessions yet.' });
     }
@@ -509,7 +512,7 @@ async function generateSingleChildInvoice(req, res) {
 
     logAudit({ req, action: 'single_child_invoice_generated', resourceType: 'patient', resourceId: id, details: { sessionCount: practitionerAssessments.length, practitionerId } });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="invoice-${safeFilenamePart(patientRows[0].first_name)}-${safeFilenamePart(patientRows[0].last_name)}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${safeFilenamePart(patient.first_name)}-${safeFilenamePart(patient.last_name)}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
     console.error('generateSingleChildInvoice error:', error);
@@ -677,10 +680,11 @@ async function buildFullRecordPdf(patient, requester) {
   const id = patient.id;
   const companyName = await getCompanyName();
 
-  const { rows: assessments } = await pool.query(
+  const { rows: rawAssessments } = await pool.query(
     `SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date ASC, start_time ASC`,
     [id]
   );
+  const assessments = rawAssessments.map(decryptAssessmentRow);
   const statements = await fetchStatementsOfDisagreement(id);
 
   const outDoc = await PDFDocument.create();
@@ -821,7 +825,7 @@ const exportPatientRecord = async (req, res) => {
   if (!isValidIntId(id)) return res.status(404).json(CHILD_NOT_FOUND);
   try {
     const { rows: patientRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
-    const patient = patientRows[0];
+    const patient = decryptPatientRow(patientRows[0]);
     if (!patient) return res.status(404).json(CHILD_NOT_FOUND);
 
     const consent = await findCoveringConsent(id);
@@ -960,7 +964,7 @@ const overrideExportPatientRecord = async (req, res) => {
     releaseOverrideAttempts(key);
 
     const { rows: patientRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
-    const patient = patientRows[0];
+    const patient = decryptPatientRow(patientRows[0]);
     if (!patient) return res.status(404).json(CHILD_NOT_FOUND);
 
     const requester = `${req.practitioner.email || 'Unknown'}`;

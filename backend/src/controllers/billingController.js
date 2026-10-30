@@ -1814,9 +1814,12 @@ const getPractitionerLogs = async (req, res) => {
     `;
     if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND service_date <= $${params.length}`; }
-    sql += ' ORDER BY patient_first_name ASC, service_date ASC';
+    sql += ' ORDER BY service_date ASC';
 
-    const { rows: logs } = await pool.query(sql, params);
+    const { rows: rawLogs } = await pool.query(sql, params);
+    const logs = rawLogs
+      .map(decryptAssessmentRow)
+      .sort((a, b) => (a.patient_first_name || '').localeCompare(b.patient_first_name || '') || (a.service_date || '').localeCompare(b.service_date || ''));
 
     // Not view-audited: BillingManager re-polls this per expanded row every
     // ~20s, so a per-read event would flood the audit trail with noise.
@@ -2417,9 +2420,11 @@ async function runComplianceAnalysisForPractitioner(practitionerId, startDate, e
     `;
     if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND service_date <= $${params.length}`; }
-    sql += ' ORDER BY patient_first_name ASC, service_date ASC';
+    sql += ' ORDER BY service_date ASC';
     const { rows: rawSessions } = await pool.query(sql, params);
-    const sessions = rawSessions.map(decryptAssessmentRow);
+    const sessions = rawSessions
+      .map(decryptAssessmentRow)
+      .sort((a, b) => (a.patient_first_name || '').localeCompare(b.patient_first_name || '') || (a.service_date || '').localeCompare(b.service_date || ''));
 
     if (!documentOnFile || sessions.length === 0) {
       return { documentOnFile, documentFilename: doc?.compliance_doc_filename || null, strictness: doc?.compliance_strictness || 'moderate', results: {} };
@@ -2844,8 +2849,11 @@ const getVaultLogs = async (req, res) => {
       }
     }
 
-    sql += ' ORDER BY patient_first_name ASC, service_date ASC';
-    const { rows: logs } = await pool.query(sql, params);
+    sql += ' ORDER BY service_date ASC';
+    const { rows: rawLogs } = await pool.query(sql, params);
+    const logs = rawLogs
+      .map(decryptAssessmentRow)
+      .sort((a, b) => (a.patient_first_name || '').localeCompare(b.patient_first_name || '') || (a.service_date || '').localeCompare(b.service_date || ''));
 
     logAudit({ req, action: 'vault_logs_view', resourceType: 'assessment', details: { count: logs.length } });
     res.json({ success: true, logs });

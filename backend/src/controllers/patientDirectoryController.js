@@ -6,6 +6,7 @@
 const { patientSchema } = require('../utils/patientSchema');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
+const { encryptField, hmacIndex, decryptPatientRow } = require('../utils/fieldEncryption');
 
 // One row per child, with every practitioner ever attached to them (active
 // or inactive) rolled into a single array — the roster tab needs to show
@@ -13,7 +14,7 @@ const { logAudit } = require('../utils/auditLog');
 // (child, practitioner) attachment like the reporting view does.
 const listDirectoryPatients = async (req, res) => {
   try {
-    const { rows: patients } = await pool.query(
+    const { rows: rawPatients } = await pool.query(
       `SELECT pt.id, pt.first_name, pt.middle_name, pt.last_name, pt.dob, pt.county, pt.child_id, pt.created_at,
               pt.parent_name, pt.parent_email,
               COALESCE(
@@ -49,6 +50,7 @@ const listDirectoryPatients = async (req, res) => {
        ORDER BY pt.created_at DESC
        LIMIT 2000`
     );
+    const patients = rawPatients.map(decryptPatientRow);
     logAudit({ req, action: 'patient_directory_view', resourceType: 'patient', details: { count: patients.length } });
     res.json({ success: true, patients });
   } catch (error) {
@@ -68,24 +70,27 @@ const updateDirectoryPatient = async (req, res) => {
 
     const { rows } = await pool.query(
       `UPDATE patients
-       SET first_name = $1, middle_name = $2, last_name = $3, dob = $4, county = $5, child_id = $6, parent_name = $7, parent_email = $8
-       WHERE id = $9
+       SET first_name = $1, middle_name = $2, last_name = $3, dob = $4, county = $5, child_id = $6, parent_name = $7, parent_email = $8,
+           first_name_idx = $9, last_name_idx = $10
+       WHERE id = $11
        RETURNING *`,
       [
-        validatedData.firstName,
-        validatedData.middleName || null,
-        validatedData.lastName,
-        validatedData.dob,
+        encryptField(validatedData.firstName),
+        validatedData.middleName ? encryptField(validatedData.middleName) : null,
+        encryptField(validatedData.lastName),
+        encryptField(validatedData.dob),
         validatedData.county,
         validatedData.childId,
         validatedData.parentName || null,
         validatedData.parentEmail || null,
+        hmacIndex(validatedData.firstName),
+        hmacIndex(validatedData.lastName),
         id,
       ]
     );
 
     logAudit({ req, action: 'patient_update', resourceType: 'patient', resourceId: id, details: { source: 'staff_directory' } });
-    res.json({ message: 'Child updated successfully', data: rows[0] });
+    res.json({ message: 'Child updated successfully', data: decryptPatientRow(rows[0]) });
   } catch (error) {
     console.error('updateDirectoryPatient error:', error);
     if (error.errors) return res.status(400).json({ error: error.errors });

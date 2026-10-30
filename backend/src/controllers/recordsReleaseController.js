@@ -29,6 +29,7 @@ const { isValidIntId } = require('../utils/consentValidation');
 const { safeFilenamePart } = require('../utils/pdfText');
 const { sendPage: send, rejectPage: reject } = require('../utils/publicHtml');
 const { buildConsentPacketPdf, loadStaffNames, recipientSlug } = require('./consentReportController');
+const { decryptPatientRow } = require('../utils/fieldEncryption');
 
 const RELEASE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const CODE_TTL_MS = 15 * 60 * 1000;
@@ -315,7 +316,7 @@ const downloadRelease = async (req, res) => {
     await pool.query('UPDATE records_releases SET code_attempts = GREATEST(code_attempts - 1, 0) WHERE id = $1', [release.id]);
 
     const { rows: pRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [release.patient_id]);
-    const patient = pRows[0];
+    const patient = decryptPatientRow(pRows[0]);
     if (!patient) return reject(res, 404, 'These records are no longer available.');
 
     const staffName = await loadStaffNames([consent.granted_by]);

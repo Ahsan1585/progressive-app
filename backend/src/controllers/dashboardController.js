@@ -5,6 +5,7 @@
 // config/db.js) the same way every other controller is — no explicit
 // tenant filter needed.
 const { pool } = require('../config/db');
+const { decryptField } = require('../utils/fieldEncryption');
 const { computeSessionCompliance } = require('./billingController');
 const { buildInvoiceLines, deriveEimsStatus, loadComplianceBatched, formatInvoiceNumber } = require('../utils/invoiceData');
 // Read-only: viewing the dashboard must not mark pending sessions as checked.
@@ -141,7 +142,7 @@ const getDayOverview = async (req, res) => {
         serviceDate: r.service_date,
         flaggedAt: r.flagged_at,
         note: r.hold_note || r.rejection_note || null,
-        patientName: `${r.patient_first_name || ''} ${r.patient_last_name || ''}`.trim(),
+        patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
         practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
         amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
       })),
@@ -199,7 +200,7 @@ const getReturnedLogs = async (req, res) => {
         rejectedAt: r.rejected_at,
         rejectionCount: r.rejection_count,
         note: r.rejection_note || null,
-        patientName: `${r.patient_first_name || ''} ${r.patient_last_name || ''}`.trim(),
+        patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
         practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
         comments: notesByAssessment.get(r.id) || [],
       })),
@@ -241,7 +242,7 @@ const getSessionDetail = async (req, res) => {
         serviceDate: session.service_date,
         note: session.hold_note || session.rejection_note || null,
         rejectionCount: session.rejection_count,
-        patientName: `${session.patient_first_name || ''} ${session.patient_last_name || ''}`.trim(),
+        patientName: `${decryptField(session.patient_first_name) || ''} ${decryptField(session.patient_last_name) || ''}`.trim(),
         practitionerId: session.practitioner_id,
         practitionerName: `${session.practitioner_first_name || ''} ${session.practitioner_last_name || ''}`.trim(),
       },

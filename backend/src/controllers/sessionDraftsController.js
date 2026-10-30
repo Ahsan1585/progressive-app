@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
+const { decryptField } = require('../utils/fieldEncryption');
 
 // A practitioner may keep at most this many concurrent in-progress drafts
 // per child (e.g. catching up on two separate missed visits at once).
@@ -110,11 +111,16 @@ const listDrafts = async (req, res) => {
        ORDER BY sd.updated_at DESC`,
       [practitionerId]
     );
+    const decryptedRows = rows.map((row) => ({
+      ...row,
+      patient_first_name: decryptField(row.patient_first_name),
+      patient_last_name: decryptField(row.patient_last_name),
+    }));
     // This list changes on nearly every screen (create/update/delete a
     // draft, submit one, hit the 2-per-child cap) — a conditional-GET 304
     // risks a client displaying a stale cached copy of it.
     res.set('Cache-Control', 'no-store');
-    res.json({ success: true, drafts: withSummary(rows) });
+    res.json({ success: true, drafts: withSummary(decryptedRows) });
   } catch (error) {
     console.error('Failed to list session drafts:', error);
     res.status(500).json({ error: 'Failed to list drafts' });

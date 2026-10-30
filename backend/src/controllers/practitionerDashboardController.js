@@ -229,6 +229,7 @@ const getByAgency = async (req, res) => {
 // for them (owner decision, Oct 2026). Always scoped to the signed-in
 // practitioner's own notes. Logic lives in utils/agencyPractitionerSummary.js.
 const { summarizeAgencyNotes } = require('../utils/agencyPractitionerSummary');
+const { decryptAssessmentRow } = require('../utils/fieldEncryption');
 
 const nyToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
@@ -248,7 +249,7 @@ const getAgencySummary = async (req, res) => {
        WHERE a.practitioner_id = $1 AND a.billing_status != 'voided'`,
       [practitionerId]
     );
-    res.json({ success: true, ...summarizeAgencyNotes(rows, { payRate, month, today }) });
+    res.json({ success: true, ...summarizeAgencyNotes(rows.map(decryptAssessmentRow), { payRate, month, today }) });
   } catch (error) {
     console.error('Error fetching agency practitioner summary:', error);
     res.status(500).json({ success: false, error: 'Failed to load your dashboard.' });

@@ -17,6 +17,7 @@ const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { getCompanyName } = require('../utils/companyName');
+const { decryptPatientRow, decryptAssessmentRow } = require('../utils/fieldEncryption');
 const { isValidIntId } = require('../utils/consentValidation');
 const { safeFilenamePart } = require('../utils/pdfText');
 const {
@@ -343,10 +344,11 @@ async function buildConsentPacketPdf({ patient, consent, recordTypes, generatedB
 
   let assessments = [];
   if (sections.length) {
-    ({ rows: assessments } = await pool.query(
+    const { rows: rawAssessments } = await pool.query(
       'SELECT * FROM assessments WHERE patient_id = $1 ORDER BY service_date ASC, start_time ASC',
       [String(patient.id)]
-    ));
+    );
+    assessments = rawAssessments.map(decryptAssessmentRow);
   }
 
   const outDoc = await PDFDocument.create();
@@ -425,7 +427,7 @@ const generateConsentReport = async (req, res) => {
     }
 
     const { rows: patientRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
-    const patient = patientRows[0];
+    const patient = decryptPatientRow(patientRows[0]);
     if (!patient) return res.status(404).json({ error: 'Child not found' });
 
     await sendConsentPacket(req, res, { patient, consent, now });

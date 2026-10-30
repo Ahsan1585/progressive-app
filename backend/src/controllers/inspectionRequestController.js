@@ -1,6 +1,7 @@
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
 const { computeDueDate, daysRemaining, isOverdue, validateIdentityVerification } = require('../utils/inspectionRequest');
+const { decryptField } = require('../utils/fieldEncryption');
 
 // IDEA Part C 34 CFR 303.405: tracks parent requests to inspect a child's
 // records against the 10-day response deadline. Access is gated by the
@@ -73,7 +74,14 @@ const listInspectionRequests = async (req, res) => {
        ) r JOIN patients p ON p.id = r.patient_id ORDER BY r.due_at ASC, r.id ASC`,
       params
     );
-    res.json({ success: true, requests: rows.map((r) => decorate(r)) });
+    res.json({
+      success: true,
+      requests: rows.map((r) => decorate({
+        ...r,
+        patient_first_name: decryptField(r.patient_first_name),
+        patient_last_name: decryptField(r.patient_last_name),
+      })),
+    });
   } catch (error) {
     console.error('Error listing inspection requests:', error);
     res.status(500).json({ success: false, error: 'Failed to load inspection requests.' });

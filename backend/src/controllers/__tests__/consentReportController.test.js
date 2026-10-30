@@ -94,13 +94,15 @@ describe('generateConsentReport: only the approved sections are built', () => {
     expect(exportCtrl.appendSevfSection).toHaveBeenCalledTimes(counts.sevf);
     expect(exportCtrl.drawSessionLogSection).toHaveBeenCalledTimes(counts.session);
     expect(exportCtrl.drawBillingSection).toHaveBeenCalledTimes(counts.billing);
-    // Builders get only this child's rows.
+    // Builders get only this child's rows (decrypted — a fresh object per
+    // row, not the same reference the mocked pool.query returned, since
+    // these are now decrypted via decryptAssessmentRow/decryptPatientRow).
     [exportCtrl.drawSessionLogSection, exportCtrl.drawBillingSection].forEach((fn) => {
-      fn.mock.calls.forEach(([, rows]) => expect(rows).toBe(ASSESSMENTS));
+      fn.mock.calls.forEach(([, rows]) => expect(rows).toEqual(ASSESSMENTS));
     });
     exportCtrl.appendSevfSection.mock.calls.forEach(([, rows, patient]) => {
-      expect(rows).toBe(ASSESSMENTS);
-      expect(patient).toBe(PATIENT);
+      expect(rows).toEqual(ASSESSMENTS);
+      expect(patient).toEqual(PATIENT);
     });
     // The parent's-own-inspection sections never appear in a disclosure packet.
     const sqls = pool.query.mock.calls.map(([s]) => s);

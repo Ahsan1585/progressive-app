@@ -1,6 +1,7 @@
 const { pool } = require('../config/db');
 const { buildSessionICS } = require('../utils/icsGenerator');
 const { sendSessionScheduledEmail, generalizeSessionLocation } = require('../utils/emailClient');
+const { decryptField } = require('../utils/fieldEncryption');
 
 const notifyParent = async (session, patient, practitioner, { cancelled = false } = {}) => {
   if (!patient.parent_email) return;
@@ -166,7 +167,12 @@ const listSessions = async (req, res) => {
     sql += ' ORDER BY s.session_date ASC, s.start_time ASC';
 
     const result = await pool.query(sql, params);
-    res.json(result.rows);
+    const sessions = result.rows.map((row) => ({
+      ...row,
+      patient_first_name: decryptField(row.patient_first_name),
+      patient_last_name: decryptField(row.patient_last_name),
+    }));
+    res.json(sessions);
   } catch (err) {
     console.error('listSessions error:', err);
     res.status(500).json({ error: 'Failed to load scheduled sessions.' });
