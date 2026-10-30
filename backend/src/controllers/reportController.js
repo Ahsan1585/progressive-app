@@ -55,14 +55,15 @@ const generateMasterReport = async (req, res) => {
 
     const parsedPractitionerId = parseInt(practitionerId, 10);
 
-    const { rows: pendingEncounters } = await pool.query(
+    const { rows: rawPendingEncounters } = await pool.query(
       "SELECT * FROM assessments WHERE practitioner_id = $1 AND billing_status = 'pending'",
       [parsedPractitionerId]
     );
 
-    if (!pendingEncounters || pendingEncounters.length === 0) {
+    if (!rawPendingEncounters || rawPendingEncounters.length === 0) {
       return res.status(404).json({ error: 'No pending encounters found.' });
     }
+    const pendingEncounters = rawPendingEncounters.map(decryptAssessmentRow);
 
     // 1. Group by the actual first and last name columns and capture the patient_id
     const encountersByChild = pendingEncounters.reduce((acc, encounter) => {
@@ -93,7 +94,7 @@ const generateMasterReport = async (req, res) => {
       if (patientId) {
         try {
           const { rows: pRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [patientId]);
-          patientData = pRows[0] || null;
+          patientData = decryptPatientRow(pRows[0]) || null;
         } catch (pError) {
           console.warn(`Could not fetch patient details for ID ${patientId}:`, pError.message);
         }

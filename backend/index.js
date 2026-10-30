@@ -20,6 +20,7 @@ const { runMigrations } = require('./src/config/runMigrations');
 const { sanitizeCustomFields } = require('./src/utils/customFields');
 const { getCompanyName } = require('./src/utils/companyName');
 const { createAssessmentFromPayload, DuplicateAssessmentError } = require('./src/utils/createAssessment');
+const { decryptAssessmentRow } = require('./src/utils/fieldEncryption');
 
 // --- Route Imports ---
 const patientRoutes = require('./src/routes/patientRoutes');
@@ -241,7 +242,7 @@ app.post('/api/interventions', protect, async (req, res) => {
       companyAffiliation: isIndependentPractitioner ? companyAffiliation : undefined,
     });
 
-    res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: [assessment] });
+    res.status(201).json({ success: true, message: "Encounter formally saved to Supabase", data: [decryptAssessmentRow(assessment)] });
   } catch (error) {
     if (error instanceof DuplicateAssessmentError) {
       return res.status(409).json({ error: error.message, code: error.code });
@@ -438,12 +439,13 @@ app.get('/api/reports/practitioner/njeis-form', protect, async (req, res) => {
 
     const companyName = await getCompanyName();
 
-    const { rows: assessments } = await pool.query(
+    const { rows: rawAssessments } = await pool.query(
       'SELECT * FROM assessments WHERE practitioner_id = $1 ORDER BY service_date ASC',
       [practitionerId]
     );
 
-    if (!assessments || assessments.length === 0) return res.status(404).send('No records found for this practitioner.');
+    if (!rawAssessments || rawAssessments.length === 0) return res.status(404).send('No records found for this practitioner.');
+    const assessments = rawAssessments.map(decryptAssessmentRow);
 
     const groupedByPatient = assessments.reduce((acc, record) => {
       if (!acc[record.patient_id]) acc[record.patient_id] = [];
@@ -561,16 +563,17 @@ app.get('/api/admin/reports/njeis-form', protect, loadPermissions, requirePermis
 
     // `type` is safe to interpolate as a column name here — it's already
     // validated against ALLOWED_SEARCH_COLUMNS above, never raw user input.
-    const { rows: assessments } = await pool.query(
+    const { rows: rawAssessments } = await pool.query(
       `SELECT * FROM assessments WHERE ${type} = $1 ORDER BY service_date ASC`,
       [value]
     );
 
     const companyName = await getCompanyName();
 
-    if (!assessments || assessments.length === 0) {
+    if (!rawAssessments || rawAssessments.length === 0) {
       return res.status(404).send('No records found for this identifier.');
     }
+    const assessments = rawAssessments.map(decryptAssessmentRow);
 
     const groupedByPatient = assessments.reduce((acc, record) => {
       if (!acc[record.patient_id]) acc[record.patient_id] = [];
@@ -690,7 +693,7 @@ app.get('/api/interventions/:patientId', protect, async (req, res) => {
       'SELECT * FROM assessments WHERE patient_id = $1 AND practitioner_id = $2 ORDER BY service_date DESC',
       [patientId, practitionerId]
     );
-    res.json(rows);
+    res.json(rows.map(decryptAssessmentRow));
   } catch (error) {
     console.error('Fetch interventions error:', error);
     res.status(500).json({ error: 'Server error' });
