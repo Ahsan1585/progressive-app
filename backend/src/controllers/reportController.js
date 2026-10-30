@@ -1,5 +1,5 @@
 const { pool } = require('../config/db');
-const { decryptAssessmentRow, decryptPatientRow } = require('../utils/fieldEncryption');
+const { decryptAssessmentRow, decryptPatientRow, decryptField } = require('../utils/fieldEncryption');
 const {
   NJEIS_FORMS_BUCKET,
   BILLING_INVOICES_BUCKET,
@@ -178,6 +178,25 @@ const resolvePractitionerIds = async (practitionerSearch) => {
   return rows.map(p => p.id);
 };
 
+// Resolves a free-text name search against the small patients table (every
+// row, decrypted) to a concrete patient_id list, so the caller can scope its
+// SQL by id BEFORE applying a LIMIT — searching by name after a LIMIT would
+// silently drop a matching child's older/newer sessions once the date/
+// status-scoped candidate set exceeds that cap. Returns null when no term
+// is given (meaning "no name filter"), not an empty array.
+async function resolvePatientIdsByName(patientSearch) {
+  const term = (patientSearch || '').trim().toLowerCase();
+  if (!term) return null;
+  const { rows } = await pool.query('SELECT id, first_name, last_name FROM patients');
+  return rows
+    .filter((p) => {
+      const first = (decryptField(p.first_name) || '').toLowerCase();
+      const last = (decryptField(p.last_name) || '').toLowerCase();
+      return first.includes(term) || last.includes(term);
+    })
+    .map((p) => p.id);
+}
+
 // 3. Flexible audit query — filters by practitioner name/id, patient name, date range, billing status
 const getAuditLogs = async (req, res) => {
   const { practitionerSearch, patientSearch, startDate, endDate, billingStatus, compliance } = req.query;
@@ -187,6 +206,11 @@ const getAuditLogs = async (req, res) => {
     if (practitionerSearch && practitionerSearch.trim()) {
       practitionerIds = await resolvePractitionerIds(practitionerSearch);
       if (practitionerIds.length === 0) return res.json({ success: true, logs: [] });
+    }
+    let patientIds = null;
+    if (patientSearch && patientSearch.trim()) {
+      patientIds = await resolvePatientIdsByName(patientSearch);
+      if (patientIds.length === 0) return res.json({ success: true, logs: [] });
     }
 
     const params = [];
@@ -220,18 +244,12 @@ const getAuditLogs = async (req, res) => {
     }
 
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
+    if (patientIds) { params.push(patientIds); sql += ` AND a.patient_id = ANY($${params.length}::int[])`; }
 
     sql += ' ORDER BY a.service_date DESC LIMIT 1000';
 
     const { rows: rawLogs } = await pool.query(sql, params);
-    let logs = rawLogs.map(decryptAssessmentRow);
-    const term = (patientSearch || '').trim().toLowerCase();
-    if (term) {
-      logs = logs.filter((l) =>
-        (l.patient_first_name || '').toLowerCase().includes(term) ||
-        (l.patient_last_name || '').toLowerCase().includes(term)
-      );
-    }
+    const logs = rawLogs.map(decryptAssessmentRow);
     logAudit({ req, action: 'audit_logs_view', resourceType: 'audit_report', details: { count: (logs || []).length } });
     res.json({ success: true, logs: logs || [] });
   } catch (error) {
@@ -253,6 +271,11 @@ const getSessionAuditLog = async (req, res) => {
       practitionerIds = await resolvePractitionerIds(practitionerSearch);
       if (practitionerIds.length === 0) return res.json({ success: true, logs: [] });
     }
+    let patientIds = null;
+    if (patientSearch && patientSearch.trim()) {
+      patientIds = await resolvePatientIdsByName(patientSearch);
+      if (patientIds.length === 0) return res.json({ success: true, logs: [] });
+    }
 
     const params = [];
     let sql = `
@@ -268,18 +291,12 @@ const getSessionAuditLog = async (req, res) => {
     if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
+    if (patientIds) { params.push(patientIds); sql += ` AND a.patient_id = ANY($${params.length}::int[])`; }
 
     sql += ' ORDER BY a.service_date DESC LIMIT 1000';
 
     const { rows: rawLogs } = await pool.query(sql, params);
-    let logs = rawLogs.map(decryptAssessmentRow);
-    const term = (patientSearch || '').trim().toLowerCase();
-    if (term) {
-      logs = logs.filter((l) =>
-        (l.patient_first_name || '').toLowerCase().includes(term) ||
-        (l.patient_last_name || '').toLowerCase().includes(term)
-      );
-    }
+    const logs = rawLogs.map(decryptAssessmentRow);
     logAudit({
       req, action: 'session_audit_log_view', resourceType: 'session_audit_log',
       details: { practitionerSearch, patientSearch, startDate, endDate, count: logs.length },
@@ -319,17 +336,12 @@ const getAllPatients = async (req, res) => {
 
     if (status && status !== 'all') { params.push(status); sql += ` AND pp.status = $${params.length}`; }
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND pp.practitioner_id = ANY($${params.length}::int[])`; }
-    const childIdTerm = (patientSearch || '').trim();
-    if (childIdTerm) {
-      params.push(`%${childIdTerm}%`);
-      sql += ` AND pt.child_id ILIKE $${params.length}`;
-    }
 
     sql += ' ORDER BY pt.created_at DESC LIMIT 2000';
 
     const { rows: rawPatients } = await pool.query(sql, params);
     let patients = rawPatients.map(decryptPatientRow);
-    const nameTerm = childIdTerm.toLowerCase();
+    const nameTerm = (patientSearch || '').trim().toLowerCase();
     if (nameTerm) {
       patients = patients.filter((p) =>
         (p.first_name || '').toLowerCase().includes(nameTerm) ||
@@ -355,6 +367,11 @@ const generateAuditNJEIS = async (req, res) => {
       practitionerIds = await resolvePractitionerIds(practitionerSearch);
       if (practitionerIds.length === 0) return res.status(404).json({ error: 'No matching practitioners found' });
     }
+    let patientIds = null;
+    if (patientSearch && patientSearch.trim()) {
+      patientIds = await resolvePatientIdsByName(patientSearch);
+      if (patientIds.length === 0) return res.status(404).json({ error: 'No logs found for the given filters' });
+    }
 
     const companyName = await getCompanyName();
 
@@ -373,18 +390,12 @@ const generateAuditNJEIS = async (req, res) => {
     if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
     if (billingStatus && billingStatus !== 'all') { params.push(billingStatus); sql += ` AND a.billing_status = $${params.length}`; }
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
+    if (patientIds) { params.push(patientIds); sql += ` AND a.patient_id = ANY($${params.length}::int[])`; }
 
     sql += ' ORDER BY a.service_date ASC LIMIT 1000';
 
     const { rows: rawLogs } = await pool.query(sql, params);
-    let logs = rawLogs.map(decryptAssessmentRow);
-    const term = (patientSearch || '').trim().toLowerCase();
-    if (term) {
-      logs = logs.filter((l) =>
-        (l.patient_first_name || '').toLowerCase().includes(term) ||
-        (l.patient_last_name || '').toLowerCase().includes(term)
-      );
-    }
+    const logs = rawLogs.map(decryptAssessmentRow);
     if (!logs || logs.length === 0) return res.status(404).json({ error: 'No logs found for the given filters' });
 
     // Group by (practitioner_id, patient_id) — keeps NJEIS header info consistent per form
