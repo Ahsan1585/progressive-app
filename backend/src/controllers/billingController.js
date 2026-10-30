@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { decryptAssessmentRow } = require('../utils/fieldEncryption');
 const {
   BILLING_INVOICES_BUCKET,
   uploadFile,
@@ -2415,7 +2416,8 @@ async function runComplianceAnalysisForPractitioner(practitionerId, startDate, e
     if (startDate) { params.push(startDate); sql += ` AND service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND service_date <= $${params.length}`; }
     sql += ' ORDER BY patient_first_name ASC, service_date ASC';
-    const { rows: sessions } = await pool.query(sql, params);
+    const { rows: rawSessions } = await pool.query(sql, params);
+    const sessions = rawSessions.map(decryptAssessmentRow);
 
     if (!documentOnFile || sessions.length === 0) {
       return { documentOnFile, documentFilename: doc?.compliance_doc_filename || null, strictness: doc?.compliance_strictness || 'moderate', results: {} };
@@ -2721,7 +2723,7 @@ async function computeSessionCompliance(assessmentId) {
      WHERE assessments.id = $1`,
     [assessmentId]
   );
-  const session = sessionRows[0];
+  const session = decryptAssessmentRow(sessionRows[0]);
   if (!session) return { matched: false, flagged: false, fields: [], documentOnFile: true };
 
   // Every other non-declined session this practitioner logged for the same
@@ -2746,7 +2748,7 @@ async function computeSessionCompliance(assessmentId) {
      ORDER BY assessments.start_time ASC NULLS LAST, assessments.id ASC`,
     [session.practitioner_id, session.patient_id, session.service_date]
   );
-  const groupSessions = groupRows.length > 0 ? groupRows : [session];
+  const groupSessions = groupRows.length > 0 ? groupRows.map(decryptAssessmentRow) : [session];
 
   // Same patient/date/time/type/location logged more than once (e.g. under
   // a spelling variant of the child's name) can independently show a clean
