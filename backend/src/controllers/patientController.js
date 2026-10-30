@@ -1,7 +1,7 @@
 const { patientSchema } = require('../utils/patientSchema');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
-const { encryptField, hmacIndex, decryptPatientRow } = require('../utils/fieldEncryption');
+const { encryptField, hmacIndex, decryptPatientRow, decryptAssessmentRow } = require('../utils/fieldEncryption');
 const { sanitizeCustomFields } = require('../utils/customFields');
 const { assertNoConflictingSession, DuplicateAssessmentError } = require('../utils/createAssessment');
 const { dateChanged, requestDateChangeResign, ParentEmailMissingError, DateChangeStateError } = require('../utils/dateChangeResign');
@@ -259,7 +259,7 @@ const getPatientAssessments = async (req, res) => {
 const getRejectedLogs = async (req, res) => {
   const practitionerId = req.practitioner.practitionerId;
   try {
-    const { rows: logs } = await pool.query(
+    const { rows: rawLogs } = await pool.query(
       `SELECT id, patient_first_name, patient_last_name, patient_id, service_date, type, location,
               start_time, end_time, total_time, status, group_size_category, form_data, rejection_note, rejected_at, rejection_count,
               parent_signature, billing_status, acknowledged_at
@@ -270,6 +270,7 @@ const getRejectedLogs = async (req, res) => {
        ORDER BY rejected_at DESC`,
       [practitionerId, ['rejected', 'declined']]
     );
+    const logs = rawLogs.map(decryptAssessmentRow);
     // Not view-audited: polled every ~20s by the practitioner Inbox, so a
     // per-read event would flood the audit trail with noise.
     res.json({ success: true, logs });
@@ -416,6 +417,8 @@ const editLog = async (req, res) => {
     );
     const log = rows[0];
     if (!log) return res.status(404).json({ error: 'Log not found' });
+    const currentSessionNotes = log.session_notes; // raw ciphertext — kept for the UPDATE's "keep existing" branch, which must NOT re-encrypt it
+    const decryptedCurrentSessionNotes = decryptAssessmentRow(log).session_notes;
     // 'self_certified' is an independent practitioner's own pre-billing
     // equivalent of 'pending' — editable for the same reason: no SEVF/
     // invoice has been generated for it yet (see docs on the independent-
@@ -453,7 +456,7 @@ const editLog = async (req, res) => {
         newValues: {
           service_date, type, location, start_time, end_time, total_time, status,
           group_size_category: group_size_category || null, form_data: { custom_fields: sanitizedCustomFields },
-          session_notes: session_notes !== undefined ? (session_notes?.trim() || null) : log.session_notes,
+          session_notes: session_notes !== undefined ? (session_notes?.trim() || null) : decryptedCurrentSessionNotes,
           company_affiliation: company_affiliation !== undefined ? company_affiliation : log.company_affiliation,
         },
       });
@@ -473,7 +476,7 @@ const editLog = async (req, res) => {
       [service_date, type, location, start_time, end_time, total_time, status, group_size_category || null,
        JSON.stringify({ custom_fields: sanitizedCustomFields }),
        company_affiliation !== undefined ? company_affiliation : log.company_affiliation,
-       session_notes !== undefined ? (session_notes?.trim() || null) : log.session_notes, id]
+       session_notes !== undefined ? (session_notes?.trim() ? encryptField(session_notes.trim()) : null) : currentSessionNotes, id]
     );
     logAudit({ req, action: 'log_edit', resourceType: 'assessment', resourceId: id });
     res.json({ success: true });

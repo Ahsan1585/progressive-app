@@ -1,5 +1,7 @@
 // Only a date change sends the note back to the parent to re-sign; every
 // other edit saves as before.
+process.env.FIELD_ENCRYPTION_KEY = require('crypto').randomBytes(32).toString('base64');
+process.env.FIELD_INDEX_KEY = require('crypto').randomBytes(32).toString('base64');
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn(), connect: jest.fn() } }));
 jest.mock('../../utils/auditLog', () => ({ logAudit: jest.fn() }));
 jest.mock('../../utils/emailClient', () => ({ sendParentSignatureRequestEmail: jest.fn() }));

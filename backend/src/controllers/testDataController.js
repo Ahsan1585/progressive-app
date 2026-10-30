@@ -4,6 +4,7 @@ const { logAudit } = require('../utils/auditLog');
 const { generateSignaturePng } = require('../utils/fakeSignature');
 const { BILLING_INVOICES_BUCKET, NJEIS_FORMS_BUCKET, deleteAllTenantFiles, listFilesDetailed, removeFiles } = require('../config/storage');
 const { replaceWithRealisticAgency, SEED_PASSWORD: AGENCY_PASSWORD } = require('../testdata/loadAgency');
+const { encryptField, decryptField, hmacIndex, decryptAssessmentRow } = require('../utils/fieldEncryption');
 
 const SEED_PASSWORD = 'TestData@2026';
 
@@ -167,10 +168,10 @@ const seedComparisonTestData = async (req, res) => {
     const patientIdByChildId = {};
     for (const c of children) {
       await client.query(
-        `INSERT INTO patients (first_name, last_name, dob, county, child_id, status)
-         VALUES ($1, $2, $3, $4, $5, 'active')
+        `INSERT INTO patients (first_name, last_name, dob, county, child_id, status, first_name_idx, last_name_idx)
+         VALUES ($1, $2, $3, $4, $5, 'active', $6, $7)
          ON CONFLICT (child_id) DO NOTHING`,
-        [c.firstName, c.lastName, c.dob, c.county || 'Essex', c.childId]
+        [encryptField(c.firstName), encryptField(c.lastName), encryptField(c.dob), c.county || 'Essex', c.childId, hmacIndex(c.firstName), hmacIndex(c.lastName)]
       );
       const { rows } = await client.query('SELECT id FROM patients WHERE child_id = $1', [c.childId]);
       patientIdByChildId[c.childId] = rows[0].id;
@@ -211,17 +212,19 @@ const seedComparisonTestData = async (req, res) => {
            (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
             practitioner_first_name, practitioner_last_name, practitioner_discipline,
             service_date, start_time, end_time, total_time, status, type, location, group_size_category,
-            parent_signature, practitioner_signature, form_data, completed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, COALESCE($21, now()))
+            parent_signature, practitioner_signature, form_data, completed_at,
+            patient_first_name_idx, patient_last_name_idx)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, COALESCE($21, now()), $22, $23)
          RETURNING id`,
         [
           patientId, practitionerId,
-          child?.firstName, child?.lastName, child?.dob, child?.county || 'Essex',
+          encryptField(child?.firstName), encryptField(child?.lastName), encryptField(child?.dob), child?.county || 'Essex',
           prac?.firstName, prac?.lastName, s.discipline || null,
           s.serviceDate, s.startTime || null, s.endTime || null, s.totalTime || 0,
           visitStatusCode, disciplineCode, locationCode, groupSizeCode,
           PLACEHOLDER_SIGNATURE, PLACEHOLDER_SIGNATURE,
           JSON.stringify({ custom_fields: {} }), completedAt,
+          hmacIndex(child?.firstName), hmacIndex(child?.lastName),
         ]
       );
 
@@ -502,9 +505,10 @@ const randomizeSeedSignatures = async (req, res) => {
  */
 const refreshGeneratedSignatures = async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, session_notes FROM assessments WHERE session_notes LIKE '[GENSEPT26]%'`
-    );
+    const { rows: rawRows } = await pool.query(`SELECT id, session_notes FROM assessments`);
+    const rows = rawRows
+      .map((r) => ({ id: r.id, session_notes: decryptField(r.session_notes) }))
+      .filter((r) => (r.session_notes || '').startsWith('[GENSEPT26]'));
     let updated = 0;
     for (const { id, session_notes } of rows) {
       const skipPractitioner = (session_notes || '').includes('err:signature_missing_practitioner');
@@ -541,14 +545,25 @@ const refreshGeneratedSignatures = async (req, res) => {
  */
 const backfillGeneratedCompletedAt = async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `UPDATE assessments
-       SET completed_at = service_date::timestamptz + (random() * interval '10 hours') + interval '8 hours'
-       WHERE session_notes LIKE '[GENSEPT26]%' AND service_date IS NOT NULL
-       RETURNING id`
+    const { rows: candidateRows } = await pool.query(
+      `SELECT id, session_notes FROM assessments WHERE service_date IS NOT NULL`
     );
-    logAudit({ req, action: 'backfill_generated_completed_at', resourceType: 'test_data', details: { updated: rows.length } });
-    res.json({ success: true, updated: rows.length });
+    const taggedIds = candidateRows
+      .filter((r) => (decryptField(r.session_notes) || '').startsWith('[GENSEPT26]'))
+      .map((r) => r.id);
+    let updated = 0;
+    if (taggedIds.length > 0) {
+      const { rows } = await pool.query(
+        `UPDATE assessments
+         SET completed_at = service_date::timestamptz + (random() * interval '10 hours') + interval '8 hours'
+         WHERE id = ANY($1::int[])
+         RETURNING id`,
+        [taggedIds]
+      );
+      updated = rows.length;
+    }
+    logAudit({ req, action: 'backfill_generated_completed_at', resourceType: 'test_data', details: { updated } });
+    res.json({ success: true, updated });
   } catch (error) {
     console.error('Failed to backfill completed_at:', error);
     res.status(500).json({ error: 'Failed to backfill completed_at', detail: error.message });
@@ -625,7 +640,8 @@ const anonymizeTenantRoster = async (req, res) => {
       `SELECT id, first_name, last_name FROM practitioners
        WHERE role = 'practitioner' AND is_platform_support = false`
     );
-    const { rows: patients } = await client.query(`SELECT id, first_name, last_name FROM patients`);
+    const { rows: rawPatients } = await client.query(`SELECT id, first_name, last_name FROM patients`);
+    const patients = rawPatients.map((p) => ({ ...p, first_name: decryptField(p.first_name), last_name: decryptField(p.last_name) }));
 
     const firstPool = shuffle(DUMMY_FIRST_NAMES);
     const lastPool = shuffle(DUMMY_LAST_NAMES);
@@ -658,10 +674,13 @@ const anonymizeTenantRoster = async (req, res) => {
       );
     }
     for (const r of patientRenames) {
-      await client.query('UPDATE patients SET first_name = $1, last_name = $2 WHERE id = $3', [r.newFirst, r.newLast, r.id]);
       await client.query(
-        `UPDATE assessments SET patient_first_name = $1, patient_last_name = $2 WHERE patient_id = $3`,
-        [r.newFirst, r.newLast, r.id]
+        'UPDATE patients SET first_name = $1, last_name = $2, first_name_idx = $3, last_name_idx = $4 WHERE id = $5',
+        [encryptField(r.newFirst), encryptField(r.newLast), hmacIndex(r.newFirst), hmacIndex(r.newLast), r.id]
+      );
+      await client.query(
+        `UPDATE assessments SET patient_first_name = $1, patient_last_name = $2, patient_first_name_idx = $3, patient_last_name_idx = $4 WHERE patient_id = $5`,
+        [encryptField(r.newFirst), encryptField(r.newLast), hmacIndex(r.newFirst), hmacIndex(r.newLast), r.id]
       );
     }
 
@@ -892,10 +911,10 @@ const createDummyRoster = async (req, res) => {
       const lastName = nameAt(lastPool, practitionerCount + i);
       const childId = `70000${String(i + 1).padStart(4, '0')}`;
       const { rows } = await client.query(
-        `INSERT INTO patients (first_name, last_name, dob, county, child_id, status)
-         VALUES ($1,$2,$3,$4,$5,'active')
+        `INSERT INTO patients (first_name, last_name, dob, county, child_id, status, first_name_idx, last_name_idx)
+         VALUES ($1,$2,$3,$4,$5,'active',$6,$7)
          RETURNING id`,
-        [firstName, lastName, randomDob(), NJ_COUNTIES[i % NJ_COUNTIES.length], childId]
+        [encryptField(firstName), encryptField(lastName), encryptField(randomDob()), NJ_COUNTIES[i % NJ_COUNTIES.length], childId, hmacIndex(firstName), hmacIndex(lastName)]
       );
       createdPatients.push({ id: rows[0].id, firstName, lastName, childId });
     }
@@ -1118,9 +1137,15 @@ const generateLiveSessions = async (req, res) => {
        WHERE role = 'practitioner' AND is_active = true AND is_platform_support = false
        ORDER BY id`
     );
-    const { rows: patients } = await client.query(
+    const { rows: rawPatients } = await client.query(
       `SELECT id, first_name, last_name, dob, county, child_id FROM patients WHERE status = 'active' ORDER BY id`
     );
+    const patients = rawPatients.map((p) => ({
+      ...p,
+      first_name: decryptField(p.first_name),
+      last_name: decryptField(p.last_name),
+      dob: decryptField(p.dob),
+    }));
     if (practitioners.length === 0 || patients.length === 0) {
       return res.status(400).json({ error: 'No eligible practitioners or patients found on this tenant.' });
     }
@@ -1350,15 +1375,17 @@ const generateLiveSessions = async (req, res) => {
              (patient_id, practitioner_id, patient_first_name, patient_last_name, patient_dob, patient_county,
               practitioner_first_name, practitioner_last_name, practitioner_discipline,
               service_date, start_time, end_time, total_time, status, type, location, group_size_category,
-              parent_signature, practitioner_signature, form_data, session_notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+              parent_signature, practitioner_signature, form_data, session_notes,
+              patient_first_name_idx, patient_last_name_idx)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
            RETURNING id`,
           [
-            child.id, prac.id, child.first_name, child.last_name, child.dob, child.county,
+            child.id, prac.id, encryptField(child.first_name), encryptField(child.last_name), encryptField(child.dob), child.county,
             prac.first_name, prac.last_name, SERVICE_TYPE_DISCIPLINE_LABEL[serviceCode] || null,
             logged.service_date, cancelled ? null : logged.start_time, cancelled ? null : logged.end_time,
             cancelled ? 0 : durationMin, VISIT_STATUS_CLEAN, logged.service_code, logged.location_code, groupSizeCode,
-            parentSignature, practitionerSignature, JSON.stringify({ custom_fields: {} }), noteParts.join(' '),
+            parentSignature, practitionerSignature, JSON.stringify({ custom_fields: {} }), encryptField(noteParts.join(' ')),
+            hmacIndex(child.first_name), hmacIndex(child.last_name),
           ]
         );
 
@@ -1413,11 +1440,12 @@ const wipeGeneratedLiveSessions = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows: targetRows } = await client.query(
-      `SELECT id FROM assessments WHERE session_notes LIKE $1`,
-      [`${GEN_TAG}%`]
+    const { rows: candidateRows } = await client.query(
+      `SELECT id, session_notes FROM assessments`
     );
-    const ids = targetRows.map((r) => r.id);
+    const ids = candidateRows
+      .filter((r) => (decryptField(r.session_notes) || '').startsWith(GEN_TAG))
+      .map((r) => r.id);
     if (ids.length > 0) {
       await client.query(`DELETE FROM assessment_notes WHERE assessment_id = ANY($1::int[])`, [ids]);
       await client.query(`DELETE FROM compliance_field_acknowledgments WHERE assessment_id = ANY($1::int[])`, [ids]);
