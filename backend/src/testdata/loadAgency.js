@@ -9,6 +9,7 @@
 const bcrypt = require('bcryptjs');
 const { generateSignaturePng } = require('../utils/fakeSignature');
 const { buildAgency } = require('./realisticAgency');
+const { encryptField, hmacIndex } = require('../utils/fieldEncryption');
 
 const SEED_PASSWORD = 'TestData@2026';
 const PLACEHOLDER_SIGNATURE =
@@ -83,10 +84,14 @@ async function insertAgency(client, agency) {
   const parentSig = new Map();
   for (const c of agency.children) {
     const { rows } = await client.query(
-      `INSERT INTO patients (first_name, last_name, dob, county, child_id, status, parent_name, parent_email, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      `INSERT INTO patients (first_name, last_name, dob, county, child_id, status, parent_name, parent_email, created_at, first_name_idx, last_name_idx)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING id`,
-      [c.firstName, c.lastName, c.dob, c.county, c.childId, c.endDate ? 'inactive' : 'active', c.parentName, c.parentEmail, `${c.startDate}T09:00:00-05:00`]
+      [
+        encryptField(c.firstName), encryptField(c.lastName), encryptField(c.dob), c.county, c.childId,
+        c.endDate ? 'inactive' : 'active', c.parentName, c.parentEmail, `${c.startDate}T09:00:00-05:00`,
+        hmacIndex(c.firstName), hmacIndex(c.lastName),
+      ]
     );
     childId.set(c.key, rows[0].id);
     parentSig.set(c.key, generateSignaturePng());
@@ -136,13 +141,14 @@ async function insertAgency(client, agency) {
     const cancelled = s.totalMinutes === 0;
     return [
       childId.get(s.childKey), providerId.get(s.providerKey),
-      c.firstName, c.lastName, c.dob, c.county,
+      encryptField(c.firstName), encryptField(c.lastName), encryptField(c.dob), c.county,
       p.firstName, p.lastName, DISCIPLINE_LABEL[s.logged.serviceCode] || DISCIPLINE_LABEL[s.serviceCode] || null,
       s.serviceDate, cancelled ? null : s.logged.startTime, cancelled ? null : s.logged.endTime, s.totalMinutes,
       s.visitStatus, s.logged.serviceCode, s.logged.location, s.groupSize,
       cancelled || s.signatureIssue === 'parent' ? PLACEHOLDER_SIGNATURE : parentSig.get(s.childKey),
       cancelled ? PLACEHOLDER_SIGNATURE : providerSig.get(s.providerKey),
-      '{"custom_fields":{}}', s.notes || null, done.toISOString(),
+      '{"custom_fields":{}}', s.notes ? encryptField(s.notes) : null, done.toISOString(),
+      hmacIndex(c.firstName), hmacIndex(c.lastName),
     ];
   });
   const COLS = [
@@ -150,6 +156,7 @@ async function insertAgency(client, agency) {
     'practitioner_first_name', 'practitioner_last_name', 'practitioner_discipline', 'service_date', 'start_time',
     'end_time', 'total_time', 'status', 'type', 'location', 'group_size_category', 'parent_signature',
     'practitioner_signature', 'form_data', 'session_notes', 'completed_at',
+    'patient_first_name_idx', 'patient_last_name_idx',
   ];
   const insertedIds = [];
   for (const part of chunk(rows, 400)) {
