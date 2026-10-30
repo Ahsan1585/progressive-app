@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { decryptAssessmentRow, decryptPatientRow } = require('../utils/fieldEncryption');
 const {
   NJEIS_FORMS_BUCKET,
   BILLING_INVOICES_BUCKET,
@@ -219,15 +220,18 @@ const getAuditLogs = async (req, res) => {
     }
 
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
-    if (patientSearch && patientSearch.trim()) {
-      const term = patientSearch.trim();
-      params.push(`%${term}%`);
-      sql += ` AND (a.patient_first_name ILIKE $${params.length} OR a.patient_last_name ILIKE $${params.length})`;
-    }
 
     sql += ' ORDER BY a.service_date DESC LIMIT 1000';
 
-    const { rows: logs } = await pool.query(sql, params);
+    const { rows: rawLogs } = await pool.query(sql, params);
+    let logs = rawLogs.map(decryptAssessmentRow);
+    const term = (patientSearch || '').trim().toLowerCase();
+    if (term) {
+      logs = logs.filter((l) =>
+        (l.patient_first_name || '').toLowerCase().includes(term) ||
+        (l.patient_last_name || '').toLowerCase().includes(term)
+      );
+    }
     logAudit({ req, action: 'audit_logs_view', resourceType: 'audit_report', details: { count: (logs || []).length } });
     res.json({ success: true, logs: logs || [] });
   } catch (error) {
@@ -264,15 +268,18 @@ const getSessionAuditLog = async (req, res) => {
     if (startDate) { params.push(startDate); sql += ` AND a.service_date >= $${params.length}`; }
     if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
-    if (patientSearch && patientSearch.trim()) {
-      const term = patientSearch.trim();
-      params.push(`%${term}%`);
-      sql += ` AND (a.patient_first_name ILIKE $${params.length} OR a.patient_last_name ILIKE $${params.length})`;
-    }
 
     sql += ' ORDER BY a.service_date DESC LIMIT 1000';
 
-    const { rows: logs } = await pool.query(sql, params);
+    const { rows: rawLogs } = await pool.query(sql, params);
+    let logs = rawLogs.map(decryptAssessmentRow);
+    const term = (patientSearch || '').trim().toLowerCase();
+    if (term) {
+      logs = logs.filter((l) =>
+        (l.patient_first_name || '').toLowerCase().includes(term) ||
+        (l.patient_last_name || '').toLowerCase().includes(term)
+      );
+    }
     logAudit({
       req, action: 'session_audit_log_view', resourceType: 'session_audit_log',
       details: { practitionerSearch, patientSearch, startDate, endDate, count: logs.length },
@@ -312,15 +319,24 @@ const getAllPatients = async (req, res) => {
 
     if (status && status !== 'all') { params.push(status); sql += ` AND pp.status = $${params.length}`; }
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND pp.practitioner_id = ANY($${params.length}::int[])`; }
-    if (patientSearch && patientSearch.trim()) {
-      const term = patientSearch.trim();
-      params.push(`%${term}%`);
-      sql += ` AND (pt.first_name ILIKE $${params.length} OR pt.last_name ILIKE $${params.length} OR pt.child_id ILIKE $${params.length})`;
+    const childIdTerm = (patientSearch || '').trim();
+    if (childIdTerm) {
+      params.push(`%${childIdTerm}%`);
+      sql += ` AND pt.child_id ILIKE $${params.length}`;
     }
 
     sql += ' ORDER BY pt.created_at DESC LIMIT 2000';
 
-    const { rows: patients } = await pool.query(sql, params);
+    const { rows: rawPatients } = await pool.query(sql, params);
+    let patients = rawPatients.map(decryptPatientRow);
+    const nameTerm = childIdTerm.toLowerCase();
+    if (nameTerm) {
+      patients = patients.filter((p) =>
+        (p.first_name || '').toLowerCase().includes(nameTerm) ||
+        (p.last_name || '').toLowerCase().includes(nameTerm) ||
+        (p.child_id || '').toLowerCase().includes(nameTerm)
+      );
+    }
     logAudit({ req, action: 'patients_bulk_view', resourceType: 'patient', details: { count: patients.length, practitionerSearch, patientSearch, status } });
     res.json({ success: true, patients: patients || [] });
   } catch (error) {
@@ -357,15 +373,18 @@ const generateAuditNJEIS = async (req, res) => {
     if (endDate) { params.push(endDate); sql += ` AND a.service_date <= $${params.length}`; }
     if (billingStatus && billingStatus !== 'all') { params.push(billingStatus); sql += ` AND a.billing_status = $${params.length}`; }
     if (practitionerIds) { params.push(practitionerIds); sql += ` AND a.practitioner_id = ANY($${params.length}::int[])`; }
-    if (patientSearch && patientSearch.trim()) {
-      const term = patientSearch.trim();
-      params.push(`%${term}%`);
-      sql += ` AND (a.patient_first_name ILIKE $${params.length} OR a.patient_last_name ILIKE $${params.length})`;
-    }
 
     sql += ' ORDER BY a.service_date ASC LIMIT 1000';
 
-    const { rows: logs } = await pool.query(sql, params);
+    const { rows: rawLogs } = await pool.query(sql, params);
+    let logs = rawLogs.map(decryptAssessmentRow);
+    const term = (patientSearch || '').trim().toLowerCase();
+    if (term) {
+      logs = logs.filter((l) =>
+        (l.patient_first_name || '').toLowerCase().includes(term) ||
+        (l.patient_last_name || '').toLowerCase().includes(term)
+      );
+    }
     if (!logs || logs.length === 0) return res.status(404).json({ error: 'No logs found for the given filters' });
 
     // Group by (practitioner_id, patient_id) — keeps NJEIS header info consistent per form
@@ -387,7 +406,7 @@ const generateAuditNJEIS = async (req, res) => {
       let patientData = { first_name: group.firstName || '', last_name: group.lastName || '', middle_name: '', dob: '', county: '', child_id: 'N/A' };
       if (group.patientId) {
         const { rows: pRows } = await pool.query('SELECT * FROM patients WHERE id = $1', [group.patientId]);
-        const pData = pRows[0];
+        const pData = decryptPatientRow(pRows[0]);
         if (pData) {
           patientData = {
             first_name: pData.first_name || patientData.first_name,
