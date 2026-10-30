@@ -12,6 +12,7 @@ const { logAudit } = require('../utils/auditLog');
 const { sendConsentRequestEmail } = require('../utils/emailClient');
 const { getCompanyName } = require('../utils/companyName');
 const { validateConsentDetails, isValidIntId, isValidUuid } = require('../utils/consentValidation');
+const { decryptField } = require('../utils/fieldEncryption');
 
 const REQUEST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, same as the telepractice signing link
 const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
@@ -265,7 +266,7 @@ const listPendingConsentRequests = async (req, res) => {
       requests: rows.map((r) => ({
         id: r.id,
         patientId: r.patient_id,
-        patientName: `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        patientName: `${decryptField(r.first_name) || ''} ${decryptField(r.last_name) || ''}`.trim(),
         recipientName: r.recipient_name,
         status: effectiveStatus(r),
         requestedAt: r.created_at,

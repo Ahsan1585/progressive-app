@@ -389,4 +389,21 @@ describe('listPendingConsentRequests (cross-child)', () => {
     });
     expect(requests[1].status).toBe('signed');
   });
+
+  // Review finding I5: patientName was built from the raw, undecrypted
+  // first_name/last_name columns.
+  test('decrypts first_name/last_name before building patientName', async () => {
+    process.env.FIELD_ENCRYPTION_KEY = process.env.FIELD_ENCRYPTION_KEY || require('crypto').randomBytes(32).toString('base64');
+    process.env.FIELD_INDEX_KEY = process.env.FIELD_INDEX_KEY || require('crypto').randomBytes(32).toString('base64');
+    const { encryptField } = require('../../utils/fieldEncryption');
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        { id: 'a', patient_id: 1, first_name: encryptField('Luz'), last_name: encryptField('Quintero'), recipient_name: 'ABC', status: 'pending', created_at: 't1', request_expires_at: new Date(Date.now() + 1e6).toISOString(), consent_expires_at: 'c1' },
+      ],
+    });
+    const res = mkRes();
+    await ctrl.listPendingConsentRequests(mkReq(), res);
+    const { requests } = res.json.mock.calls[0][0];
+    expect(requests[0].patientName).toBe('Luz Quintero');
+  });
 });

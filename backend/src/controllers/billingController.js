@@ -1,5 +1,5 @@
 const { pool } = require('../config/db');
-const { decryptAssessmentRow } = require('../utils/fieldEncryption');
+const { decryptAssessmentRow, decryptField } = require('../utils/fieldEncryption');
 const {
   BILLING_INVOICES_BUCKET,
   uploadFile,
@@ -1038,7 +1038,7 @@ const getSelfCertifiedHistory = async (req, res) => {
       byBatch.set(row.batch_id, {
         batchId: row.batch_id,
         patientId: row.patient_id,
-        patientName: `${row.patient_first_name || ''} ${row.patient_last_name || ''}`.trim(),
+        patientName: `${decryptField(row.patient_first_name) || ''} ${decryptField(row.patient_last_name) || ''}`.trim(),
         companyAffiliation: row.company_affiliation || null,
         month: row.start_date ? String(row.start_date).slice(0, 7) : null,
         generatedAt: row.created_at,
@@ -3237,8 +3237,9 @@ const getActionRequiredLogs = async (req, res) => {
        WHERE a.eims_missing_status = 'sent_to_admin'
        ORDER BY a.eims_missing_sent_at ASC`
     );
-    logAudit({ req, action: 'action_required_logs_view', resourceType: 'assessment', details: { count: rows.length } });
-    res.json({ success: true, logs: rows });
+    const logs = rows.map(decryptAssessmentRow);
+    logAudit({ req, action: 'action_required_logs_view', resourceType: 'assessment', details: { count: logs.length } });
+    res.json({ success: true, logs });
   } catch (error) {
     console.error('Error fetching action-required logs:', error);
     res.status(500).json({ error: 'Failed to fetch action-required logs' });

@@ -4,6 +4,7 @@
 // per-child view lives in the child's Consents panel.
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
+const { decryptField } = require('../utils/fieldEncryption');
 
 const EXPIRING_DAYS = 30;
 
@@ -45,7 +46,7 @@ const listConsentRegister = async (req, res) => {
       return {
         id: r.id,
         patientId: r.patient_id,
-        patientName: `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        patientName: `${decryptField(r.first_name) || ''} ${decryptField(r.last_name) || ''}`.trim(),
         childId: r.child_id,
         recipientName: r.recipient_name,
         recipientEmail: r.recipient_email,
