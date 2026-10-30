@@ -1,6 +1,7 @@
 const { patientSchema } = require('../utils/patientSchema');
 const { pool } = require('../config/db');
 const { logAudit } = require('../utils/auditLog');
+const { encryptField, hmacIndex, decryptPatientRow } = require('../utils/fieldEncryption');
 const { sanitizeCustomFields } = require('../utils/customFields');
 const { assertNoConflictingSession, DuplicateAssessmentError } = require('../utils/createAssessment');
 const { dateChanged, requestDateChangeResign, ParentEmailMissingError, DateChangeStateError } = require('../utils/dateChangeResign');
@@ -69,25 +70,27 @@ const registerPatient = async (req, res) => {
       return res.status(201).json({
         message: 'This child was already registered — linked to your patient list.',
         linked: true,
-        data: existing,
+        data: decryptPatientRow(existing),
       });
     }
 
     // 3. Insert into Postgres
     const { rows } = await pool.query(
-      `INSERT INTO patients (first_name, middle_name, last_name, dob, county, child_id, practitioner_id, parent_name, parent_email)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO patients (first_name, middle_name, last_name, dob, county, child_id, practitioner_id, parent_name, parent_email, first_name_idx, last_name_idx)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
-        validatedData.firstName,
-        validatedData.middleName || null,
-        validatedData.lastName,
-        validatedData.dob,
+        encryptField(validatedData.firstName),
+        validatedData.middleName ? encryptField(validatedData.middleName) : null,
+        encryptField(validatedData.lastName),
+        encryptField(validatedData.dob),
         validatedData.county,
         validatedData.childId,
         practitionerId,
         validatedData.parentName || null,
         validatedData.parentEmail || null,
+        hmacIndex(validatedData.firstName),
+        hmacIndex(validatedData.lastName),
       ]
     );
     await pool.query(
@@ -99,7 +102,7 @@ const registerPatient = async (req, res) => {
     logAudit({ req, action: 'patient_create', resourceType: 'patient', resourceId: rows[0].id });
     res.status(201).json({
       message: "Patient registered successfully",
-      data: rows[0]
+      data: decryptPatientRow(rows[0])
     });
 
   } catch (error) {
@@ -128,7 +131,7 @@ const getPatients = async (req, res) => {
     // must end immediately (FERPA/IDEA Part C §303.404), unlike
     // deactivated_reason = 'discharged' (this practitioner's own toggle via
     // updatePatientStatus), which intentionally keeps the record visible.
-    const { rows: patients } = await pool.query(
+    const { rows: rawPatients } = await pool.query(
       `SELECT p.*, pp.status,
               (SELECT MAX(a.service_date) FROM assessments a WHERE a.patient_id = p.id AND a.practitioner_id = $1) AS last_service_date
        FROM patients p
@@ -136,6 +139,9 @@ const getPatients = async (req, res) => {
        WHERE pp.practitioner_id = $1 AND pp.deactivated_reason IS DISTINCT FROM 'reassigned'`,
       [practitionerId]
     );
+    const patients = rawPatients
+      .map(decryptPatientRow)
+      .sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
 
     logAudit({ req, action: 'patient_list_view', resourceType: 'patient', details: { count: patients.length } });
     res.json(patients);
@@ -160,24 +166,27 @@ const updatePatient = async (req, res) => {
 
     const { rows } = await pool.query(
       `UPDATE patients
-       SET first_name = $1, middle_name = $2, last_name = $3, dob = $4, county = $5, child_id = $6, parent_name = $7, parent_email = $8
-       WHERE id = $9
+       SET first_name = $1, middle_name = $2, last_name = $3, dob = $4, county = $5, child_id = $6, parent_name = $7, parent_email = $8,
+           first_name_idx = $9, last_name_idx = $10
+       WHERE id = $11
        RETURNING *`,
       [
-        validatedData.firstName,
-        validatedData.middleName || null,
-        validatedData.lastName,
-        validatedData.dob,
+        encryptField(validatedData.firstName),
+        validatedData.middleName ? encryptField(validatedData.middleName) : null,
+        encryptField(validatedData.lastName),
+        encryptField(validatedData.dob),
         validatedData.county,
         validatedData.childId,
         validatedData.parentName || null,
         validatedData.parentEmail || null,
+        hmacIndex(validatedData.firstName),
+        hmacIndex(validatedData.lastName),
         id,
       ]
     );
 
     logAudit({ req, action: 'patient_update', resourceType: 'patient', resourceId: id });
-    res.json({ message: 'Patient updated successfully', data: rows[0] });
+    res.json({ message: 'Patient updated successfully', data: decryptPatientRow(rows[0]) });
   } catch (error) {
     console.error('Error updating patient:', error);
     if (error.errors) return res.status(400).json({ error: error.errors });
