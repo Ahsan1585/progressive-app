@@ -1070,13 +1070,16 @@ function bucketBreakdown(rows, keyField, labelFn) {
       key,
       label: key == null ? 'Not specified' : labelFn(key),
       count: parseInt(r.count, 10),
+      hours: Math.round(parseFloat(r.hours || 0) * 100) / 100,
     };
   });
   resolved.sort((a, b) => b.count - a.count);
   if (resolved.length <= 6) return resolved;
   const top6 = resolved.slice(0, 6);
-  const otherCount = resolved.slice(6).reduce((sum, r) => sum + r.count, 0);
-  return [...top6, { key: 'other', label: 'Other', count: otherCount }];
+  const overflow = resolved.slice(6);
+  const otherCount = overflow.reduce((sum, r) => sum + r.count, 0);
+  const otherHours = Math.round(overflow.reduce((sum, r) => sum + r.hours, 0) * 100) / 100;
+  return [...top6, { key: 'other', label: 'Other', count: otherCount, hours: otherHours }];
 }
 
 // GET /api/dashboard/services?month=YYYY-MM — this month's session counts
@@ -1088,27 +1091,31 @@ function bucketBreakdown(rows, keyField, labelFn) {
 const getServicesBreakdown = async (req, res) => {
   try {
     const { start, end } = parseMonthParam(req.query.month);
+    const practitionerId = practitionerScope(req);
+    const practitionerSql = practitionerId ? ' AND practitioner_id = $3' : '';
+    const disciplinePractitionerSql = practitionerId ? ' AND a.practitioner_id = $3' : '';
+    const practitionerParams = practitionerId ? [practitionerId] : [];
 
     const { rows: typeRows } = await pool.query(
-      `SELECT type, COUNT(*)::int AS count FROM assessments
-       WHERE service_date >= $1 AND service_date <= $2 GROUP BY type`,
-      [start, end]
+      `SELECT type, COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours FROM assessments
+       WHERE service_date >= $1 AND service_date <= $2${practitionerSql} GROUP BY type`,
+      [start, end, ...practitionerParams]
     );
     const { rows: statusRows } = await pool.query(
-      `SELECT billing_status, COUNT(*)::int AS count FROM assessments
-       WHERE service_date >= $1 AND service_date <= $2 GROUP BY billing_status`,
-      [start, end]
+      `SELECT billing_status, COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours FROM assessments
+       WHERE service_date >= $1 AND service_date <= $2${practitionerSql} GROUP BY billing_status`,
+      [start, end, ...practitionerParams]
     );
     const { rows: locationRows } = await pool.query(
-      `SELECT location, COUNT(*)::int AS count FROM assessments
-       WHERE service_date >= $1 AND service_date <= $2 GROUP BY location`,
-      [start, end]
+      `SELECT location, COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours FROM assessments
+       WHERE service_date >= $1 AND service_date <= $2${practitionerSql} GROUP BY location`,
+      [start, end, ...practitionerParams]
     );
     const { rows: disciplineRows } = await pool.query(
-      `SELECT p.position_title, COUNT(*)::int AS count
+      `SELECT p.position_title, COUNT(*)::int AS count, COALESCE(SUM(a.total_time), 0) / 60.0 AS hours
        FROM assessments a JOIN practitioners p ON p.id = a.practitioner_id
-       WHERE a.service_date >= $1 AND a.service_date <= $2 GROUP BY p.position_title`,
-      [start, end]
+       WHERE a.service_date >= $1 AND a.service_date <= $2${disciplinePractitionerSql} GROUP BY p.position_title`,
+      [start, end, ...practitionerParams]
     );
 
     res.json({
