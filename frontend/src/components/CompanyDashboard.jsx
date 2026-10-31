@@ -303,16 +303,16 @@ function VerdictBanner({ day, ap, monthLabel }) {
 
   const flaggedCount = day.flaggedCount || 0;
   const totalOwed = ap.totalOwed || 0;
+  const totalClear = ap.totalClear || 0;
   const totalHeld = ap.totalHeld || 0;
-  const heldPct = totalOwed > 0 ? Math.round((totalHeld / totalOwed) * 100) : 0;
-  const clearPct = 100 - heldPct;
+  const clearPct = totalOwed > 0 ? Math.round((totalClear / totalOwed) * 100) : 0;
 
   const isHealthy = flaggedCount === 0 && totalHeld === 0;
   const headline = isHealthy
     ? `Billing is healthy. Nothing is waiting on you for ${monthLabel}.`
     : flaggedCount > 0 && totalHeld === 0
       ? `Billing is healthy. ${flaggedCount} session${flaggedCount === 1 ? ' is' : 's are'} stuck and need${flaggedCount === 1 ? 's' : ''} a decision.`
-      : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held pending verification.`;
+      : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held back.`;
 
   return (
     <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm flex flex-col min-w-0" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
@@ -322,15 +322,21 @@ function VerdictBanner({ day, ap, monthLabel }) {
           {isHealthy ? 'All clear' : `Needs a look: ${monthLabel}`}
         </div>
         <h1 className="text-[26px] sm:text-[34px] font-extrabold leading-[1.12] tracking-tight mb-4" style={{ textWrap: 'balance' }}>{headline}</h1>
+        {/* One sentence ties owed/clear/held together instead of splitting them
+            across this banner and a separate "Ready to pay" stat tile — the two
+            used to show the same ap.total* figures with no visible connection
+            (e.g. "$79 held" here vs. "$116.92 ready" in the tile, with nothing
+            saying they're both slices of the same $196.09 owed this month). */}
         <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
-          <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners.
+          <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners this month
+          {totalOwed > 0 && <>: <b className="text-white font-extrabold">{money(totalClear)}</b> is ready to pay now, <b className="text-white font-extrabold">{money(totalHeld)}</b> is being held back</>}.
           {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
         </p>
       </div>
       {totalOwed > 0 && (
         <div className="mt-auto pt-8">
           <div className="flex items-end justify-between text-[15px] font-semibold mb-2">
-            <span className="text-white/80">Cleared to pay</span>
+            <span className="text-white/80">Ready to pay now</span>
             <span className="text-[28px] leading-none font-extrabold font-mono tabular-nums">{clearPct}%</span>
           </div>
           <div className="w-full h-3 rounded-full bg-white/15 overflow-hidden">
@@ -1342,13 +1348,12 @@ export function CompanyDashboard() {
             <CustomizeToggle active={isCustomizing} onToggle={() => setIsCustomizing((v) => !v)} />
           </div>
         </div>
+        {/* "Ready to pay" used to live here too, repeating the same ap.totalClear
+            / totalOwed figures the Needs-a-look banner above already states in
+            full (clear vs. held vs. owed) — same money, two different places,
+            no visible link between them. This row now covers ground the banner
+            doesn't: volume, open decisions, payment progress, and EIMS health. */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <StatCard
-            icon={Tag} tone="teal" label="Ready to pay"
-            value={month ? money(month.ap.totalClear) : '—'}
-            deltaText={month && month.ap.totalOwed > 0 ? `${Math.round((month.ap.totalClear / month.ap.totalOwed) * 100)}% cleared · ${Math.round((month.ap.totalHeld / month.ap.totalOwed) * 100)}% held` : 'Nothing owed this month'}
-            deltaTone="up"
-          />
           <StatCard
             icon={Activity} tone="violet" label="Sessions this month"
             value={month ? month.volumeVsPriorMonth.current.toLocaleString() : '—'}
@@ -1366,6 +1371,16 @@ export function CompanyDashboard() {
             value={month ? String(month.paidCount) : '—'}
             deltaText={month && month.paidCount === 0 ? 'nothing paid yet' : 'sessions marked paid'}
             deltaTone="flat"
+          />
+          <StatCard
+            icon={Tag} tone="teal" label="EIMS match rate"
+            value={(() => {
+              const r = month?.eimsMatchRate;
+              if (!r) return '—';
+              const total = r.matched + r.flagged + r.missing + r.unverified;
+              return total > 0 ? `${Math.round((r.matched / total) * 100)}%` : '—';
+            })()}
+            deltaText="matched against state records"
           />
         </div>
       </div>
