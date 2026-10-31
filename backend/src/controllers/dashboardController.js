@@ -411,6 +411,7 @@ const getPipelineOverview = async (req, res) => {
       computeSessionCompliance
     );
     const eimsMatchRate = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
+    const eimsMatchRateHours = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
     billedSessions.forEach((s) => {
       const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
@@ -419,13 +420,18 @@ const getPipelineOverview = async (req, res) => {
       // tier alone would derive to.
       const humanHold = ['on_hold', 'rejected', 'declined'].includes(s.billing_status);
       const derived = humanHold ? { tier: 'exception' } : deriveEimsStatus(s, { mode, compliance });
-      eimsMatchRate[eimsBucket(derived, humanHold)] += 1;
+      const bucket = eimsBucket(derived, humanHold);
+      eimsMatchRate[bucket] += 1;
+      eimsMatchRateHours[bucket] += s.total_time ? s.total_time / 60 : 0;
     });
     pendingCheckedSessions.forEach((s) => {
       // Independent practitioners self-report; their pending sessions are not cross-checked.
       if (roleById.get(s.practitioner_id) === 'independent_practitioner') return;
-      eimsMatchRate[pendingEimsBucket(s)] += 1;
+      const bucket = pendingEimsBucket(s);
+      eimsMatchRate[bucket] += 1;
+      eimsMatchRateHours[bucket] += s.total_time ? s.total_time / 60 : 0;
     });
+    Object.keys(eimsMatchRateHours).forEach((k) => { eimsMatchRateHours[k] = Math.round(eimsMatchRateHours[k] * 100) / 100; });
 
     res.json({
       success: true,
@@ -443,6 +449,7 @@ const getPipelineOverview = async (req, res) => {
       exceptions,
       exceptionsHours,
       eimsMatchRate,
+      eimsMatchRateHours,
     });
   } catch (error) {
     console.error('getPipelineOverview error:', error);

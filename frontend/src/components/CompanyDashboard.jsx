@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '@/api/axiosInstance';
 import {
   Tag, Activity, AlertTriangle, CalendarClock, TrendingUp, TrendingDown,
-  CalendarRange, Calendar, X, Check, MessageCircle, GripVertical,
+  CalendarRange, Calendar, X, Check, MessageCircle, GripVertical, Search,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -13,6 +13,10 @@ import { useMessaging } from '@/context/useMessaging';
 
 const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const compactMoney = (n) => `$${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+// Picks a row's count or hours field depending on the Overview control
+// bar's sessions/hours toggle, and a matching unit label for display text.
+const pick = (row, countKey, hoursKey, unit) => (row ? (unit === 'hours' ? row[hoursKey] : row[countKey]) : null);
+const unitLabel = (unit, n) => (unit === 'hours' ? 'hrs' : n === 1 ? 'session' : 'sessions');
 
 // Age in whole days since a timestamp, for the action queue's "waiting
 // since" tag — computed client-side from flaggedAt/serviceDate rather
@@ -65,6 +69,53 @@ function MonthYearPicker({ value, onChange }) {
           <option key={y} value={y}>{y}</option>
         ))}
       </select>
+    </div>
+  );
+}
+
+// Practitioner filter + sessions/hours toggle + search, in one row under
+// the month picker. The practitioner filter re-fetches every card (plumbed
+// through CompanyDashboard's own month-fetch effect, same stale-response
+// guard as the month picker); the unit toggle is purely local (no
+// refetch, just which field each component reads); search filters rows
+// already on screen in PractitionerAccuracyTable/ReturnedLogsPanel.
+function OverviewControlBar({ practitioners, practitionerId, onPractitionerChange, unit, onUnitChange, searchQuery, onSearchChange }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <select
+        value={practitionerId ?? ''}
+        onChange={(e) => onPractitionerChange(e.target.value ? Number(e.target.value) : null)}
+        className="border border-slate-200 rounded-lg px-3 py-1.5 text-[15px] font-semibold text-slate-700 bg-white cursor-pointer"
+      >
+        <option value="">All practitioners</option>
+        {practitioners.map((p) => (
+          <option key={p.id} value={p.id}>{p.name}</option>
+        ))}
+      </select>
+      <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+        {['sessions', 'hours'].map((u) => (
+          <button
+            key={u}
+            type="button"
+            onClick={() => onUnitChange(u)}
+            className={`px-3 py-1.5 text-[14px] font-semibold capitalize cursor-pointer transition-colors ${
+              unit === u ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {u}
+          </button>
+        ))}
+      </div>
+      <div className="relative flex-1 min-w-[180px] max-w-xs">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" aria-hidden="true" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search practitioner or patient..."
+          className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-[15px] text-slate-700 bg-white"
+        />
+      </div>
     </div>
   );
 }
@@ -197,8 +248,11 @@ const ACCURACY_VISIBLE_ROWS = 6;
 const ACCURACY_ROW_PX = 74;
 const ACCURACY_HEADER_PX = 44;
 
-function PractitionerAccuracyTable({ month }) {
-  const rows = month?.practitionerAccuracy || [];
+function PractitionerAccuracyTable({ month, unit = 'sessions', searchQuery = '' }) {
+  const allRows = month?.practitionerAccuracy || [];
+  const rows = searchQuery.trim()
+    ? allRows.filter((r) => r.name?.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : allRows;
   const [sortBy, setSortBy] = useState('accuracyPct'); // 'accuracyPct' | 'sessionsChecked' | 'notClean'
   const [sortDir, setSortDir] = useState('asc');
 
@@ -238,7 +292,9 @@ function PractitionerAccuracyTable({ month }) {
         </p>
       </div>
       {rows.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-10">No agency practitioner sessions checked against EIMS this month yet.</div>
+        <div className="text-[15px] text-slate-500 text-center py-10">
+          {searchQuery.trim() && allRows.length > 0 ? `No practitioner matching "${searchQuery.trim()}".` : 'No agency practitioner sessions checked against EIMS this month yet.'}
+        </div>
       ) : (
         <div
           className="overflow-auto"
@@ -249,8 +305,8 @@ function PractitionerAccuracyTable({ month }) {
               <tr className="bg-slate-50 border-b border-slate-100" style={{ height: ACCURACY_HEADER_PX }}>
                 <th className="text-left text-[14px] font-bold uppercase text-slate-600 px-5 py-2.5">Practitioner</th>
                 <SortHeader label="Accuracy" sortKey="accuracyPct" />
-                <SortHeader label="Checked" sortKey="sessionsChecked" />
-                <SortHeader label="Not Clean" sortKey="notClean" />
+                <SortHeader label={unit === 'hours' ? 'Hours' : 'Checked'} sortKey="sessionsChecked" />
+                <SortHeader label={unit === 'hours' ? 'Not Clean Hrs' : 'Not Clean'} sortKey="notClean" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -272,8 +328,8 @@ function PractitionerAccuracyTable({ month }) {
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{r.sessionsChecked}</td>
-                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{r.notClean}</td>
+                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{unit === 'hours' ? r.hoursChecked : r.sessionsChecked}</td>
+                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{unit === 'hours' ? r.notCleanHours : r.notClean}</td>
                   </tr>
                 );
               })}
@@ -292,7 +348,7 @@ function PractitionerAccuracyTable({ month }) {
 
 // --- Verdict banner: a plain-language judgment, not a stat tile, with
 // the supporting numbers underneath it rather than standing alone. ---
-function VerdictBanner({ day, ap, monthLabel }) {
+function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
   if (!day || !ap) {
     return (
       <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
@@ -301,7 +357,8 @@ function VerdictBanner({ day, ap, monthLabel }) {
     );
   }
 
-  const flaggedCount = day.flaggedCount || 0;
+  const flaggedCount = unit === 'hours' ? (day.flaggedHours || 0) : (day.flaggedCount || 0);
+  const flaggedUnitWord = unit === 'hours' ? 'hrs' : (flaggedCount === 1 ? 'session' : 'sessions');
   const totalOwed = ap.totalOwed || 0;
   const totalClear = ap.totalClear || 0;
   const totalHeld = ap.totalHeld || 0;
@@ -319,8 +376,10 @@ function VerdictBanner({ day, ap, monthLabel }) {
   const headline = isHealthy
     ? `Billing is healthy. Nothing is waiting on you for ${monthLabel}.`
     : flaggedCount > 0 && totalHeld === 0
-      ? `Billing is healthy. ${flaggedCount} session${flaggedCount === 1 ? ' is' : 's are'} stuck and need${flaggedCount === 1 ? 's' : ''} a decision.`
-      : `${flaggedCount > 0 ? `${flaggedCount} sessions need a decision and ` : ''}${compactMoney(totalHeld)} is being held back.`;
+      ? unit === 'hours'
+        ? `Billing is healthy. ${flaggedCount} ${flaggedUnitWord} stuck and need a decision.`
+        : `Billing is healthy. ${flaggedCount} session${flaggedCount === 1 ? ' is' : 's are'} stuck and need${flaggedCount === 1 ? 's' : ''} a decision.`
+      : `${flaggedCount > 0 ? `${flaggedCount} ${flaggedUnitWord} need${unit === 'sessions' && flaggedCount === 1 ? 's' : ''} a decision and ` : ''}${compactMoney(totalHeld)} is being held back.`;
 
   return (
     <section className="rounded-[24px] p-7 sm:p-8 text-white shadow-sm flex flex-col min-w-0" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #0f1829 100%)' }}>
@@ -338,7 +397,7 @@ function VerdictBanner({ day, ap, monthLabel }) {
         <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
           <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners this month
           {totalOwed > 0 && <>: <b className="text-white font-extrabold">{money(totalClear)}</b> is ready to pay now, <b className="text-white font-extrabold">{money(totalHeld)}</b> is being held back</>}.
-          {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
+          {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged {unit === 'hours' ? 'hrs' : `session${flaggedCount === 1 ? '' : 's'}`}</b>.</>}
         </p>
       </div>
       {totalBilled > 0 && (
@@ -380,15 +439,15 @@ function StatCard({ icon: Icon, tone, label, value, deltaText, deltaTone }) {
   );
 }
 
-function ActionQueue({ day, onSelectSession }) {
+function ActionQueue({ day, onSelectSession, unit = 'sessions' }) {
   const sessions = day?.flaggedSessions || [];
-  const total = day?.flaggedCount || 0;
+  const total = unit === 'hours' ? (day?.flaggedHours || 0) : (day?.flaggedCount || 0);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between mb-4">
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">What needs you</div>
-        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} open</div>
+        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} {unit === 'hours' ? 'hrs' : 'open'}</div>
       </div>
       {sessions.length === 0 ? (
         <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No open holds this month. Nice.</div>
@@ -433,13 +492,19 @@ function ActionQueue({ day, onSelectSession }) {
 // The four funnel stages and their bars. Shared by the monthly "Billing
 // pipeline" card and the all-time panel beside the banner, so both always read
 // the same way. Bars are scaled to Logged, which is the largest stage.
-function FunnelRows({ pipeline }) {
-  const { logged, reviewed, invoiced, paid } = pipeline;
-  const held = (pipeline.exceptions?.on_hold || 0) + (pipeline.exceptions?.rejected || 0);
+function FunnelRows({ pipeline, unit = 'sessions' }) {
+  const logged = unit === 'hours' ? pipeline.loggedHours : pipeline.logged;
+  const reviewed = unit === 'hours' ? pipeline.reviewedHours : pipeline.reviewed;
+  const invoiced = unit === 'hours' ? pipeline.invoicedHours : pipeline.invoiced;
+  const paid = unit === 'hours' ? pipeline.paidHours : pipeline.paid;
+  const held = unit === 'hours'
+    ? (pipeline.exceptionsHours?.on_hold || 0) + (pipeline.exceptionsHours?.rejected || 0)
+    : (pipeline.exceptions?.on_hold || 0) + (pipeline.exceptions?.rejected || 0);
+  const heldLabel = unit === 'hours' ? `${held.toLocaleString()} hrs held back` : `${held.toLocaleString()} held back`;
 
   const stages = [
     { label: 'Logged', value: logged },
-    { label: 'Reviewed', value: reviewed, sub: held > 0 ? `${held.toLocaleString()} held back` : null },
+    { label: 'Reviewed', value: reviewed, sub: held > 0 ? heldLabel : null },
     { label: 'Invoiced', value: invoiced },
     { label: 'Paid', value: paid },
   ];
@@ -462,21 +527,23 @@ function FunnelRows({ pipeline }) {
   ));
 }
 
-function BillingFunnel({ pipeline }) {
+function BillingFunnel({ pipeline, unit = 'sessions' }) {
   if (!pipeline) return null;
-  const { logged, invoiced, paid } = pipeline;
+  const logged = unit === 'hours' ? pipeline.loggedHours : pipeline.logged;
+  const invoiced = unit === 'hours' ? pipeline.invoicedHours : pipeline.invoiced;
+  const paid = unit === 'hours' ? pipeline.paidHours : pipeline.paid;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Billing pipeline</div>
-        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} total</div>
+        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{logged.toLocaleString()} {unit === 'hours' ? 'hrs' : 'total'}</div>
       </div>
-      <FunnelRows pipeline={pipeline} />
+      <FunnelRows pipeline={pipeline} unit={unit} />
       <div className="text-[14px] text-slate-500 mt-3.5 pt-3 border-t border-dashed border-slate-200">
         {paid === 0
           ? "Nothing from this month has been marked paid yet."
-          : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of invoiced sessions are confirmed paid.`}
+          : `${Math.round((paid / Math.max(invoiced, 1)) * 100)}% of invoiced ${unit === 'hours' ? 'hours' : 'sessions'} are confirmed paid.`}
       </div>
     </div>
   );
@@ -532,8 +599,9 @@ function AllTimeStatus({ pipeline }) {
   );
 }
 
-function EimsDonut({ pipeline }) {
+function EimsDonut({ pipeline, unit = 'sessions' }) {
   const rate = pipeline?.eimsMatchRate;
+  const displayRate = unit === 'hours' ? pipeline?.eimsMatchRateHours : rate;
   if (!rate) return null;
   const total = rate.matched + rate.flagged + rate.missing + rate.unverified;
   // No billed sessions in the month: the same ring and legend, grayed out, so
@@ -585,19 +653,19 @@ function EimsDonut({ pipeline }) {
       <div className="flex flex-col gap-2 mt-4 w-full">
         <div className="flex items-center justify-between text-[16px]">
           <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#0d9488' }} />Matched</div>
-          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.matched.toLocaleString()}</span>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.matched.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
         </div>
         <div className="flex items-center justify-between text-[16px]">
           <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#d97706' }} />Mismatch / pending</div>
-          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.flagged.toLocaleString()}</span>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.flagged.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
         </div>
         <div className="flex items-center justify-between text-[16px]">
           <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#e11d48' }} />Missing in EIMS</div>
-          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.missing.toLocaleString()}</span>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.missing.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
         </div>
         <div className="flex items-center justify-between text-[16px]">
           <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#94a3b8' }} />Unverified (no state file)</div>
-          <span className="font-mono font-extrabold text-[18px] text-slate-900">{rate.unverified.toLocaleString()}</span>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.unverified.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
         </div>
       </div>
       )}
@@ -613,7 +681,7 @@ const SERVICES_DIMENSIONS = [
 ];
 const SERVICES_COLORS = ['#0d9488', '#2563eb', '#d97706', '#e11d48', '#7c3aed', '#64748b', '#94a3b8'];
 
-function ServicesBreakdown({ data }) {
+function ServicesBreakdown({ data, unit = 'sessions' }) {
   const [dimension, setDimension] = useState('byServiceType');
   if (!data) {
     return (
@@ -668,7 +736,7 @@ function ServicesBreakdown({ data }) {
                   <span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: SERVICES_COLORS[i % SERVICES_COLORS.length] }} />
                   <span className="truncate">{r.label}</span>
                 </div>
-                <span className="font-mono font-extrabold text-[18px] text-slate-900 flex-shrink-0">{r.count.toLocaleString()}</span>
+                <span className="font-mono font-extrabold text-[18px] text-slate-900 flex-shrink-0">{(unit === 'hours' ? r.hours : r.count).toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
               </div>
             ))}
           </div>
@@ -755,9 +823,13 @@ function TrajectoryTabs({ active, onChange }) {
 // every returned/declined log (all-time), scrollable, each with its
 // status and full comment thread so a CEO can see exactly why a log
 // bounced back to a practitioner without leaving the dashboard.
-function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
-  const logs = returnedLogs?.logs || [];
-  const count = returnedLogs?.count || 0;
+function ReturnedLogsPanel({ returnedLogs, onSelectSession, unit = 'sessions', searchQuery = '' }) {
+  const allLogs = returnedLogs?.logs || [];
+  const q = searchQuery.trim().toLowerCase();
+  const logs = q
+    ? allLogs.filter((l) => l.patientName?.toLowerCase().includes(q) || l.practitionerName?.toLowerCase().includes(q))
+    : allLogs;
+  const count = unit === 'hours' ? Math.round(logs.reduce((sum, l) => sum + (l.hours || 0), 0) * 100) / 100 : logs.length;
   const totalAmount = logs.reduce((sum, l) => sum + (l.amount || 0), 0);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -765,7 +837,9 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between gap-3 mb-1">
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Returned &amp; declined logs</div>
-        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{count} total</div>
+        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">
+          {count} {unit === 'hours' ? 'hrs' : 'total'}
+        </div>
       </div>
       <div className="text-[14px] text-slate-500 mb-3">
         Sessions from this month that billing sent back, oldest first.
@@ -773,7 +847,9 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
       </div>
 
       {logs.length === 0 ? (
-        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No returned or declined logs this month. Nice.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">
+          {q && allLogs.length > 0 ? `No returned or declined logs matching "${searchQuery.trim()}".` : 'No returned or declined logs this month. Nice.'}
+        </div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1 [&>*]:shrink-0">
           {logs.map((log) => {
@@ -1163,6 +1239,14 @@ export function CompanyDashboard() {
   const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
   const [month, setMonth] = useState(null);
   const [trajectoryTab, setTrajectoryTab] = useState('month');
+  // Overview control bar: practitioner scope, sessions/hours unit, search.
+  // practitionerId re-fetches every card (same pattern as monthValue); unit
+  // is a pure display toggle (no refetch); searchQuery filters already-
+  // loaded rows client-side in PractitionerAccuracyTable/ReturnedLogsPanel.
+  const [practitioners, setPractitioners] = useState([]);
+  const [practitionerId, setPractitionerId] = useState(null);
+  const [unit, setUnit] = useState('sessions'); // 'sessions' | 'hours'
+  const [searchQuery, setSearchQuery] = useState('');
   // Everything below the stat row follows the month picker, so the cards agree
   // with each other and with the stat row: the sessions whose service date is
   // in the selected month. The verdict banner (day / ap) follows it too; only the
@@ -1185,6 +1269,7 @@ export function CompanyDashboard() {
   useEffect(() => {
     // No month param = all history combined.
     api.get('/api/dashboard/pipeline').then((res) => setAllTime(res.data)).catch(() => setAllTime(null));
+    api.get('/api/dashboard/practitioners').then((res) => setPractitioners(res.data.practitioners || [])).catch(() => setPractitioners([]));
   }, []);
 
   // One fetch per card for the selected month. `stale` drops a response that
@@ -1192,7 +1277,7 @@ export function CompanyDashboard() {
   // never leave one card showing a different month from the rest.
   useEffect(() => {
     let stale = false;
-    const params = { month: monthValue };
+    const params = { month: monthValue, ...(practitionerId ? { practitionerId } : {}) };
     // Drop the previous month's numbers straight away so nothing stale sits on
     // screen while the new month loads; the cards show their loading state.
     setMonth(null); setServices(null); setPipeline(null); setMonthDay(null); setDay(null);
@@ -1214,7 +1299,7 @@ export function CompanyDashboard() {
     load('/api/dashboard/returned-logs', setReturnedLogs, () => setReturnedLogs(null));
     load('/api/dashboard/documents', (d) => setDocuments(d.documents), () => setDocuments([]));
     return () => { stale = true; };
-  }, [monthValue]);
+  }, [monthValue, practitionerId]);
 
   // Cards are placed by dropping them, not shuffled live under the cursor: while
   // dragging, a bar shows where the card will land, and the move (and the save)
@@ -1275,17 +1360,17 @@ export function CompanyDashboard() {
       <div>
         <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">From session to payment</div>
         <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sessions from {monthLabel(monthValue)}, by where they are in billing.</p>
-        <BillingFunnel pipeline={pipeline} />
+        <BillingFunnel pipeline={pipeline} unit={unit} />
       </div>
     ),
     action_queue: (
       <div>
-        <ActionQueue day={monthDay} onSelectSession={setSelectedSessionId} />
+        <ActionQueue day={monthDay} onSelectSession={setSelectedSessionId} unit={unit} />
       </div>
     ),
     services_breakdown: (
       <div>
-        <ServicesBreakdown data={services} />
+        <ServicesBreakdown data={services} unit={unit} />
       </div>
     ),
     documents_feed: (
@@ -1297,19 +1382,19 @@ export function CompanyDashboard() {
       <div>
         <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">Who's submitting clean logs</div>
         <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
-        <PractitionerAccuracyTable month={month} />
+        <PractitionerAccuracyTable month={month} unit={unit} searchQuery={searchQuery} />
       </div>
     ),
     eims_status: (
       <div>
         <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">EIMS match status</div>
         <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sessions from {monthLabel(monthValue)}, reconciled against state records.</p>
-        <EimsDonut pipeline={pipeline} />
+        <EimsDonut pipeline={pipeline} unit={unit} />
       </div>
     ),
     returned_logs: (
       <div>
-        <ReturnedLogsPanel returnedLogs={returnedLogs} onSelectSession={setSelectedSessionId} />
+        <ReturnedLogsPanel returnedLogs={returnedLogs} onSelectSession={setSelectedSessionId} unit={unit} searchQuery={searchQuery} />
       </div>
     ),
     trajectory_chart: (
@@ -1333,7 +1418,7 @@ export function CompanyDashboard() {
           so an open sidebar cannot squeeze them); stacked otherwise. */}
       <div className="@container">
         <div className="grid gap-6 @4xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <VerdictBanner day={day} ap={month?.ap} monthLabel={new Date(`${monthValue}-01T12:00:00`).toLocaleString('en-US', { month: 'long', year: 'numeric' })} />
+          <VerdictBanner day={day} ap={month?.ap} unit={unit} monthLabel={new Date(`${monthValue}-01T12:00:00`).toLocaleString('en-US', { month: 'long', year: 'numeric' })} />
           <AllTimeStatus pipeline={allTime} />
         </div>
       </div>
@@ -1361,6 +1446,17 @@ export function CompanyDashboard() {
             <CustomizeToggle active={isCustomizing} onToggle={() => setIsCustomizing((v) => !v)} />
           </div>
         </div>
+        <div className="mb-3">
+          <OverviewControlBar
+            practitioners={practitioners}
+            practitionerId={practitionerId}
+            onPractitionerChange={setPractitionerId}
+            unit={unit}
+            onUnitChange={setUnit}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </div>
         {/* "Ready to pay" used to live here too, repeating the same ap.totalClear
             / totalOwed figures the Needs-a-look banner above already states in
             full (clear vs. held vs. owed) — same money, two different places,
@@ -1368,21 +1464,21 @@ export function CompanyDashboard() {
             doesn't: volume, open decisions, payment progress, and EIMS health. */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           <StatCard
-            icon={Activity} tone="violet" label="Sessions this month"
-            value={month ? month.volumeVsPriorMonth.current.toLocaleString() : '—'}
+            icon={Activity} tone="violet" label={unit === 'hours' ? 'Hours this month' : 'Sessions this month'}
+            value={month ? (unit === 'hours' ? month.volumeVsPriorMonth.currentHours.toLocaleString() : month.volumeVsPriorMonth.current.toLocaleString()) : '—'}
             deltaText="across the active roster"
             deltaTone="flat"
           />
           <StatCard
             icon={AlertTriangle} tone="amber" label="Needs a decision"
-            value={month ? String(month.exceptions.on_hold) : '—'}
+            value={month ? String(unit === 'hours' ? month.exceptionsHours.on_hold : month.exceptions.on_hold) : '—'}
             deltaText={month && month.exceptions.on_hold > 0 ? 'see the queue below' : 'nothing flagged'}
             deltaTone={month && month.exceptions.on_hold > 0 ? 'down' : 'flat'}
           />
           <StatCard
             icon={CalendarClock} tone="rose" label="Paid this month"
-            value={month ? String(month.paidCount) : '—'}
-            deltaText={month && month.paidCount === 0 ? 'nothing paid yet' : 'sessions marked paid'}
+            value={month ? String(unit === 'hours' ? month.paidCountHours : month.paidCount) : '—'}
+            deltaText={month && month.paidCount === 0 ? 'nothing paid yet' : (unit === 'hours' ? 'hours marked paid' : 'sessions marked paid')}
             deltaTone="flat"
           />
           <StatCard
