@@ -619,6 +619,23 @@ const getMonthOverview = async (req, res) => {
       else apTotalHeld += lineTotal;
     });
 
+    // This month's already-paid total — totalOwed above deliberately
+    // excludes paid sessions, so a month that's mostly paid out has a
+    // small totalOwed and the frontend can't tell "60% held back" means
+    // 60% of a tiny remainder vs. 60% of the whole month. totalPaid lets
+    // it show held-back against the month's real total billing instead.
+    const { rows: paidTotalRows } = await pool.query(
+      `SELECT COALESCE(SUM(ROUND((a.total_time / 60.0) * p.pay_rate, 2)), 0) AS total
+       FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
+       JOIN billing_batches bb ON bb.id = a.billing_batch_id
+       WHERE a.service_date >= $1 AND a.service_date <= $2
+         AND a.billing_status IN ('invoiced', 'completed')
+         AND bb.paid_at IS NOT NULL`,
+      [start, end]
+    );
+    const apTotalPaid = Math.round(parseFloat(paidTotalRows[0].total) * 100) / 100;
+
     res.json({
       success: true,
       year, month, start, end,
@@ -639,6 +656,7 @@ const getMonthOverview = async (req, res) => {
         totalOwed: Math.round(apTotalOwed * 100) / 100,
         totalClear: Math.round(apTotalClear * 100) / 100,
         totalHeld: Math.round(apTotalHeld * 100) / 100,
+        totalPaid: apTotalPaid,
       },
     });
   } catch (error) {

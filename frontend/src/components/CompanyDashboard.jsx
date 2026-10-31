@@ -305,7 +305,15 @@ function VerdictBanner({ day, ap, monthLabel }) {
   const totalOwed = ap.totalOwed || 0;
   const totalClear = ap.totalClear || 0;
   const totalHeld = ap.totalHeld || 0;
-  const clearPct = totalOwed > 0 ? Math.round((totalClear / totalOwed) * 100) : 0;
+  const totalPaid = ap.totalPaid || 0;
+  // Against the month's TOTAL billing (paid + still owed), not just the
+  // still-owed remainder — totalOwed excludes everything already paid, so
+  // once most of a month is paid out, totalOwed is small and a percentage
+  // computed against only that remainder makes a tiny held-back amount
+  // look like it's most of the month's billing (e.g. "40% held" when it's
+  // really 40% of a $79 leftover out of $2,000 billed, not 40% of $2,000).
+  const totalBilled = totalPaid + totalOwed;
+  const paidPct = totalBilled > 0 ? Math.round(((totalPaid + totalClear) / totalBilled) * 100) : 0;
 
   const isHealthy = flaggedCount === 0 && totalHeld === 0;
   const headline = isHealthy
@@ -333,14 +341,14 @@ function VerdictBanner({ day, ap, monthLabel }) {
           {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged session{flaggedCount === 1 ? '' : 's'}</b>.</>}
         </p>
       </div>
-      {totalOwed > 0 && (
+      {totalBilled > 0 && (
         <div className="mt-auto pt-8">
           <div className="flex items-end justify-between text-[15px] font-semibold mb-2">
-            <span className="text-white/80">Ready to pay now</span>
-            <span className="text-[28px] leading-none font-extrabold font-mono tabular-nums">{clearPct}%</span>
+            <span className="text-white/80">Paid or ready to pay, this month</span>
+            <span className="text-[28px] leading-none font-extrabold font-mono tabular-nums">{paidPct}%</span>
           </div>
           <div className="w-full h-3 rounded-full bg-white/15 overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-400" style={{ width: `${clearPct}%` }} />
+            <div className="h-full rounded-full bg-emerald-400" style={{ width: `${paidPct}%` }} />
           </div>
         </div>
       )}
