@@ -36,7 +36,7 @@ describe('getMonthOverview practitionerAccuracy', () => {
 
     pool.query.mockImplementation(async (sql) => {
       if (/GROUP BY service_date/.test(sql)) return { rows: [] };
-      if (/FROM assessments WHERE service_date/.test(sql) && /COUNT\(\*\)::int AS count FROM assessments WHERE/.test(sql)) return { rows: [{ count: 0 }] };
+      if (/COUNT\(\*\)::int AS count, COALESCE\(SUM\(total_time\)/.test(sql)) return { rows: [{ count: 0, hours: '0' }] };
       if (/GROUP BY billing_status/.test(sql)) return { rows: [] };
       if (/bb\.paid_at IS NOT NULL/.test(sql)) return { rows: [{ count: 0 }] };
       if (/a\.billing_status IN \('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined'\)/.test(sql)) return { rows: billed };

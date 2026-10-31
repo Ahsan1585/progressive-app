@@ -37,10 +37,10 @@ describe('getMonthOverview ap.totalPaid', () => {
     pool.query.mockImplementation(async (sql) => {
       // Most specific checks first — the paid-count and paid-total queries
       // both match `bb.paid_at IS NOT NULL`, so distinguish by SUM vs COUNT.
-      if (/SUM\(ROUND/.test(sql)) return { rows: [{ total: '160.00' }] }; // this month's already-paid total
-      if (/COUNT\(\*\)::int AS count[\s\S]*bb\.paid_at IS NOT NULL/.test(sql)) return { rows: [{ count: 1 }] };
+      if (/SUM\(ROUND/.test(sql)) return { rows: [{ total: '160.00', hours: '4' }] }; // this month's already-paid total
+      if (/COUNT\(\*\)::int AS count, COALESCE\(SUM\(a\.total_time\)[\s\S]*bb\.paid_at IS NOT NULL/.test(sql)) return { rows: [{ count: 1, hours: '4' }] };
       if (/GROUP BY service_date/.test(sql)) return { rows: [] };
-      if (/FROM assessments WHERE service_date/.test(sql) && /COUNT\(\*\)::int AS count FROM assessments WHERE/.test(sql)) return { rows: [{ count: 0 }] };
+      if (/COUNT\(\*\)::int AS count, COALESCE\(SUM\(total_time\)/.test(sql)) return { rows: [{ count: 0, hours: '0' }] };
       if (/GROUP BY billing_status/.test(sql)) return { rows: [] };
       if (/a\.billing_status IN \('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined'\)/.test(sql)) return { rows: [] };
       if (/a\.billing_status = 'pending'/.test(sql)) return { rows: [] };

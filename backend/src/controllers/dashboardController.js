@@ -84,6 +84,17 @@ const monthScope = (req) => {
 const inMonthSql = (startParam, endParam, column = 'service_date') =>
   `($${startParam}::date IS NULL OR (${column} >= $${startParam}::date AND ${column} <= $${endParam}::date))`;
 
+// Optional ?practitionerId= scope for the Overview control bar's
+// practitioner filter — a malformed/non-numeric value is treated as "All"
+// (ignored), not a 400/500, same defensive posture as monthScope's
+// malformed-month fallback.
+const practitionerScope = (req) => {
+  const raw = req.query?.practitionerId;
+  if (!raw) return null;
+  const id = parseInt(raw, 10);
+  return Number.isFinite(id) ? id : null;
+};
+
 // GET /api/dashboard/day — worklist, not a trend. "What needs a human
 // today." With ?month=YYYY-MM the flagged list and its count cover only that
 // month's sessions (the "What needs you" card); without it they are all-time
@@ -398,58 +409,75 @@ const getPipelineOverview = async (req, res) => {
 const getMonthOverview = async (req, res) => {
   try {
     const { year, month, start, end } = parseMonthParam(req.query.month);
+    const practitionerId = practitionerScope(req);
     const prior = priorMonth(year, month);
     const priorRange = parseMonthParam(`${prior.year}-${String(prior.month).padStart(2, '0')}`);
+
+    // Shared "AND practitioner_id = $N" fragment (and its param) for every
+    // query below that filters bare `assessments` (no `a.` alias) by date
+    // range — appended after the two date params, so it's always $3 here.
+    const practitionerSql = practitionerId ? ' AND practitioner_id = $3' : '';
+    const practitionerParams = practitionerId ? [practitionerId] : [];
 
     const { rows: dailyRows } = await pool.query(
       `SELECT service_date::date AS date, COUNT(*)::int AS count,
               COALESCE(SUM(total_time), 0)::int AS minutes
        FROM assessments
-       WHERE service_date >= $1 AND service_date <= $2
+       WHERE service_date >= $1 AND service_date <= $2${practitionerSql}
        GROUP BY service_date
        ORDER BY service_date`,
-      [start, end]
+      [start, end, ...practitionerParams]
     );
 
     const { rows: currentTotalRows } = await pool.query(
-      `SELECT COUNT(*)::int AS count FROM assessments WHERE service_date >= $1 AND service_date <= $2`,
-      [start, end]
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours
+         FROM assessments WHERE service_date >= $1 AND service_date <= $2${practitionerSql}`,
+      [start, end, ...practitionerParams]
     );
     const { rows: priorTotalRows } = await pool.query(
-      `SELECT COUNT(*)::int AS count FROM assessments WHERE service_date >= $1 AND service_date <= $2`,
-      [priorRange.start, priorRange.end]
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours
+         FROM assessments WHERE service_date >= $1 AND service_date <= $2${practitionerSql}`,
+      [priorRange.start, priorRange.end, ...practitionerParams]
     );
     const current = currentTotalRows[0].count;
+    const currentHours = Math.round(parseFloat(currentTotalRows[0].hours) * 100) / 100;
     const priorCount = priorTotalRows[0].count;
     const pctChange = priorCount > 0 ? Math.round(((current - priorCount) / priorCount) * 1000) / 10 : null;
 
     const { rows: funnelRows } = await pool.query(
-      `SELECT billing_status, COUNT(*)::int AS count
+      `SELECT billing_status, COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours
        FROM assessments
-       WHERE service_date >= $1 AND service_date <= $2
+       WHERE service_date >= $1 AND service_date <= $2${practitionerSql}
        GROUP BY billing_status`,
-      [start, end]
+      [start, end, ...practitionerParams]
     );
     const funnel = { pending: 0, njeis_review: 0, invoiced: 0, self_certified: 0, completed: 0 };
+    const funnelHours = { pending: 0, njeis_review: 0, invoiced: 0, self_certified: 0, completed: 0 };
     const exceptions = { on_hold: 0, rejected: 0, declined: 0, voided: 0 };
+    const exceptionsHours = { on_hold: 0, rejected: 0, declined: 0, voided: 0 };
     funnelRows.forEach((r) => {
-      if (r.billing_status in funnel) funnel[r.billing_status] = r.count;
-      else if (r.billing_status in exceptions) exceptions[r.billing_status] = r.count;
+      const hrs = Math.round(parseFloat(r.hours) * 100) / 100;
+      if (r.billing_status in funnel) { funnel[r.billing_status] = r.count; funnelHours[r.billing_status] = hrs; }
+      else if (r.billing_status in exceptions) { exceptions[r.billing_status] = r.count; exceptionsHours[r.billing_status] = hrs; }
     });
 
     // Real "paid" count for the funnel's 4th stage — invoiced/completed
     // only means "batched," not "actually paid" (billing_batches.paid_at
     // is the authoritative signal, same join the AP endpoint uses).
+    const paidCountParams = [start, end];
+    let paidCountPractitionerSql = '';
+    if (practitionerId) { paidCountParams.push(practitionerId); paidCountPractitionerSql = ` AND a.practitioner_id = $${paidCountParams.length}`; }
     const { rows: paidRows } = await pool.query(
-      `SELECT COUNT(*)::int AS count
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(a.total_time), 0) / 60.0 AS hours
        FROM assessments a
        JOIN billing_batches bb ON bb.id = a.billing_batch_id
-       WHERE a.service_date >= $1 AND a.service_date <= $2
+       WHERE a.service_date >= $1 AND a.service_date <= $2${paidCountPractitionerSql}
          AND a.billing_status IN ('invoiced', 'completed')
          AND bb.paid_at IS NOT NULL`,
-      [start, end]
+      paidCountParams
     );
     const paidCount = paidRows[0].count;
+    const paidCountHours = Math.round(parseFloat(paidRows[0].hours) * 100) / 100;
 
     // EIMS match rate for the month — bounded to sessions already past
     // pending (njeis_review/invoiced/completed/self_certified/on_hold/
@@ -462,26 +490,35 @@ const getMonthOverview = async (req, res) => {
     // force-set to 'exception' below regardless of what EIMS alone says,
     // since a human decision overrides that.
     const EXCEPTION_STATUSES = ['on_hold', 'rejected', 'declined'];
+    const billedSessionsParams = [start, end];
+    let billedSessionsPractitionerSql = '';
+    if (practitionerId) { billedSessionsParams.push(practitionerId); billedSessionsPractitionerSql = ` AND a.practitioner_id = $${billedSessionsParams.length}`; }
     const { rows: billedSessions } = await pool.query(
       `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time, a.service_date
        FROM assessments a
        WHERE a.service_date >= $1 AND a.service_date <= $2
-         AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')`,
-      [start, end]
+         AND a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')${billedSessionsPractitionerSql}`,
+      billedSessionsParams
     );
     // Still-pending sessions that already have a real Compliance Analysis
     // verdict on file (persisted via persistEimsFlags — see its comment in
     // billingController.js) — folded into the accuracy table below so a
     // practitioner whose flagged/missing work hasn't been sent to billing
     // yet isn't silently absent from it, reading as a clean 100% by
-    // omission instead of reflecting currently-open EIMS issues.
+    // omission instead of reflecting currently-open EIMS issues. total_time
+    // is needed here too (not just billedSessions) so hoursChecked/
+    // notCleanHours in practitionerAccuracy include these rows' duration,
+    // the same way sessionsChecked/notClean already include their count.
+    const pendingCheckedParams = [start, end];
+    let pendingCheckedPractitionerSql = '';
+    if (practitionerId) { pendingCheckedParams.push(practitionerId); pendingCheckedPractitionerSql = ` AND a.practitioner_id = $${pendingCheckedParams.length}`; }
     const { rows: pendingCheckedSessions } = await pool.query(
-      `SELECT a.practitioner_id, a.eims_last_flagged, a.eims_last_missing
+      `SELECT a.practitioner_id, a.eims_last_flagged, a.eims_last_missing, a.total_time
        FROM assessments a
        WHERE a.service_date >= $1 AND a.service_date <= $2
          AND a.billing_status = 'pending'
-         AND (a.eims_last_flagged IS NOT NULL OR a.eims_last_missing IS NOT NULL)`,
-      [start, end]
+         AND (a.eims_last_flagged IS NOT NULL OR a.eims_last_missing IS NOT NULL)${pendingCheckedPractitionerSql}`,
+      pendingCheckedParams
     );
     const { rows: practitionerRoleRows } = await pool.query(
       `SELECT id, role, first_name, last_name, position_title FROM practitioners WHERE id = ANY($1::int[])`,
@@ -516,11 +553,13 @@ const getMonthOverview = async (req, res) => {
       // match rate.
       if (isIndependent) return;
       if (!accuracyByPractitioner.has(s.practitioner_id)) {
-        accuracyByPractitioner.set(s.practitioner_id, { total: 0, clean: 0, held: 0 });
+        accuracyByPractitioner.set(s.practitioner_id, { total: 0, clean: 0, held: 0, hours: 0, cleanHours: 0 });
       }
       const acc = accuracyByPractitioner.get(s.practitioner_id);
+      const hours = s.total_time ? s.total_time / 60 : 0;
       acc.total += 1;
-      if (tier === 'cleared') acc.clean += 1;
+      acc.hours += hours;
+      if (tier === 'cleared') { acc.clean += 1; acc.cleanHours += hours; }
       if (EXCEPTION_STATUSES.includes(s.billing_status)) acc.held += 1;
     });
 
@@ -531,11 +570,13 @@ const getMonthOverview = async (req, res) => {
       if (roleById.get(s.practitioner_id) === 'independent_practitioner') return;
       eimsMatchRate[pendingEimsBucket(s)] += 1;
       if (!accuracyByPractitioner.has(s.practitioner_id)) {
-        accuracyByPractitioner.set(s.practitioner_id, { total: 0, clean: 0, held: 0 });
+        accuracyByPractitioner.set(s.practitioner_id, { total: 0, clean: 0, held: 0, hours: 0, cleanHours: 0 });
       }
       const acc = accuracyByPractitioner.get(s.practitioner_id);
+      const hours = s.total_time ? s.total_time / 60 : 0;
       acc.total += 1;
-      if (!s.eims_last_flagged && !s.eims_last_missing) acc.clean += 1;
+      acc.hours += hours;
+      if (!s.eims_last_flagged && !s.eims_last_missing) { acc.clean += 1; acc.cleanHours += hours; }
     });
 
     const practitionerAccuracy = [...accuracyByPractitioner.entries()].map(([practitionerId, acc]) => {
@@ -545,6 +586,7 @@ const getMonthOverview = async (req, res) => {
         name: p ? `${p.first_name} ${p.last_name}` : 'Unknown',
         discipline: p?.position_title || '',
         sessionsChecked: acc.total,
+        hoursChecked: Math.round(acc.hours * 100) / 100,
         cleanMatches: acc.clean,
         // heldOrReturned is only the on_hold/rejected/declined subset of
         // what's counting against the score — a still-pending session that's
@@ -555,19 +597,23 @@ const getMonthOverview = async (req, res) => {
         // percentage is actually computed from.
         heldOrReturned: acc.held,
         notClean: acc.total - acc.clean,
+        notCleanHours: Math.round((acc.hours - acc.cleanHours) * 100) / 100,
         accuracyPct: acc.total > 0 ? Math.round((acc.clean / acc.total) * 1000) / 10 : null,
       };
     }).sort((a, b) => (a.accuracyPct ?? 101) - (b.accuracyPct ?? 101));
 
+    const practitionerTableParams = [start, end];
+    let practitionerTablePractitionerSql = '';
+    if (practitionerId) { practitionerTableParams.push(practitionerId); practitionerTablePractitionerSql = ` AND a.practitioner_id = $${practitionerTableParams.length}`; }
     const { rows: practitionerTableRows } = await pool.query(
       `SELECT a.practitioner_id, p.first_name, p.last_name, p.pay_rate,
               COUNT(*)::int AS sessions, COALESCE(SUM(a.total_time), 0)::int AS minutes
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
-       WHERE a.service_date >= $1 AND a.service_date <= $2
+       WHERE a.service_date >= $1 AND a.service_date <= $2${practitionerTablePractitionerSql}
        GROUP BY a.practitioner_id, p.first_name, p.last_name, p.pay_rate
        ORDER BY sessions DESC`,
-      [start, end]
+      practitionerTableParams
     );
     const practitionerTable = practitionerTableRows.map((r) => ({
       practitionerId: r.practitioner_id,
@@ -589,6 +635,9 @@ const getMonthOverview = async (req, res) => {
     // now." Owed-but-unpaid (invoiced/completed not yet paid) plus
     // on_hold/rejected (held back, same as the all-time AP view), with
     // the same human-hold-overrides-EIMS-tier rule.
+    const apParams = [start, end];
+    let apPractitionerSql = '';
+    if (practitionerId) { apParams.push(practitionerId); apPractitionerSql = ` AND a.practitioner_id = $${apParams.length}`; }
     const { rows: apSessions } = await pool.query(
       `SELECT a.id, a.total_time, a.billing_status, a.service_date,
               a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id,
@@ -600,8 +649,8 @@ const getMonthOverview = async (req, res) => {
          AND (
            (a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NULL)
            OR a.billing_status IN ('on_hold', 'rejected')
-         )`,
-      [start, end]
+         )${apPractitionerSql}`,
+      apParams
     );
     const apComplianceById = await loadComplianceBatched(
       apSessions.filter((s) => s.role !== 'independent_practitioner'),
@@ -609,6 +658,7 @@ const getMonthOverview = async (req, res) => {
       computeSessionCompliance
     );
     let apTotalOwed = 0, apTotalClear = 0, apTotalHeld = 0;
+    let apTotalOwedHours = 0, apTotalClearHours = 0, apTotalHeldHours = 0;
     apSessions.forEach((s) => {
       const hours = s.total_time ? s.total_time / 60 : 0;
       const lineTotal = Math.round(hours * parseFloat(s.pay_rate || 0) * 100) / 100;
@@ -618,8 +668,9 @@ const getMonthOverview = async (req, res) => {
         ? 'exception'
         : deriveEimsStatus(s, { mode, compliance }).tier;
       apTotalOwed += lineTotal;
-      if (tier === 'cleared') apTotalClear += lineTotal;
-      else apTotalHeld += lineTotal;
+      apTotalOwedHours += hours;
+      if (tier === 'cleared') { apTotalClear += lineTotal; apTotalClearHours += hours; }
+      else { apTotalHeld += lineTotal; apTotalHeldHours += hours; }
     });
 
     // This month's already-paid total — totalOwed above deliberately
@@ -627,17 +678,22 @@ const getMonthOverview = async (req, res) => {
     // small totalOwed and the frontend can't tell "60% held back" means
     // 60% of a tiny remainder vs. 60% of the whole month. totalPaid lets
     // it show held-back against the month's real total billing instead.
+    const paidTotalParams = [start, end];
+    let paidTotalPractitionerSql = '';
+    if (practitionerId) { paidTotalParams.push(practitionerId); paidTotalPractitionerSql = ` AND a.practitioner_id = $${paidTotalParams.length}`; }
     const { rows: paidTotalRows } = await pool.query(
-      `SELECT COALESCE(SUM(ROUND((a.total_time / 60.0) * p.pay_rate, 2)), 0) AS total
+      `SELECT COALESCE(SUM(ROUND((a.total_time / 60.0) * p.pay_rate, 2)), 0) AS total,
+              COALESCE(SUM(a.total_time), 0) / 60.0 AS hours
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
        JOIN billing_batches bb ON bb.id = a.billing_batch_id
        WHERE a.service_date >= $1 AND a.service_date <= $2
          AND a.billing_status IN ('invoiced', 'completed')
-         AND bb.paid_at IS NOT NULL`,
-      [start, end]
+         AND bb.paid_at IS NOT NULL${paidTotalPractitionerSql}`,
+      paidTotalParams
     );
     const apTotalPaid = Math.round(parseFloat(paidTotalRows[0].total) * 100) / 100;
+    const apTotalPaidHours = Math.round(parseFloat(paidTotalRows[0].hours) * 100) / 100;
 
     res.json({
       success: true,
@@ -647,10 +703,13 @@ const getMonthOverview = async (req, res) => {
         count: r.count,
         hours: Math.round((r.minutes / 60) * 100) / 100,
       })),
-      volumeVsPriorMonth: { current, prior: priorCount, pctChange },
+      volumeVsPriorMonth: { current, currentHours, prior: priorCount, pctChange },
       statusFunnel: funnel,
+      statusFunnelHours: funnelHours,
       paidCount,
+      paidCountHours,
       exceptions,
+      exceptionsHours,
       eimsMatchRate,
       practitionerTable,
       practitionerAccuracy,
@@ -660,6 +719,10 @@ const getMonthOverview = async (req, res) => {
         totalClear: Math.round(apTotalClear * 100) / 100,
         totalHeld: Math.round(apTotalHeld * 100) / 100,
         totalPaid: apTotalPaid,
+        totalOwedHours: Math.round(apTotalOwedHours * 100) / 100,
+        totalClearHours: Math.round(apTotalClearHours * 100) / 100,
+        totalHeldHours: Math.round(apTotalHeldHours * 100) / 100,
+        totalPaidHours: apTotalPaidHours,
       },
     });
   } catch (error) {
@@ -1152,8 +1215,32 @@ const saveDashboardLayout = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/practitioners — options list for the Overview control
+// bar's practitioner filter dropdown. Same dashboardGuard access level as
+// the rest of Overview (not gated behind a separate staff-directory
+// permission). Excludes independent_practitioner, same as
+// practitionerAccuracy — self-reported, not EIMS-cross-checked, so they
+// don't belong in a filter whose whole purpose is scoping cross-checked
+// company metrics to one practitioner.
+const getDashboardPractitioners = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, first_name, last_name FROM practitioners
+        WHERE role != 'independent_practitioner' ORDER BY first_name, last_name`
+    );
+    res.json({
+      success: true,
+      practitioners: rows.map((r) => ({ id: r.id, name: `${r.first_name} ${r.last_name}`.trim() })),
+    });
+  } catch (error) {
+    console.error('getDashboardPractitioners error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load practitioners' });
+  }
+};
+
 module.exports = {
   getDayOverview,
+  getDashboardPractitioners,
   getPipelineOverview,
   getReturnedLogs,
   getSessionDetail,
