@@ -318,12 +318,20 @@ async function generateInvoicePDF(ctx) {
   // (verified against pdf-lib's own widthOfTextAtSize at 7.5pt bold — the
   // longest, "Self-reported", needs ~62pt including pill padding); the
   // extra 18pt is reclaimed from Service and Time, which had slack.
+  //
+  // Time widened from 68 to 82pt: a realistic range like "10:45 AM–11:50
+  // AM" measures ~73pt at 8pt Helvetica (verified against pdf-lib's own
+  // widthOfTextAtSize), so it was truncating ("…") on most real sessions,
+  // not just unusually long ones; 82pt leaves a ~1pt margin on top of
+  // that. The 14pt comes from Date (worst case "12/31/26" only needs
+  // ~31pt of its 40pt available) and Hrs (worst case "10.50" only needs
+  // ~20pt of its 26pt available) — both still keeping a buffer.
   const cols = [
-    { label: 'Date', w: 48 },
+    { label: 'Date', w: 40 },
     { label: 'Child', w: 112 },
     { label: 'Service', w: 118 },
-    { label: 'Time', w: 68 },
-    { label: 'Hrs', w: 34, num: true },
+    { label: 'Time', w: 82 },
+    { label: 'Hrs', w: 28, num: true },
     { label: 'Rate', w: 42, num: true },
     { label: 'Amount', w: 46, num: true },
     { label: 'EIMS', w: 64 },

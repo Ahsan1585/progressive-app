@@ -166,4 +166,16 @@ describe('fitText', () => {
     expect(fitText('9:00 AM–10:00 AM', font, 8, 200)).toBe('9:00 AM–10:00 AM');
     expect(fitText('9:00 AM–10:00 AM', font, 8, 200)).not.toContain('?');
   });
+
+  // Regression: the Time column was 68pt, but a realistic range like
+  // "10:45 AM–11:50 AM" needs ~73pt at 8pt Helvetica, so it was truncating
+  // on most real sessions ("1:45 PM–2:55…"), not just unusually long ones.
+  test('a realistic time range fits the actual Time column width without truncating', async () => {
+    const { fitText } = require('../invoiceGenerator');
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont('Helvetica');
+    const TIME_COL_W = 82; // keep in sync with invoiceGenerator.js's cols[3].w
+    const longest = '10:45 AM–11:50 AM';
+    expect(fitText(longest, font, 8, TIME_COL_W - 8)).toBe(longest);
+  });
 });
