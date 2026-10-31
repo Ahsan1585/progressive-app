@@ -167,8 +167,10 @@ const getReturnedLogs = async (req, res) => {
     const { rows } = await pool.query(
       `SELECT a.id, a.billing_status, a.service_date, a.rejection_note, a.rejected_at, a.rejection_count,
               a.patient_first_name, a.patient_last_name,
-              a.practitioner_first_name, a.practitioner_last_name
+              a.practitioner_first_name, a.practitioner_last_name,
+              a.total_time, p.pay_rate
        FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
        WHERE a.billing_status IN ('rejected', 'declined') AND ${inMonthSql(1, 2, 'a.service_date')}
        ORDER BY a.rejected_at ASC NULLS LAST
        LIMIT 200`,
@@ -202,6 +204,7 @@ const getReturnedLogs = async (req, res) => {
         note: r.rejection_note || null,
         patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
         practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
+        amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
         comments: notesByAssessment.get(r.id) || [],
       })),
     });

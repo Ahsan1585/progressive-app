@@ -758,6 +758,7 @@ function TrajectoryTabs({ active, onChange }) {
 function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
   const logs = returnedLogs?.logs || [];
   const count = returnedLogs?.count || 0;
+  const totalAmount = logs.reduce((sum, l) => sum + (l.amount || 0), 0);
   const [expandedId, setExpandedId] = useState(null);
 
   return (
@@ -766,7 +767,10 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Returned &amp; declined logs</div>
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">{count} total</div>
       </div>
-      <div className="text-[14px] text-slate-500 mb-3">Sessions from this month that billing sent back, oldest first.</div>
+      <div className="text-[14px] text-slate-500 mb-3">
+        Sessions from this month that billing sent back, oldest first.
+        {logs.length > 0 && <> <span className="font-semibold text-slate-700">{money(totalAmount)} total</span> not yet billable.</>}
+      </div>
 
       {logs.length === 0 ? (
         <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No returned or declined logs this month. Nice.</div>
@@ -795,6 +799,7 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession }) {
                       </div>
                     </div>
                   </button>
+                  <span className="text-[14px] font-bold text-slate-700 tabular-nums flex-shrink-0">{money(log.amount)}</span>
                   <button
                     type="button"
                     onClick={() => onSelectSession(log.id)}
