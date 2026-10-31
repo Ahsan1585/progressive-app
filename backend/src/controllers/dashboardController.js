@@ -291,21 +291,29 @@ function priorMonth(year, month) {
 const getPipelineOverview = async (req, res) => {
   try {
     const [monthStart, monthEnd] = monthScope(req);
+    const practitionerId = practitionerScope(req);
+    const practitionerSql = practitionerId ? ' AND practitioner_id = $3' : '';
+    const practitionerParams = practitionerId ? [practitionerId] : [];
     const { rows: statusRows } = await pool.query(
-      `SELECT billing_status, COUNT(*)::int AS count FROM assessments
-       WHERE ${inMonthSql(1, 2)}
+      `SELECT billing_status, COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours FROM assessments
+       WHERE ${inMonthSql(1, 2)}${practitionerSql}
        GROUP BY billing_status`,
-      [monthStart, monthEnd]
+      [monthStart, monthEnd, ...practitionerParams]
     );
     const byStatus = { pending: 0, njeis_review: 0, invoiced: 0, self_certified: 0, completed: 0 };
+    const byStatusHours = { pending: 0, njeis_review: 0, invoiced: 0, self_certified: 0, completed: 0 };
     const exceptions = { on_hold: 0, rejected: 0, declined: 0, voided: 0 };
+    const exceptionsHours = { on_hold: 0, rejected: 0, declined: 0, voided: 0 };
     statusRows.forEach((r) => {
-      if (r.billing_status in byStatus) byStatus[r.billing_status] = r.count;
-      else if (r.billing_status in exceptions) exceptions[r.billing_status] = r.count;
+      const hrs = Math.round(parseFloat(r.hours) * 100) / 100;
+      if (r.billing_status in byStatus) { byStatus[r.billing_status] = r.count; byStatusHours[r.billing_status] = hrs; }
+      else if (r.billing_status in exceptions) { exceptions[r.billing_status] = r.count; exceptionsHours[r.billing_status] = hrs; }
     });
 
     const totalInPipeline = Object.values(byStatus).reduce((a, b) => a + b, 0);
+    const totalInPipelineHours = Object.values(byStatusHours).reduce((a, b) => a + b, 0);
     const invoicedTotal = byStatus.invoiced + byStatus.completed;
+    const invoicedTotalHours = Math.round((byStatusHours.invoiced + byStatusHours.completed) * 100) / 100;
     // "Reviewed" must count every session that has passed the pending
     // stage, invoiced ones included (a session doesn't stop being
     // "reviewed" once it's also invoiced) — it's a cumulative funnel
@@ -317,16 +325,20 @@ const getPipelineOverview = async (req, res) => {
     // straight through to Invoiced. (declined was missed in an earlier
     // pass of this same fix — same gap, one more status.)
     const reviewed = byStatus.njeis_review + invoicedTotal + exceptions.on_hold + exceptions.rejected + exceptions.declined;
+    const reviewedHours = Math.round((byStatusHours.njeis_review + invoicedTotalHours + exceptionsHours.on_hold + exceptionsHours.rejected + exceptionsHours.declined) * 100) / 100;
 
     // Real "paid" count — billing_batches.paid_at is the authoritative
     // signal, same join the AP endpoint and getMonthOverview use.
+    const paidParams = [monthStart, monthEnd];
+    let paidPractitionerSql = '';
+    if (practitionerId) { paidParams.push(practitionerId); paidPractitionerSql = ` AND a.practitioner_id = $${paidParams.length}`; }
     const { rows: paidRows } = await pool.query(
-      `SELECT COUNT(*)::int AS count
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(a.total_time), 0) / 60.0 AS hours
        FROM assessments a
        JOIN billing_batches bb ON bb.id = a.billing_batch_id
        WHERE a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NOT NULL
-         AND ${inMonthSql(1, 2, 'a.service_date')}`,
-      [monthStart, monthEnd]
+         AND ${inMonthSql(1, 2, 'a.service_date')}${paidPractitionerSql}`,
+      paidParams
     );
 
     // All-time EIMS match status — unlike the month/year views, this runs
@@ -342,22 +354,28 @@ const getPipelineOverview = async (req, res) => {
     // earlier pass of this fix still did for 'declined') silently hides
     // that session from the match rate and can show a false 100% even
     // with a real backlog of flagged/declined sessions in the queue.
+    const billedSessionsParams = [monthStart, monthEnd];
+    let billedSessionsPractitionerSql = '';
+    if (practitionerId) { billedSessionsParams.push(practitionerId); billedSessionsPractitionerSql = ` AND a.practitioner_id = $${billedSessionsParams.length}`; }
     const { rows: billedSessions } = await pool.query(
       `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time, a.service_date
        FROM assessments a
        WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')
-         AND ${inMonthSql(1, 2, 'a.service_date')}
+         AND ${inMonthSql(1, 2, 'a.service_date')}${billedSessionsPractitionerSql}
        ORDER BY a.service_date DESC
        LIMIT 2000`,
-      [monthStart, monthEnd]
+      billedSessionsParams
     );
     // Pending sessions with a stored compliance verdict (see pendingEimsBucket).
+    const pendingCheckedParams = [monthStart, monthEnd];
+    let pendingCheckedPractitionerSql = '';
+    if (practitionerId) { pendingCheckedParams.push(practitionerId); pendingCheckedPractitionerSql = ` AND a.practitioner_id = $${pendingCheckedParams.length}`; }
     const { rows: pendingCheckedSessions } = await pool.query(
       `SELECT a.practitioner_id, a.eims_last_flagged, a.eims_last_missing
        FROM assessments a
        WHERE ${PENDING_CHECKED_SQL}
-         AND ${inMonthSql(1, 2, 'a.service_date')}`,
-      [monthStart, monthEnd]
+         AND ${inMonthSql(1, 2, 'a.service_date')}${pendingCheckedPractitionerSql}`,
+      pendingCheckedParams
     );
     const { rows: practitionerRoleRows } = await pool.query(
       `SELECT id, role FROM practitioners WHERE id = ANY($1::int[])`,
@@ -392,10 +410,15 @@ const getPipelineOverview = async (req, res) => {
       // sessions were logged too (they are in 'reviewed' below), so they count
       // here: a funnel stage can never be smaller than the one after it.
       logged: totalInPipeline + exceptions.on_hold + exceptions.rejected + exceptions.declined,
+      loggedHours: Math.round((totalInPipelineHours + exceptionsHours.on_hold + exceptionsHours.rejected + exceptionsHours.declined) * 100) / 100,
       reviewed: Math.max(reviewed, 0),
+      reviewedHours: Math.max(reviewedHours, 0),
       invoiced: invoicedTotal,
+      invoicedHours: invoicedTotalHours,
       paid: paidRows[0].count,
+      paidHours: Math.round(parseFloat(paidRows[0].hours) * 100) / 100,
       exceptions,
+      exceptionsHours,
       eimsMatchRate,
     });
   } catch (error) {
