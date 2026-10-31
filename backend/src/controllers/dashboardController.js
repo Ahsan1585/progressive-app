@@ -187,6 +187,10 @@ const getDayOverview = async (req, res) => {
 const getReturnedLogs = async (req, res) => {
   try {
     const [monthStart, monthEnd] = monthScope(req);
+    const practitionerId = practitionerScope(req);
+    const returnedParams = [monthStart, monthEnd];
+    let returnedPractitionerSql = '';
+    if (practitionerId) { returnedParams.push(practitionerId); returnedPractitionerSql = ` AND a.practitioner_id = $${returnedParams.length}`; }
     const { rows } = await pool.query(
       `SELECT a.id, a.billing_status, a.service_date, a.rejection_note, a.rejected_at, a.rejection_count,
               a.patient_first_name, a.patient_last_name,
@@ -194,10 +198,10 @@ const getReturnedLogs = async (req, res) => {
               a.total_time, p.pay_rate
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
-       WHERE a.billing_status IN ('rejected', 'declined') AND ${inMonthSql(1, 2, 'a.service_date')}
+       WHERE a.billing_status IN ('rejected', 'declined') AND ${inMonthSql(1, 2, 'a.service_date')}${returnedPractitionerSql}
        ORDER BY a.rejected_at ASC NULLS LAST
        LIMIT 200`,
-      [monthStart, monthEnd]
+      returnedParams
     );
     const assessmentIds = rows.map((r) => r.id);
     const { rows: noteRows } = assessmentIds.length
@@ -215,10 +219,9 @@ const getReturnedLogs = async (req, res) => {
       notesByAssessment.get(n.assessment_id).push({ authorRole: n.author_role, note: n.note, createdAt: n.created_at });
     });
 
-    res.json({
-      success: true,
-      count: rows.length,
-      logs: rows.map((r) => ({
+    const logs = rows.map((r) => {
+      const hours = Math.round((r.total_time ? r.total_time / 60 : 0) * 100) / 100;
+      return {
         id: r.id,
         status: r.billing_status,
         serviceDate: r.service_date,
@@ -227,9 +230,17 @@ const getReturnedLogs = async (req, res) => {
         note: r.rejection_note || null,
         patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
         practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
-        amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
+        amount: Math.round(hours * parseFloat(r.pay_rate || 0) * 100) / 100,
+        hours,
         comments: notesByAssessment.get(r.id) || [],
-      })),
+      };
+    });
+
+    res.json({
+      success: true,
+      count: rows.length,
+      totalHours: Math.round(logs.reduce((sum, l) => sum + l.hours, 0) * 100) / 100,
+      logs,
     });
   } catch (error) {
     console.error('getReturnedLogs error:', error);
