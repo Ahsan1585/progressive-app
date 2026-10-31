@@ -9,6 +9,7 @@
 // types read as part of one family instead of two unrelated designs.
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { summarizeInvoiceTotals } = require('./invoiceData');
+const { pdfSafeText } = require('./pdfText');
 
 const NAVY = rgb(0x13 / 255, 0x2A / 255, 0x3E / 255);
 const TEAL = rgb(0x0E / 255, 0x6E / 255, 0x67 / 255);
@@ -59,8 +60,11 @@ const formatPeriod = (start, end) => {
 // (e.g. certain accented Latin characters, or any non-Latin script) and
 // throws rather than silently dropping them — a single unusual name
 // anywhere on a 100-line invoice would otherwise fail the whole PDF.
-// Replaces anything outside the safe range with '?' rather than crashing.
-const safeText = (s) => String(s ?? '').replace(/[^\x20-\x7E]/g, '?');
+// Delegates to the shared pdfSafeText (pdfText.js), which keeps anything
+// WinAnsi can actually draw — en dashes, curly quotes, accented Latin —
+// instead of this file's old plain-ASCII-only replacement, which turned
+// a time range's en dash (e.g. "9:00 AM–10:00 AM") into a stray "?".
+const safeText = (s) => pdfSafeText(s);
 
 // Truncates with an ellipsis so a long name/label can't overflow its
 // column into the next one — the previous generator had no such guard.
@@ -561,4 +565,4 @@ async function generateInvoicePDF(ctx) {
   return Buffer.from(pdfBytes);
 }
 
-module.exports = { generateInvoicePDF, PAID_STAMP_CLEAR, assertSingleChildMode };
+module.exports = { generateInvoicePDF, PAID_STAMP_CLEAR, assertSingleChildMode, fitText };

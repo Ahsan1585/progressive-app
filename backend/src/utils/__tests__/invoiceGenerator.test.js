@@ -157,3 +157,13 @@ describe('generateInvoicePDF with singleChildMode', () => {
     expect(doc.getPageCount()).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('fitText', () => {
+  test('keeps an en dash in a time range instead of turning it into "?"', async () => {
+    const { fitText } = require('../invoiceGenerator');
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont('Helvetica');
+    expect(fitText('9:00 AM–10:00 AM', font, 8, 200)).toBe('9:00 AM–10:00 AM');
+    expect(fitText('9:00 AM–10:00 AM', font, 8, 200)).not.toContain('?');
+  });
+});
