@@ -371,6 +371,11 @@ function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
   // really 40% of a $79 leftover out of $2,000 billed, not 40% of $2,000).
   const totalBilled = totalPaid + totalOwed;
   const paidPct = totalBilled > 0 ? Math.round(((totalPaid + totalClear) / totalBilled) * 100) : 0;
+  // Blended $/hr across the month's whole billed total (paid + still owed)
+  // so the CEO can see the dollar figure and the hours figure as one
+  // relationship, not two separate numbers they have to divide themselves.
+  const totalBilledHours = (ap.totalPaidHours || 0) + (ap.totalOwedHours || 0);
+  const blendedRate = totalBilledHours > 0 ? totalBilled / totalBilledHours : null;
 
   const isHealthy = flaggedCount === 0 && totalHeld === 0;
   const headline = isHealthy
@@ -397,6 +402,7 @@ function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
         <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
           <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners this month
           {totalOwed > 0 && <>: <b className="text-white font-extrabold">{money(totalClear)}</b> is ready to pay now, <b className="text-white font-extrabold">{money(totalHeld)}</b> is being held back</>}.
+          {blendedRate !== null && <> That's <b className="text-white font-extrabold">{totalBilledHours.toLocaleString(undefined, { maximumFractionDigits: 1 })} hrs</b> billed this month, averaging <b className="text-white font-extrabold">{money(blendedRate)}/hr</b>.</>}
           {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged {unit === 'hours' ? 'hrs' : `session${flaggedCount === 1 ? '' : 's'}`}</b>.</>}
         </p>
       </div>
