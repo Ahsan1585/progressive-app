@@ -58,6 +58,7 @@ const MIGRATIONS = [
   'add_consent_lifecycle.sql',
   'add_date_change_resign.sql',
   'add_statement_of_disagreement.sql',
+  'add_child_pii_encryption.sql',
 ];
 
 module.exports = { MIGRATIONS };
