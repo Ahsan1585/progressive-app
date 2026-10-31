@@ -28,7 +28,7 @@ describe('getDayOverview (What needs you)', () => {
   test('month=2026-10 limits both the list and its count to that month', async () => {
     await getDayOverview({ query: { month: '2026-10' } }, mkRes());
     const list = callsMatching(/FROM assessments a\s+JOIN practitioners p[\s\S]*billing_status = ANY/)[0];
-    const count = callsMatching(/SELECT COUNT\(\*\)::int AS count FROM assessments WHERE billing_status = ANY/)[0];
+    const count = callsMatching(/SELECT COUNT\(\*\)::int AS count, COALESCE\(SUM\(total_time\)[\s\S]*FROM assessments WHERE billing_status = ANY/)[0];
     expect(list[0]).toMatch(/service_date/);
     expect(hasRange(list, '2026-10-01', '2026-10-31')).toBe(true);
     expect(hasRange(count, '2026-10-01', '2026-10-31')).toBe(true);

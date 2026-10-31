@@ -102,13 +102,20 @@ const practitionerScope = (req) => {
 const getDayOverview = async (req, res) => {
   try {
     const [monthStart, monthEnd] = monthScope(req);
+    const practitionerId = practitionerScope(req);
+    const todaySql = practitionerId ? ' AND practitioner_id = $1' : '';
+    const todayParams = practitionerId ? [practitionerId] : [];
     const { rows: todayRows } = await pool.query(
       `SELECT COUNT(*)::int AS count, COUNT(DISTINCT practitioner_id)::int AS practitioners
-       FROM assessments WHERE completed_at::date = CURRENT_DATE`
+       FROM assessments WHERE completed_at::date = CURRENT_DATE${todaySql}`,
+      todayParams
     );
 
     // Oldest-first (ASC) — the queue's whole point is surfacing what's
     // been waiting longest, not what was most recently flagged.
+    const exceptionParams = [OPEN_EXCEPTION_STATUSES, monthStart, monthEnd];
+    let exceptionPractitionerSql = '';
+    if (practitionerId) { exceptionParams.push(practitionerId); exceptionPractitionerSql = ` AND a.practitioner_id = $${exceptionParams.length}`; }
     const { rows: exceptionRows } = await pool.query(
       `SELECT a.id, a.billing_status, a.service_date, a.hold_note, a.rejection_note,
               COALESCE(a.held_at, a.rejected_at) AS flagged_at,
@@ -117,14 +124,18 @@ const getDayOverview = async (req, res) => {
               a.total_time, p.pay_rate
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
-       WHERE a.billing_status = ANY($1::text[]) AND ${inMonthSql(2, 3, 'a.service_date')}
+       WHERE a.billing_status = ANY($1::text[]) AND ${inMonthSql(2, 3, 'a.service_date')}${exceptionPractitionerSql}
        ORDER BY COALESCE(a.held_at, a.rejected_at) ASC NULLS LAST
        LIMIT 200`,
-      [OPEN_EXCEPTION_STATUSES, monthStart, monthEnd]
+      exceptionParams
     );
+    const exceptionCountParams = [OPEN_EXCEPTION_STATUSES, monthStart, monthEnd];
+    let exceptionCountPractitionerSql = '';
+    if (practitionerId) { exceptionCountParams.push(practitionerId); exceptionCountPractitionerSql = ` AND practitioner_id = $${exceptionCountParams.length}`; }
     const { rows: exceptionCountRows } = await pool.query(
-      `SELECT COUNT(*)::int AS count FROM assessments WHERE billing_status = ANY($1::text[]) AND ${inMonthSql(2, 3)}`,
-      [OPEN_EXCEPTION_STATUSES, monthStart, monthEnd]
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(total_time), 0) / 60.0 AS hours
+         FROM assessments WHERE billing_status = ANY($1::text[]) AND ${inMonthSql(2, 3)}${exceptionCountPractitionerSql}`,
+      exceptionCountParams
     );
 
     // Active practitioners with zero logged sessions in the last 7 days —
@@ -147,6 +158,7 @@ const getDayOverview = async (req, res) => {
       sessionsLoggedToday: todayRows[0].count,
       practitionersActiveToday: todayRows[0].practitioners,
       flaggedCount: exceptionCountRows[0].count,
+      flaggedHours: Math.round(parseFloat(exceptionCountRows[0].hours) * 100) / 100,
       flaggedSessions: exceptionRows.map((r) => ({
         id: r.id,
         status: r.billing_status,
