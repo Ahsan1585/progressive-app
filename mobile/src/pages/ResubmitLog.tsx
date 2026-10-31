@@ -58,7 +58,12 @@ export default function ResubmitLog() {
   const totalMinutes = calculateTotalMinutes(form.start_time, form.end_time);
   const needsResign = !!log && !!form.service_date && !sameDay(form.service_date, log.service_date);
 
-  if (!log) {
+  // After a successful resign request, fetchRejectedLogs() refreshes the
+  // list and this log correctly drops out of it (billing_status moved to
+  // awaiting_resign) — so `log` goes undefined on the very next render.
+  // Checking resignSentTo first keeps the success dialog showing instead
+  // of falling through to the "not available" error screen below.
+  if (!log && !resignSentTo) {
     return (
       <PushScreen>
         <AppBar title="Resubmit log" />
@@ -68,6 +73,15 @@ export default function ResubmitLog() {
             onRetry={fetchRejectedLogs}
           />
         </div>
+      </PushScreen>
+    );
+  }
+
+  if (!log && resignSentTo) {
+    return (
+      <PushScreen>
+        <AppBar title="Resubmit log" />
+        <ResignSentDialog parentEmail={resignSentTo} onDone={() => navigate("/inbox", { replace: true })} />
       </PushScreen>
     );
   }
