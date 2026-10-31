@@ -149,7 +149,7 @@ describe('signDateChange', () => {
     expect(sqls).toContain('COMMIT');
   });
 
-  it('a returned note is resubmitted: rejection note cleared and the practitioner\'s resubmit note kept', async () => {
+  it('a returned note goes back to the practitioner (not straight to billing) once the parent re-signs, keeping the rejection note', async () => {
     const r = route([[/UPDATE assessments\s+SET service_date/, { rowCount: 1 }]]);
     useClient(r);
     await signDateChange(requestRow({
@@ -157,7 +157,11 @@ describe('signDateChange', () => {
       edit_payload: { resubmit_note: 'Fixed the date', author_role: 'agency_practitioner' },
     }), signArgs);
     const [apply] = r.find(/UPDATE assessments\s+SET service_date/);
-    expect(apply.sql).toMatch(/rejection_note = NULL/);
+    // Goes back to 'rejected' (the practitioner's returned-logs inbox), not
+    // 'pending' (admin billing review) — the practitioner corrected the
+    // date and the parent re-signed, but still needs to actually resubmit.
+    expect(apply.sql).toMatch(/billing_status = 'rejected'/);
+    expect(apply.sql).not.toMatch(/rejection_note = NULL/);
     const [note] = r.find(/INSERT INTO assessment_notes/);
     expect(note.params).toEqual([42, 3, 'agency_practitioner', 'Fixed the date']);
   });

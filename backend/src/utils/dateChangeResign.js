@@ -8,9 +8,12 @@
 // (billing_status = 'awaiting_resign', which SEVF/invoice generation never
 // selects). The note keeps its old date and old signature, which still agree
 // with each other, until the parent signs; then the new values and the new
-// signature are applied together and it goes back to billing as pending.
-// Undo (cancel) puts it back exactly as it was. Only the date triggers this;
-// other edits save as before.
+// signature are applied together and it goes back to its prior stage — an
+// Edit Log's note returns to 'pending' (admin billing review), but a
+// Resubmit's note returns to 'rejected' (the practitioner's returned-logs
+// inbox), since the parent re-signing the date doesn't itself resubmit the
+// log. Undo (cancel) puts it back exactly as it was. Only the date
+// triggers this; other edits save as before.
 
 const crypto = require('crypto');
 const { pool } = require('../config/db');
@@ -142,6 +145,14 @@ async function requestDateChangeResign({
 
 // The parent signed: record the signature on the request and apply the
 // whole edit plus the new signature to the note, in one transaction.
+//
+// A note that was in 'pending' (Edit Log) goes back to 'pending' — the
+// parent re-signed, so it's ready for the normal billing review it was
+// already waiting for. A note that was 'rejected' (Resubmit) goes back to
+// 'rejected' instead, keeping its rejection_note/rejected_at: the parent
+// re-signing the corrected date doesn't itself resubmit the log — the
+// practitioner still needs to review and resubmit it from their returned-
+// logs inbox, same as any other returned log.
 async function signDateChange(request, { signatureBase64, attestationText, ip, userAgent }) {
   const payload = request.edit_payload || {};
   const wasReturned = request.previous_billing_status === 'rejected';
@@ -151,8 +162,7 @@ async function signDateChange(request, { signatureBase64, attestationText, ip, u
           SET service_date = $1, start_time = $2, end_time = $3, total_time = $4, status = $5, type = $6,
               location = $7, group_size_category = $8, form_data = $9, session_notes = $10,
               company_affiliation = $11, parent_signature = $12,
-              billing_status = 'pending', billing_review = NULL, hold_note = NULL, held_at = NULL,
-              ${wasReturned ? 'rejection_note = NULL, rejected_at = NULL,' : ''}
+              billing_status = '${wasReturned ? 'rejected' : 'pending'}', billing_review = NULL, hold_note = NULL, held_at = NULL,
               eims_last_flagged = NULL, eims_last_missing = NULL, eims_last_checked_at = NULL
         WHERE id = $13 AND billing_status = 'awaiting_resign'`,
       [
