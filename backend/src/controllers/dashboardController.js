@@ -1146,7 +1146,11 @@ const getDocumentsFeed = async (req, res) => {
     // that month (a billing batch is one practitioner's invoice/SEVF), up to
     // 50. Without a month: the 20 most recent, as before.
     const [monthStart, monthEnd] = monthScope(req);
+    const practitionerId = practitionerScope(req);
     const limit = monthStart ? 50 : 20;
+    const documentsParams = [monthStart, monthEnd];
+    let documentsPractitionerSql = '';
+    if (practitionerId) { documentsParams.push(practitionerId); documentsPractitionerSql = ` AND bb.practitioner_id = $${documentsParams.length}`; }
     const { rows: batches } = await pool.query(
       `SELECT bb.id, bb.created_at, bb.practitioner_id, p.first_name, p.last_name, p.role
        FROM billing_batches bb
@@ -1154,10 +1158,10 @@ const getDocumentsFeed = async (req, res) => {
        WHERE ($1::date IS NULL OR EXISTS (
          SELECT 1 FROM assessments x
          WHERE x.billing_batch_id = bb.id AND x.service_date >= $1::date AND x.service_date <= $2::date
-       ))
+       ))${documentsPractitionerSql}
        ORDER BY bb.created_at DESC
        LIMIT ${limit}`,
-      [monthStart, monthEnd]
+      documentsParams
     );
 
     const documents = [];
