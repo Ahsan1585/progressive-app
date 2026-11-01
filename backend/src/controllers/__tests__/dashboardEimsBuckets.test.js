@@ -21,42 +21,49 @@ beforeEach(() => {
 describe('eimsBucket', () => {
   test.each([
     // [derived, humanHold, alreadyBilled, expected]
-    [{ tier: 'cleared', label: 'Matched', hasOverride: false }, false, false, 'matched'],
-    [{ tier: 'cleared', label: 'Approved', hasOverride: false }, false, false, 'matched'],
-    [{ tier: 'cleared', label: 'Override', hasOverride: false }, false, false, 'matched'],
-    [{ tier: 'exception', label: 'Missing', hasOverride: false }, false, false, 'missing'],
-    [{ tier: 'pending', label: 'Awaiting', hasOverride: false }, false, false, 'missing'], // missing, sent to an admin for approval
-    [{ tier: 'unverified', label: 'Unverified', hasOverride: false }, false, false, null], // dropped from the chart, not counted
-    [{ tier: 'pending', label: 'Mismatch', hasOverride: false }, false, false, 'flagged'], // not yet billed: still blocking
-    [{ tier: 'exception', label: 'Duplicate', hasOverride: false }, false, false, 'flagged'],
-    [{ tier: 'exception', label: 'Rejected', hasOverride: false }, false, false, 'flagged'],
-    [{ tier: 'pending', label: 'Not entered', hasOverride: false }, false, false, 'flagged'], // independent, not yet entered
+    [{ tier: 'cleared', label: 'Matched', hasOverride: false, wasBypassed: false }, false, false, 'matched'],
+    [{ tier: 'cleared', label: 'Approved', hasOverride: false, wasBypassed: false }, false, false, 'matched'],
+    [{ tier: 'cleared', label: 'Override', hasOverride: false, wasBypassed: true }, false, false, 'matched'], // not yet billed: never penalized
+    [{ tier: 'exception', label: 'Missing', hasOverride: false, wasBypassed: false }, false, false, 'missing'],
+    [{ tier: 'pending', label: 'Awaiting', hasOverride: false, wasBypassed: false }, false, false, 'missing'], // missing, sent to an admin for approval
+    [{ tier: 'unverified', label: 'Unverified', hasOverride: false, wasBypassed: false }, false, false, null], // dropped from the chart, not counted
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: false, wasBypassed: false }, false, false, 'flagged'], // not yet billed: still blocking
+    [{ tier: 'exception', label: 'Duplicate', hasOverride: false, wasBypassed: false }, false, false, 'flagged'],
+    [{ tier: 'exception', label: 'Rejected', hasOverride: false, wasBypassed: false }, false, false, 'flagged'],
+    [{ tier: 'pending', label: 'Not entered', hasOverride: false, wasBypassed: false }, false, false, 'flagged'], // independent, not yet entered
     // Already billed (invoiced/completed/self_certified) + genuinely unresolved
     // mismatch (no override anywhere on the session) -> the new bucket.
-    [{ tier: 'pending', label: 'Mismatch', hasOverride: false }, false, true, 'billedUnresolved'],
-    // Already billed, but SOME field on the session has an override on file
-    // (even if the session is still flagged overall) -> stays 'flagged', not
-    // 'billedUnresolved' — "nothing on file" is specifically what the new
-    // bucket means.
-    [{ tier: 'pending', label: 'Mismatch', hasOverride: true }, false, true, 'flagged'],
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: false, wasBypassed: false }, false, true, 'billedUnresolved'],
+    // Already billed, but the mismatched field was Allow-bypassed rather
+    // than left untouched -> wasBypassed:true, also billedUnresolved (an
+    // Allow click is a bypass, not a resolution).
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: false, wasBypassed: true }, false, true, 'billedUnresolved'],
+    // Already billed, and the session has a genuine learned-rule resolution
+    // -> stays 'flagged' here only because this particular fixture's tier
+    // is still 'pending' (a learned rule clearing ALL fields would instead
+    // reach tier:'cleared'/label:'Exception' with hasOverride:true, see below).
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: true, wasBypassed: false }, false, true, 'flagged'],
     // An admin "exceptional approval" (is_override) used on an already-billed
-    // session that STILL can't be confirmed to match EIMS (deriveEimsStatus's
-    // hasOverride is false specifically in that case) — the override made it
+    // session that STILL can't be confirmed to match EIMS — is_override always
+    // reports wasBypassed:true (see deriveEimsStatus) — the override made it
     // payable, but didn't resolve the discrepancy, so it belongs in the same
-    // bucket as any other billed-with-nothing-on-file mismatch.
-    [{ tier: 'cleared', label: 'Override', hasOverride: false }, false, true, 'billedUnresolved'],
-    // An override used on a session that actually matches EIMS cleanly (or
-    // one not yet billed at all) is a genuinely resolved/non-blocking case,
-    // same as any other clean match.
-    [{ tier: 'cleared', label: 'Override', hasOverride: true }, false, true, 'matched'],
+    // bucket as any other billed-with-nothing-resolved session.
+    [{ tier: 'cleared', label: 'Override', hasOverride: false, wasBypassed: true }, false, true, 'billedUnresolved'],
+    // A plain Allow click that fully cleared a session (label:'Matched', not
+    // 'Exception') is STILL a bypass, not a resolution — once billed, it
+    // belongs in billedUnresolved too, same as the Override case above.
+    [{ tier: 'cleared', label: 'Matched', hasOverride: false, wasBypassed: true }, false, true, 'billedUnresolved'],
+    // A learned-rule resolution (label:'Exception', hasOverride:true) is a
+    // genuine, durable fix — stays matched/non-blocking even once billed.
+    [{ tier: 'cleared', label: 'Exception', hasOverride: true, wasBypassed: false }, false, true, 'matched'],
     // alreadyBilled is irrelevant to every non-"unresolved mismatch" verdict.
-    [{ tier: 'cleared', label: 'Matched', hasOverride: false }, false, true, 'matched'],
-    [{ tier: 'exception', label: 'Missing', hasOverride: false }, false, true, 'missing'],
+    [{ tier: 'cleared', label: 'Matched', hasOverride: false, wasBypassed: false }, false, true, 'matched'],
+    [{ tier: 'exception', label: 'Missing', hasOverride: false, wasBypassed: false }, false, true, 'missing'],
     // A human hold/return/decline is flagged whatever EIMS says, even "Missing",
     // and even if it's one of the statuses that would otherwise count as billed.
-    [{ tier: 'exception', label: 'Missing', hasOverride: false }, true, false, 'flagged'],
-    [{ tier: 'cleared', label: 'Matched', hasOverride: false }, true, false, 'flagged'],
-    [{ tier: 'pending', label: 'Mismatch', hasOverride: false }, true, true, 'flagged'],
+    [{ tier: 'exception', label: 'Missing', hasOverride: false, wasBypassed: false }, true, false, 'flagged'],
+    [{ tier: 'cleared', label: 'Matched', hasOverride: false, wasBypassed: false }, true, false, 'flagged'],
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: false, wasBypassed: false }, true, true, 'flagged'],
   ])('%j (held=%s, billed=%s) -> %s', (derived, held, billed, expected) => {
     expect(eimsBucket(derived, held, billed)).toBe(expected);
   });

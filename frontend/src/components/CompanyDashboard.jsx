@@ -570,7 +570,7 @@ function AllTimeStatus({ pipeline }) {
   const { logged, paid, invoiced } = pipeline;
   const ex = pipeline.exceptions || {};
   const rate = pipeline.eimsMatchRate;
-  const eimsTotal = rate ? rate.matched + rate.flagged + rate.missing + rate.unverified : 0;
+  const eimsTotal = rate ? rate.matched + rate.flagged + rate.missing + rate.billedUnresolved : 0;
   const eimsPct = eimsTotal > 0 ? Math.round((rate.matched / eimsTotal) * 100) : null;
   const facts = [
     { label: 'On hold', value: (ex.on_hold || 0).toLocaleString(), tone: (ex.on_hold || 0) > 0 ? 'text-amber-700' : 'text-slate-900' },

@@ -43,24 +43,29 @@ const DASHBOARD_CARD_WIDTHS = ['full', 'half'];
 const BILLED_STATUSES = ['invoiced', 'completed', 'self_certified'];
 
 // Which slice of the EIMS match ring a session belongs to:
-//   matched          EIMS verified it, an admin approved it, or it needs no check
+//   matched          a genuine, untouched EIMS match (nothing ever
+//                     disagreed), a learned-rule resolution, an admin's
+//                     explicit missing-EIMS approval, or a cancelled/
+//                     self-reported session that needs no cross-check
 //   missing          no EIMS record for it ("Missing"), including one already sent
 //                     to an admin for approval ("Awaiting"): still missing from EIMS
 //   flagged          a currently-unresolved mismatch/duplicate/rejection that has
 //                     NOT yet been billed — still actually blocking something — or
 //                     a human hold/return/decline (which always wins, whatever
 //                     EIMS says)
-//   billedUnresolved a session billing already invoiced/completed despite a live
-//                     EIMS mismatch with nothing on file (no acknowledged or
-//                     learned-override field) explaining why — invoiced anyway
-//                     without anyone signing off on the discrepancy. Also
-//                     covers an admin "exceptional approval" (is_override)
-//                     used on a session that still can't be confirmed to
-//                     match EIMS (deriveEimsStatus's hasOverride is false
-//                     on the Override label precisely in that case) — the
-//                     override made it payable, but didn't actually resolve
-//                     the discrepancy, so it still needed a human decision
-//                     and got one anyway.
+//   billedUnresolved a session that's already billed (invoiced/completed/
+//                     self_certified) but was never actually, durably
+//                     resolved: either it still shows a live EIMS mismatch,
+//                     or it only reached "cleared" because a human clicked
+//                     Allow on a field (once, or on every flagged field at
+//                     once via "Approve anyway") or used an admin override
+//                     (is_override) — none of which correct the underlying
+//                     data, they just let the session through despite it.
+//                     deriveEimsStatus's wasBypassed flag (any acknowledged
+//                     field, or an is_override session) is what marks this;
+//                     a genuine auto-match or a taught learned-rule resolve
+//                     never sets it, and keep counting as fully resolved
+//                     even once billed.
 // A session that could not be checked at all (tier 'unverified', no state file
 // uploaded) returns null — it's not a match-status verdict, just an absence of
 // data, so it's excluded from the ring/total entirely rather than counted
@@ -68,7 +73,12 @@ const BILLED_STATUSES = ['invoiced', 'completed', 'self_certified'];
 // Used by both the pipeline and the month overview so they cannot disagree.
 const eimsBucket = (derived, humanHold, alreadyBilled) => {
   if (humanHold) return 'flagged';
-  if (derived.label === 'Override' && alreadyBilled && !derived.hasOverride) return 'billedUnresolved';
+  // A bypass (Allow or is_override) that did NOT land on a genuine match —
+  // hasOverride only means anything once wasBypassed is true: it's "did
+  // this bypass happen to be safe" (is_override on a session that actually
+  // matches, or a learned rule), not "was there a bypass at all". An
+  // override/Allow that's still unresolved underneath belongs here once billed.
+  if (alreadyBilled && derived.wasBypassed && !derived.hasOverride) return 'billedUnresolved';
   if (derived.tier === 'cleared') return 'matched';
   if (derived.label === 'Missing' || derived.label === 'Awaiting') return 'missing';
   if (derived.tier === 'unverified') return null;

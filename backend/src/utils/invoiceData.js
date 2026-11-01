@@ -73,7 +73,7 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
   // EIMS itself says or what billing_review/is_override happen to show.
   // Checked first so it can't be shadowed by the override rule below.
   if (assessment.eims_missing_status === 'rejected') {
-    return { tier: 'exception', label: 'Rejected', hasOverride: false };
+    return { tier: 'exception', label: 'Rejected', hasOverride: false, wasBypassed: false };
   }
   // Override mode exists specifically for logs an admin is now actively
   // approving for payment despite their earlier declined/rejected status
@@ -97,7 +97,7 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
   // known mismatch.
   if (mode === 'override' || assessment.is_override) {
     const stillUnresolved = !(compliance && compliance.documentOnFile && compliance.matched && !compliance.flagged);
-    return { tier: 'cleared', label: 'Override', hasOverride: !stillUnresolved };
+    return { tier: 'cleared', label: 'Override', hasOverride: !stillUnresolved, wasBypassed: true };
   }
 
   // A zero-duration log is a cancelled/no-show visit, never a billable
@@ -110,55 +110,75 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
   // owed either way) but the distinct label/anomaly-free status keeps it
   // out of that callout and reads correctly as "nothing to pay here."
   if (!assessment.total_time) {
-    return { tier: 'cleared', label: 'Cancelled', hasOverride: false };
+    return { tier: 'cleared', label: 'Cancelled', hasOverride: false, wasBypassed: false };
   }
 
   if (mode === 'independent') {
     return assessment.eims_entered_at
-      ? { tier: 'cleared', label: 'Self-rep.', hasOverride: false }
-      : { tier: 'pending', label: 'Not entered', hasOverride: false };
+      ? { tier: 'cleared', label: 'Self-rep.', hasOverride: false, wasBypassed: false }
+      : { tier: 'pending', label: 'Not entered', hasOverride: false, wasBypassed: false };
   }
 
   // Agency mode from here — compliance is required to say anything more
   // specific than "not verified".
-  if (!compliance) return { tier: 'unverified', label: 'Unverified', hasOverride: false };
+  if (!compliance) return { tier: 'unverified', label: 'Unverified', hasOverride: false, wasBypassed: false };
 
   if (compliance.duplicateOfSessionId) {
-    return { tier: 'exception', label: 'Duplicate', note: `Duplicate of #${compliance.duplicateOfSessionId}`, hasOverride: false };
+    return { tier: 'exception', label: 'Duplicate', note: `Duplicate of #${compliance.duplicateOfSessionId}`, hasOverride: false, wasBypassed: false };
   }
   if (!compliance.documentOnFile) {
-    return { tier: 'unverified', label: 'Unverified', note: 'No state file uploaded', hasOverride: false };
+    return { tier: 'unverified', label: 'Unverified', note: 'No state file uploaded', hasOverride: false, wasBypassed: false };
   }
-  // Whether a human has acknowledged (one-time "Allow") or learned-overridden
-  // (a reusable rule from a prior "Allow") ANY field on this session — used
-  // below both to label a fully-cleared match as "Exception" rather than
-  // "Matched", and to tell eimsBucket whether a still-flagged session has at
-  // least something on file vs. genuinely nothing addressed (see the
-  // Overview EIMS donut's "Billed, unresolved mismatch" category).
-  const hasOverride = (compliance.fields || []).some((f) => f.acknowledged || f.learnedMatch);
+  // Whether a field cleared via a reusable LEARNED rule (a human confirmed a
+  // real labeling variant once, e.g. "DI" vs "Developmental Intervention";
+  // every future log with that exact pairing then matches on its own with
+  // no further human action) — the one kind of resolution that's a genuine,
+  // durable fix rather than a one-off bypass.
+  //
+  // A plain "Allow" (acknowledged: true) deliberately does NOT count here,
+  // whether clicked on one field via Compliance Analysis's per-field Allow
+  // or on every flagged field at once via "Approve anyway": neither one
+  // actually corrects the underlying data, it just lets the session through
+  // despite the live discrepancy. Only an actual data match (nothing ever
+  // disagreed) or a learned rule earn hasOverride: true — see the Overview
+  // EIMS donut's "Billed, unresolved mismatch" category, which exists
+  // specifically to catch an Allow-bypassed session that got billed anyway;
+  // that bucket would never catch anything if an Allow click could also
+  // mark it resolved here.
+  const hasOverride = (compliance.fields || []).some((f) => f.learnedMatch);
+  // Whether ANY field was ever Allow-bypassed (acknowledged), regardless of
+  // whether that bypass also happens to count toward hasOverride above —
+  // needed because a genuinely, naturally-matched session and an
+  // Allow-bypassed-into-Matched session both end up with the same
+  // {tier:'cleared', label:'Matched', hasOverride:false} shape otherwise,
+  // and eimsBucket (dashboardController.js) needs to tell them apart: only
+  // the latter belongs in "Billed, unresolved mismatch."
+  const wasBypassed = (compliance.fields || []).some((f) => f.acknowledged);
   if (compliance.matched && !compliance.flagged) {
-    // A field that disagreed with EIMS but was manually "Allow"-ed is
-    // marked match:true/acknowledged:true by buildFieldsForSession's
-    // per-log acknowledgment layer, or match:true/learnedMatch:true if a
-    // PRIOR "Allow" on the same (field, state text, our value) pairing
-    // turned it into a reusable rule — either way it's exactly what
-    // clears `flagged` here, so this would otherwise read as a clean,
-    // untouched EIMS match. A human overrode a real discrepancy (once, or
-    // via a standing rule they created); the invoice should say so rather
-    // than implying nothing needed a second look. Still payable (tier
-    // stays 'cleared'), just labeled for what it actually is.
-    return hasOverride ? { tier: 'cleared', label: 'Exception', hasOverride: true } : { tier: 'cleared', label: 'Matched', hasOverride: false };
+    // Every currently-disagreeing field was either a genuine match or
+    // cleared via a learned rule or an Allow bypass — that's a real
+    // resolution only when a learned rule did the clearing (reads as
+    // "Exception"); a plain Allow-only clearance reads as "Matched" with
+    // hasOverride:false and wasBypassed:true, so eimsBucket can still catch
+    // it once billed. compliance.flagged only ever turns false once every
+    // field matches or is bypassed — computeSessionCompliance's `flagged`
+    // reflects un-acknowledged mismatches, so an Allow-bypassed field no
+    // longer counts as flagged either; wasBypassed is what keeps that case
+    // visible downstream instead of looking identical to a clean match.
+    return hasOverride
+      ? { tier: 'cleared', label: 'Exception', hasOverride: true, wasBypassed }
+      : { tier: 'cleared', label: 'Matched', hasOverride: false, wasBypassed };
   }
   if (compliance.matched && compliance.flagged) {
-    return { tier: 'pending', label: 'Mismatch', hasOverride };
+    return { tier: 'pending', label: 'Mismatch', hasOverride, wasBypassed };
   }
   if (assessment.eims_missing_status === 'approved') {
-    return { tier: 'cleared', label: 'Approved', hasOverride: false };
+    return { tier: 'cleared', label: 'Approved', hasOverride: false, wasBypassed: false };
   }
   if (assessment.eims_missing_status === 'sent_to_admin') {
-    return { tier: 'pending', label: 'Awaiting', hasOverride: false };
+    return { tier: 'pending', label: 'Awaiting', hasOverride: false, wasBypassed: false };
   }
-  return { tier: 'exception', label: 'Missing', hasOverride: false };
+  return { tier: 'exception', label: 'Missing', hasOverride: false, wasBypassed: false };
 }
 
 // Anomalies are separate from EIMS tier — surfaced on the line's own

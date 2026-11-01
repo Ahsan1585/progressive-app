@@ -66,10 +66,11 @@ describe('getBilledUnresolvedSessions', () => {
     deriveEimsStatus.mockImplementation((s) => {
       // Overridden, but the underlying compliance data still disagrees ->
       // hasOverride: false (nothing actually resolved the discrepancy).
-      if (s.id === 10) return { tier: 'cleared', label: 'Override', hasOverride: false };
+      // is_override always reports wasBypassed: true.
+      if (s.id === 10) return { tier: 'cleared', label: 'Override', hasOverride: false, wasBypassed: true };
       // Overridden, but it turned out to actually match EIMS cleanly ->
       // hasOverride: true (genuinely resolved, not just bypassed).
-      return { tier: 'cleared', label: 'Override', hasOverride: true };
+      return { tier: 'cleared', label: 'Override', hasOverride: true, wasBypassed: true };
     });
 
     pool.query.mockImplementation(async (sql) => {
