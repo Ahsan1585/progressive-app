@@ -29,7 +29,7 @@ export default function ResubmitLog() {
   // Captured once while `log` is still defined, so handleSubmit/handleDelete
   // keep working even after a failed submit's refetch makes `log` itself go
   // undefined (see the `!log && !resignSentTo && !error` guard below).
-  const assessmentIdRef = React.useRef<number | null>(null);
+  const assessmentIdRef = React.useRef<string | null>(null);
   if (log) assessmentIdRef.current = log.id;
   const customCategories = React.useMemo(
     () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
