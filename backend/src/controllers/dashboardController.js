@@ -396,7 +396,8 @@ const getPipelineOverview = async (req, res) => {
     let billedSessionsPractitionerSql = '';
     if (practitionerId) { billedSessionsParams.push(practitionerId); billedSessionsPractitionerSql = ` AND a.practitioner_id = $${billedSessionsParams.length}`; }
     const { rows: billedSessions } = await pool.query(
-      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time, a.service_date
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time, a.service_date,
+              a.patient_first_name, a.patient_last_name, a.practitioner_first_name, a.practitioner_last_name
        FROM assessments a
        WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')
          AND ${inMonthSql(1, 2, 'a.service_date')}${billedSessionsPractitionerSql}
@@ -471,6 +472,63 @@ const getPipelineOverview = async (req, res) => {
   } catch (error) {
     console.error('getPipelineOverview error:', error);
     res.status(500).json({ success: false, error: 'Failed to load pipeline overview' });
+  }
+};
+
+// GET /api/dashboard/billed-unresolved — drill-down for the EIMS donut's
+// "Billed, unresolved mismatch" row: which specific already-billed sessions
+// are counted there (see eimsBucket's 'billedUnresolved' case). Reuses the
+// same billedSessions query/compliance-loading path as getPipelineOverview
+// so this list can never disagree with the donut's count.
+const getBilledUnresolvedSessions = async (req, res) => {
+  try {
+    const [monthStart, monthEnd] = monthScope(req);
+    const practitionerId = practitionerScope(req);
+    const billedSessionsParams = [monthStart, monthEnd];
+    let billedSessionsPractitionerSql = '';
+    if (practitionerId) { billedSessionsParams.push(practitionerId); billedSessionsPractitionerSql = ` AND a.practitioner_id = $${billedSessionsParams.length}`; }
+    const { rows: billedSessions } = await pool.query(
+      `SELECT a.id, a.billing_status, a.eims_missing_status, a.eims_entered_at, a.is_override, a.practitioner_id, a.total_time, a.service_date,
+              a.patient_first_name, a.patient_last_name, a.practitioner_first_name, a.practitioner_last_name
+       FROM assessments a
+       WHERE a.billing_status IN ('njeis_review', 'invoiced', 'completed', 'self_certified', 'on_hold', 'rejected', 'declined')
+         AND ${inMonthSql(1, 2, 'a.service_date')}${billedSessionsPractitionerSql}
+       ORDER BY a.service_date DESC
+       LIMIT 2000`,
+      billedSessionsParams
+    );
+    const { rows: practitionerRoleRows } = await pool.query(
+      `SELECT id, role FROM practitioners WHERE id = ANY($1::int[])`,
+      [[...new Set(billedSessions.map((s) => s.practitioner_id))]]
+    );
+    const roleById = new Map(practitionerRoleRows.map((r) => [r.id, r.role]));
+    const complianceById = await loadComplianceBatched(
+      billedSessions.filter((s) => roleById.get(s.practitioner_id) !== 'independent_practitioner'),
+      analyzeFn,
+      computeSessionCompliance
+    );
+
+    const sessions = billedSessions
+      .filter((s) => BILLED_STATUSES.includes(s.billing_status))
+      .map((s) => {
+        const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
+        const compliance = complianceById.get(s.id) || null;
+        const derived = deriveEimsStatus(s, { mode, compliance });
+        return { s, derived };
+      })
+      .filter(({ derived }) => derived.label === 'Mismatch' && !derived.hasOverride)
+      .map(({ s }) => ({
+        id: s.id,
+        patientName: `${decryptField(s.patient_first_name) || ''} ${decryptField(s.patient_last_name) || ''}`.trim(),
+        practitionerName: `${s.practitioner_first_name || ''} ${s.practitioner_last_name || ''}`.trim(),
+        serviceDate: s.service_date,
+        status: s.billing_status,
+      }));
+
+    res.json({ success: true, sessions });
+  } catch (error) {
+    console.error('getBilledUnresolvedSessions error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load billed-unresolved sessions' });
   }
 };
 
@@ -1322,6 +1380,7 @@ const getDashboardPractitioners = async (req, res) => {
 module.exports = {
   getDayOverview,
   getDashboardPractitioners,
+  getBilledUnresolvedSessions,
   getPipelineOverview,
   getReturnedLogs,
   getSessionDetail,
