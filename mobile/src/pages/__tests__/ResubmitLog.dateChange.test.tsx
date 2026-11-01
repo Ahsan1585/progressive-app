@@ -90,4 +90,25 @@ describe("Resubmit with a corrected date", () => {
     fireEvent.click(screen.getByRole("button", { name: "OK" }));
     expect(await screen.findByText("inbox page")).toBeInTheDocument();
   });
+
+  // Regression: a failed resign request (e.g. a 409 conflicting-session, or
+  // the server's own "this log changed while you were editing it" state
+  // error) sets a real inline error message, but the catch block's
+  // unconditional fetchRejectedLogs() can still make `log` go undefined
+  // (e.g. the log was concurrently moved out of 'rejected' by something
+  // else). That used to fall through to the generic "no longer available"
+  // screen, silently discarding the actual error the server gave back.
+  it("keeps showing the real error (not the generic 'no longer available' screen) when the resign request fails and the log also drops out of rejectedLogs", async () => {
+    const error = { response: { data: { error: "That time conflicts with another session." } } };
+    api.post.mockRejectedValue(error);
+    fetchRejectedLogs.mockImplementation(async () => {
+      rejectedLogs = [];
+    });
+    renderIt();
+    fireEvent.change(screen.getByLabelText("Session date"), { target: { value: "2026-10-22" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send to parent to re-sign" }));
+
+    expect(await screen.findByText("That time conflicts with another session.")).toBeInTheDocument();
+    expect(screen.queryByText(/no longer available/i)).not.toBeInTheDocument();
+  });
 });

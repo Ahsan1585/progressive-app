@@ -26,6 +26,11 @@ export default function ResubmitLog() {
   const { showToast } = useToast();
 
   const log = rejectedLogs.find((l) => String(l.id) === id);
+  // Captured once while `log` is still defined, so handleSubmit/handleDelete
+  // keep working even after a failed submit's refetch makes `log` itself go
+  // undefined (see the `!log && !resignSentTo && !error` guard below).
+  const assessmentIdRef = React.useRef<number | null>(null);
+  if (log) assessmentIdRef.current = log.id;
   const customCategories = React.useMemo(
     () => dropdownCategories.filter((c) => c.is_custom && c.is_active),
     [dropdownCategories]
@@ -62,8 +67,13 @@ export default function ResubmitLog() {
   // list and this log correctly drops out of it (billing_status moved to
   // awaiting_resign) — so `log` goes undefined on the very next render.
   // Checking resignSentTo first keeps the success dialog showing instead
-  // of falling through to the "not available" error screen below.
-  if (!log && !resignSentTo) {
+  // of falling through to the "not available" error screen below. The same
+  // applies to a FAILED submit: handleSubmit's catch also refetches (to
+  // stay honest about a possible race), which can likewise make `log` go
+  // undefined even though the real problem is the error already captured
+  // in `error` — checking it here keeps that real message on screen
+  // instead of silently swapping in the generic "not available" text.
+  if (!log && !resignSentTo && !error) {
     return (
       <PushScreen>
         <AppBar title="Resubmit log" />
@@ -92,7 +102,7 @@ export default function ResubmitLog() {
     setSubmitting(true);
     try {
       const res = await api.post<{ success: boolean; resignRequested?: boolean; parentEmail?: string }>("/api/patients/resubmit-log", {
-        assessmentId: log.id,
+        assessmentId: assessmentIdRef.current,
         total_time: totalMinutes,
         ...form,
       });
@@ -117,7 +127,7 @@ export default function ResubmitLog() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await api.delete(`/api/patients/logs/${log.id}`);
+      await api.delete(`/api/patients/logs/${assessmentIdRef.current}`);
       showToast("Log deleted.");
       await fetchRejectedLogs();
       navigate("/inbox", { replace: true });
@@ -136,8 +146,8 @@ export default function ResubmitLog() {
       <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-4 py-5">
         <div className="rounded-card border border-warning-border bg-warning-bg p-3.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-warning">Admin note</p>
-          <p className="mt-1 text-sm text-warning">{log.rejection_note || "No note provided."}</p>
-          <p className="tabular mt-1 text-xs text-warning/80">Returned {formatSafeDate(log.rejected_at)}</p>
+          <p className="mt-1 text-sm text-warning">{log?.rejection_note || "No note provided."}</p>
+          <p className="tabular mt-1 text-xs text-warning/80">Returned {formatSafeDate(log?.rejected_at)}</p>
         </div>
 
         {error && <InlineErrorBanner message={error} />}
