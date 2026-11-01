@@ -21,6 +21,11 @@ export function ParentSignaturePad({ value, onChange, error }) {
   const hasStrokeRef = useRef(false);
   const [hasStroke, setHasStroke] = useState(false);
   const [justCaptured, setJustCaptured] = useState(false);
+  // A parent on a touch device lifts their finger between strokes all the
+  // time (crossing a "t", a multi-stroke name), so pointerup can't finalize
+  // the signature immediately — it waits to see if another stroke starts
+  // right after. A new stroke starting cancels the pending commit.
+  const commitTimeoutRef = useRef(null);
 
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -58,6 +63,13 @@ export function ParentSignaturePad({ value, onChange, error }) {
   const onPointerDown = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // A new stroke starting means the parent isn't done yet — cancel any
+    // pending auto-commit from a previous pointerup so it doesn't fire
+    // mid-write.
+    if (commitTimeoutRef.current) {
+      window.clearTimeout(commitTimeoutRef.current);
+      commitTimeoutRef.current = null;
+    }
     canvas.setPointerCapture(e.pointerId);
     const ctx = canvas.getContext('2d');
     const { x, y } = getPos(e);
@@ -78,21 +90,31 @@ export function ParentSignaturePad({ value, onChange, error }) {
     ctx?.stroke();
   };
 
-  // Lifting a finger/mouse mid-signature is normal (crossing a "t", a
-  // multi-stroke name) — must not finalize. Only Done commits it.
-  const onPointerUp = () => {
-    drawingRef.current = false;
-  };
+  const COMMIT_DELAY_MS = 700;
 
-  const handleDone = () => {
+  const commitSignature = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hasStrokeRef.current) return;
     onChange(canvas.toDataURL('image/png'));
     setJustCaptured(true);
     window.setTimeout(() => setJustCaptured(false), 260);
+  }, [onChange]);
+
+  const onPointerUp = () => {
+    drawingRef.current = false;
+    if (commitTimeoutRef.current) window.clearTimeout(commitTimeoutRef.current);
+    commitTimeoutRef.current = window.setTimeout(commitSignature, COMMIT_DELAY_MS);
   };
 
+  useEffect(() => () => {
+    if (commitTimeoutRef.current) window.clearTimeout(commitTimeoutRef.current);
+  }, []);
+
   const handleClear = () => {
+    if (commitTimeoutRef.current) {
+      window.clearTimeout(commitTimeoutRef.current);
+      commitTimeoutRef.current = null;
+    }
     hasStrokeRef.current = false;
     setHasStroke(false);
     onChange(null);
@@ -153,11 +175,8 @@ export function ParentSignaturePad({ value, onChange, error }) {
           <RotateCcw className="size-3.5" aria-hidden="true" />
           Clear
         </Button>
-        {!showCaptured && (
-          <Button type="button" variant="secondary" size="sm" onClick={handleDone} disabled={!hasStroke}>
-            <CheckCircle2 className="size-3.5" aria-hidden="true" />
-            Done
-          </Button>
+        {!showCaptured && hasStroke && (
+          <span className="text-xs text-slate-400">Capturing…</span>
         )}
       </div>
 
