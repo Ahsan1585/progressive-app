@@ -827,6 +827,13 @@ const getMonthOverview = async (req, res) => {
     );
     let apTotalOwed = 0, apTotalClear = 0, apTotalHeld = 0;
     let apTotalOwedHours = 0, apTotalClearHours = 0, apTotalHeldHours = 0;
+    // Separate from totalOwed(Hours): that figure deliberately folds in
+    // on_hold/rejected sessions ("money that still needs a decision"), but
+    // those were never actually invoiced. invoicedUnpaidHours counts only
+    // invoiced/completed status, matching the Billing pipeline's own
+    // "Invoiced" stage definition, so a banner built on it can't disagree
+    // with the pipeline card.
+    let apInvoicedUnpaidHours = 0;
     apSessions.forEach((s) => {
       const hours = s.total_time ? s.total_time / 60 : 0;
       const lineTotal = Math.round(hours * parseFloat(s.pay_rate || 0) * 100) / 100;
@@ -837,6 +844,7 @@ const getMonthOverview = async (req, res) => {
         : deriveEimsStatus(s, { mode, compliance }).tier;
       apTotalOwed += lineTotal;
       apTotalOwedHours += hours;
+      if (s.billing_status === 'invoiced' || s.billing_status === 'completed') apInvoicedUnpaidHours += hours;
       if (tier === 'cleared') { apTotalClear += lineTotal; apTotalClearHours += hours; }
       else { apTotalHeld += lineTotal; apTotalHeldHours += hours; }
     });
@@ -891,6 +899,10 @@ const getMonthOverview = async (req, res) => {
         totalClearHours: Math.round(apTotalClearHours * 100) / 100,
         totalHeldHours: Math.round(apTotalHeldHours * 100) / 100,
         totalPaidHours: apTotalPaidHours,
+        // True invoiced-only hours (paid + unpaid invoiced/completed),
+        // excludes on_hold/rejected — matches the Billing pipeline's
+        // "Invoiced" stage exactly, unlike totalOwedHours.
+        invoicedHours: Math.round((apInvoicedUnpaidHours + apTotalPaidHours) * 100) / 100,
       },
     });
   } catch (error) {

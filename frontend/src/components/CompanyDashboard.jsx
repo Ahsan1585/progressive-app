@@ -392,12 +392,15 @@ function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
   // really 40% of a $79 leftover out of $2,000 billed, not 40% of $2,000).
   const totalBilled = totalPaid + totalOwed;
   const paidPct = totalBilled > 0 ? Math.round(((totalPaid + totalClear) / totalBilled) * 100) : 0;
-  // Total hours billed this month (paid + still owed), plus the hours
-  // behind each dollar slice (ready-to-pay vs. held-back) — shown paired
-  // with its own dollar figure rather than one blended $/hr, since
-  // practitioners are paid at different rates and an average across them
-  // doesn't describe any real practitioner's rate.
-  const totalBilledHours = (ap.totalPaidHours || 0) + (ap.totalOwedHours || 0);
+  // Total hours invoiced this month (paid + still-unpaid invoiced/completed),
+  // plus the hours behind each dollar slice (ready-to-pay vs. held-back) —
+  // shown paired with its own dollar figure rather than one blended $/hr,
+  // since practitioners are paid at different rates and an average across
+  // them doesn't describe any real practitioner's rate. Uses ap.invoicedHours
+  // (not totalOwedHours, which also folds in on_hold/rejected sessions that
+  // were never invoiced) so this matches the Billing pipeline's own
+  // "Invoiced" stage exactly.
+  const totalBilledHours = ap.invoicedHours || 0;
   const totalClearHours = ap.totalClearHours || 0;
   const totalHeldHours = ap.totalHeldHours || 0;
   const hoursLabel = (h) => h.toLocaleString(undefined, { maximumFractionDigits: 1 });
