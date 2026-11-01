@@ -81,13 +81,14 @@ describe('deriveEimsStatus', () => {
   it('zero-duration (cancelled/no-show) sessions are cleared with a distinct label, not Matched', () => {
     expect(
       deriveEimsStatus({ ...base, total_time: 0 }, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: false } })
-    ).toEqual({ tier: 'cleared', label: 'Cancelled' });
+    ).toEqual({ tier: 'cleared', label: 'Cancelled', hasOverride: false });
   });
 
   it('zero-duration short-circuits ahead of independent-mode EIMS entry checks too', () => {
     expect(deriveEimsStatus({ ...base, total_time: null }, { mode: 'independent', compliance: null })).toEqual({
       tier: 'cleared',
       label: 'Cancelled',
+      hasOverride: false,
     });
   });
 
@@ -95,6 +96,7 @@ describe('deriveEimsStatus', () => {
     expect(deriveEimsStatus(base, { mode: 'override', compliance: null })).toEqual({
       tier: 'cleared',
       label: 'Override',
+      hasOverride: false,
     });
   });
 
@@ -102,6 +104,7 @@ describe('deriveEimsStatus', () => {
     expect(deriveEimsStatus({ ...base, is_override: true }, { mode: 'agency', compliance: null })).toEqual({
       tier: 'cleared',
       label: 'Override',
+      hasOverride: false,
     });
   });
 
@@ -109,19 +112,21 @@ describe('deriveEimsStatus', () => {
     expect(deriveEimsStatus({ ...base, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: {} })).toEqual({
       tier: 'exception',
       label: 'Rejected',
+      hasOverride: false,
     });
   });
 
   it('rejected takes priority over is_override — a later rejection still blocks payment', () => {
     expect(
       deriveEimsStatus({ ...base, is_override: true, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: null })
-    ).toEqual({ tier: 'exception', label: 'Rejected' });
+    ).toEqual({ tier: 'exception', label: 'Rejected', hasOverride: false });
   });
 
   it('independent mode: entered self-reported is cleared', () => {
     expect(deriveEimsStatus({ ...base, eims_entered_at: '2026-01-01' }, { mode: 'independent', compliance: null })).toEqual({
       tier: 'cleared',
       label: 'Self-rep.',
+      hasOverride: false,
     });
   });
 
@@ -129,6 +134,7 @@ describe('deriveEimsStatus', () => {
     expect(deriveEimsStatus(base, { mode: 'independent', compliance: null })).toEqual({
       tier: 'pending',
       label: 'Not entered',
+      hasOverride: false,
     });
   });
 
@@ -136,13 +142,14 @@ describe('deriveEimsStatus', () => {
     expect(deriveEimsStatus(base, { mode: 'agency', compliance: null })).toEqual({
       tier: 'unverified',
       label: 'Unverified',
+      hasOverride: false,
     });
   });
 
   it('agency mode: duplicateOfSessionId is an exception with a note', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { duplicateOfSessionId: 42, documentOnFile: true } })
-    ).toEqual({ tier: 'exception', label: 'Duplicate', note: 'Duplicate of #42' });
+    ).toEqual({ tier: 'exception', label: 'Duplicate', note: 'Duplicate of #42', hasOverride: false });
   });
 
   it('agency mode: no document on file is unverified with a note', () => {
@@ -150,13 +157,14 @@ describe('deriveEimsStatus', () => {
       tier: 'unverified',
       label: 'Unverified',
       note: 'No state file uploaded',
+      hasOverride: false,
     });
   });
 
   it('agency mode: matched and not flagged is cleared', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: false } })
-    ).toEqual({ tier: 'cleared', label: 'Matched' });
+    ).toEqual({ tier: 'cleared', label: 'Matched', hasOverride: false });
   });
 
   it('agency mode: matched and not flagged only because a field was manually "Allow"-ed reads as an exception, not Matched', () => {
@@ -171,7 +179,7 @@ describe('deriveEimsStatus', () => {
           ],
         },
       })
-    ).toEqual({ tier: 'cleared', label: 'Exception' });
+    ).toEqual({ tier: 'cleared', label: 'Exception', hasOverride: true });
   });
 
   it('agency mode: matched and not flagged via a reusable learned-override rule also reads as an exception', () => {
@@ -183,13 +191,13 @@ describe('deriveEimsStatus', () => {
           fields: [{ key: 'service_type', match: true, learnedMatch: true }],
         },
       })
-    ).toEqual({ tier: 'cleared', label: 'Exception' });
+    ).toEqual({ tier: 'cleared', label: 'Exception', hasOverride: true });
   });
 
   it('agency mode: matched and flagged is pending (field mismatch)', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: true } })
-    ).toEqual({ tier: 'pending', label: 'Mismatch' });
+    ).toEqual({ tier: 'pending', label: 'Mismatch', hasOverride: false });
   });
 
   it('agency mode: not matched but admin-approved is cleared', () => {
@@ -198,7 +206,7 @@ describe('deriveEimsStatus', () => {
         { ...base, eims_missing_status: 'approved' },
         { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } }
       )
-    ).toEqual({ tier: 'cleared', label: 'Approved' });
+    ).toEqual({ tier: 'cleared', label: 'Approved', hasOverride: false });
   });
 
   it('agency mode: not matched but sent to admin is pending', () => {
@@ -207,13 +215,60 @@ describe('deriveEimsStatus', () => {
         { ...base, eims_missing_status: 'sent_to_admin' },
         { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } }
       )
-    ).toEqual({ tier: 'pending', label: 'Awaiting' });
+    ).toEqual({ tier: 'pending', label: 'Awaiting', hasOverride: false });
   });
 
   it('agency mode: not matched with no other signal is an exception', () => {
     expect(
       deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } })
-    ).toEqual({ tier: 'exception', label: 'Missing' });
+    ).toEqual({ tier: 'exception', label: 'Missing', hasOverride: false });
+  });
+
+  // hasOverride: lets a caller (eimsBucket) tell "nothing on file for this
+  // mismatch" apart from "a human looked at this session, even partially" —
+  // needed for the Overview EIMS donut's "Billed, unresolved mismatch"
+  // category, which should only ever mean the former.
+  describe('hasOverride', () => {
+    it('a genuine mismatch with zero acknowledged/learned fields reports hasOverride: false', () => {
+      const result = deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: true, fields: [{ key: 'location', match: false }] } });
+      expect(result).toMatchObject({ tier: 'pending', label: 'Mismatch', hasOverride: false });
+    });
+
+    it('a mismatch where at least one field was acknowledged reports hasOverride: true, even if the session is still flagged overall', () => {
+      const result = deriveEimsStatus(base, {
+        mode: 'agency',
+        compliance: {
+          documentOnFile: true, matched: true, flagged: true,
+          fields: [{ key: 'location', match: false }, { key: 'start_time', match: true, acknowledged: true }],
+        },
+      });
+      expect(result).toMatchObject({ tier: 'pending', label: 'Mismatch', hasOverride: true });
+    });
+
+    it('a mismatch where a field cleared via a learned-override rule reports hasOverride: true', () => {
+      const result = deriveEimsStatus(base, {
+        mode: 'agency',
+        compliance: {
+          documentOnFile: true, matched: true, flagged: true,
+          fields: [{ key: 'location', match: false }, { key: 'service_type', match: true, learnedMatch: true }],
+        },
+      });
+      expect(result).toMatchObject({ hasOverride: true });
+    });
+
+    it('every other return path includes hasOverride: false for shape consistency', () => {
+      expect(deriveEimsStatus({ ...base, total_time: 0 }, { mode: 'agency', compliance: null })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus(base, { mode: 'override', compliance: null })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus({ ...base, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: {} })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus(base, { mode: 'independent', compliance: null })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus(base, { mode: 'agency', compliance: null })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus(base, { mode: 'agency', compliance: { duplicateOfSessionId: 1, documentOnFile: true } })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: false } })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: false } })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus({ ...base, eims_missing_status: 'approved' }, { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus({ ...base, eims_missing_status: 'sent_to_admin' }, { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } })).toMatchObject({ hasOverride: false });
+      expect(deriveEimsStatus(base, { mode: 'agency', compliance: { documentOnFile: true, matched: false, flagged: false } })).toMatchObject({ hasOverride: false });
+    });
   });
 });
 
@@ -290,7 +345,7 @@ describe('buildInvoiceLines', () => {
     expect(line.rate).toBe(40);
     expect(line.lineTotal).toBe(60);
     expect(line.timeLabel).toBe('T09:00–T10:30');
-    expect(line.eims).toEqual({ tier: 'unverified', label: 'Unverified' });
+    expect(line.eims).toEqual({ tier: 'unverified', label: 'Unverified', hasOverride: false });
     expect(line.anomalies).toEqual([]);
   });
 
@@ -312,14 +367,14 @@ describe('buildInvoiceLines', () => {
     const complianceById = new Map([[9, { matched: true, flagged: false, documentOnFile: true }]]);
     const assessments = [{ id: 9, total_time: 60, patients: { child_id: 'C1' } }];
     const lines = buildInvoiceLines(assessments, practitioner, { mode: 'agency', complianceById });
-    expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Matched' });
+    expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Matched', hasOverride: false });
   });
 
   it('a cancelled (zero-duration) session reads as Cancelled, not Matched, and carries no anomaly', () => {
     const complianceById = new Map([[9, { matched: true, flagged: false, documentOnFile: true }]]);
     const assessments = [{ id: 9, total_time: 0, patients: { child_id: 'C1' } }];
     const lines = buildInvoiceLines(assessments, practitioner, { mode: 'agency', complianceById });
-    expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Cancelled' });
+    expect(lines[0].eims).toEqual({ tier: 'cleared', label: 'Cancelled', hasOverride: false });
     expect(lines[0].lineTotal).toBe(0);
     expect(lines[0].anomalies).toEqual([]);
   });
