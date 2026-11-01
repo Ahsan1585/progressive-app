@@ -2320,7 +2320,7 @@ function buildFieldsForSession(session, match, ctx) {
       const hit = (overridesByField.get(f.key) || []).find(
         (o) => o.state_value_normalized === stateNorm && o.our_value === f._learn.ourValue
       );
-      if (hit) return { ...f, match: true, learnedMatch: true };
+      if (hit) return { ...f, match: true, learnedMatch: true, originalMismatch: true };
     }
     // Per-log acknowledgment layer: a one-time "Allow" clicked on this
     // field for this log. It only still applies if the values it was
@@ -2329,7 +2329,11 @@ function buildFieldsForSession(session, match, ctx) {
     // different, the field re-flags and the reviewer must look again.
     const ack = ackByKey.get(`${session.id}:${f.key}`);
     if (ack && (ack.our_value ?? null) === (f.ours ?? null) && (ack.state_value ?? null) === (f.state ?? null)) {
-      return { ...f, match: true, acknowledged: true };
+      // originalMismatch stays true so a "Billed, unresolved mismatch"
+      // drill-down can still show this field as the true discrepancy it
+      // was, with an "Allowed" badge, instead of a plain green check —
+      // match itself stays true so billing/flagged logic is unaffected.
+      return { ...f, match: true, acknowledged: true, originalMismatch: true };
     }
     return f;
   });
@@ -3348,4 +3352,5 @@ module.exports = {
   sendMissingToAdmin,
   getActionRequiredLogs,
   decideMissingInEims,
+  buildFieldsForSession,
 };

@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useMessaging } from '@/context/useMessaging';
+import { formatTime12h } from '@/utils/formatTime';
 
 const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const compactMoney = (n) => `$${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -212,18 +213,32 @@ function SessionDetailDialog({ assessmentId, onClose }) {
                       </td>
                     </tr>
                   )}
-                  {fields.map((f) => (
-                    <tr key={f.key} className={f.match === false ? 'bg-red-50/60' : ''}>
-                      <td className="px-3 py-2 font-semibold text-slate-700 align-top">
-                        <div className="flex items-center gap-1.5">
-                          {f.match === false ? <X className="size-3.5 text-red-500 flex-shrink-0" /> : f.match === true ? <Check className="size-3.5 text-emerald-500 flex-shrink-0" /> : null}
-                          {f.label}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-slate-800 align-top break-words">{f.ours ?? '—'}</td>
-                      <td className={`px-3 py-2 align-top break-words ${f.match === false ? 'text-red-700 font-semibold' : 'text-slate-800'}`}>{f.state ?? '—'}</td>
-                    </tr>
-                  ))}
+                  {fields.map((f) => {
+                    // originalMismatch: an Allow/exception painted this field's
+                    // match to true for billing purposes, but it was a genuine
+                    // discrepancy — keep showing it as one here, with a badge
+                    // explaining why it was billed anyway, instead of a plain
+                    // green check that would hide what the exception covered.
+                    const shownAsMismatch = f.match === false || f.originalMismatch;
+                    const isTimeField = f.key === 'start_time' || f.key === 'end_time';
+                    const oursDisplay = isTimeField ? formatTime12h(f.ours) || f.ours : f.ours;
+                    const stateDisplay = isTimeField ? formatTime12h(f.state) || f.state : f.state;
+                    return (
+                      <tr key={f.key} className={shownAsMismatch ? 'bg-red-50/60' : ''}>
+                        <td className="px-3 py-2 font-semibold text-slate-700 align-top">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {shownAsMismatch ? <X className="size-3.5 text-red-500 flex-shrink-0" /> : f.match === true ? <Check className="size-3.5 text-emerald-500 flex-shrink-0" /> : null}
+                            {f.label}
+                            {f.originalMismatch && (
+                              <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">Allowed</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-slate-800 align-top break-words">{oursDisplay ?? '—'}</td>
+                        <td className={`px-3 py-2 align-top break-words ${shownAsMismatch ? 'text-red-700 font-semibold' : 'text-slate-800'}`}>{stateDisplay ?? '—'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
