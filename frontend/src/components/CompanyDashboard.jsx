@@ -392,11 +392,15 @@ function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
   // really 40% of a $79 leftover out of $2,000 billed, not 40% of $2,000).
   const totalBilled = totalPaid + totalOwed;
   const paidPct = totalBilled > 0 ? Math.round(((totalPaid + totalClear) / totalBilled) * 100) : 0;
-  // Total hours billed this month (paid + still owed). No blended $/hr here
-  // deliberately — practitioners are paid at different rates, so an average
-  // across them doesn't describe any real practitioner's rate and reads as
-  // a made-up number.
+  // Total hours billed this month (paid + still owed), plus the hours
+  // behind each dollar slice (ready-to-pay vs. held-back) — shown paired
+  // with its own dollar figure rather than one blended $/hr, since
+  // practitioners are paid at different rates and an average across them
+  // doesn't describe any real practitioner's rate.
   const totalBilledHours = (ap.totalPaidHours || 0) + (ap.totalOwedHours || 0);
+  const totalClearHours = ap.totalClearHours || 0;
+  const totalHeldHours = ap.totalHeldHours || 0;
+  const hoursLabel = (h) => h.toLocaleString(undefined, { maximumFractionDigits: 1 });
 
   const isHealthy = flaggedCount === 0 && totalHeld === 0;
   const headline = isHealthy
@@ -421,9 +425,12 @@ function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
             (e.g. "$79 held" here vs. "$116.92 ready" in the tile, with nothing
             saying they're both slices of the same $196.09 owed this month). */}
         <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
-          <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners this month
-          {totalOwed > 0 && <>: <b className="text-white font-extrabold">{money(totalClear)}</b> is ready to pay now, <b className="text-white font-extrabold">{money(totalHeld)}</b> is being held back</>}.
-          {totalBilledHours > 0 && <> That's <b className="text-white font-extrabold">{totalBilledHours.toLocaleString(undefined, { maximumFractionDigits: 1 })} hrs</b> billed this month.</>}
+          <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners this month{totalBilledHours > 0 && <> (<b className="text-white font-extrabold">{hoursLabel(totalBilledHours)} hrs</b> billed)</>}
+          {totalOwed > 0 && (
+            <>
+              : <b className="text-white font-extrabold">{money(totalClear)}</b>{totalClearHours > 0 && <> ({hoursLabel(totalClearHours)} hrs)</>} is ready to pay now, <b className="text-white font-extrabold">{money(totalHeld)}</b>{totalHeldHours > 0 && <> ({hoursLabel(totalHeldHours)} hrs)</>} is being held back
+            </>
+          )}.
           {flaggedCount > 0 && <> The open item is <b className="text-white font-extrabold">{flaggedCount} flagged {unit === 'hours' ? 'hrs' : `session${flaggedCount === 1 ? '' : 's'}`}</b>.</>}
         </p>
       </div>
