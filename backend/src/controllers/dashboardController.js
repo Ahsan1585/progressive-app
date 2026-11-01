@@ -293,7 +293,7 @@ const getSessionDetail = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT a.id, a.billing_status, a.service_date, a.hold_note, a.rejection_note, a.rejection_count,
+      `SELECT a.id, a.billing_status, a.service_date, a.hold_note, a.rejection_note, a.rejection_count, a.is_override,
               a.patient_first_name, a.patient_last_name,
               a.practitioner_id, a.practitioner_first_name, a.practitioner_last_name
        FROM assessments a WHERE a.id = $1`,
@@ -303,6 +303,19 @@ const getSessionDetail = async (req, res) => {
     if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
 
     const compliance = await computeSessionCompliance(assessmentId);
+    // is_override (the session-level "exceptionally approve" action) bypasses
+    // EIMS verification entirely for billing purposes but, unlike a
+    // field-level Allow, never touches buildFieldsForSession/the
+    // acknowledgment table — so a field that's still a genuine, live
+    // mismatch would otherwise render as a plain red X with no indication a
+    // human approved past it. Tag it the same way a field-level Allow would
+    // (originalMismatch: true) so this dialog gives both approval paths the
+    // same "Allowed" badge treatment. match itself is left untouched.
+    if (session.is_override && compliance?.fields) {
+      compliance.fields = compliance.fields.map((f) => (
+        f.match === false ? { ...f, originalMismatch: true } : f
+      ));
+    }
 
     res.json({
       success: true,
