@@ -605,11 +605,68 @@ function AllTimeStatus({ pipeline }) {
   );
 }
 
-function EimsDonut({ pipeline, unit = 'sessions' }) {
+// Rows for the EIMS donut's "Billed, unresolved mismatch" drill-down —
+// sessions billing already invoiced/completed despite a live EIMS mismatch
+// with nothing on file explaining why. Fetched lazily (only once the
+// legend row is expanded), same row style as ActionQueue's list.
+function BilledUnresolvedList({ monthValue, practitionerId, onSelectSession }) {
+  const [sessions, setSessions] = useState(null);
+
+  useEffect(() => {
+    let stale = false;
+    setSessions(null);
+    api.get('/api/dashboard/billed-unresolved', { params: { month: monthValue, ...(practitionerId ? { practitionerId } : {}) } })
+      .then((res) => { if (!stale) setSessions(res.data.sessions || []); })
+      .catch(() => { if (!stale) setSessions([]); });
+    return () => { stale = true; };
+  }, [monthValue, practitionerId]);
+
+  if (sessions === null) {
+    return <div className="mt-3 text-[14px] text-slate-500 text-center py-4">Loading…</div>;
+  }
+  if (sessions.length === 0) {
+    return (
+      <div className="mt-3 text-[14px] font-semibold text-slate-600 text-center py-4">
+        No billed sessions currently showing an unresolved mismatch.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3 flex flex-col gap-2 max-h-[260px] overflow-y-auto pr-1 [&>*]:shrink-0">
+      {sessions.map((s) => {
+        const age = daysAgo(s.serviceDate);
+        return (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onSelectSession(s.id)}
+            className="w-full flex items-center gap-3 bg-slate-50 hover:bg-slate-100 transition-colors rounded-xl px-4 py-3 min-w-0 text-left cursor-pointer"
+          >
+            <div className="w-[3px] self-stretch rounded-sm flex-shrink-0" style={{ background: '#7c3aed' }} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[16px] font-semibold text-slate-900 truncate">
+                {s.patientName} &middot; {s.practitionerName}
+              </div>
+              <div className="text-[14px] text-slate-600 truncate">{s.status}</div>
+            </div>
+            {age !== null && (
+              <span className="text-[13px] font-extrabold px-2.5 py-1 rounded-full flex-shrink-0 bg-violet-50 text-violet-700">
+                {age}d
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function EimsDonut({ pipeline, unit = 'sessions', monthValue, practitionerId, onSelectSession }) {
   const rate = pipeline?.eimsMatchRate;
   const displayRate = unit === 'hours' ? pipeline?.eimsMatchRateHours : rate;
+  const [billedUnresolvedOpen, setBilledUnresolvedOpen] = useState(false);
   if (!rate) return null;
-  const total = rate.matched + rate.flagged + rate.missing + rate.unverified;
+  const total = rate.matched + rate.flagged + rate.missing + rate.billedUnresolved;
   // No billed sessions in the month: the same ring and legend, grayed out, so
   // the card keeps its shape instead of collapsing to a sentence.
   const empty = total === 0;
@@ -620,7 +677,7 @@ function EimsDonut({ pipeline, unit = 'sessions' }) {
   const matchedLen = seg(rate.matched);
   const flaggedLen = seg(rate.flagged);
   const missingLen = seg(rate.missing);
-  const unverifiedLen = seg(rate.unverified);
+  const billedUnresolvedLen = seg(rate.billedUnresolved);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
@@ -642,9 +699,9 @@ function EimsDonut({ pipeline, unit = 'sessions' }) {
           <circle cx="60" cy="60" r="46" fill="none" stroke="#e11d48" strokeWidth="16"
             strokeDasharray={`${missingLen} ${C - missingLen}`} strokeDashoffset={-(matchedLen + flaggedLen)} transform="rotate(-90 60 60)" />
         )}
-        {rate.unverified > 0 && (
-          <circle cx="60" cy="60" r="46" fill="none" stroke="#94a3b8" strokeWidth="16"
-            strokeDasharray={`${unverifiedLen} ${C - unverifiedLen}`} strokeDashoffset={-(matchedLen + flaggedLen + missingLen)} transform="rotate(-90 60 60)" />
+        {rate.billedUnresolved > 0 && (
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#7c3aed" strokeWidth="16"
+            strokeDasharray={`${billedUnresolvedLen} ${C - billedUnresolvedLen}`} strokeDashoffset={-(matchedLen + flaggedLen + missingLen)} transform="rotate(-90 60 60)" />
         )}
         {!empty && (
           <>
@@ -669,10 +726,16 @@ function EimsDonut({ pipeline, unit = 'sessions' }) {
           <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#e11d48' }} />Missing in EIMS</div>
           <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.missing.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
         </div>
-        <div className="flex items-center justify-between text-[16px]">
-          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#94a3b8' }} />Unverified (no state file)</div>
-          <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.unverified.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
+        <div
+          className="flex items-center justify-between text-[16px] cursor-pointer hover:bg-slate-50 rounded-lg -mx-2 px-2 py-1"
+          onClick={() => setBilledUnresolvedOpen((v) => !v)}
+        >
+          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#7c3aed' }} />Billed, unresolved mismatch</div>
+          <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.billedUnresolved.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
         </div>
+        {billedUnresolvedOpen && (
+          <BilledUnresolvedList monthValue={monthValue} practitionerId={practitionerId} onSelectSession={onSelectSession} />
+        )}
       </div>
       )}
     </div>
@@ -1395,7 +1458,7 @@ export function CompanyDashboard() {
       <div>
         <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">EIMS match status</div>
         <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sessions from {monthLabel(monthValue)}, reconciled against state records.</p>
-        <EimsDonut pipeline={pipeline} unit={unit} />
+        <EimsDonut pipeline={pipeline} unit={unit} monthValue={monthValue} practitionerId={practitionerId} onSelectSession={setSelectedSessionId} />
       </div>
     ),
     returned_logs: (
