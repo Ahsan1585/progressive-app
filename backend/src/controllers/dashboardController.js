@@ -33,6 +33,7 @@ const DASHBOARD_CARD_KEYS = [
   'eims_status',
   'returned_logs',
   'trajectory_chart',
+  'county_hours',
 ];
 const DASHBOARD_CARD_WIDTHS = ['full', 'half'];
 
@@ -1266,6 +1267,57 @@ const getServicesBreakdown = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/county-hours?month=YYYY-MM — the Overview's "Hours by
+// County" card. patient_county is a plain (non-PHI-encrypted) snapshot
+// column on assessments (see createAssessment.js), so this aggregates
+// directly with no join or decryption needed. Sorted by hours (not count,
+// unlike bucketBreakdown's dimensions) since the card's whole point is
+// hours; top 6 plus an "Other" bucket that also absorbs any null/blank
+// county, same top-N-plus-Other shape as Services provided.
+const getCountyHours = async (req, res) => {
+  try {
+    const { start, end } = parseMonthParam(req.query.month);
+    const { rows } = await pool.query(
+      `SELECT patient_county, COALESCE(SUM(total_time), 0) / 60.0 AS hours FROM assessments
+       WHERE service_date >= $1 AND service_date <= $2 GROUP BY patient_county`,
+      [start, end]
+    );
+    const resolved = rows
+      .map((r) => ({
+        county: r.patient_county && r.patient_county.trim() ? r.patient_county : 'Other',
+        hours: Math.round(parseFloat(r.hours || 0) * 100) / 100,
+      }))
+      // A raw "Other" row (null county) and an overflow "Other" bucket below
+      // must merge into one, not appear as two separate "Other" bars.
+      .reduce((acc, r) => {
+        const existing = acc.find((x) => x.county === r.county);
+        if (existing) existing.hours = Math.round((existing.hours + r.hours) * 100) / 100;
+        else acc.push(r);
+        return acc;
+      }, []);
+    resolved.sort((a, b) => b.hours - a.hours);
+
+    let counties = resolved;
+    if (resolved.length > 6) {
+      const named = resolved.filter((r) => r.county !== 'Other');
+      const otherRow = resolved.find((r) => r.county === 'Other');
+      const top6 = named.slice(0, 6);
+      const overflow = named.slice(6);
+      const otherHours = Math.round(
+        (overflow.reduce((sum, r) => sum + r.hours, 0) + (otherRow ? otherRow.hours : 0)) * 100
+      ) / 100;
+      counties = otherHours > 0 || overflow.length > 0 || otherRow
+        ? [...top6, { county: 'Other', hours: otherHours }]
+        : top6;
+    }
+
+    res.json({ success: true, month: req.query.month || null, counties });
+  } catch (error) {
+    console.error('getCountyHours error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load county hours' });
+  }
+};
+
 // GET /api/dashboard/documents[?month=YYYY-MM] — billing_batches (latest 20, or the month's), each
 // rolled up to one status: "worst wins" across its assessment lines (any
 // genuine field-level mismatch -> mismatch; else anything else unresolved
@@ -1448,4 +1500,5 @@ module.exports = {
   DASHBOARD_CARD_WIDTHS,
   getServicesBreakdown,
   getDocumentsFeed,
+  getCountyHours,
 };

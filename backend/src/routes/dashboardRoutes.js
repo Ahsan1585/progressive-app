@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, loadPermissions, requirePermission } = require('../middleware/authMiddleware');
-const { getDayOverview, getPipelineOverview, getReturnedLogs, getSessionDetail, getMonthOverview, getYearOverview, getYearsOverview, getAccountsPayable, getDashboardLayout, saveDashboardLayout, getServicesBreakdown, getDocumentsFeed, getDashboardPractitioners, getBilledUnresolvedSessions } = require('../controllers/dashboardController');
+const { getDayOverview, getPipelineOverview, getReturnedLogs, getSessionDetail, getMonthOverview, getYearOverview, getYearsOverview, getAccountsPayable, getDashboardLayout, saveDashboardLayout, getServicesBreakdown, getDocumentsFeed, getDashboardPractitioners, getBilledUnresolvedSessions, getCountyHours } = require('../controllers/dashboardController');
 
 // Reuses the existing master_reports permission — same class of access as
 // Master Reports (company-wide view, not a single practitioner's own
@@ -23,5 +23,6 @@ router.get('/services', ...dashboardGuard, getServicesBreakdown);
 router.get('/documents', ...dashboardGuard, getDocumentsFeed);
 router.get('/practitioners', ...dashboardGuard, getDashboardPractitioners);
 router.get('/billed-unresolved', ...dashboardGuard, getBilledUnresolvedSessions);
+router.get('/county-hours', ...dashboardGuard, getCountyHours);
 
 module.exports = router;

@@ -6,10 +6,10 @@ const { getDashboardLayout, saveDashboardLayout, DASHBOARD_CARD_KEYS } = require
 afterEach(() => jest.resetAllMocks());
 
 describe('DASHBOARD_CARD_KEYS', () => {
-  test('is the fixed 8-key set the frontend and validation both rely on', () => {
+  test('is the fixed 9-key set the frontend and validation both rely on', () => {
     expect(DASHBOARD_CARD_KEYS).toEqual([
       'billing_pipeline', 'action_queue', 'services_breakdown', 'documents_feed',
-      'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart',
+      'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart', 'county_hours',
     ]);
   });
 });

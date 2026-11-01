@@ -846,6 +846,67 @@ function ServicesBreakdown({ data, unit = 'sessions' }) {
   );
 }
 
+// "Hours by County" — its own month dropdown, independent of the page-level
+// Overview month picker, since a CEO comparing county coverage often wants
+// to look at a different month than whatever the rest of the page is
+// scoped to. No sessions/hours toggle: the card is hours-only by design.
+function CountyHoursChart() {
+  const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
+  const [counties, setCounties] = useState(null);
+
+  useEffect(() => {
+    let stale = false;
+    setCounties(null);
+    api.get('/api/dashboard/county-hours', { params: { month: monthValue } })
+      .then((res) => { if (!stale) setCounties(res.data.counties || []); })
+      .catch(() => { if (!stale) setCounties([]); });
+    return () => { stale = true; };
+  }, [monthValue]);
+
+  const bars = (counties || []).map((c) => ({ key: c.county, label: c.county, hours: c.hours }));
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <MonthYearPicker value={monthValue} onChange={setMonthValue} />
+        <div className="flex items-center gap-1.5 text-[14px] font-semibold text-slate-600">
+          <span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#2dd4bf' }} />
+          Hours
+        </div>
+      </div>
+      <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900 mb-4">Hours by County</div>
+      {counties === null ? (
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">Loading…</div>
+      ) : bars.length === 0 ? (
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No sessions logged for {monthLabel(monthValue)}.</div>
+      ) : (
+        <div style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={bars} barCategoryGap="28%">
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis dataKey="label" interval={0} tick={{ fontSize: 13, fill: '#334155', fontWeight: 700 }} axisLine={false} tickLine={false} />
+              <YAxis
+                label={{ value: 'Hours', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 13, fontWeight: 700 }}
+                tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(15,23,42,0.04)' }}
+                contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, color: '#0f172a' }}
+                labelStyle={{ color: '#0f172a', fontWeight: 700 }}
+                formatter={(v) => [`${v.toLocaleString()} hrs`, 'Hours']}
+              />
+              <Bar dataKey="hours" radius={[6, 6, 0, 0]} maxBarSize={56} fill="#2dd4bf" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const DOC_STATUS_TONE = {
   matched: { bg: 'bg-teal-50', text: 'text-teal-700', label: 'Matched' },
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Pending' },
@@ -1508,6 +1569,11 @@ export function CompanyDashboard() {
         <p className="text-[17px] text-slate-300 mb-5 max-w-3xl">The volume trend, and how it's reconciling against the state.</p>
         {trajectoryTab === 'month' && <MonthTrajectory month={month} onMonthChange={setMonthValue} />}
         {trajectoryTab === 'year' && <YearTrajectory />}
+      </div>
+    ),
+    county_hours: (
+      <div>
+        <CountyHoursChart />
       </div>
     ),
   };

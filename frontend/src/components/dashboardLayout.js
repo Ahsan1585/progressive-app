@@ -5,7 +5,7 @@
 // against the same fixed set.
 export const DASHBOARD_CARD_KEYS = [
   'billing_pipeline', 'action_queue', 'services_breakdown', 'documents_feed',
-  'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart',
+  'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart', 'county_hours',
 ];
 
 // The default is designed, not stacked: cards whose content is a short list or
@@ -26,6 +26,7 @@ export const DEFAULT_CARD_LAYOUT = [
   { key: 'documents_feed', width: 'half' },
   { key: 'accuracy_table', width: 'full' },
   { key: 'trajectory_chart', width: 'full' },
+  { key: 'county_hours', width: 'full' },
 ];
 
 // A layout saved under an earlier card set (or a future one this build does not
