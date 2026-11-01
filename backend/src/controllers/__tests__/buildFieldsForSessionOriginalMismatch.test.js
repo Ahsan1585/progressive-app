@@ -68,6 +68,25 @@ describe('buildFieldsForSession — originalMismatch', () => {
     expect(startTime.state).toBe('15:35');
   });
 
+  test('an acknowledged field also surfaces who allowed it and when', () => {
+    const ackByKey = new Map([
+      ['42:start_time', {
+        our_value: '15:50', state_value: '15:35',
+        allowed_by_first_name: 'Priya', allowed_by_last_name: 'Shah',
+        allowed_at: '2026-05-22T14:03:00.000Z',
+      }],
+    ]);
+    const overridesByField = new Map();
+
+    const fields = buildFieldsForSession(baseSession, baseMatch, {
+      customFieldsByLabel, mappedKeys, matchParams, overridesByField, ackByKey,
+    });
+
+    const startTime = fields.find((f) => f.key === 'start_time');
+    expect(startTime.allowedBy).toBe('Priya Shah');
+    expect(startTime.allowedAt).toBe('2026-05-22T14:03:00.000Z');
+  });
+
   test('a field resolved by a learned-match rule also carries originalMismatch:true', () => {
     // "Hazel Hughes" vs "Zelda Winthrop" share no words, so scoredNamesMatch
     // reports a genuine mismatch here — exactly the case a learned override

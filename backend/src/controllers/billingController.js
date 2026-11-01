@@ -2065,7 +2065,11 @@ async function loadOverridesByField() {
 async function loadAcknowledgments(assessmentIds) {
   if (!assessmentIds.length) return new Map();
   const { rows } = await pool.query(
-    'SELECT assessment_id, field_key, our_value, state_value FROM compliance_field_acknowledgments WHERE assessment_id = ANY($1::int[])',
+    `SELECT a.assessment_id, a.field_key, a.our_value, a.state_value, a.allowed_at,
+            p.first_name AS allowed_by_first_name, p.last_name AS allowed_by_last_name
+     FROM compliance_field_acknowledgments a
+     LEFT JOIN practitioners p ON p.id = a.allowed_by
+     WHERE a.assessment_id = ANY($1::int[])`,
     [assessmentIds]
   );
   const map = new Map();
@@ -2333,7 +2337,13 @@ function buildFieldsForSession(session, match, ctx) {
       // drill-down can still show this field as the true discrepancy it
       // was, with an "Allowed" badge, instead of a plain green check —
       // match itself stays true so billing/flagged logic is unaffected.
-      return { ...f, match: true, acknowledged: true, originalMismatch: true };
+      // allowedBy/allowedAt surface who made that call and when, for the
+      // same drill-down.
+      const allowedByName = [ack.allowed_by_first_name, ack.allowed_by_last_name].filter(Boolean).join(' ') || null;
+      return {
+        ...f, match: true, acknowledged: true, originalMismatch: true,
+        allowedBy: allowedByName, allowedAt: ack.allowed_at || null,
+      };
     }
     return f;
   });

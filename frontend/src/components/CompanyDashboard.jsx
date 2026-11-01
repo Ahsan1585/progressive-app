@@ -223,6 +223,9 @@ function SessionDetailDialog({ assessmentId, onClose }) {
                     const isTimeField = f.key === 'start_time' || f.key === 'end_time';
                     const oursDisplay = isTimeField ? formatTime12h(f.ours) || f.ours : f.ours;
                     const stateDisplay = isTimeField ? formatTime12h(f.state) || f.state : f.state;
+                    const allowedDateLabel = f.allowedAt
+                      ? new Date(f.allowedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                      : null;
                     return (
                       <tr key={f.key} className={shownAsMismatch ? 'bg-red-50/60' : ''}>
                         <td className="px-3 py-2 font-semibold text-slate-700 align-top">
@@ -233,6 +236,9 @@ function SessionDetailDialog({ assessmentId, onClose }) {
                               <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">Allowed</span>
                             )}
                           </div>
+                          {f.originalMismatch && f.allowedBy && (
+                            <div className="text-[11px] font-normal text-slate-500 mt-0.5">by {f.allowedBy}{allowedDateLabel ? ` · ${allowedDateLabel}` : ''}</div>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-slate-800 align-top break-words">{oursDisplay ?? '—'}</td>
                         <td className={`px-3 py-2 align-top break-words ${shownAsMismatch ? 'text-red-700 font-semibold' : 'text-slate-800'}`}>{stateDisplay ?? '—'}</td>
