@@ -846,16 +846,13 @@ function ServicesBreakdown({ data, unit = 'sessions' }) {
   );
 }
 
-// "Hours by County" — its own month dropdown, independent of the page-level
-// Overview month picker, since a CEO comparing county coverage often wants
-// to look at a different month than whatever the rest of the page is
-// scoped to. No sessions/hours toggle: the card is hours-only by design.
-// initialMonth seeds the starting selection from whatever month the rest of
-// the page is already showing (rather than always starting at "this
-// month"), but only on mount — the two pickers stay independent after that,
-// so changing the page's month picker later doesn't yank this card along.
-function CountyHoursChart({ initialMonth }) {
-  const [monthValue, setMonthValue] = useState(() => initialMonth || new Date().toISOString().slice(0, 7));
+// "Hours by County" — shares the page-level Overview month picker (not its
+// own independent one): the card's own dropdown just mirrors/drives the
+// same monthValue the rest of the page is scoped to, so switching the main
+// picker updates this card too instead of leaving it stuck on whatever
+// month it first loaded with. No sessions/hours toggle: the card is
+// hours-only by design.
+function CountyHoursChart({ monthValue, onMonthChange }) {
   const [counties, setCounties] = useState(null);
 
   useEffect(() => {
@@ -872,7 +869,7 @@ function CountyHoursChart({ initialMonth }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-        <MonthYearPicker value={monthValue} onChange={setMonthValue} />
+        <MonthYearPicker value={monthValue} onChange={onMonthChange} />
         <div className="flex items-center gap-1.5 text-[14px] font-semibold text-slate-600">
           <span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#2dd4bf' }} />
           Hours
@@ -1577,7 +1574,7 @@ export function CompanyDashboard() {
     ),
     county_hours: (
       <div>
-        <CountyHoursChart initialMonth={monthValue} />
+        <CountyHoursChart monthValue={monthValue} onMonthChange={setMonthValue} />
       </div>
     ),
   };
