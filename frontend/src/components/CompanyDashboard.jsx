@@ -425,7 +425,7 @@ function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
             (e.g. "$79 held" here vs. "$116.92 ready" in the tile, with nothing
             saying they're both slices of the same $196.09 owed this month). */}
         <p className="text-[16px] sm:text-[18px] leading-relaxed max-w-2xl" style={{ color: 'rgba(253,253,255,0.9)' }}>
-          <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners this month{totalBilledHours > 0 && <> (<b className="text-white font-extrabold">{hoursLabel(totalBilledHours)} hrs</b> billed)</>}
+          <b className="text-white font-extrabold">{money(totalOwed)}</b> is owed to practitioners this month{totalBilledHours > 0 && <> (<b className="text-white font-extrabold">{hoursLabel(totalBilledHours)} hrs</b> invoiced)</>}
           {totalOwed > 0 && (
             <>
               : <b className="text-white font-extrabold">{money(totalClear)}</b>{totalClearHours > 0 && <> ({hoursLabel(totalClearHours)} hrs)</>} is ready to pay now, <b className="text-white font-extrabold">{money(totalHeld)}</b>{totalHeldHours > 0 && <> ({hoursLabel(totalHeldHours)} hrs)</>} is being held back
@@ -655,7 +655,7 @@ function BilledUnresolvedList({ monthValue, practitionerId, onSelectSession }) {
   if (sessions.length === 0) {
     return (
       <div className="mt-3 text-[14px] font-semibold text-slate-600 text-center py-4">
-        No billed sessions currently showing an unresolved mismatch.
+        No invoiced sessions currently showing an unresolved mismatch.
       </div>
     );
   }
@@ -758,7 +758,7 @@ function EimsDonut({ pipeline, unit = 'sessions', monthValue, practitionerId, on
           className="flex items-center justify-between text-[16px] cursor-pointer hover:bg-slate-50 rounded-lg -mx-2 px-2 py-1"
           onClick={() => setBilledUnresolvedOpen((v) => !v)}
         >
-          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#7c3aed' }} />Billed, unresolved mismatch</div>
+          <div className="flex items-center gap-2 text-slate-700 font-semibold"><span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: '#7c3aed' }} />Invoiced, unresolved mismatch</div>
           <span className="font-mono font-extrabold text-[18px] text-slate-900">{displayRate.billedUnresolved.toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
         </div>
         {billedUnresolvedOpen && (
@@ -1209,8 +1209,8 @@ function YearTrajectory() {
           <VolumeBars data={series} highlightKey={String(currentYear)} maxBarSize={90} />
           <div className="text-[14px] text-slate-400 mt-2.5">
             {thisYear.data?.fullYearCompliance?.coverageRate != null
-              ? `${thisYear.data.fullYearCompliance.coverageRate}% of ${currentYear}'s billed sessions have a matching state record on file.`
-              : `Not enough billed sessions in ${currentYear} to compute coverage.`}
+              ? `${thisYear.data.fullYearCompliance.coverageRate}% of ${currentYear}'s invoiced sessions have a matching state record on file.`
+              : `Not enough invoiced sessions in ${currentYear} to compute coverage.`}
           </div>
         </div>
       )}
