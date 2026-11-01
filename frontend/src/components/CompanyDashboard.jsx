@@ -881,27 +881,35 @@ function CountyHoursChart({ monthValue, onMonthChange }) {
       ) : bars.length === 0 ? (
         <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No sessions logged for {monthLabel(monthValue)}.</div>
       ) : (
-        <div style={{ height: 260 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={bars} barCategoryGap="28%">
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="label" interval={0} tick={{ fontSize: 13, fill: '#334155', fontWeight: 700 }} axisLine={false} tickLine={false} />
-              <YAxis
-                label={{ value: 'Hours', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 13, fontWeight: 700 }}
-                tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                cursor={{ fill: 'rgba(15,23,42,0.04)' }}
-                contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, color: '#0f172a' }}
-                labelStyle={{ color: '#0f172a', fontWeight: 700 }}
-                formatter={(v) => [`${v.toLocaleString()} hrs`, 'Hours']}
-              />
-              <Bar dataKey="hours" radius={[6, 6, 0, 0]} maxBarSize={56} fill="#2dd4bf" />
-            </BarChart>
-          </ResponsiveContainer>
+        // recharts spreads bars evenly across the full chart width regardless
+        // of how many there are, so with only a handful of counties (as few
+        // as 1-4 some months) a wide card leaves huge gaps between bars.
+        // Capping the chart's own width by bar count, then centering it,
+        // keeps bars a consistent width instead of stretching to fill the
+        // card.
+        <div style={{ height: 260 }} className="flex justify-center">
+          <div style={{ width: Math.min(bars.length * 110, 640), maxWidth: '100%', height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={bars} barCategoryGap="20%">
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="label" interval={0} tick={{ fontSize: 13, fill: '#334155', fontWeight: 700 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  label={{ value: 'Hours', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 13, fontWeight: 700 }}
+                  tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
+                  axisLine={false}
+                  tickLine={false}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(15,23,42,0.04)' }}
+                  contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, color: '#0f172a' }}
+                  labelStyle={{ color: '#0f172a', fontWeight: 700 }}
+                  formatter={(v) => [`${v.toLocaleString()} hrs`, 'Hours']}
+                />
+                <Bar dataKey="hours" radius={[6, 6, 0, 0]} maxBarSize={64} fill="#2dd4bf" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
     </div>
