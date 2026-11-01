@@ -428,7 +428,7 @@ const getPipelineOverview = async (req, res) => {
     let pendingCheckedPractitionerSql = '';
     if (practitionerId) { pendingCheckedParams.push(practitionerId); pendingCheckedPractitionerSql = ` AND a.practitioner_id = $${pendingCheckedParams.length}`; }
     const { rows: pendingCheckedSessions } = await pool.query(
-      `SELECT a.practitioner_id, a.eims_last_flagged, a.eims_last_missing
+      `SELECT a.practitioner_id, a.eims_last_flagged, a.eims_last_missing, a.total_time
        FROM assessments a
        WHERE ${PENDING_CHECKED_SQL}
          AND ${inMonthSql(1, 2, 'a.service_date')}${pendingCheckedPractitionerSql}`,
