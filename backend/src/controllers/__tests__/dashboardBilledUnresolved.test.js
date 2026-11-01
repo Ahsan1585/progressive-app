@@ -56,6 +56,36 @@ describe('getBilledUnresolvedSessions', () => {
     });
   });
 
+  test('an exceptionally-approved (is_override) session that still mismatches EIMS is included too', async () => {
+    const sessions = [
+      { id: 10, billing_status: 'invoiced', practitioner_id: 1, total_time: 60, service_date: '2026-09-10', is_override: true,
+        patient_first_name: 'Arjun', patient_last_name: 'Rivera', practitioner_first_name: 'Hector', practitioner_last_name: 'Nguyen' },
+      { id: 11, billing_status: 'invoiced', practitioner_id: 1, total_time: 60, service_date: '2026-09-11', is_override: true,
+        patient_first_name: 'Layla', patient_last_name: 'James', practitioner_first_name: 'Hector', practitioner_last_name: 'Nguyen' },
+    ];
+    deriveEimsStatus.mockImplementation((s) => {
+      // Overridden, but the underlying compliance data still disagrees ->
+      // hasOverride: false (nothing actually resolved the discrepancy).
+      if (s.id === 10) return { tier: 'cleared', label: 'Override', hasOverride: false };
+      // Overridden, but it turned out to actually match EIMS cleanly ->
+      // hasOverride: true (genuinely resolved, not just bypassed).
+      return { tier: 'cleared', label: 'Override', hasOverride: true };
+    });
+
+    pool.query.mockImplementation(async (sql) => {
+      if (/billing_status IN \('njeis_review', 'invoiced'/.test(sql)) return { rows: sessions };
+      if (/FROM practitioners WHERE id = ANY/.test(sql)) return { rows: [{ id: 1, role: 'practitioner' }] };
+      return { rows: [] };
+    });
+
+    const res = mkRes();
+    await getBilledUnresolvedSessions({ query: { month: '2026-09' } }, res);
+
+    const { sessions: out } = res.json.mock.calls[0][0];
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ id: 10, patientName: 'Arjun Rivera', practitionerName: 'Hector Nguyen' });
+  });
+
   test('an empty result returns an empty list, not an error', async () => {
     deriveEimsStatus.mockReturnValue({ tier: 'cleared', label: 'Matched', hasOverride: false });
     pool.query.mockResolvedValue({ rows: [] });

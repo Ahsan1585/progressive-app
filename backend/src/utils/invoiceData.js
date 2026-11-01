@@ -78,13 +78,26 @@ function deriveEimsStatus(assessment, { mode, compliance }) {
   // Override mode exists specifically for logs an admin is now actively
   // approving for payment despite their earlier declined/rejected status
   // (see reportController.js's issueInvoiceOverride, which flips
-  // billing_review to 'accept' before this is ever called) — tier must be
-  // 'cleared' so it actually gets paid, same as the "approved but no EIMS
-  // match" rule below. The "Admin override" label keeps this visible as
-  // having bypassed normal EIMS verification, just not held back from
+  // billing_review to 'accept' before this is ever called) — tier must
+  // stay 'cleared' so it actually gets paid, same as the "approved but no
+  // EIMS match" rule below. The "Admin override" label keeps this visible
+  // as having bypassed normal EIMS verification, just not held back from
   // TOTAL DUE like a true exception.
+  //
+  // hasOverride here is NOT "an override exists" (that's always true on
+  // this branch by definition) — it's "did an admin override something
+  // that's still genuinely unresolved." An override used on a session
+  // that actually matches EIMS cleanly isn't "nothing on file, billed
+  // anyway" — the Overview EIMS donut's "Billed, unresolved mismatch"
+  // bucket is specifically for the former: overriding past a real,
+  // still-live discrepancy. "Can't currently verify" (no compliance data,
+  // no state document on file, or independent/self-reported with no
+  // cross-check) counts as unresolved too — an override used where there
+  // is nothing to confirm against is no safer than one used against a
+  // known mismatch.
   if (mode === 'override' || assessment.is_override) {
-    return { tier: 'cleared', label: 'Override', hasOverride: false };
+    const stillUnresolved = !(compliance && compliance.documentOnFile && compliance.matched && !compliance.flagged);
+    return { tier: 'cleared', label: 'Override', hasOverride: !stillUnresolved };
   }
 
   // A zero-duration log is a cancelled/no-show visit, never a billable

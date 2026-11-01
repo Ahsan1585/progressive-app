@@ -39,6 +39,16 @@ describe('eimsBucket', () => {
     // 'billedUnresolved' — "nothing on file" is specifically what the new
     // bucket means.
     [{ tier: 'pending', label: 'Mismatch', hasOverride: true }, false, true, 'flagged'],
+    // An admin "exceptional approval" (is_override) used on an already-billed
+    // session that STILL can't be confirmed to match EIMS (deriveEimsStatus's
+    // hasOverride is false specifically in that case) — the override made it
+    // payable, but didn't resolve the discrepancy, so it belongs in the same
+    // bucket as any other billed-with-nothing-on-file mismatch.
+    [{ tier: 'cleared', label: 'Override', hasOverride: false }, false, true, 'billedUnresolved'],
+    // An override used on a session that actually matches EIMS cleanly (or
+    // one not yet billed at all) is a genuinely resolved/non-blocking case,
+    // same as any other clean match.
+    [{ tier: 'cleared', label: 'Override', hasOverride: true }, false, true, 'matched'],
     // alreadyBilled is irrelevant to every non-"unresolved mismatch" verdict.
     [{ tier: 'cleared', label: 'Matched', hasOverride: false }, false, true, 'matched'],
     [{ tier: 'exception', label: 'Missing', hasOverride: false }, false, true, 'missing'],

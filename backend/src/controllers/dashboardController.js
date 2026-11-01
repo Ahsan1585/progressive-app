@@ -53,7 +53,14 @@ const BILLED_STATUSES = ['invoiced', 'completed', 'self_certified'];
 //   billedUnresolved a session billing already invoiced/completed despite a live
 //                     EIMS mismatch with nothing on file (no acknowledged or
 //                     learned-override field) explaining why — invoiced anyway
-//                     without anyone signing off on the discrepancy
+//                     without anyone signing off on the discrepancy. Also
+//                     covers an admin "exceptional approval" (is_override)
+//                     used on a session that still can't be confirmed to
+//                     match EIMS (deriveEimsStatus's hasOverride is false
+//                     on the Override label precisely in that case) — the
+//                     override made it payable, but didn't actually resolve
+//                     the discrepancy, so it still needed a human decision
+//                     and got one anyway.
 // A session that could not be checked at all (tier 'unverified', no state file
 // uploaded) returns null — it's not a match-status verdict, just an absence of
 // data, so it's excluded from the ring/total entirely rather than counted
@@ -61,6 +68,7 @@ const BILLED_STATUSES = ['invoiced', 'completed', 'self_certified'];
 // Used by both the pipeline and the month overview so they cannot disagree.
 const eimsBucket = (derived, humanHold, alreadyBilled) => {
   if (humanHold) return 'flagged';
+  if (derived.label === 'Override' && alreadyBilled && !derived.hasOverride) return 'billedUnresolved';
   if (derived.tier === 'cleared') return 'matched';
   if (derived.label === 'Missing' || derived.label === 'Awaiting') return 'missing';
   if (derived.tier === 'unverified') return null;
@@ -509,14 +517,23 @@ const getBilledUnresolvedSessions = async (req, res) => {
     );
 
     const sessions = billedSessions
-      .filter((s) => BILLED_STATUSES.includes(s.billing_status))
       .map((s) => {
         const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
         const compliance = complianceById.get(s.id) || null;
-        const derived = deriveEimsStatus(s, { mode, compliance });
-        return { s, derived };
+        // Same as getPipelineOverview's own computation — a human hold/
+        // return/decline is never deriveEimsStatus'd (it's structurally
+        // never a BILLED_STATUSES session anyway, so this can't change the
+        // outcome here, but keeping both call sites identical is what
+        // stops them from silently drifting apart again).
+        const humanHold = ['on_hold', 'rejected', 'declined'].includes(s.billing_status);
+        const derived = humanHold ? { tier: 'exception' } : deriveEimsStatus(s, { mode, compliance });
+        // Same routing eimsBucket uses for the donut's count — reusing it
+        // (rather than re-deriving the "billed + unresolved" condition
+        // here) is what keeps this list from being able to silently
+        // disagree with the number the donut shows.
+        return { s, bucket: eimsBucket(derived, humanHold, BILLED_STATUSES.includes(s.billing_status)) };
       })
-      .filter(({ derived }) => derived.label === 'Mismatch' && !derived.hasOverride)
+      .filter(({ bucket }) => bucket === 'billedUnresolved')
       .map(({ s }) => ({
         id: s.id,
         patientName: `${decryptField(s.patient_first_name) || ''} ${decryptField(s.patient_last_name) || ''}`.trim(),

@@ -108,6 +108,31 @@ describe('deriveEimsStatus', () => {
     });
   });
 
+  // hasOverride on the Override label itself means "did this override
+  // resolve something that's STILL unresolved" — an admin override used on
+  // a session that actually matches EIMS cleanly isn't "billed with nothing
+  // on file," so it reports hasOverride: true (treated the same as any
+  // other acknowledged discrepancy); one used where the data still
+  // disagrees, or there's nothing to compare against, reports false (the
+  // Overview EIMS donut's "Billed, unresolved mismatch" bucket needs this).
+  it('an override on a session that actually matches EIMS cleanly reports hasOverride: true', () => {
+    expect(
+      deriveEimsStatus({ ...base, is_override: true }, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: false } })
+    ).toEqual({ tier: 'cleared', label: 'Override', hasOverride: true });
+  });
+
+  it('an override on a session that still genuinely mismatches EIMS reports hasOverride: false', () => {
+    expect(
+      deriveEimsStatus({ ...base, is_override: true }, { mode: 'agency', compliance: { documentOnFile: true, matched: true, flagged: true } })
+    ).toEqual({ tier: 'cleared', label: 'Override', hasOverride: false });
+  });
+
+  it('an override with no document on file to check against reports hasOverride: false', () => {
+    expect(
+      deriveEimsStatus({ ...base, is_override: true }, { mode: 'agency', compliance: { documentOnFile: false } })
+    ).toEqual({ tier: 'cleared', label: 'Override', hasOverride: false });
+  });
+
   it('eims_missing_status rejected is always an exception, never paid', () => {
     expect(deriveEimsStatus({ ...base, eims_missing_status: 'rejected' }, { mode: 'agency', compliance: {} })).toEqual({
       tier: 'exception',
