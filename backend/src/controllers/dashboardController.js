@@ -36,20 +36,35 @@ const DASHBOARD_CARD_KEYS = [
 ];
 const DASHBOARD_CARD_WIDTHS = ['full', 'half'];
 
+// Statuses that mean "billing has already acted on this" — on_hold/rejected/
+// declined are excluded even though they're also past 'pending': those route
+// through the humanHold branch below instead, and njeis_review is excluded
+// since billing hasn't finished reviewing it yet (not actually billed).
+const BILLED_STATUSES = ['invoiced', 'completed', 'self_certified'];
+
 // Which slice of the EIMS match ring a session belongs to:
-//   matched    EIMS verified it, an admin approved it, or it needs no check
-//   missing    no EIMS record for it ("Missing"), including one already sent to
-//              an admin for approval ("Awaiting"): still missing from EIMS
-//   unverified it could not be checked (no state file uploaded)
-//   flagged    everything else that needs a look: a field mismatch, a duplicate,
-//              a rejection, or a human hold/return/decline (which always wins,
-//              whatever EIMS says)
+//   matched          EIMS verified it, an admin approved it, or it needs no check
+//   missing          no EIMS record for it ("Missing"), including one already sent
+//                     to an admin for approval ("Awaiting"): still missing from EIMS
+//   flagged          a currently-unresolved mismatch/duplicate/rejection that has
+//                     NOT yet been billed — still actually blocking something — or
+//                     a human hold/return/decline (which always wins, whatever
+//                     EIMS says)
+//   billedUnresolved a session billing already invoiced/completed despite a live
+//                     EIMS mismatch with nothing on file (no acknowledged or
+//                     learned-override field) explaining why — invoiced anyway
+//                     without anyone signing off on the discrepancy
+// A session that could not be checked at all (tier 'unverified', no state file
+// uploaded) returns null — it's not a match-status verdict, just an absence of
+// data, so it's excluded from the ring/total entirely rather than counted
+// under any bucket.
 // Used by both the pipeline and the month overview so they cannot disagree.
-const eimsBucket = (derived, humanHold) => {
+const eimsBucket = (derived, humanHold, alreadyBilled) => {
   if (humanHold) return 'flagged';
   if (derived.tier === 'cleared') return 'matched';
   if (derived.label === 'Missing' || derived.label === 'Awaiting') return 'missing';
-  if (derived.tier === 'unverified') return 'unverified';
+  if (derived.tier === 'unverified') return null;
+  if (alreadyBilled && !derived.hasOverride) return 'billedUnresolved';
   return 'flagged';
 };
 
@@ -410,8 +425,8 @@ const getPipelineOverview = async (req, res) => {
       analyzeFn,
       computeSessionCompliance
     );
-    const eimsMatchRate = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
-    const eimsMatchRateHours = { matched: 0, flagged: 0, missing: 0, unverified: 0 };
+    const eimsMatchRate = { matched: 0, flagged: 0, missing: 0, billedUnresolved: 0 };
+    const eimsMatchRateHours = { matched: 0, flagged: 0, missing: 0, billedUnresolved: 0 };
     billedSessions.forEach((s) => {
       const mode = roleById.get(s.practitioner_id) === 'independent_practitioner' ? 'independent' : 'agency';
       const compliance = complianceById.get(s.id) || null;
@@ -420,9 +435,11 @@ const getPipelineOverview = async (req, res) => {
       // tier alone would derive to.
       const humanHold = ['on_hold', 'rejected', 'declined'].includes(s.billing_status);
       const derived = humanHold ? { tier: 'exception' } : deriveEimsStatus(s, { mode, compliance });
-      const bucket = eimsBucket(derived, humanHold);
-      eimsMatchRate[bucket] += 1;
-      eimsMatchRateHours[bucket] += s.total_time ? s.total_time / 60 : 0;
+      const bucket = eimsBucket(derived, humanHold, BILLED_STATUSES.includes(s.billing_status));
+      if (bucket) {
+        eimsMatchRate[bucket] += 1;
+        eimsMatchRateHours[bucket] += s.total_time ? s.total_time / 60 : 0;
+      }
     });
     pendingCheckedSessions.forEach((s) => {
       // Independent practitioners self-report; their pending sessions are not cross-checked.

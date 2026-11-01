@@ -20,46 +20,62 @@ beforeEach(() => {
 
 describe('eimsBucket', () => {
   test.each([
-    [{ tier: 'cleared', label: 'Matched' }, false, 'matched'],
-    [{ tier: 'cleared', label: 'Approved' }, false, 'matched'],
-    [{ tier: 'cleared', label: 'Override' }, false, 'matched'],
-    [{ tier: 'exception', label: 'Missing' }, false, 'missing'],
-    [{ tier: 'pending', label: 'Awaiting' }, false, 'missing'], // missing, sent to an admin for approval
-    [{ tier: 'unverified', label: 'Unverified' }, false, 'unverified'],
-    [{ tier: 'pending', label: 'Mismatch' }, false, 'flagged'],
-    [{ tier: 'exception', label: 'Duplicate' }, false, 'flagged'],
-    [{ tier: 'exception', label: 'Rejected' }, false, 'flagged'],
-    [{ tier: 'pending', label: 'Not entered' }, false, 'flagged'], // independent, not yet entered
-    // A human hold/return/decline is flagged whatever EIMS says, even "Missing".
-    [{ tier: 'exception', label: 'Missing' }, true, 'flagged'],
-    [{ tier: 'cleared', label: 'Matched' }, true, 'flagged'],
-  ])('%j (held=%s) -> %s', (derived, held, expected) => {
-    expect(eimsBucket(derived, held)).toBe(expected);
+    // [derived, humanHold, alreadyBilled, expected]
+    [{ tier: 'cleared', label: 'Matched', hasOverride: false }, false, false, 'matched'],
+    [{ tier: 'cleared', label: 'Approved', hasOverride: false }, false, false, 'matched'],
+    [{ tier: 'cleared', label: 'Override', hasOverride: false }, false, false, 'matched'],
+    [{ tier: 'exception', label: 'Missing', hasOverride: false }, false, false, 'missing'],
+    [{ tier: 'pending', label: 'Awaiting', hasOverride: false }, false, false, 'missing'], // missing, sent to an admin for approval
+    [{ tier: 'unverified', label: 'Unverified', hasOverride: false }, false, false, null], // dropped from the chart, not counted
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: false }, false, false, 'flagged'], // not yet billed: still blocking
+    [{ tier: 'exception', label: 'Duplicate', hasOverride: false }, false, false, 'flagged'],
+    [{ tier: 'exception', label: 'Rejected', hasOverride: false }, false, false, 'flagged'],
+    [{ tier: 'pending', label: 'Not entered', hasOverride: false }, false, false, 'flagged'], // independent, not yet entered
+    // Already billed (invoiced/completed/self_certified) + genuinely unresolved
+    // mismatch (no override anywhere on the session) -> the new bucket.
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: false }, false, true, 'billedUnresolved'],
+    // Already billed, but SOME field on the session has an override on file
+    // (even if the session is still flagged overall) -> stays 'flagged', not
+    // 'billedUnresolved' — "nothing on file" is specifically what the new
+    // bucket means.
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: true }, false, true, 'flagged'],
+    // alreadyBilled is irrelevant to every non-"unresolved mismatch" verdict.
+    [{ tier: 'cleared', label: 'Matched', hasOverride: false }, false, true, 'matched'],
+    [{ tier: 'exception', label: 'Missing', hasOverride: false }, false, true, 'missing'],
+    // A human hold/return/decline is flagged whatever EIMS says, even "Missing",
+    // and even if it's one of the statuses that would otherwise count as billed.
+    [{ tier: 'exception', label: 'Missing', hasOverride: false }, true, false, 'flagged'],
+    [{ tier: 'cleared', label: 'Matched', hasOverride: false }, true, false, 'flagged'],
+    [{ tier: 'pending', label: 'Mismatch', hasOverride: false }, true, true, 'flagged'],
+  ])('%j (held=%s, billed=%s) -> %s', (derived, held, billed, expected) => {
+    expect(eimsBucket(derived, held, billed)).toBe(expected);
   });
 });
 
 describe('getPipelineOverview EIMS ring', () => {
-  test('counts missing sessions under missing, not under mismatch/pending', async () => {
+  test('counts missing sessions under missing, not under mismatch/pending; drops unverified; splits billed-unresolved from flagged', async () => {
     const billed = [
       { id: 1, billing_status: 'invoiced', practitioner_id: 1 },
       { id: 2, billing_status: 'invoiced', practitioner_id: 1 },
       { id: 3, billing_status: 'njeis_review', practitioner_id: 1 },
       { id: 4, billing_status: 'njeis_review', practitioner_id: 1 },
       { id: 5, billing_status: 'njeis_review', practitioner_id: 1 },
-      { id: 6, billing_status: 'njeis_review', practitioner_id: 1 },
+      { id: 6, billing_status: 'njeis_review', practitioner_id: 1 }, // not yet billed, mismatch -> flagged
       { id: 7, billing_status: 'njeis_review', practitioner_id: 1 },
       { id: 8, billing_status: 'on_hold', practitioner_id: 1 },
+      { id: 9, billing_status: 'invoiced', practitioner_id: 1 }, // already billed, mismatch, no override -> billedUnresolved
     ];
     const byId = {
-      1: { tier: 'cleared', label: 'Matched' },
-      2: { tier: 'cleared', label: 'Approved' },
-      3: { tier: 'exception', label: 'Missing' },
-      4: { tier: 'pending', label: 'Awaiting' },
-      5: { tier: 'unverified', label: 'Unverified' },
-      6: { tier: 'pending', label: 'Mismatch' },
-      7: { tier: 'exception', label: 'Duplicate' },
+      1: { tier: 'cleared', label: 'Matched', hasOverride: false },
+      2: { tier: 'cleared', label: 'Approved', hasOverride: false },
+      3: { tier: 'exception', label: 'Missing', hasOverride: false },
+      4: { tier: 'pending', label: 'Awaiting', hasOverride: false },
+      5: { tier: 'unverified', label: 'Unverified', hasOverride: false },
+      6: { tier: 'pending', label: 'Mismatch', hasOverride: false },
+      7: { tier: 'exception', label: 'Duplicate', hasOverride: false },
+      9: { tier: 'pending', label: 'Mismatch', hasOverride: false },
     };
-    deriveEimsStatus.mockImplementation((s) => byId[s.id] || { tier: 'exception', label: 'Missing' });
+    deriveEimsStatus.mockImplementation((s) => byId[s.id] || { tier: 'exception', label: 'Missing', hasOverride: false });
     pool.query.mockImplementation(async (sql) => {
       if (/GROUP BY billing_status/.test(sql)) return { rows: [] };
       if (/bb\.paid_at IS NOT NULL/.test(sql)) return { rows: [{ count: 0 }] };
@@ -72,8 +88,8 @@ describe('getPipelineOverview EIMS ring', () => {
     expect(res.json.mock.calls[0][0].eimsMatchRate).toEqual({
       matched: 2,
       missing: 2, // Missing + Awaiting
-      unverified: 1,
-      flagged: 3, // Mismatch + Duplicate + the on-hold session
+      flagged: 3, // Mismatch(#6, not yet billed) + Duplicate + the on-hold session
+      billedUnresolved: 1, // Mismatch(#9, already invoiced, no override)
     });
   });
 });
@@ -95,7 +111,7 @@ describe('pendingEimsBucket', () => {
 
 describe('getPipelineOverview includes checked pending sessions', () => {
   function prime({ billed = [], pending = [], roles = [{ id: 1, role: 'practitioner' }] } = {}) {
-    deriveEimsStatus.mockImplementation(() => ({ tier: 'cleared', label: 'Matched' }));
+    deriveEimsStatus.mockImplementation(() => ({ tier: 'cleared', label: 'Matched', hasOverride: false }));
     pool.query.mockImplementation(async (sql) => {
       if (/GROUP BY billing_status/.test(sql)) return { rows: [] };
       if (/bb\.paid_at IS NOT NULL/.test(sql)) return { rows: [{ count: 0 }] };
@@ -120,7 +136,7 @@ describe('getPipelineOverview includes checked pending sessions', () => {
         { practitioner_id: 1, eims_last_missing: false, eims_last_flagged: false },
       ],
     });
-    expect(await run()).toEqual({ matched: 2, flagged: 1, missing: 1, unverified: 0 });
+    expect(await run()).toEqual({ matched: 2, flagged: 1, missing: 1, billedUnresolved: 0 });
   });
 
   test('independent practitioners (self-reported) are left out, like the accuracy table', async () => {
@@ -128,7 +144,7 @@ describe('getPipelineOverview includes checked pending sessions', () => {
       pending: [{ practitioner_id: 2, eims_last_missing: true, eims_last_flagged: false }],
       roles: [{ id: 2, role: 'independent_practitioner' }],
     });
-    expect(await run()).toEqual({ matched: 0, flagged: 0, missing: 0, unverified: 0 });
+    expect(await run()).toEqual({ matched: 0, flagged: 0, missing: 0, billedUnresolved: 0 });
   });
 
   test('the pending query only returns sessions that were actually checked, and follows the month', async () => {
