@@ -850,8 +850,12 @@ function ServicesBreakdown({ data, unit = 'sessions' }) {
 // Overview month picker, since a CEO comparing county coverage often wants
 // to look at a different month than whatever the rest of the page is
 // scoped to. No sessions/hours toggle: the card is hours-only by design.
-function CountyHoursChart() {
-  const [monthValue, setMonthValue] = useState(() => new Date().toISOString().slice(0, 7));
+// initialMonth seeds the starting selection from whatever month the rest of
+// the page is already showing (rather than always starting at "this
+// month"), but only on mount — the two pickers stay independent after that,
+// so changing the page's month picker later doesn't yank this card along.
+function CountyHoursChart({ initialMonth }) {
+  const [monthValue, setMonthValue] = useState(() => initialMonth || new Date().toISOString().slice(0, 7));
   const [counties, setCounties] = useState(null);
 
   useEffect(() => {
@@ -1573,7 +1577,7 @@ export function CompanyDashboard() {
     ),
     county_hours: (
       <div>
-        <CountyHoursChart />
+        <CountyHoursChart initialMonth={monthValue} />
       </div>
     ),
   };
