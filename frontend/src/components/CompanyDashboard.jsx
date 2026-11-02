@@ -832,9 +832,9 @@ function ServicesBreakdown({ data, unit = 'sessions' }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
             {rows.map((r, i) => (
               <div key={r.key ?? 'null'} className="flex items-start justify-between gap-3 text-[16px]">
-                <div className="flex items-start gap-2 text-slate-700 font-semibold min-w-0">
+                <div className="flex items-start gap-2 text-slate-700 font-semibold min-w-0 flex-1">
                   <span className="w-3 h-3 rounded-[4px] flex-shrink-0 mt-1.5" style={{ background: SERVICES_COLORS[i % SERVICES_COLORS.length] }} />
-                  <span>{r.label}</span>
+                  <span className="min-w-0">{r.label}</span>
                 </div>
                 <span className="font-mono font-extrabold text-[18px] text-slate-900 flex-shrink-0">{(unit === 'hours' ? r.hours : r.count).toLocaleString()}{unit === 'hours' ? ' hrs' : ''}</span>
               </div>
