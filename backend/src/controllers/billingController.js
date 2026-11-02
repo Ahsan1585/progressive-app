@@ -1700,9 +1700,17 @@ const rejectLog = async (req, res) => {
 
     const newStatus = type === 'reject' ? 'declined' : 'rejected';
 
+    // A fresh return/decline is a NEW thing for the practitioner to see and
+    // act on — any acknowledgment from a prior rejection cycle on this same
+    // log must not carry over, or getRejectedLogs's `acknowledged_at IS
+    // NULL` filter silently hides this freshly-returned log from the
+    // practitioner's Inbox, even though it's visible everywhere else
+    // (the office's Pending Bills, the practitioner's home banner) and
+    // genuinely needs their attention again.
     await pool.query(
       `UPDATE assessments
-       SET billing_status = $1, billing_review = $2, rejection_note = $3, rejected_at = $4, rejection_count = $5
+       SET billing_status = $1, billing_review = $2, rejection_note = $3, rejected_at = $4, rejection_count = $5,
+           acknowledged_at = NULL, practitioner_response = NULL, responded_at = NULL
        WHERE id = $6`,
       [newStatus, type, note.trim(), new Date().toISOString(), (current?.rejection_count || 0) + 1, assessmentId]
     );
