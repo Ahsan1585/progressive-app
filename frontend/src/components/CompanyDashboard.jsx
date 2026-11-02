@@ -1000,7 +1000,9 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession, unit = 'sessions', s
     ? allLogs.filter((l) => l.patientName?.toLowerCase().includes(q) || l.practitionerName?.toLowerCase().includes(q))
     : allLogs;
   const count = unit === 'hours' ? Math.round(logs.reduce((sum, l) => sum + (l.hours || 0), 0) * 100) / 100 : logs.length;
-  const totalAmount = logs.reduce((sum, l) => sum + (l.amount || 0), 0);
+  const returnedAmount = logs.reduce((sum, l) => sum + (l.status === 'declined' ? 0 : l.amount || 0), 0);
+  const declinedAmount = logs.reduce((sum, l) => sum + (l.status === 'declined' ? l.amount || 0 : 0), 0);
+  const totalAmount = returnedAmount + declinedAmount;
   const [expandedId, setExpandedId] = useState(null);
 
   return (
@@ -1013,7 +1015,21 @@ function ReturnedLogsPanel({ returnedLogs, onSelectSession, unit = 'sessions', s
       </div>
       <div className="text-[14px] text-slate-500 mb-3">
         Sessions from this month that billing sent back, oldest first.
-        {logs.length > 0 && <> <span className="font-semibold text-slate-700">{money(totalAmount)} total</span> not yet billable.</>}
+        {logs.length > 0 && (
+          <>
+            {' '}
+            <span className="font-semibold text-slate-700">{money(totalAmount)} total</span> not yet billable
+            {(returnedAmount > 0 || declinedAmount > 0) && (
+              <>
+                {' '}
+                ({returnedAmount > 0 && <span className="font-semibold text-amber-700">{money(returnedAmount)} returned</span>}
+                {returnedAmount > 0 && declinedAmount > 0 && ', '}
+                {declinedAmount > 0 && <span className="font-semibold text-rose-700">{money(declinedAmount)} declined</span>})
+              </>
+            )}
+            .
+          </>
+        )}
       </div>
 
       {logs.length === 0 ? (
