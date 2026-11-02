@@ -14,6 +14,8 @@ function baseMock() {
     if (/completed_at::date = CURRENT_DATE/.test(sql)) return { rows: [{ count: 0, practitioners: 0 }] };
     if (/ORDER BY COALESCE\(a\.held_at, a\.rejected_at\) ASC/.test(sql)) return { rows: [] };
     if (/billing_status = ANY\(\$1::text\[\]\)/.test(sql)) return { rows: [{ count: 0, hours: '0' }] };
+    if (/a\.billing_status = 'pending'/.test(sql) && /COUNT\(\*\)/.test(sql)) return { rows: [{ count: 0, hours: '0' }] };
+    if (/a\.billing_status = 'pending'/.test(sql)) return { rows: [] };
     if (/is_platform_support = false/.test(sql)) return { rows: [] };
     return { rows: [] };
   };
@@ -41,6 +43,8 @@ describe('getDayOverview practitioner filter + hours', () => {
       if (/completed_at::date = CURRENT_DATE/.test(sql)) return { rows: [{ count: 0, practitioners: 0 }] };
       if (/ORDER BY COALESCE\(a\.held_at, a\.rejected_at\) ASC/.test(sql)) return { rows: [] };
       if (/billing_status = ANY\(\$1::text\[\]\)/.test(sql)) return { rows: [{ count: 2, hours: '2.5' }] };
+      if (/a\.billing_status = 'pending'/.test(sql) && /COUNT\(\*\)/.test(sql)) return { rows: [{ count: 0, hours: '0' }] };
+      if (/a\.billing_status = 'pending'/.test(sql)) return { rows: [] };
       if (/is_platform_support = false/.test(sql)) return { rows: [] };
       return { rows: [] };
     });

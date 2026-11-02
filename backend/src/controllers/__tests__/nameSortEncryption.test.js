@@ -111,6 +111,8 @@ describe('dashboardController decrypts patient_first_name/patient_last_name read
         }],
       })
       .mockResolvedValueOnce({ rows: [{ count: 1 }] })
+      .mockResolvedValueOnce({ rows: [] }) // pendingFlagRows
+      .mockResolvedValueOnce({ rows: [{ count: 0, hours: '0' }] }) // pendingFlagCountRows
       .mockResolvedValueOnce({ rows: [] });
     const { req, res } = mockReqRes();
     await getDayOverview(req, res);

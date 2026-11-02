@@ -5,7 +5,7 @@
 // against the same fixed set.
 export const DASHBOARD_CARD_KEYS = [
   'billing_pipeline', 'action_queue', 'services_breakdown', 'documents_feed',
-  'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart', 'county_hours',
+  'eims_status', 'returned_logs', 'trajectory_chart', 'county_hours',
 ];
 
 // The default is designed, not stacked: cards whose content is a short list or
@@ -15,8 +15,7 @@ export const DASHBOARD_CARD_KEYS = [
 //   row 1  billing pipeline   | EIMS match status      (heading above the card)
 //   row 2  what needs you     | returned logs          (lists needing attention)
 //   row 3  services provided  | invoices & SEVF forms  (title inside the card)
-//   row 4  practitioner accuracy (full: wide table)
-//   row 5  trajectory chart      (full: wide chart)
+//   row 4  trajectory chart      (full: wide chart)
 export const DEFAULT_CARD_LAYOUT = [
   { key: 'billing_pipeline', width: 'half' },
   { key: 'eims_status', width: 'half' },
@@ -24,7 +23,6 @@ export const DEFAULT_CARD_LAYOUT = [
   { key: 'returned_logs', width: 'half' },
   { key: 'services_breakdown', width: 'half' },
   { key: 'documents_feed', width: 'half' },
-  { key: 'accuracy_table', width: 'full' },
   { key: 'trajectory_chart', width: 'full' },
   { key: 'county_hours', width: 'full' },
 ];

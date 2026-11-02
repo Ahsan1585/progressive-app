@@ -6,10 +6,10 @@ const { getDashboardLayout, saveDashboardLayout, DASHBOARD_CARD_KEYS } = require
 afterEach(() => jest.resetAllMocks());
 
 describe('DASHBOARD_CARD_KEYS', () => {
-  test('is the fixed 9-key set the frontend and validation both rely on', () => {
+  test('is the fixed 8-key set the frontend and validation both rely on', () => {
     expect(DASHBOARD_CARD_KEYS).toEqual([
       'billing_pipeline', 'action_queue', 'services_breakdown', 'documents_feed',
-      'accuracy_table', 'eims_status', 'returned_logs', 'trajectory_chart', 'county_hours',
+      'eims_status', 'returned_logs', 'trajectory_chart', 'county_hours',
     ]);
   });
 });
@@ -20,7 +20,7 @@ describe('getDashboardLayout', () => {
   test('returns the saved card layout when one exists', async () => {
     const req = { practitioner: { practitionerId: 7 } };
     const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
-    const saved = [{ key: 'eims_status', width: 'half' }, { key: 'accuracy_table', width: 'half' }, ...DASHBOARD_CARD_KEYS.filter((k) => k !== 'eims_status' && k !== 'accuracy_table').map((key) => ({ key, width: 'full' }))];
+    const saved = [{ key: 'eims_status', width: 'half' }, { key: 'returned_logs', width: 'half' }, ...DASHBOARD_CARD_KEYS.filter((k) => k !== 'eims_status' && k !== 'returned_logs').map((key) => ({ key, width: 'full' }))];
     pool.query.mockResolvedValueOnce({ rows: [{ section_order: saved }] });
 
     await getDashboardLayout(req, res);

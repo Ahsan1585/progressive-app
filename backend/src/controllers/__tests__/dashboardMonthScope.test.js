@@ -17,7 +17,7 @@ const {
 beforeEach(() => {
   pool.query.mockReset();
   // Every query returns an empty result with the shapes the handlers read.
-  pool.query.mockResolvedValue({ rows: [{ count: 0, practitioners: 0 }] });
+  pool.query.mockResolvedValue({ rows: [{ count: 0, practitioners: 0, hours: '0' }] });
 });
 
 const mkRes = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });

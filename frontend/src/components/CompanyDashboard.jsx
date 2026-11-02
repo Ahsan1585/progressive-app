@@ -79,7 +79,7 @@ function MonthYearPicker({ value, onChange }) {
 // through CompanyDashboard's own month-fetch effect, same stale-response
 // guard as the month picker); the unit toggle is purely local (no
 // refetch, just which field each component reads); search filters rows
-// already on screen in PractitionerAccuracyTable/ReturnedLogsPanel.
+// already on screen in ReturnedLogsPanel.
 function OverviewControlBar({ practitioners, practitionerId, onPractitionerChange, unit, onUnitChange, searchQuery, onSearchChange }) {
   return (
     <div className="flex flex-wrap items-center gap-2.5">
@@ -255,118 +255,6 @@ function SessionDetailDialog({ assessmentId, onClose }) {
   );
 }
 
-// Leadership-visible scorecard: who's consistently submitting clean,
-// EIMS-matching session logs vs. who's generating mismatches/holds/
-// returns, for the selected month. Sorted worst-first by the backend
-// (practitionerAccuracy) so the practitioners most worth a conversation
-// surface at the top without the viewer having to sort for it. Excludes
-// independent practitioners — their "match" is self-reported, not a real
-// cross-reference, so mixing them in would compare two different things.
-// The accuracy list is a scroll window: this many practitioners are visible at
-// once, the rest are a scroll away. Rows and header have a fixed height and a
-// one-line name, so the window shows exactly this many rows.
-const ACCURACY_VISIBLE_ROWS = 6;
-const ACCURACY_ROW_PX = 74;
-const ACCURACY_HEADER_PX = 44;
-
-function PractitionerAccuracyTable({ month, unit = 'sessions', searchQuery = '' }) {
-  const allRows = month?.practitionerAccuracy || [];
-  const rows = searchQuery.trim()
-    ? allRows.filter((r) => r.name?.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : allRows;
-  const [sortBy, setSortBy] = useState('accuracyPct'); // 'accuracyPct' | 'sessionsChecked' | 'notClean'
-  const [sortDir, setSortDir] = useState('asc');
-
-  const sorted = [...rows].sort((a, b) => {
-    const av = a[sortBy] ?? (sortBy === 'accuracyPct' ? 101 : 0);
-    const bv = b[sortBy] ?? (sortBy === 'accuracyPct' ? 101 : 0);
-    return sortDir === 'asc' ? av - bv : bv - av;
-  });
-
-  const toggleSort = (key) => {
-    if (sortBy === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortBy(key); setSortDir(key === 'accuracyPct' ? 'asc' : 'desc'); }
-  };
-
-  const tierTone = (pct) => {
-    if (pct == null) return { text: 'text-slate-500', bg: 'bg-slate-50', bar: '#cbd5e1' };
-    if (pct >= 90) return { text: 'text-teal-700', bg: 'bg-teal-50', bar: '#0d9488' };
-    if (pct >= 70) return { text: 'text-amber-700', bg: 'bg-amber-50', bar: '#d97706' };
-    return { text: 'text-rose-700', bg: 'bg-rose-50', bar: '#e11d48' };
-  };
-
-  const SortHeader = ({ label, sortKey, className }) => (
-    <th className={`text-[14px] font-bold uppercase text-slate-600 px-3 py-2.5 cursor-pointer select-none ${className || ''}`} onClick={() => toggleSort(sortKey)}>
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {sortBy === sortKey && <span className="text-[13px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
-      </span>
-    </th>
-  );
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100">
-        <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">Practitioner accuracy</div>
-        <p className="text-[14px] text-slate-600 mt-0.5 max-w-2xl">
-          How cleanly each practitioner's logged sessions matched EIMS this month — holds, returns, and still-pending sessions already flagged by Compliance Analysis all count against the score. Independent practitioners (self-reported, not cross-checked) aren't included.
-        </p>
-      </div>
-      {rows.length === 0 ? (
-        <div className="text-[15px] text-slate-500 text-center py-10">
-          {searchQuery.trim() && allRows.length > 0 ? `No practitioner matching "${searchQuery.trim()}".` : 'No agency practitioner sessions checked against EIMS this month yet.'}
-        </div>
-      ) : (
-        <div
-          className="overflow-auto"
-          style={rows.length > ACCURACY_VISIBLE_ROWS ? { maxHeight: ACCURACY_HEADER_PX + ACCURACY_VISIBLE_ROWS * ACCURACY_ROW_PX } : undefined}
-        >
-          <table className="w-full text-[15px]">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-slate-50 border-b border-slate-100" style={{ height: ACCURACY_HEADER_PX }}>
-                <th className="text-left text-[14px] font-bold uppercase text-slate-600 px-5 py-2.5">Practitioner</th>
-                <SortHeader label="Accuracy" sortKey="accuracyPct" />
-                <SortHeader label={unit === 'hours' ? 'Hours' : 'Checked'} sortKey="sessionsChecked" />
-                <SortHeader label={unit === 'hours' ? 'Not Clean Hrs' : 'Not Clean'} sortKey="notClean" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {sorted.map((r) => {
-                const tone = tierTone(r.accuracyPct);
-                return (
-                  <tr key={r.practitionerId} className="hover:bg-slate-50" style={{ height: ACCURACY_ROW_PX }}>
-                    <td className="px-5 py-3 max-w-[280px]">
-                      <div className="text-[17px] font-bold text-slate-900 truncate" title={r.name}>{r.name}</div>
-                      {r.discipline && <div className="text-[13px] text-slate-600 truncate" title={r.discipline}>{r.discipline}</div>}
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-24 h-2.5 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
-                          <div className="h-full rounded-full" style={{ width: `${r.accuracyPct ?? 0}%`, background: tone.bar }} />
-                        </div>
-                        <span className={`text-[15px] font-extrabold px-3 py-1 rounded-full ${tone.bg} ${tone.text}`}>
-                          {r.accuracyPct != null ? `${r.accuracyPct}%` : '—'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{unit === 'hours' ? r.hoursChecked : r.sessionsChecked}</td>
-                    <td className="px-3 py-3 text-[17px] font-semibold text-slate-700 font-mono tabular-nums">{unit === 'hours' ? r.notCleanHours : r.notClean}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {rows.length > ACCURACY_VISIBLE_ROWS && (
-        <div className="px-5 py-2.5 text-[14px] font-semibold text-slate-600 border-t border-slate-100 bg-slate-50">
-          Showing {ACCURACY_VISIBLE_ROWS} of {rows.length} practitioners. Scroll the list to see the rest.
-        </div>
-      )}
-    </div>
-  );
-}
-
 // --- Verdict banner: a plain-language judgment, not a stat tile, with
 // the supporting numbers underneath it rather than standing alone. ---
 function VerdictBanner({ day, ap, monthLabel, unit = 'sessions' }) {
@@ -487,12 +375,16 @@ function ActionQueue({ day, onSelectSession, unit = 'sessions' }) {
         <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} {unit === 'hours' ? 'hrs' : 'open'}</div>
       </div>
       {sessions.length === 0 ? (
-        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">No open holds this month. Nice.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">Nothing open this month. Nice.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1 [&>*]:shrink-0">
           {sessions.map((s) => {
             const age = daysAgo(s.flaggedAt || s.serviceDate);
             const isCritical = age !== null && age > 30;
+            const statusLabel = s.status === 'declined' ? 'Declined'
+              : s.status === 'rejected' ? 'Returned'
+              : s.status === 'eims_mismatch' ? 'Not yet reviewed'
+              : 'On hold';
             return (
               <button
                 key={s.id}
@@ -506,7 +398,7 @@ function ActionQueue({ day, onSelectSession, unit = 'sessions' }) {
                     {s.patientName} &middot; {s.practitionerName}
                   </div>
                   <div className="text-[14px] text-slate-600 truncate">
-                    {s.note || 'On hold, no note on file'}
+                    {s.note ? `${statusLabel} — ${s.note}` : `${statusLabel}, no note on file`}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -1359,7 +1251,6 @@ const CARD_META = {
   action_queue: { title: 'What needs you', hint: 'Sessions on hold waiting for a decision' },
   services_breakdown: { title: 'Services provided', hint: 'Sessions by type, status, location' },
   documents_feed: { title: 'Invoices & SEVF forms', hint: 'Recent documents and their status' },
-  accuracy_table: { title: 'Practitioner accuracy', hint: 'Who is submitting clean logs' },
   eims_status: { title: 'EIMS match status', hint: 'Matched, mismatched, missing' },
   returned_logs: { title: 'Returned & declined logs', hint: 'Logs billing sent back or declined' },
   trajectory_chart: { title: 'Where this is headed', hint: 'Monthly and yearly volume' },
@@ -1428,7 +1319,7 @@ export function CompanyDashboard() {
   // Overview control bar: practitioner scope, sessions/hours unit, search.
   // practitionerId re-fetches every card (same pattern as monthValue); unit
   // is a pure display toggle (no refetch); searchQuery filters already-
-  // loaded rows client-side in PractitionerAccuracyTable/ReturnedLogsPanel.
+  // loaded rows client-side in ReturnedLogsPanel.
   const [practitioners, setPractitioners] = useState([]);
   const [practitionerId, setPractitionerId] = useState(null);
   const [unit, setUnit] = useState('sessions'); // 'sessions' | 'hours'
@@ -1562,13 +1453,6 @@ export function CompanyDashboard() {
     documents_feed: (
       <div>
         <DocumentsFeed documents={documents} />
-      </div>
-    ),
-    accuracy_table: (
-      <div>
-        <div className="text-[30px] font-extrabold tracking-tight leading-tight text-slate-900 mb-1">Who's submitting clean logs</div>
-        <p className="text-[17px] text-slate-600 mb-5 max-w-3xl">Sorted lowest accuracy first, so the practitioners most worth a conversation surface at the top.</p>
-        <PractitionerAccuracyTable month={month} unit={unit} searchQuery={searchQuery} />
       </div>
     ),
     eims_status: (

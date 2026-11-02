@@ -12,11 +12,14 @@ const { buildInvoiceLines, deriveEimsStatus, loadComplianceBatched, formatInvoic
 const analyzeFn = (pid, start, end) => require('./billingController').runComplianceAnalysisForPractitioner(pid, start, end, { persist: false });
 const { serviceCodeLabel, locationCodeLabel } = require('../constants/njeis');
 
-// "What needs you" worklist — on_hold only. Returned (rejected) logs have
-// their own dedicated "Returned logs" panel elsewhere on the dashboard;
-// mixing them in here duplicated that list and muddied what this card is
-// actually for (what's sitting in a billing specialist's hold queue).
-const OPEN_EXCEPTION_STATUSES = ['on_hold'];
+// "What needs you" worklist, and the verdict banner's flaggedCount (same
+// /api/dashboard/day response feeds both — see getDayOverview below).
+// on_hold, rejected (returned), and declined are all open exceptions: a
+// session billing has flagged and not yet resolved. Rejected/declined also
+// appear in their own dedicated "Returned logs" panel, but omitting them
+// here let a month with real open declines still read as "all clear" in
+// the verdict banner and "0 needs a decision" in this card — both wrong.
+const OPEN_EXCEPTION_STATUSES = ['on_hold', 'rejected', 'declined'];
 
 // The fixed set of individually reorderable/resizable Overview-dashboard
 // cards. Each card can be shown full-width or half-width (two half-width
@@ -29,7 +32,6 @@ const DASHBOARD_CARD_KEYS = [
   'action_queue',
   'services_breakdown',
   'documents_feed',
-  'accuracy_table',
   'eims_status',
   'returned_logs',
   'trajectory_chart',
@@ -172,6 +174,38 @@ const getDayOverview = async (req, res) => {
       exceptionCountParams
     );
 
+    // Sessions billing hasn't reviewed yet this month (still 'pending') but
+    // that the last bulk compliance run already flagged as a real EIMS
+    // mismatch or missing record — same PENDING_CHECKED_SQL/pendingEimsBucket
+    // logic the EIMS donut uses for "not yet checked is not evidence of
+    // anything," so this only counts sessions actually checked and found
+    // wrong, not every un-reviewed log. These are real open issues the
+    // verdict banner and "What needs you" card were both silently excluding
+    // just because billing hasn't gotten to them yet.
+    const pendingFlagParams = [monthStart, monthEnd];
+    let pendingFlagPractitionerSql = '';
+    if (practitionerId) { pendingFlagParams.push(practitionerId); pendingFlagPractitionerSql = ` AND a.practitioner_id = $${pendingFlagParams.length}`; }
+    const { rows: pendingFlagRows } = await pool.query(
+      `SELECT a.id, a.service_date, a.eims_last_flagged, a.eims_last_missing,
+              a.patient_first_name, a.patient_last_name,
+              a.practitioner_first_name, a.practitioner_last_name,
+              a.total_time, p.pay_rate
+       FROM assessments a
+       JOIN practitioners p ON p.id = a.practitioner_id
+       WHERE ${PENDING_CHECKED_SQL} AND ${inMonthSql(1, 2, 'a.service_date')}${pendingFlagPractitionerSql}
+       ORDER BY a.service_date ASC
+       LIMIT 200`,
+      pendingFlagParams
+    );
+    const { rows: pendingFlagCountRows } = await pool.query(
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(a.total_time), 0) / 60.0 AS hours
+       FROM assessments a
+       WHERE ${PENDING_CHECKED_SQL} AND ${inMonthSql(1, 2, 'a.service_date')}${pendingFlagPractitionerSql}`,
+      pendingFlagParams
+    );
+    const pendingFlagCount = pendingFlagCountRows[0].count;
+    const pendingFlagHours = parseFloat(pendingFlagCountRows[0].hours);
+
     // Active practitioners with zero logged sessions in the last 7 days —
     // a light, honestly-computable "might need a check-in" signal. Not a
     // claim about scheduling gaps (this app has no scheduling data).
@@ -191,18 +225,30 @@ const getDayOverview = async (req, res) => {
       success: true,
       sessionsLoggedToday: todayRows[0].count,
       practitionersActiveToday: todayRows[0].practitioners,
-      flaggedCount: exceptionCountRows[0].count,
-      flaggedHours: Math.round(parseFloat(exceptionCountRows[0].hours) * 100) / 100,
-      flaggedSessions: exceptionRows.map((r) => ({
-        id: r.id,
-        status: r.billing_status,
-        serviceDate: r.service_date,
-        flaggedAt: r.flagged_at,
-        note: r.hold_note || r.rejection_note || null,
-        patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
-        practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
-        amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
-      })),
+      flaggedCount: exceptionCountRows[0].count + pendingFlagCount,
+      flaggedHours: Math.round((parseFloat(exceptionCountRows[0].hours) + pendingFlagHours) * 100) / 100,
+      flaggedSessions: [
+        ...exceptionRows.map((r) => ({
+          id: r.id,
+          status: r.billing_status,
+          serviceDate: r.service_date,
+          flaggedAt: r.flagged_at,
+          note: r.hold_note || r.rejection_note || null,
+          patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
+          practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
+          amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
+        })),
+        ...pendingFlagRows.map((r) => ({
+          id: r.id,
+          status: 'eims_mismatch',
+          serviceDate: r.service_date,
+          flaggedAt: r.service_date,
+          note: r.eims_last_missing ? 'Missing in EIMS' : 'Not matching EIMS',
+          patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
+          practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
+          amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
+        })),
+      ],
       practitionersNoActivity7d: noActivityRows.map((r) => ({ id: r.id, name: `${r.first_name} ${r.last_name}` })),
     });
   } catch (error) {
@@ -802,8 +848,10 @@ const getMonthOverview = async (req, res) => {
     // getAccountsPayable, scoped to this month's service_date instead of
     // all-time, so the top stat row can show a month that isn't "right
     // now." Owed-but-unpaid (invoiced/completed not yet paid) plus
-    // on_hold/rejected (held back, same as the all-time AP view), with
-    // the same human-hold-overrides-EIMS-tier rule.
+    // on_hold/rejected/declined (held back, same as the all-time AP view),
+    // with the same human-hold-overrides-EIMS-tier rule. declined was
+    // missing here, which let a month with real open declines still show
+    // 100% paid-or-ready and an "all clear" verdict banner.
     const apParams = [start, end];
     let apPractitionerSql = '';
     if (practitionerId) { apParams.push(practitionerId); apPractitionerSql = ` AND a.practitioner_id = $${apParams.length}`; }
@@ -817,7 +865,7 @@ const getMonthOverview = async (req, res) => {
        WHERE a.service_date >= $1 AND a.service_date <= $2
          AND (
            (a.billing_status IN ('invoiced', 'completed') AND bb.paid_at IS NULL)
-           OR a.billing_status IN ('on_hold', 'rejected')
+           OR a.billing_status IN ('on_hold', 'rejected', 'declined')
          )${apPractitionerSql}`,
       apParams
     );
@@ -840,7 +888,7 @@ const getMonthOverview = async (req, res) => {
       const lineTotal = Math.round(hours * parseFloat(s.pay_rate || 0) * 100) / 100;
       const mode = s.role === 'independent_practitioner' ? 'independent' : 'agency';
       const compliance = apComplianceById.get(s.id) || null;
-      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected')
+      const tier = (s.billing_status === 'on_hold' || s.billing_status === 'rejected' || s.billing_status === 'declined')
         ? 'exception'
         : deriveEimsStatus(s, { mode, compliance }).tier;
       apTotalOwed += lineTotal;
