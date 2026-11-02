@@ -102,6 +102,15 @@ const pendingEimsBucket = (s) => {
 };
 const PENDING_CHECKED_SQL = `a.billing_status = 'pending'
          AND (a.eims_last_flagged IS NOT NULL OR a.eims_last_missing IS NOT NULL)`;
+// Both eims_last_flagged/eims_last_missing are booleans, so "checked"
+// (PENDING_CHECKED_SQL, IS NOT NULL) is true for a clean match too — it
+// only tells "was this session ever run through Compliance Analysis," not
+// whether it came back with a real problem. This is the narrower "and it
+// actually came back flagged" condition the verdict banner's flaggedCount
+// needs, or every reviewed-and-clean pending session would count as an
+// open issue too.
+const PENDING_FLAGGED_SQL = `a.billing_status = 'pending'
+         AND (a.eims_last_flagged = true OR a.eims_last_missing = true)`;
 
 // Optional month scope (?month=YYYY-MM) for the cards below the stat row, so they
 // follow the month picker exactly like the stat row does: by the session's
@@ -176,12 +185,11 @@ const getDayOverview = async (req, res) => {
 
     // Sessions billing hasn't reviewed yet this month (still 'pending') but
     // that the last bulk compliance run already flagged as a real EIMS
-    // mismatch or missing record — same PENDING_CHECKED_SQL/pendingEimsBucket
-    // logic the EIMS donut uses for "not yet checked is not evidence of
-    // anything," so this only counts sessions actually checked and found
-    // wrong, not every un-reviewed log. These are real open issues the
-    // verdict banner and "What needs you" card were both silently excluding
-    // just because billing hasn't gotten to them yet.
+    // mismatch or missing record — PENDING_FLAGGED_SQL, not just "checked"
+    // (eims_last_flagged/eims_last_missing are booleans, so IS NOT NULL
+    // alone also matches a clean, matched session). These are real open
+    // issues the verdict banner and "What needs you" card were both
+    // silently excluding just because billing hasn't gotten to them yet.
     const pendingFlagParams = [monthStart, monthEnd];
     let pendingFlagPractitionerSql = '';
     if (practitionerId) { pendingFlagParams.push(practitionerId); pendingFlagPractitionerSql = ` AND a.practitioner_id = $${pendingFlagParams.length}`; }
@@ -192,7 +200,7 @@ const getDayOverview = async (req, res) => {
               a.total_time, p.pay_rate
        FROM assessments a
        JOIN practitioners p ON p.id = a.practitioner_id
-       WHERE ${PENDING_CHECKED_SQL} AND ${inMonthSql(1, 2, 'a.service_date')}${pendingFlagPractitionerSql}
+       WHERE ${PENDING_FLAGGED_SQL} AND ${inMonthSql(1, 2, 'a.service_date')}${pendingFlagPractitionerSql}
        ORDER BY a.service_date ASC
        LIMIT 200`,
       pendingFlagParams
@@ -200,7 +208,7 @@ const getDayOverview = async (req, res) => {
     const { rows: pendingFlagCountRows } = await pool.query(
       `SELECT COUNT(*)::int AS count, COALESCE(SUM(a.total_time), 0) / 60.0 AS hours
        FROM assessments a
-       WHERE ${PENDING_CHECKED_SQL} AND ${inMonthSql(1, 2, 'a.service_date')}${pendingFlagPractitionerSql}`,
+       WHERE ${PENDING_FLAGGED_SQL} AND ${inMonthSql(1, 2, 'a.service_date')}${pendingFlagPractitionerSql}`,
       pendingFlagParams
     );
     const pendingFlagCount = pendingFlagCountRows[0].count;

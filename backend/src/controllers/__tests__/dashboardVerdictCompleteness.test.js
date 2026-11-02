@@ -88,15 +88,21 @@ describe('getDayOverview counts declined and flagged-pending sessions as open', 
     expect(flaggedRow.note).toBe('Not matching EIMS');
   });
 
-  test('a pending session that was never checked (both eims_last_* null) does not count', async () => {
+  test('the pending-flagged query requires eims_last_flagged/eims_last_missing to actually be true, not just non-null', async () => {
+    // eims_last_flagged/eims_last_missing are booleans: a checked-and-clean
+    // session has eims_last_flagged = false, which is non-null but not a
+    // real flag. Asserting "= true" in the SQL (not "IS NOT NULL") is what
+    // keeps every reviewed-and-clean pending session out of flaggedCount —
+    // this regressed once already (432 clean-but-unreviewed sessions all
+    // counted as "needing a decision").
     pool.query.mockImplementation(async (sql) => {
       if (/completed_at::date = CURRENT_DATE/.test(sql)) return { rows: [{ count: 0, practitioners: 0 }] };
       if (/ORDER BY COALESCE\(a\.held_at, a\.rejected_at\) ASC/.test(sql)) return { rows: [] };
       if (/billing_status = ANY\(\$1::text\[\]\)/.test(sql)) return { rows: [{ count: 0, hours: '0' }] };
       if (/a\.billing_status = 'pending'/.test(sql) && /COUNT\(\*\)/.test(sql)) {
-        // PENDING_CHECKED_SQL requires one of eims_last_flagged/eims_last_missing
-        // to be non-null; a never-checked session never matches it, so the mock
-        // asserts the real SQL text is what filters, not app-side JS logic.
+        expect(sql).toMatch(/eims_last_flagged = true/);
+        expect(sql).toMatch(/eims_last_missing = true/);
+        expect(sql).not.toMatch(/eims_last_flagged IS NOT NULL/);
         return { rows: [{ count: 0, hours: '0' }] };
       }
       if (/a\.billing_status = 'pending'/.test(sql)) return { rows: [] };
