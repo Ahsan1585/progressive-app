@@ -29,6 +29,20 @@ describe('getAccessRoster', () => {
     await getAccessRoster({ practitioner: { practitionerId: 1 } }, res);
     expect(res.json.mock.calls[0][0].official).toBeNull();
   });
+
+  // Regression: the hidden Izaya Support login (is_platform_support = true
+  // on practitioners, see schema.sql's comment: "Every roster-listing query
+  // must exclude these rows from the customer's own Staff Directory") was
+  // leaking into this compliance roster — a customer printing it for a
+  // Part C audit would show a platform support account as if it were one
+  // of their own staff with access to child records.
+  it('excludes the hidden platform-support account from the roster', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{}] }).mockResolvedValueOnce({ rows: [] });
+    const res = mkRes();
+    await getAccessRoster({ practitioner: { practitionerId: 1 } }, res);
+    const staffSql = pool.query.mock.calls[1][0];
+    expect(staffSql).toMatch(/is_platform_support\s*=\s*false/);
+  });
 });
 
 describe('updateCompanySettings', () => {

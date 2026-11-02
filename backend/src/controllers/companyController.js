@@ -122,7 +122,7 @@ const getAccessRoster = async (req, res) => {
               COALESCE(r.name, p.role) AS role_name, p.created_at
        FROM practitioners p
        LEFT JOIN roles r ON r.id = p.role_id
-       WHERE p.is_active = true
+       WHERE p.is_active = true AND p.is_platform_support = false
        ORDER BY p.last_name, p.first_name`
     );
     const staff = staffRows.map((r) => ({
