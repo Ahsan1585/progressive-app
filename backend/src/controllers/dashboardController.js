@@ -12,14 +12,18 @@ const { buildInvoiceLines, deriveEimsStatus, loadComplianceBatched, formatInvoic
 const analyzeFn = (pid, start, end) => require('./billingController').runComplianceAnalysisForPractitioner(pid, start, end, { persist: false });
 const { serviceCodeLabel, locationCodeLabel } = require('../constants/njeis');
 
-// "What needs you" worklist, and the verdict banner's flaggedCount (same
-// /api/dashboard/day response feeds both — see getDayOverview below).
-// on_hold, rejected (returned), and declined are all open exceptions: a
-// session billing has flagged and not yet resolved. Rejected/declined also
-// appear in their own dedicated "Returned logs" panel, but omitting them
-// here let a month with real open declines still read as "all clear" in
-// the verdict banner and "0 needs a decision" in this card — both wrong.
+// The verdict banner's flaggedCount/totalHeld: on_hold, rejected
+// (returned), and declined are all open exceptions — a session billing has
+// flagged and not yet resolved. Omitting rejected/declined here let a month
+// with real open declines still read as "all clear" in the banner, which
+// was wrong.
 const OPEN_EXCEPTION_STATUSES = ['on_hold', 'rejected', 'declined'];
+// "What needs you" worklist's own session list only shows on_hold —
+// rejected/declined sessions already have their own dedicated "Returned &
+// declined logs" card, so including them here too just duplicates that
+// card's rows. The count above still includes them; only the row list is
+// narrower.
+const WORKLIST_STATUSES = ['on_hold'];
 
 // The fixed set of individually reorderable/resizable Overview-dashboard
 // cards. Each card can be shown full-width or half-width (two half-width
@@ -158,7 +162,7 @@ const getDayOverview = async (req, res) => {
 
     // Oldest-first (ASC) — the queue's whole point is surfacing what's
     // been waiting longest, not what was most recently flagged.
-    const exceptionParams = [OPEN_EXCEPTION_STATUSES, monthStart, monthEnd];
+    const exceptionParams = [WORKLIST_STATUSES, monthStart, monthEnd];
     let exceptionPractitionerSql = '';
     if (practitionerId) { exceptionParams.push(practitionerId); exceptionPractitionerSql = ` AND a.practitioner_id = $${exceptionParams.length}`; }
     const { rows: exceptionRows } = await pool.query(

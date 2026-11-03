@@ -6,6 +6,12 @@
 // 'pending' session the last compliance run actually flagged counts as
 // needing a decision too (a 'pending' session that was never checked does
 // not, same PENDING_CHECKED_SQL rule the EIMS donut already uses).
+//
+// Declined/rejected only count toward flaggedCount/flaggedHours though —
+// they are deliberately excluded from the "What needs you" card's own
+// session LIST (WORKLIST_STATUSES = ['on_hold']), since the dedicated
+// "Returned & declined logs" card already lists them; including them in
+// both places just duplicated every row.
 jest.mock('../../config/db', () => ({ pool: { query: jest.fn() } }));
 jest.mock('../../utils/fieldEncryption', () => ({ decryptField: (v) => v }));
 jest.mock('../billingController', () => ({ computeSessionCompliance: jest.fn() }));
@@ -23,10 +29,13 @@ const mkRes = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });
 beforeEach(() => pool.query.mockReset());
 
 describe('getDayOverview counts declined and flagged-pending sessions as open', () => {
-  test('exceptionCountRows query now includes declined in OPEN_EXCEPTION_STATUSES', async () => {
+  test('exceptionCountRows query includes declined, but the exceptionRows LIST query does not (that is Returned & declined logs\' job)', async () => {
     pool.query.mockImplementation(async (sql, params) => {
       if (/completed_at::date = CURRENT_DATE/.test(sql)) return { rows: [{ count: 0, practitioners: 0 }] };
-      if (/ORDER BY COALESCE\(a\.held_at, a\.rejected_at\) ASC/.test(sql)) return { rows: [] };
+      if (/ORDER BY COALESCE\(a\.held_at, a\.rejected_at\) ASC/.test(sql)) {
+        expect(params[0]).toEqual(['on_hold']);
+        return { rows: [] };
+      }
       if (/billing_status = ANY\(\$1::text\[\]\)/.test(sql)) {
         expect(params[0]).toEqual(expect.arrayContaining(['on_hold', 'rejected', 'declined']));
         return { rows: [{ count: 0, hours: '0' }] };
@@ -38,18 +47,12 @@ describe('getDayOverview counts declined and flagged-pending sessions as open', 
     await getDayOverview({ query: { month: '2026-04' } }, mkRes());
   });
 
-  test('a declined session in flaggedSessions keeps its real status, not relabeled', async () => {
+  test('a declined session counts toward flaggedCount/flaggedHours but is absent from flaggedSessions (already shown in Returned & declined logs)', async () => {
     pool.query.mockImplementation(async (sql) => {
       if (/completed_at::date = CURRENT_DATE/.test(sql)) return { rows: [{ count: 0, practitioners: 0 }] };
-      if (/ORDER BY COALESCE\(a\.held_at, a\.rejected_at\) ASC/.test(sql)) {
-        return { rows: [{
-          id: 9, billing_status: 'declined', service_date: '2026-04-05', hold_note: null,
-          rejection_note: 'No EIMS record found', flagged_at: '2026-04-06',
-          patient_first_name: 'A', patient_last_name: 'B',
-          practitioner_first_name: 'C', practitioner_last_name: 'D',
-          total_time: 60, pay_rate: 40,
-        }] };
-      }
+      // The worklist (on_hold-only) query returns nothing — no declined row here.
+      if (/ORDER BY COALESCE\(a\.held_at, a\.rejected_at\) ASC/.test(sql)) return { rows: [] };
+      // The count query (on_hold+rejected+declined) sees the one declined session.
       if (/billing_status = ANY\(\$1::text\[\]\)/.test(sql)) return { rows: [{ count: 1, hours: '1' }] };
       if (/a\.billing_status = 'pending'/.test(sql) && /COUNT\(\*\)/.test(sql)) return { rows: [{ count: 0, hours: '0' }] };
       if (/a\.billing_status = 'pending'/.test(sql)) return { rows: [] };
@@ -58,9 +61,9 @@ describe('getDayOverview counts declined and flagged-pending sessions as open', 
     const res = mkRes();
     await getDayOverview({ query: { month: '2026-04' } }, res);
     const body = res.json.mock.calls[0][0];
-    const declinedRow = body.flaggedSessions.find((s) => s.id === 9);
-    expect(declinedRow.status).toBe('declined');
-    expect(declinedRow.hours).toBe(1);
+    expect(body.flaggedCount).toBe(1);
+    expect(body.flaggedHours).toBe(1);
+    expect(body.flaggedSessions.find((s) => s.id === 9)).toBeUndefined();
   });
 
   test('a pending session the last compliance run flagged counts toward flaggedCount, with status eims_mismatch', async () => {
