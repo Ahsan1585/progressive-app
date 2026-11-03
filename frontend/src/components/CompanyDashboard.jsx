@@ -365,17 +365,46 @@ function StatCard({ icon: Icon, tone, label, value, deltaText, deltaTone }) {
 }
 
 function ActionQueue({ day, onSelectSession, unit = 'sessions' }) {
-  const sessions = day?.flaggedSessions || [];
-  const total = unit === 'hours' ? (day?.flaggedHours || 0) : (day?.flaggedCount || 0);
+  const [tab, setTab] = useState('on_hold'); // 'on_hold' | 'flagged'
+  const allSessions = day?.flaggedSessions || [];
+  const onHoldSessions = allSessions.filter((s) => s.status !== 'eims_mismatch');
+  const flaggedSessions = allSessions.filter((s) => s.status === 'eims_mismatch');
+  const sessions = tab === 'flagged' ? flaggedSessions : onHoldSessions;
+  const sumHours = (list) => Math.round(list.reduce((sum, s) => sum + (s.hours || 0), 0) * 100) / 100;
+  const total = unit === 'hours' ? sumHours(sessions) : sessions.length;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 min-w-0">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
         <div className="text-[24px] font-extrabold tracking-tight leading-tight text-slate-900">What needs you</div>
-        <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">{total} {unit === 'hours' ? 'hrs' : 'open'}</div>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex bg-slate-50 rounded-[10px] p-[3px] gap-0.5">
+            <button
+              type="button"
+              onClick={() => setTab('on_hold')}
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-colors cursor-pointer ${
+                tab === 'on_hold' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              On hold
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('flagged')}
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-colors cursor-pointer ${
+                tab === 'flagged' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              Flagged
+            </button>
+          </div>
+          <div className="text-[14px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap">{total} {unit === 'hours' ? 'hrs' : 'open'}</div>
+        </div>
       </div>
       {sessions.length === 0 ? (
-        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">Nothing open this month. Nice.</div>
+        <div className="text-[16px] font-semibold text-slate-600 text-center py-8">
+          {tab === 'flagged' ? 'No unreviewed sessions flagged by EIMS this month. Nice.' : 'Nothing open this month. Nice.'}
+        </div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1 [&>*]:shrink-0">
           {sessions.map((s) => {

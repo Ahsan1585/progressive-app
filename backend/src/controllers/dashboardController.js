@@ -245,6 +245,7 @@ const getDayOverview = async (req, res) => {
           patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
           practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
           amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
+          hours: Math.round((r.total_time ? r.total_time / 60 : 0) * 100) / 100,
         })),
         ...pendingFlagRows.map((r) => ({
           id: r.id,
@@ -255,6 +256,7 @@ const getDayOverview = async (req, res) => {
           patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
           practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
           amount: Math.round((r.total_time ? r.total_time / 60 : 0) * parseFloat(r.pay_rate || 0) * 100) / 100,
+          hours: Math.round((r.total_time ? r.total_time / 60 : 0) * 100) / 100,
         })),
       ],
       practitionersNoActivity7d: noActivityRows.map((r) => ({ id: r.id, name: `${r.first_name} ${r.last_name}` })),

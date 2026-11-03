@@ -60,6 +60,7 @@ describe('getDayOverview counts declined and flagged-pending sessions as open', 
     const body = res.json.mock.calls[0][0];
     const declinedRow = body.flaggedSessions.find((s) => s.id === 9);
     expect(declinedRow.status).toBe('declined');
+    expect(declinedRow.hours).toBe(1);
   });
 
   test('a pending session the last compliance run flagged counts toward flaggedCount, with status eims_mismatch', async () => {
@@ -86,6 +87,7 @@ describe('getDayOverview counts declined and flagged-pending sessions as open', 
     const flaggedRow = body.flaggedSessions.find((s) => s.id === 42);
     expect(flaggedRow.status).toBe('eims_mismatch');
     expect(flaggedRow.note).toBe('Not matching EIMS');
+    expect(flaggedRow.hours).toBe(0.5);
   });
 
   test('the pending-flagged query requires eims_last_flagged/eims_last_missing to actually be true, not just non-null', async () => {
