@@ -314,7 +314,16 @@ const getReturnedLogs = async (req, res) => {
     });
 
     const logs = rows.map((r) => {
-      const hours = Math.round((r.total_time ? r.total_time / 60 : 0) * 100) / 100;
+      // amount is computed from the RAW (unrounded) hours, same as every
+      // other dollar figure in this file (the worklist, the AP totals) —
+      // rounding hours to 2dp first (as this used to) and then multiplying
+      // by pay_rate silently drifted each row's amount by a few cents from
+      // what totalHeld/totalOwed compute for the exact same session, so
+      // this card's own "$X total" header no longer matched the sum of its
+      // rows, let alone the verdict banner above it. hours stays rounded —
+      // it's a separate, purely-display figure.
+      const rawHours = r.total_time ? r.total_time / 60 : 0;
+      const hours = Math.round(rawHours * 100) / 100;
       return {
         id: r.id,
         status: r.billing_status,
@@ -324,7 +333,7 @@ const getReturnedLogs = async (req, res) => {
         note: r.rejection_note || null,
         patientName: `${decryptField(r.patient_first_name) || ''} ${decryptField(r.patient_last_name) || ''}`.trim(),
         practitionerName: `${r.practitioner_first_name || ''} ${r.practitioner_last_name || ''}`.trim(),
-        amount: Math.round(hours * parseFloat(r.pay_rate || 0) * 100) / 100,
+        amount: Math.round(rawHours * parseFloat(r.pay_rate || 0) * 100) / 100,
         hours,
         comments: notesByAssessment.get(r.id) || [],
       };

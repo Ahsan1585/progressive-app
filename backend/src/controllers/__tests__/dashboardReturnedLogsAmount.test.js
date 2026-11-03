@@ -42,4 +42,35 @@ describe('getReturnedLogs amount', () => {
     // 90 minutes = 1.5 hrs x $40/hr = $60
     expect(log.amount).toBe(60);
   });
+
+  test('amount is computed from raw (unrounded) hours, not the 2dp-rounded display hours', async () => {
+    // 55 minutes = 0.91666... hrs, which rounds to 0.92 for display. Rounding
+    // hours to 2dp BEFORE multiplying by pay_rate (0.92 x 95 = 87.40) used to
+    // silently diverge from the real line total (0.91666... x 95 = 87.08) —
+    // the same raw-hours formula every other dollar figure in this file uses
+    // (the worklist, the AP totals). That drift made this card's own
+    // "$X total" header stop matching the sum of its own rows.
+    pool.query.mockImplementation(async (sql) => {
+      if (/billing_status IN \('rejected', 'declined'\)/.test(sql)) {
+        return {
+          rows: [{
+            id: 2, billing_status: 'rejected', service_date: '2026-10-20',
+            rejection_note: 'No EIMS record', rejected_at: '2026-10-28', rejection_count: 1,
+            patient_first_name: 'Jordan', patient_last_name: 'Reyes',
+            practitioner_first_name: 'Omar', practitioner_last_name: 'Abernathy',
+            total_time: 55, pay_rate: '95.00',
+          }],
+        };
+      }
+      if (/FROM assessment_notes/.test(sql)) return { rows: [] };
+      return { rows: [] };
+    });
+
+    const res = mkRes();
+    await getReturnedLogs({ query: { month: '2026-10' } }, res);
+
+    const [log] = res.json.mock.calls[0][0].logs;
+    expect(log.amount).toBe(87.08);
+    expect(log.hours).toBe(0.92);
+  });
 });

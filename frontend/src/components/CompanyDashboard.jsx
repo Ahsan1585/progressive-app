@@ -1575,9 +1575,9 @@ export function CompanyDashboard() {
           />
           <StatCard
             icon={AlertTriangle} tone="amber" label="Needs a decision"
-            value={month ? String(unit === 'hours' ? month.exceptionsHours.on_hold : month.exceptions.on_hold) : '—'}
-            deltaText={month && month.exceptions.on_hold > 0 ? 'see the queue below' : 'nothing flagged'}
-            deltaTone={month && month.exceptions.on_hold > 0 ? 'down' : 'flat'}
+            value={day ? String(unit === 'hours' ? (day.flaggedHours || 0) : (day.flaggedCount || 0)) : '—'}
+            deltaText={day && (day.flaggedCount || 0) > 0 ? 'see the queue below' : 'nothing flagged'}
+            deltaTone={day && (day.flaggedCount || 0) > 0 ? 'down' : 'flat'}
           />
           <StatCard
             icon={CalendarClock} tone="rose" label="Paid this month"
